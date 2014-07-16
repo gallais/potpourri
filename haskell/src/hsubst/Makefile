@@ -1,5 +1,5 @@
 COMPILER := ghc
-TARGET   := HSubst
+TARGET   := Main
 EXEC     := out
 
 main:
@@ -7,3 +7,6 @@ main:
 
 dev:
 	watch -d -n 1 '$(COMPILER) -fno-code $(TARGET).hs'
+
+clean:
+	rm -f *.hi *.o *~ $(EXEC)
