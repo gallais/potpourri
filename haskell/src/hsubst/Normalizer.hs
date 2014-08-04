@@ -24,8 +24,8 @@ neToNf _ ne = NfNe ne
 -------------------
 
 norm :: Eq a => Context a -> Nf a -> Tm a -> Nf a
-norm gamma ty (TmVar v) = neToNf (gamma `givesTypeTo` v) $ varNe v
-norm gamma _ (TmPi s t) = NfPi s' $ Scope t'
+norm gamma ty (TmVar v)  = neToNf (gamma `givesTypeTo` v) $ varNe v
+norm gamma _  (TmPi s t) = NfPi s' $ Scope t'
   where s' = norm gamma NfSet s
         t' = norm (gamma .~ NfSet) NfSet $ outScope t
 norm gamma (NfPi s t) (TmLam b)  = lamNf body

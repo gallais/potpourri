@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTs #-}
+
 module Context where
 
 import Language
@@ -8,13 +10,14 @@ import Data.Void
 -- Renamings
 -------------------
 
-newtype Renaming a b = Renaming { givesNameTo :: a -> b }
+data Renaming a b where
+  DropIt :: Renaming (Maybe a) a
+  KeepIt :: Renaming a b -> Renaming (Maybe a) (Maybe b)
 
-wkRen :: Renaming a b -> Renaming (Maybe a) (Maybe b)
-wkRen ren = Renaming $ fmap (givesNameTo ren)
-
-dropFst :: Renaming (Maybe a) a
-dropFst = Renaming $ fromJust
+rename :: Renaming a b -> a -> b
+-- there is no Nothing case: we have substituted that variable!
+rename DropIt       = fromJust
+rename (KeepIt ren) = fmap $ rename ren
 
 -------------------
 -- Contexts
@@ -26,6 +29,8 @@ empty :: Context Void
 empty = Context absurd
 
 -- Context extensions
+-- The dotting pattern corresponds to the elements which
+-- are weakened by the constructor.
 
 (.~) :: Context a -> Nf (Maybe a) -> Context (Maybe a)
 gamma .~ nf = Context $ \ v ->
