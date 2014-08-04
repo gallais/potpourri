@@ -1,2 +1,5 @@
 *~
 *.agdai
+*.o
+*.hi
+*.tar.gz
