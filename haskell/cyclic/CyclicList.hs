@@ -18,12 +18,17 @@ data CList a b where
 -- because the contravariance in CRec makes it impossible
 -- to build another CRec.
 cmap :: forall a b. (a -> b) -> List a -> List b
-cmap f xs = go xs
+cmap f xs = goCRec xs
   where
-    go :: forall ph. CList a ph -> CList b ph
-    go CNil          = CNil
-    go (Cons x xs)   = Cons (f x) $ go xs
-    go xs@(CRec x r) = Cons (f x) $ go $ r xs
+    goCRec :: forall ph. CList a ph -> CList b ph
+    goCRec CNil          = CNil
+    goCRec (Cons x xs)   = Cons (f x) $ goCRec xs
+    goCRec xs@(CRec x r) = CRec (f x) $ \ bs -> stopCRec bs (r xs)
+
+    stopCRec :: forall ph. CList b ph -> CList a Closed -> CList b ph
+    stopCRec bs CNil        = CNil
+    stopCRec bs (Cons x xs) = Cons (f x) $ stopCRec bs xs
+    stopCRec bs (CRec _ _)  = bs
 
 data Subst a b c where
   Empty :: Subst a b b
@@ -86,7 +91,7 @@ instance Show a => Show (List a) where
   show (Cons x xs) = show x ++ " : " ++  show xs
   show (CRec x r)  = "fix X. " ++ show (Cons x $ r stop)
 
-toStream :: List a -> [ a ] 
+toStream :: List a -> [ a ]
 toStream CNil          = []
 toStream (Cons x xs)   = x : toStream xs
 toStream xs@(CRec x r) = x : toStream (r xs)
