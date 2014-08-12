@@ -3,7 +3,10 @@
 
 module CyclicList where
 
+import Prelude hiding (cycle, zipWith)
 import Data.Void
+import Control.Monad
+import qualified Data.List as List
 
 data Closed = Closed
 type List a = CList a Closed
@@ -50,6 +53,56 @@ cfold' c n = cfoldRec c n r
     r :: a -> (b -> b) -> b
     r a ih = c a (ih $ r a ih)
 
+append :: List a -> List a -> List a
+append xs ys = cfold Cons ys CRec xs
+
+singleton :: a -> List a
+singleton x = Cons x CNil
+
+cycle :: a -> [a] -> List a
+cycle x xs = CRec x $ \ v -> foldr Cons v xs
+
+getCycle :: List a -> (a, [a])
+getCycle (Cons x xs)   = getCycle xs
+getCycle xs@(CRec x r) = (x, getSupport $ r xs)
+  where
+    getSupport (Cons x xs) = x : getSupport xs
+    getSupport (CRec _ _)  = []
+
+reverse :: List a -> List a
+reverse = revAcc CNil
+  where
+    revAcc acc CNil        = acc
+    revAcc acc (Cons x xs) = revAcc (Cons x acc) xs
+    revAcc _   xs          =
+      let (y, ys) = getCycle xs in
+      let (z : zs) = List.reverse $ y : ys in
+      cycle z zs
+
+unfoldOne :: a -> (forall b. CList a b -> CList a b) -> List a
+unfoldOne x r =
+  case getCycle (CRec x r) of
+    (y, [])     -> Cons y $ CRec y id
+    (y, z : zs) -> Cons y $ cycle z $ zs ++ [y]
+
+zipWith :: (a -> b -> c) -> List a -> List b -> List c
+zipWith f = go
+  where
+    go CNil          _             = CNil
+    go _             CNil          = CNil
+    go (Cons x xs)   (Cons y ys)   = Cons (f x y) $ go xs ys
+    go xs@(Cons _ _) (CRec y ry)   = go xs (unfoldOne y ry)
+    go (CRec x rx)   ys@(Cons _ _) = go (unfoldOne x rx) ys
+    go xs@(CRec _ _) ys@(CRec _ _) =
+      let (x, xtl) = getCycle xs
+          (y, ytl) = getCycle ys
+          m        = 1+ length xtl
+          n        = 1+ length ytl
+          lcmmn    = lcm m n
+          xxtls    = join $ List.replicate (lcmmn `div` m) $ x : xtl
+          yytls    = join $ List.replicate (lcmmn `div` n) $ y : ytl
+      in cycle (f x y) $ tail $ List.zipWith f xxtls yytls
+
 ctail :: List a -> List a
 ctail CNil          = CNil
 ctail (Cons _ xs)   = xs
@@ -59,7 +112,7 @@ clist1 :: List Int
 clist1 = CRec 1 $ \ xs -> Cons 2 xs
 
 -- clist1' :: List Int
--- clist1' = CRec $ \ xs -> CRec $ \ ys -> Cons 1 $ Cons 2 ys
+-- clist1' = CRec $ \ xs -> CRec $ \ ys -> Cons 1 $ Cons 2 xs
 -------------------------------------------------------------
 -- Rightfully rejected: we want a canonical representation!
 -------------------------------------------------------------
@@ -76,6 +129,8 @@ clist1 = CRec 1 $ \ xs -> Cons 2 xs
 
 clist2 :: List Int
 clist2 = Cons 1 $ CRec 2 $ \ xs -> Cons 3 xs
+clist3 :: List Int
+clist3 = CRec 1 (Cons 2 . Cons 3)
 
 -- acyclic :: List Int
 -- acyclic = CRec $ \ xs -> Cons 1 $ cmap (+1) xs
