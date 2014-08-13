@@ -1,11 +1,13 @@
 {-# LANGUAGE GADTs, RankNTypes, FlexibleInstances,
-    ScopedTypeVariables, KindSignatures #-}
+    ScopedTypeVariables, KindSignatures, ImpredicativeTypes #-}
 
 module CyclicList where
 
-import Prelude hiding (cycle, zipWith)
+import Prelude hiding (cycle, zipWith, all, and, or)
 import Data.Void
+import Data.Maybe
 import Control.Monad
+import qualified Prelude as Prelude
 import qualified Data.List as List
 
 data Closed = Closed
@@ -62,12 +64,52 @@ singleton x = Cons x CNil
 cycle :: a -> [a] -> List a
 cycle x xs = CRec x $ \ v -> foldr Cons v xs
 
+getSupport :: List a -> [a]
+getSupport = cfoldRec (:) [] (\ a -> (:) a . ($ []))
+
+and :: List Bool -> Bool
+and = cfoldRec (&&) True (\ a -> (&&) a . ($ True))
+
+or :: List Bool -> Bool
+or = cfoldRec (||) False (\ a -> (||) a . ($ False))
+
+all :: (a -> Bool) -> List a -> Bool
+all p = and . cmap p
+
+any :: (a -> Bool) -> List a -> Bool
+any p = or . cmap p
+
+cfoldFinite :: (a -> b -> b) -> b -> List a -> Maybe b
+cfoldFinite c n xs | isFinite xs = Just $ cfold' c n xs
+cfoldFinite c n xs | otherwise   = Nothing
+
+reverse :: List a -> Maybe (List a)
+reverse = cfoldFinite Cons CNil
+
+sum :: Num a => List a -> Maybe a
+sum = cfoldFinite (+) 0
+
+product :: Num a => List a -> Maybe a
+product = cfoldFinite (*) 1
+
+maximum :: Ord a => List a -> a
+maximum = List.maximum . getSupport
+
+minimum :: Ord a => List a -> a
+minimum = List.minimum . getSupport
+
+repeat :: a -> List a
+repeat x = CRec x id
+
+replicate :: Int -> a -> List a
+replicate n x = foldr (const $ Cons x) CNil [1..n]
+
+fromCRec :: List a -> (a, forall b. CList a b -> CList a b)
+fromCRec (CRec x r) = (x, r)
+
 getCycle :: List a -> (a, [a])
 getCycle (Cons x xs)   = getCycle xs
-getCycle xs@(CRec x r) = (x, getSupport $ r xs)
-  where
-    getSupport (Cons x xs) = x : getSupport xs
-    getSupport (CRec _ _)  = []
+getCycle xs@(CRec x r) = (x, tail $ getSupport xs)
 
 unfoldOne :: a -> (forall b. CList a b -> CList a b) -> List a
 unfoldOne x r =
@@ -86,66 +128,67 @@ zipWith f = go
     go xs@(CRec _ _) ys@(CRec _ _) =
       let (x, xtl) = getCycle xs
           (y, ytl) = getCycle ys
-          m        = 1+ length xtl
-          n        = 1+ length ytl
+          m        = 1+ Prelude.length xtl
+          n        = 1+ Prelude.length ytl
           lcmmn    = lcm m n
           xxtls    = join $ List.replicate (lcmmn `div` m) $ x : xtl
           yytls    = join $ List.replicate (lcmmn `div` n) $ y : ytl
       in cycle (f x y) $ tail $ List.zipWith f xxtls yytls
+
+zip :: List a -> List b -> List (a, b)
+zip = zipWith (,)
+
+unzipLeft :: List (a, b) -> List a
+unzipLeft = cmap fst
+
+unzipRight :: List (a, b) -> List b
+unzipRight = cmap snd
+
+unzip :: List (a, b) -> (List a, List b)
+unzip xs = (unzipLeft xs, unzipRight xs)
+
+chead :: List a -> a
+chead (Cons x _) = x
+chead (CRec x _) = x
 
 ctail :: List a -> List a
 ctail CNil          = CNil
 ctail (Cons _ xs)   = xs
 ctail xs@(CRec x r) = r xs
 
-clist1 :: List Int
-clist1 = CRec 1 $ \ xs -> Cons 2 xs
+null :: List a -> Bool
+null CNil = True
+null _    = False
 
--- clist1' :: List Int
--- clist1' = CRec $ \ xs -> CRec $ \ ys -> Cons 1 $ Cons 2 xs
--------------------------------------------------------------
--- Rightfully rejected: we want a canonical representation!
--------------------------------------------------------------
-{-    Couldn't match type `b' with `Closed'
-      `b' is a rigid type variable bound by
-          a type expected by the context: CList Int b -> CList Int b
-          at Cyclic.hs:22:11
-    Expected type: CList Int b
-      Actual type: CList Int Closed
-    In the expression: CRec $ \ ys -> Cons 1 $ Cons 2 ys
-    In the second argument of `($)', namely
-      `\ xs -> CRec $ \ ys -> Cons 1 $ Cons 2 ys'
--}
+length :: List a -> Maybe Int
+length = cfoldRec (const $ fmap (1+)) (Just 0) (const $ const Nothing)
 
-clist2 :: List Int
-clist2 = Cons 1 $ CRec 2 $ \ xs -> Cons 3 xs
-clist3 :: List Int
-clist3 = CRec 1 (Cons 2 . Cons 3)
+isFinite :: List a -> Bool
+isFinite = isJust . CyclicList.length
 
--- acyclic :: List Int
--- acyclic = CRec $ \ xs -> Cons 1 $ cmap (+1) xs
--------------------------------------------------------------
--- Rigtfully rejected: this is not a cyclic definition!
--------------------------------------------------------------
-{-
-    Couldn't match type `(forall b.
-                          CList (List Integer -> CList Integer Closed) b
-                          -> CList (List Integer -> CList Integer Closed) b)
-                         -> CList (List Integer -> CList Integer Closed) Closed'
-                  with `CList Int Closed'
-    Expected type: List Int
-      Actual type: (forall b.
-                    CList (List Integer -> CList Integer Closed) b
-                    -> CList (List Integer -> CList Integer Closed) b)
-                   -> CList (List Integer -> CList Integer Closed) Closed
-    In the expression: CRec $ \ xs -> Cons 1 $ cmap (+ 1) xs
-    In an equation for `acyclic':
-        acyclic = CRec $ \ xs -> Cons 1 $ cmap (+ 1) xs
--}
+isCyclic :: List a -> Bool
+isCyclic = isNothing . CyclicList.length
+
+intersperse :: forall a. a -> List a -> List a
+intersperse x = cfold cons CNil crec
+  where
+    cons :: a -> forall ph. CList a ph -> CList a ph
+    cons = \ y ys -> Cons y $ Cons x ys
+    crec :: a -> (forall ph. CList a ph -> CList a ph) -> List a
+    crec = \ y ih -> CRec y $ \ v -> Cons x $ ih v
+
+take :: Int -> List a -> List a
+take n = fromList . List.take n . toStream
 
 instance Show a => Show (List a) where
   show = cfoldRec (\ x -> (++) (show x ++ " : ")) "[]"
                   (\ x ih -> "rec X. " ++ show x ++ " : " ++ ih "X")
 
+instance Eq a => Eq (List a) where
+  xs == ys = and $ zipWith (==) xs ys
+
 toStream :: List a -> [ a ]
 toStream = cfold' (:) []
+
+fromList :: [a] -> List a
+fromList = foldr Cons CNil
