@@ -6,7 +6,7 @@ module CyclicList where
 import Prelude hiding (cycle, zipWith, all, and, or, head, last, tail)
 import Data.Void
 import Data.Maybe
-import Control.Monad
+import qualified Control.Monad as List
 import qualified Prelude as Prelude
 import qualified Data.List as List
 
@@ -66,6 +66,15 @@ cfold' c n = cfoldRec c n r
   where
     r :: a -> (b -> b) -> b
     r a ih = c a (ih $ r a ih)
+
+join :: forall a. List (List a) -> List a
+join = cfoldRec append cnil crec
+  where
+    crec x ih =
+      let res = x `append` ih cnil in
+      if isNonEmptyFinite res
+      then cycle (unsafeHead res) (toStream $ unsafeTail res)
+      else res
 
 append :: List a -> List a -> List a
 append xs ys = List $ cfold Cons (clist ys) CRec xs
@@ -144,9 +153,9 @@ zipWith f xs ys = go (clist xs) (clist ys)
           (y, ytl) = getCycle $ List ys
           m        = 1+ Prelude.length xtl
           n        = 1+ Prelude.length ytl
-          lcmmn    = lcm m n
-          xxtls    = join $ List.replicate (lcmmn `div` m) $ x : xtl
-          yytls    = join $ List.replicate (lcmmn `div` n) $ y : ytl
+          l        = lcm m n
+          xxtls    = List.join $ List.replicate (l `div` m) $ x : xtl
+          yytls    = List.join $ List.replicate (l `div` n) $ y : ytl
       in cycle (f x y) $ List.tail $ List.zipWith f xxtls yytls
 
 zip :: List a -> List b -> List (a, b)
@@ -160,6 +169,12 @@ unzipRight = cmap snd
 
 unzip :: List (a, b) -> (List a, List b)
 unzip xs = (unzipLeft xs, unzipRight xs)
+
+unsafeHead :: List a -> a
+unsafeHead = fromJust . head
+
+unsafeTail :: List a -> List a
+unsafeTail = fromJust . tail
 
 head :: List a -> Maybe a
 head = cfoldRec (const . Just) Nothing (const . Just)
@@ -189,6 +204,10 @@ length = cfoldFinite (const (1+)) 0
 isFinite :: List a -> Bool
 isFinite = isJust . CyclicList.length
 
+isNonEmptyFinite :: List a -> Bool
+isNonEmptyFinite xs = isJust l && 0 < fromJust l
+  where l = CyclicList.length xs
+
 isCyclic :: List a -> Bool
 isCyclic = isNothing . CyclicList.length
 
@@ -213,6 +232,10 @@ instance Eq a => Eq (List a) where
 
 instance Functor List where
   fmap = cmap
+
+instance Monad List where
+  return  = singleton
+  m >>= f = join $ cmap f m
 
 toStream :: List a -> [a]
 toStream = cfold' (:) []
