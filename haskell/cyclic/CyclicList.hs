@@ -69,16 +69,6 @@ getCycle xs@(CRec x r) = (x, getSupport $ r xs)
     getSupport (Cons x xs) = x : getSupport xs
     getSupport (CRec _ _)  = []
 
-reverse :: List a -> List a
-reverse = revAcc CNil
-  where
-    revAcc acc CNil        = acc
-    revAcc acc (Cons x xs) = revAcc (Cons x acc) xs
-    revAcc _   xs          =
-      let (y, ys) = getCycle xs in
-      let (z : zs) = List.reverse $ y : ys in
-      cycle z zs
-
 unfoldOne :: a -> (forall b. CList a b -> CList a b) -> List a
 unfoldOne x r =
   case getCycle (CRec x r) of
