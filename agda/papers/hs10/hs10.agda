@@ -6,13 +6,11 @@ module papers.hs10.hs10 where
 
 open import lib.Context
 open import Function
+open import lib.Function
 
+open import lib.Context
 open Context
 open BelongsTo
-
-infixl 1 _`_`_
-_`_`_ : {A B C : Set} (a : A) (f : (a : A) (b : B) → C) (b : B) → C
-a ` f ` b = f a b
 
 data Ty : Set where
   `b   : Ty
