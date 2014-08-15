@@ -102,7 +102,7 @@ cfoldFinite c n = cfoldRec (\ a -> fmap (c a)) (Just n) crec
   where crec = const $ const Nothing
 
 reverse :: List a -> Maybe (List a)
-reverse = cfoldFinite cons cnil
+reverse = cfoldFinite (flip append . singleton) cnil
 
 sum :: Num a => List a -> Maybe a
 sum = cfoldFinite (+) 0
