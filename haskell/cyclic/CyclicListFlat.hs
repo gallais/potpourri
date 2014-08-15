@@ -1,6 +1,6 @@
 module CyclicListFlat where
 
-import Prelude hiding (cycle, reverse, take, splitAt, zipWith, and)
+import Prelude hiding (cycle, reverse, take, splitAt, zipWith, and, or, null, repeat)
 import Control.Applicative
 import qualified Data.List as List
 import qualified Control.Monad as Monad
@@ -10,6 +10,21 @@ data CList a =
         , cycl :: [ a ] }
 
 data View a = CNil | Cons a (CList a)
+
+null :: CList a -> Bool
+null xs = List.null (prfx xs) && List.null (cycl xs)
+
+repeat :: a -> CList a
+repeat x = CList [] [x]
+
+join :: CList (CList a) -> CList a
+join = cfold append cnil crec
+  where
+    crec x ih =
+      let res = x `append` ih cnil in
+      if isFinite res && not (null res)
+      then unsafeCycle $ prfx res
+      else res
 
 observe :: CList a -> View a
 observe xs =
@@ -65,8 +80,12 @@ instance Functor CList where
   fmap f xs = CList { prfx = fmap f $ prfx xs
                     , cycl = fmap f $ cycl xs }
 
+instance Functor View where
+  fmap _ CNil        = CNil
+  fmap f (Cons x xs) = Cons (f x) $ fmap f xs
+
 cnil :: CList a
-cnil = CList { prfx = [], cycl = [] }
+cnil = CList [] []
 
 cons :: a -> CList a -> CList a
 cons x xs = xs { prfx = x : prfx xs }
@@ -81,10 +100,10 @@ cycle :: a -> [a] -> CList a
 cycle x xs = CList { prfx = [], cycl = x : xs }
 
 unsafeCycle :: [ a ] -> CList a
-unsafeCycle xs@(_ : _) = CList { prfx = [], cycl = xs }
+unsafeCycle xs@(_ : _) = CList [] xs
 
 isFinite :: CList a -> Bool
-isFinite = null . cycl
+isFinite = List.null . cycl
 
 isCyclic :: CList a -> Bool
 isCyclic = not . isFinite
@@ -109,8 +128,8 @@ cfold' c n = cfold c n r
   where r a ih = c a $ ih $ r a ih
 
 cfoldFinite :: (a -> b -> b) -> b -> CList a -> Maybe b
-cfoldFinite c n = cfold (\ a -> fmap (c a)) (Just n) r
-  where r = const $ const Nothing
+cfoldFinite c n xs | isFinite xs = Just $ foldr c n $ prfx xs
+cfoldFinite c n xs | otherwise   = Nothing
 
 append :: CList a -> CList a -> CList a
 append xs ys | isFinite xs = CList { prfx = prfx xs ++ prfx ys
@@ -123,11 +142,34 @@ length = cfoldFinite (const (+1)) 0
 reverse :: CList a -> Maybe (CList a)
 reverse = cfoldFinite (flip append . singleton) cnil
 
+toList :: CList a -> Maybe [ a ]
+toList xs | isFinite xs = Just $ prfx xs
+toList xs | otherwise   = Nothing
+
+head :: CList a -> Maybe a
+head = cfold (const . Just) Nothing (const . Just)
+
 and :: CList Bool -> Bool
 and = cfold (&&) True (const $ const True)
 
+all :: (a -> Bool) -> CList a -> Bool
+all p = and . fmap p
+
 or :: CList Bool -> Bool
 or = cfold (||) False (const $ const False)
+
+any :: (a -> Bool) -> CList a -> Bool
+any p = or . fmap p
+
+intersperse :: a -> CList a -> CList a
+intersperse x xs = CList { prfx = List.intersperse x $ prfx xs
+                         , cycl = List.intersperse x $ cycl xs }
+
+unzip :: CList (a, b) -> (CList a, CList b)
+unzip xs =
+  let (ps, qs) = List.unzip $ prfx xs
+      (ss, ts) = List.unzip $ cycl xs
+  in (CList ps ss, CList qs ts)
 
 instance Show a => Show (CList a) where
   show = cfold (\ a    -> (++) (show a ++ " : ")) "[]"
@@ -139,6 +181,15 @@ instance Show a => Show (View a) where
 
 instance Eq a => Eq (CList a) where
   xs == ys = and $ zipWith (==) xs ys
+
+instance Eq a => Eq (View a) where
+  CNil      == CNil      = True
+  Cons x xs == Cons y ys = x == y && xs == ys
+  _         == _         = False
+
+instance Monad CList where
+  return  = singleton
+  m >>= f = join $ fmap f m
 
 toStream :: CList a -> [ a ]
 toStream = cfold' (:) []
