@@ -11,6 +11,36 @@ data CList a =
 
 data View a = CNil | Cons a (CList a)
 
+rewind :: Eq a => CList a -> CList a
+rewind xs = go (List.reverse $ prfx xs) cs []
+  where
+    cs = List.reverse $ cycl xs
+    go []       cs       ds = unsafeCycle (ds ++ List.reverse cs)
+    go ps       []       ds = go ps cs []
+    go (p : ps) (c : cs) ds
+      | p == c    = go ps cs (c : ds)
+      | otherwise = CList (List.reverse $ p : ps)
+                          (ds ++ List.reverse (c : cs))
+
+cyclic :: Eq a => Int -> [ a ] -> Maybe [ a ]
+cyclic n xs =
+  let cyc = List.take n xs
+      l   = List.length xs
+      xss = xs ++ List.take (n * (l `div` n) - l) xs in
+  if xss == Monad.join (List.replicate (l `div` n) cyc)
+  then Just cyc
+  else Nothing
+
+factor :: Eq a => CList a -> CList a
+factor xs =
+  let l = List.length $ cycl xs in
+  case Monad.msum $ flip cyclic (cycl xs) <$> [1..l-1] of
+    Nothing  -> xs
+    Just cyc -> xs { cycl = cyc }
+
+minimise :: Eq a => CList a -> CList a
+minimise = factor . rewind
+
 null :: CList a -> Bool
 null xs = List.null (prfx xs) && List.null (cycl xs)
 
@@ -132,8 +162,7 @@ cfoldFinite c n xs | isFinite xs = Just $ foldr c n $ prfx xs
 cfoldFinite c n xs | otherwise   = Nothing
 
 append :: CList a -> CList a -> CList a
-append xs ys | isFinite xs = CList { prfx = prfx xs ++ prfx ys
-                                   , cycl = cycl ys }
+append xs ys | isFinite xs = ys { prfx = prfx xs ++ prfx ys }
 append xs ys | otherwise   = xs
 
 length :: Num b => CList a -> Maybe b
