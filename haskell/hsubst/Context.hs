@@ -23,7 +23,7 @@ rename (KeepIt ren) = fmap $ rename ren
 -- Contexts
 -------------------
 
-newtype Context a = Context { givesTypeTo :: a -> Nf a }
+newtype Context a = Context { givesTypeTo :: a -> Ty Nf a }
 
 empty :: Context Void
 empty = Context absurd
@@ -32,11 +32,11 @@ empty = Context absurd
 -- The dotting pattern corresponds to the elements which
 -- are weakened by the constructor.
 
-(.~) :: Context a -> Nf (Maybe a) -> Context (Maybe a)
-gamma .~ nf = Context $ \ v ->
+(.~) :: Context a -> Ty Nf (Maybe a) -> Context (Maybe a)
+gamma .~ ty = Context $ \ v ->
                 case v of
-                  Nothing -> nf
-                  Just v  -> wkNf $ gamma `givesTypeTo` v
+                  Nothing -> ty
+                  Just w  -> wkTy $ gamma `givesTypeTo` w
 
-(.~.) :: Context a -> Nf a -> Context (Maybe a)
-gamma .~. nf = gamma .~ wkNf nf
+(.~.) :: Context a -> Ty Nf a -> Context (Maybe a)
+gamma .~. ty = gamma .~ wkTy ty

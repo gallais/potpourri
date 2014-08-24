@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveFunctor #-}
+
 module Language where
 
 import Prelude.Extras
@@ -6,60 +8,98 @@ import Prelude.Extras
 -- Language
 -------------------
 
+newtype Scope f a = Scope { outScope :: f (Maybe a) }
+  deriving (Functor)
+
+newtype Sp f a = Sp { outSp :: [Elim f a] }
+  deriving (Eq, Functor, Show)
+
+data Elim f a =
+    ElimApp (f a)
+  | ElimPr1
+  | ElimPr2
+  | ElimBot (Ty f a)
+  | ElimTwo (Ty f a) (f a) (f a)
+  | ElimRec (Ty f a) (f a)
+  deriving (Eq, Functor, Show)
+
+data Da f a =
+    DaVar
+  | DaCst (Ty f a)
+  | DaSig (Ty f a) (Scope (Da f) a)
+  | DaAbs (Ty f a) (Scope (Da f) a)
+  deriving (Eq, Functor, Show)
+
+data Ty f a =
+    TySet
+  | TyAbs (Ty f a) (Scope (Ty f) a)
+-- data
+  | TyZro
+  | TyOne
+  | TyTwo
+  | TySig (Ty f a) (Scope (Ty f) a)
+-- interpretation
+  | TyRec (Da f a)
+  | TyFun (Da f a) (Ty f a)
+-- lift
+  | TyElt (f a)
+  deriving (Functor)
+
 data Tm a =
-    TmPi (Tm a) (Scope Tm a)
-  | TmLam (Scope Tm a)
-  | TmNat
-  | TmZro
-  | TmSuc (Tm a)
-  | TmSet
-  | TmRec (Tm a) (Tm a) (Tm a) (Tm a)
+-- function spaces
+    TmAbs (Scope Tm a)
+-- neutral terms
   | TmVar a
-  | TmApp (Tm a) (Tm a) -- f : (T1 -> T2)
+  | TmApp (Tm a) (Ty Tm a) -- f : (T1 -> T2)
           (Sp Tm a)        -- $ ts
-  deriving (Eq, Show)
+-- types
+  | TmTyp (Ty Tm a)
+-- constructors
+  | TmInM (Tm a)
+  | TmOne
+  | TmTru
+  | TmFls
+  | TmSig (Tm a) (Tm a)
+  deriving (Eq, Functor, Show)
 
 -- Smart constructors for the top-level language
 
 wkTm :: Tm a -> Tm (Maybe a)
 wkTm = fmap Just
 
+wkTy :: Functor f => Ty f a -> Ty f (Maybe a)
+wkTy = fmap Just
+
 lamTm :: Tm (Maybe a) -> Tm a
-lamTm = TmLam . Scope
+lamTm = TmAbs . Scope
 
-piTm :: Tm a -> Tm (Maybe a) -> Tm a
-piTm s = TmPi s . Scope
+piTm :: Ty f  a -> Ty f (Maybe a) -> Ty f a
+piTm s = TyAbs s . Scope
 
-arrTm :: Tm a -> Tm a -> Tm a
-arrTm s = piTm s . wkTm
+arrTm :: Ty Tm a -> Ty Tm a -> Ty Tm a
+arrTm s = piTm s . wkTy
 
 -------------------
 -- Canonical forms
 -------------------
 
-newtype Scope f a = Scope { outScope :: f (Maybe a) }
-
-newtype Sp f a = Sp { outSp :: [Elim f a] }
-  deriving (Eq, Show)
-
-data Elim f a =
-    ElimApp (f a)
-  | ElimRec (f a) (f a) (f a)
-  deriving (Eq, Show)
-
 data Nf a =
-    NfPi (Nf a) (Scope Nf a)
-  | NfLam (Scope Nf a)
-  | NfSet
-  | NfNat
-  | NfZro
-  | NfSuc (Nf a)
-  | NfNe (Ne a)
-  deriving (Eq, Show)
+-- function spaces
+    NfAbs (Scope Nf a)
+-- neutral terms
+  | NfNeu (Ne a)
+-- types
+  | NfTyp (Ty Nf a)
+-- constructors
+  | NfInM (Nf a)
+  | NfOne
+  | NfTru
+  | NfFls
+  | NfSig (Nf a) (Nf a)
+  deriving (Eq, Functor, Show)
 
 data Ne a = Ne a (Sp Nf a)
-  deriving (Eq, Show)
-
+  deriving (Eq, Functor, Show)
 
 -- Smart constructors for the CL
 
@@ -67,16 +107,24 @@ varNe :: a -> Ne a
 varNe v = Ne v $ Sp []
 
 varNf :: a -> Nf a
-varNf = NfNe . varNe
+varNf = NfNeu . varNe
 
 lamNf :: Nf (Maybe a) -> Nf a
-lamNf = NfLam . Scope
+lamNf = NfAbs . Scope
 
-piNf :: Nf a -> Nf (Maybe a) -> Nf a
-piNf s = NfPi s . Scope
+piNf :: Ty Nf a -> Ty Nf (Maybe a) -> Ty Nf a
+piNf a = TyAbs a . Scope
 
-arrNf :: Nf a -> Nf a -> Nf a
-arrNf s = piNf s . wkNf
+arrNf :: Ty Nf a -> Ty Nf a -> Ty Nf a
+arrNf s = piNf s . wkTy
+
+nfTy :: Ty Nf a -> Nf a
+nfTy (TyElt t) = t
+nfTy ty        = NfTyp ty
+
+tyElt :: Nf a -> Ty Nf a
+tyElt (NfTyp t) = t
+tyElt ty        = TyElt ty
 
 -- Weakening is a simple [fmap]
 -- The subtle part is in the definition of [fmap]
@@ -89,55 +137,73 @@ wkNf :: Nf a -> Nf (Maybe a)
 wkNf = fmap Just
 
 -------------------
+-- Extension of a Description
+-------------------
+
+funExt :: Da Nf a -> Ty Nf a -> Ty Nf a
+funExt DaVar       x = x
+funExt (DaCst ty)  _ = ty
+funExt (DaSig a d) x = TySig a $ Scope $ funExt (outScope d) (wkTy x)
+funExt (DaAbs a d) x = TyAbs a $ Scope $ funExt (outScope d) (wkTy x)
+
+-------------------
 -- Typeclass instances
 -------------------
 
--- Eq (most of it is derived)
-instance Eq1   Nf
-instance Eq1   Tm
+-- Eq
+instance Eq1 Tm
+instance Eq1 Nf
 
+instance (Eq1 f) => Eq1 (Ty f) where
+  TySet     ==# TySet     = True
+  TyAbs a b ==# TyAbs s t = a ==# s && b == t
+  TyZro     ==# TyZro     = True
+  TyOne     ==# TyOne     = True
+  TyTwo     ==# TyTwo     = True
+  TySig a b ==# TySig s t = a ==# s && b == t
+  TyRec d   ==# TyRec e   = d ==# e
+  TyFun d x ==# TyFun e y = d ==# e && x ==# y
+  TyElt t   ==# TyElt u   = t ==# u
+  _         ==# _         = False
+
+instance (Eq1 f) => Eq1 (Da f) where
+  DaVar     ==# DaVar     = True
+  DaCst t   ==# DaCst u   = t ==# u
+  DaSig a d ==# DaSig b e = a ==# b && d == e
+  DaAbs a d ==# DaAbs b e = a ==# b && d == e
+  _         ==# _         = False
+
+instance (Eq a, Eq1 f) => Eq (Ty f a) where
+  (==) = (==#)
 instance (Eq a, Eq1 f) => Eq (Scope f a) where
   Scope sc1 == Scope sc2 = sc1 ==# sc2
 
--- Functor
-instance Functor Tm where
-  fmap f (TmPi s t)      = TmPi (fmap f s) (fmap f t)
-  fmap f (TmLam b)       = TmLam $ fmap f b
-  fmap _ TmNat           = TmNat
-  fmap _ TmSet           = TmSet
-  fmap _ TmZro           = TmZro
-  fmap f (TmSuc n)       = TmSuc $ fmap f n
-  fmap f (TmVar a)       = TmVar $ f a
-  fmap f (TmApp v ty ts) = TmApp (fmap f v) (fmap f ty) (fmap f ts)
-  fmap f (TmRec p s z n) =
-    TmRec (fmap f p) (fmap f s) (fmap f z) (fmap f n)
-
-instance Functor Nf where
-  fmap f (NfPi s t) = NfPi (fmap f s) $ fmap f t
-  fmap f (NfLam b)  = NfLam $ fmap f b
-  fmap _ NfSet      = NfSet
-  fmap _ NfNat      = NfNat
-  fmap _ NfZro      = NfZro
-  fmap f (NfSuc n)  = NfSuc $ fmap f n
-  fmap f (NfNe ne)  = NfNe $ fmap f ne
-
-instance Functor Ne where
-  fmap f (Ne v sp) = Ne (f v) $ fmap f sp
-
-instance Functor f => Functor (Sp f) where
-  fmap f (Sp sp) = Sp $ fmap (fmap f) sp
-
-instance Functor f => Functor (Elim f) where
-  fmap f (ElimApp u)      = ElimApp $ fmap f u
-  fmap f (ElimRec ty z s) = ElimRec (fmap f ty) (fmap f z) (fmap f z)
-
-instance Functor t => Functor (Scope t) where
-  fmap f (Scope sc) = Scope $ fmap (fmap f) sc
-
 -- Show
-instance Show1 Nf
-instance Show1 Tm
+instance Show1 Tm where showsPrec1 = showsPrec
+instance Show1 Nf where showsPrec1 = showsPrec
+instance (Show1 f) => Show1 (Ty f) where
+  showsPrec1 i TySet       = showString "Set"
+  showsPrec1 i (TyAbs a b) =
+    showString "Π " . showsPrec1 i a .
+    showString ". " . showsPrec1 i b
+  showsPrec1 i TyZro       = showString "⊥"
+  showsPrec1 i TyOne       = showString "⊤"
+  showsPrec1 i TyTwo       = showString "𝔹"
+  showsPrec1 i (TySig a b) =
+    showString "Σ " . showsPrec1 i a .
+    showString ". " . showsPrec1 i b
+  showsPrec1 i (TyRec d)   = showString "μ " . showsPrec1 i d
+  showsPrec1 i (TyFun d x) =
+    showString "⟦" . showsPrec1 i d .
+    showString "⟧" . showsPrec1 i x
+  showsPrec1 i (TyElt t)   = showsPrec1 i t
 
+instance (Show1 f, Show a) => Show (Ty f a) where
+  show = show1
+
+instance (Show1 f) => Show1 (Da f) where
+  showsPrec1 i = showsPrec1 i . Lift1
+
+instance (Show1 f) => Show1 (Scope f)
 instance (Show a, Show1 f) => Show (Scope f a) where
   show (Scope sc) = show1 sc
-
