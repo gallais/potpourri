@@ -3,13 +3,14 @@ module Normalizer where
 import Language
 import Context
 import HSubst
+import Data.Bifunctor
 import Data.Void
 
 ------------------
 -- Eta expansion
 -------------------
 
-neToNf :: Eq a => Ty Nf a -> Ne a -> Nf a
+neToNf :: (Eq a, Eq b) => Ty Nf a b -> Ne a b -> Nf a b
 neToNf TyOne          _  = NfOne
 neToNf (TySig a b)    ne = NfSig a' b'
   where
@@ -25,31 +26,30 @@ neToNf _              ne = NfNeu ne
 -- Implemented using Hereditary Substitution
 -------------------
 
-type Norm f a = f Tm a -> f Nf a
+type Norm f a b = f Tm a b -> f Nf a b
 
-normScope :: Eq a => Norm f (Maybe a) ->
-             Scope (f Tm) a -> Scope (f Nf) a
-normScope norm = Scope . norm . outScope
+normScopeTm :: Eq a => Norm f a (Maybe b) ->
+             ScopeTm (f Tm) a b -> ScopeTm (f Nf) a b
+normScopeTm norm = ScopeTm . norm . outScopeTm
 
-normDa :: Eq a => Norm Da a
-normDa DaVar       = DaVar
-normDa (DaCst ty)  = DaCst $ normTy ty
-normDa (DaSig a d) = normTy a `DaSig` normScope normDa d
-normDa (DaAbs a d) = normTy a `DaAbs` normScope normDa d
+normScopeDa :: Eq a => Norm f (Maybe a) b ->
+             ScopeDa (f Tm) a b -> ScopeDa (f Nf) a b
+normScopeDa norm = ScopeDa . norm . outScopeDa
 
-normTy :: Eq a => Norm Ty a
+normTy :: (Eq a, Eq b) => Norm Ty a b
 normTy TySet       = TySet
+normTy TyDat       = TyDat
 normTy TyZro       = TyZro
 normTy TyOne       = TyOne
-normTy (TyAbs a b) = TyAbs (normTy a) $ normScope normTy b
-normTy (TySig a b) = TySig (normTy a) $ normScope normTy b
-normTy (TyRec dat) = TyRec $ normDa dat
-normTy (TyFun d x) = funExt (normDa d) (normTy x)
+normTy (TyAbs a b) = TyAbs (normTy a) $ normScopeTm normTy b
+normTy (TySig a b) = TySig (normTy a) $ normScopeTm normTy b
+normTy (TyRec dat) = TyRec $ normScopeDa normTy dat
+normTy (TyFun d x) = normScopeDa normTy d `funExt` normTy x
 normTy (TyElt elt) = tyElt $ norm TySet elt
 
-norm :: Eq a => Ty Nf a -> Tm a -> Nf a
+norm :: (Eq a, Eq b) => Ty Nf a b -> Tm a b -> Nf a b
 norm (TyElt (NfTyp ty)) tm = norm ty tm
-norm (TyAbs _ t) (TmAbs b) = lamNf $ norm (outScope t) $ outScope b
+norm (TyAbs _ t) (TmAbs b) = lamNf $ outScopeTm t `norm` outScopeTm b
 norm ty (TmVar v) = neToNf ty $ varNe v
 norm _ (TmApp f ty sp) = normSp (ty', norm ty' f) $ outSp sp
   where ty' = normTy ty
@@ -60,20 +60,22 @@ norm _     TmTru = NfTru
 norm _     TmFls = NfFls
 norm (TySig a b) (TmSig x y) = NfSig x' y'
   where x' = norm a x
-        y' = norm (hSubstTy Nothing x' DropIt $ outScope b) y
+        y' = norm (hSubstTy (SubstTm Nothing x') DropItTm $ outScopeTm b) y
 
-normElim :: Eq a => (Ty Nf a, Nf a) -> Elim Tm a -> (Ty Nf a, Nf a)
+normElim :: (Eq a, Eq b) =>
+  (Ty Nf a b, Nf a b) -> Elim Tm a b -> (Ty Nf a b, Nf a b)
 normElim (ty@(TyAbs s _), f) (ElimApp tm) = (tnf, fnf)
   where nf  = norm s tm
         tnf = ty `appTy` nf
         fnf = f `appNf` nf
 normElim (TySig a _, p) ElimPr1 = (a, p `elimNf` ElimPr1)
 normElim (TySig _ b, p) ElimPr2 = (b', p `elimNf` ElimPr2)
-  where b' = hSubstTy Nothing (p `elimNf` ElimPr1) DropIt $ outScope b
+  where b' = hSubstTy (SubstTm Nothing (p `elimNf` ElimPr1)) DropItTm $ outScopeTm b
 normElim (TyRec _, _) (ElimRec _ _) = undefined
 
-normSp :: Eq a => (Ty Nf a, Nf a) -> [Elim Tm a] -> Nf a
+normSp :: (Eq a, Eq b) =>
+          (Ty Nf a b, Nf a b) -> [Elim Tm a b] -> Nf a b
 normSp tyNf = snd . foldl normElim tyNf
 
-normClosed :: Ty Nf Void -> Tm Void -> Nf Void
+normClosed :: Ty Nf Void Void -> Tm Void Void -> Nf Void Void
 normClosed = norm
