@@ -30,8 +30,6 @@ data Cover : ty → Set where
   _`&[_] : {a : ty} (A : Cover a) (b : ty) → Cover $ a `& b
   [_]`&_  : (a : ty) {b : ty} (B : Cover b) → Cover $ a `& b
      -- the only way to use an arrow type is to use its codomain
-     -- but its domain may or may not have been discharged already
-  [_]`⊸_ : (a : ty) {b : ty} (B : Cover b) → Cover $ a `⊸ b
   ]_[`⊸_ : (a : ty) {b : ty} (B : Cover b) → Cover $ a `⊸ b
 
 data Usage : ty → Set where
@@ -54,7 +52,7 @@ mutual
               (prA : [ a ]∋ k ∈ A , G) (b : ty) → [ a `⊗ b ]∋ k ∈ A `⊗[ b ] , G
     [_]`⊗_  : {k : ℕ} (a : ty) {b : ty} {B : Cover b} {G : Con ty}
               (prB : [ b ]∋ k ∈ B , G) → [ a `⊗ b ]∋ k ∈ [ a ]`⊗ B , G
-    [_]`⊸_ : {k : ℕ} (a : ty) {b : ty} {B : Cover b} {G : Con ty}
+    _`⊸_   : {k : ℕ} (a : ty) {b : ty} {B : Cover b} {G : Con ty}
               (prB : [ b ]∋ k ∈ B , G) → [ a `⊸ b ]∋ k ∈ ] a [`⊸ B , G ∙ a
 
   data ]_[∋_∈_,_ : {a : ty} (A : Cover a) (k : ℕ)
@@ -109,6 +107,7 @@ data isUsed {a : ty} : (A : Usage a) → Set where
   ]_[ : {A : Cover a} (prA : isCovered A) → isUsed ] A [
 
 
+-- to be defined
 infix 4 _≡_⊙_
 data _≡_⊙_ : {γ : Con ty} (E Δ₁ Δ₂ : Usages γ) → Set where
 
@@ -116,7 +115,7 @@ mutual
 
   infix 1 _⊢_⊣_
   data _⊢_⊣_ {γ : Con ty} (Γ : Usages γ) : (σ : ty) (Δ : Usages γ) → Set where
-    `κ[_]⟸_ : {k : ℕ} {Δ E : Usages γ} {G : Con ty} →
+    `κ[_]$_  : {k : ℕ} {Δ E : Usages γ} {G : Con ty} →
                Γ ∋s k s∈ Δ , G → Δ ⊢s G s⊣ E → Γ ⊢ `κ k ⊣ E
     _`⊗_     : {a b : ty} {Δ E : Usages γ}
                (ta : Γ ⊢ a ⊣ Δ) (tb : Δ ⊢ b ⊣ E) → Γ ⊢ a `⊗ b ⊣ E
@@ -164,9 +163,9 @@ test =
   let A    = `κ 0
       B    = `κ 1
       f    :  _ → _ ⊢ B ⊣ _
-      f xs = `κ[ suc (zro [ ([ A ]`⊸ `κ 1) ]) ]⟸ xs
+      f xs = `κ[ suc (zro [ A `⊸ `κ 1 ]) ]$ xs
       x : _ ⊢ A ⊣ _
-      x = `κ[ zro [ `κ 0 ] ]⟸ ε
+      x = `κ[ zro [ `κ 0 ] ]$ ε
   in isUsedInj (A `⊸ B) `⊸ ] `κ 0 [ `⊸ (f $ ε ∙ x)
 
 S :
@@ -175,27 +174,27 @@ S :
       C = `κ 2
   in ε ⊢ (A `⊸ B `⊸ C) `⊸ (A `⊸ B) `⊸ (A `⊗ A) `⊸ C
 S =
-  let A     = `κ 0
-      B     = `κ 1
-      C     = `κ 2
+  let A      = `κ 0
+      B      = `κ 1
+      C      = `κ 2
 -- projecting out the 2 values in the third argument
 ----------------------------------------------------
       x₁     : _ ⊢ A ⊣ _
-      x₁    = `κ[ zro [ `κ 0 `⊗[ A ] ] ]⟸ ε
+      x₁     = `κ[ zro ] `κ 0 `⊗] `κ 0 [ [ ]$ ε
       x₂     : _ ⊢ A ⊣ _
-      x₂    = `κ[ zro ] `κ 0 `⊗] `κ 0 [ [ ]⟸ ε
+      x₂     = `κ[ zro [ `κ 0 `⊗[ A ] ] ]$ ε
 -- given an A, f will deliver a B
 ----------------------------------------------------
-      f     : _ → _ ⊢ B ⊣ _
-      f x   = `κ[ suc (zro [ [ A ]`⊸ `κ 1 ]) ]⟸ (ε ∙ x)
+      f      : _ → _ ⊢ B ⊣ _
+      f x    = `κ[ suc (zro [  A `⊸ `κ 1 ]) ]$ (ε ∙ x)
 -- given an A and a B, g will deliver a C
 ----------------------------------------------------
-      g     : _ → _ ⊢ C ⊣ _
-      g xfx = `κ[ suc (suc (zro [ [ A ]`⊸ [ B ]`⊸ `κ 2 ])) ]⟸ xfx
+      g      : _ → _ → _ ⊢ C ⊣ _
+      g x fx = `κ[ suc (suc (zro [ A `⊸  B `⊸ `κ 2 ])) ]$ (ε ∙ fx ∙ x)
   in isUsedInj (A `⊸ B `⊸ C) `⊸
      isUsedInj (A `⊸ B)       `⊸
      isUsedInj (A `⊗ A)        `⊸
-       g (ε ∙ f x₁ ∙ x₂)
+       g x₁ (f x₂)
 
 swap :
   let A = `κ 0
@@ -205,9 +204,9 @@ swap =
   let A = `κ 0
       B = `κ 1
       b : _ ⊢ B ⊣ _
-      b = `κ[ zro [ [ A ]`⊗ `κ 1 ] ]⟸ ε
+      b = `κ[ zro [ [ A ]`⊗ `κ 1 ] ]$ ε
       a : _ ⊢ A ⊣ _
-      a = `κ[ zro ] ] `κ 0 [`⊗ `κ 1 [ ]⟸ ε
+      a = `κ[ zro ] ] `κ 0 [`⊗ `κ 1 [ ]$ ε
   in isUsedInj (A `⊗ B) `⊸ b `⊗ a
 
 swap′ :
@@ -222,13 +221,13 @@ swap′ =
 -- assumption of type A
 ------------------------------
       a    : _ ⊢ A ⊣ _
-      a    = `κ[ suc (zro [ `κ 0 ]) ]⟸ ε
+      a    = `κ[ suc (zro [ `κ 0 ]) ]$ ε
 -- the components one can extract
 ------------------------------
       b₁   : _ ⊢ B₁ ⊣ _
-      b₁   = `κ[ zro ] ] A [`⊸ ] `κ 1 [`⊗ `κ 2 [ ]⟸ ε
+      b₁   = `κ[ zro ] ] A [`⊸ ] `κ 1 [`⊗ `κ 2 [ ]$ ε
       b₂   : _ → _ ⊢ B₂ ⊣ _
-      b₂ a = `κ[ zro [ [ A ]`⊸ [ B₁ ]`⊗ `κ 2 ] ]⟸ (ε ∙ a)
+      b₂ a = `κ[ zro [  A `⊸ ([ B₁ ]`⊗ `κ 2) ] ]$ (ε ∙ a)
   in isUsedInj A `⊸
      isUsedInj (A `⊸ B₁ `⊗ B₂) `⊸
      b₂ a `⊗ b₁
