@@ -232,3 +232,10 @@ swap′ =
      isUsedInj (A `⊸ B₁ `⊗ B₂) `⊸
      b₂ a `⊗ b₁
 
+
+-- ARGH!
+fix : let A = `κ 0 in ε ⊢ (A `⊸ (A `⊗ A)) `⊸ A
+fix =
+  let A = `κ 0
+  in isUsedInj (A `⊸ (A `⊗ A)) `⊸ (`κ[ zro [ A `⊸ (`κ 0 `⊗[ A ]) ] ]$
+         (ε ∙ (`κ[ zro ] ] A [`⊸ (`κ 0 `⊗] `κ 0 [) [ ]$ ε)))
