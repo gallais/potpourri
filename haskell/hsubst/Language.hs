@@ -219,7 +219,16 @@ instance Bifunctor f => Bifunctor (Ty f) where
   bimap f g (TyElt t)   = TyElt $ bimap f g t
 
 instance Bifunctor Tm where
-  bimap f g = undefined
+  bimap f g (TmAbs b)       = TmAbs $ bimap f g b
+  bimap f g (TmVar v)       = TmVar $ g v
+  bimap f g (TmApp t at sp) =
+    TmApp (bimap f g t) (bimap f g at) (bimap f g sp)
+  bimap f g (TmTyp ty)      = TmTyp $ bimap f g ty
+  bimap f g (TmInM mu)      = TmInM $ bimap f g mu
+  bimap f g TmOne           = TmOne
+  bimap f g TmTru           = TmTru
+  bimap f g TmFls           = TmFls
+  bimap f g (TmSig a b)     = TmSig (bimap f g a) (bimap f g b)
 
 instance Bifunctor Nf where
   bimap f g (NfAbs b)   = NfAbs $ bimap f g b
