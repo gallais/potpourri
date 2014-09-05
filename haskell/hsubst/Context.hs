@@ -32,7 +32,7 @@ renameTm = snd . rename
 -------------------
 
 data Subst a b c d where
-  SubstDa :: a -> Ty Nf c d -> Subst a b c d
+  SubstDa :: a -> Ty Ne c d -> Subst a b c d
   SubstTm :: b -> Nf c d    -> Subst a b c d
 
 wkSubstDa :: Subst a b c d -> Subst (Maybe a) b (Maybe c) d
