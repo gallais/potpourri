@@ -1,0 +1,517 @@
+\documentclass[a4paper, twocolumn]{article}
+\usepackage{amsthm, amsmath}
+\usepackage{mathpartir}
+\usepackage[english]{babel}
+\usepackage[references]{agda}
+\usepackage{hyperref}
+
+\usepackage{todonotes}
+
+\usepackage{float}
+\floatstyle{boxed}
+\restylefloat{figure}
+
+\setmainfont{XITS}
+\setmathfont{XITS Math}
+
+\input{commands.tex}
+
+\title{Resource-Aware Contexts and Certified Proof Search for
+Intuitionistic Multiplicative Linear Logic}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+In this article we show the difficulties a type-theorist
+may face when attempting to formalise a decidability result
+described informally. We then demonstrate how generalising
+the problem and switching to a more structured presentation
+can alleviate her suffering.
+
+The calculus we target is a fragment of Intuitionistic
+Multiplicative Linear Logic (IMLL onwards) and the tool we
+use to construct the search procedure is Agda (but any
+reasonable type theory equipped with data types could do).
+We believe the approach described here can be used in other
+settings.
+\end{abstract}
+
+\section{Introduction}
+
+Type theory is expressive enough that one can implement
+\emph{certified} proof search algorithms which are not
+merely oracles outputting a one bit answer but full-blown
+automated provers producing derivations which are
+statically known to be correct. It is only natural to delve
+into the litterature to try and find decidability proofs
+which, through the curry-howard correspondence, could make
+good candidates for mechanisation. Reality is however not
+as welcoming as one would hope: most of these proofs have
+not been formulated with formalisation in mind and would
+require a huge effort to be ported \emph{as is} in your
+favourite theorem prover.
+
+In this article, we argue that it would indeed be a grave
+mistake to implement them \emph{as is} and that type-theorists
+should aim to develop better-structured algorithms. We show,
+working on a fragment of IMLL~\cite{girard1987linear}, the sort
+of pitfalls to avoid and the generic ideas leading to better-behaved
+formulations.
+In \autoref{sec:IMLL} we describe the fragment of IMLL we are
+studying; \autoref{sec:general} defines a more general calculus
+internalising the notion of leftovers and \autoref{sec:contexts}
+introduces resource-aware contexts thus giving us a powerful
+language to target with our proof search algorithm. The soudness
+result proved in \autoref{sec:soundness} is what lets us recover
+an IMLL proof from 
+
+
+\section{The Calculus, Informally\label{sec:IMLL}}
+
+The calculus we are considering is a fragment of Intuitionistic
+Multiplicative Linear Logic composed of \textit{atomic} types,
+\textit{tensor} products and \textit{with}. This is summed up
+by the following grammar for types:
+
+$$
+\text{\AD{ty} ~∷=~ \AIC{κ} \AD{ℕ} ~|~ \AD{ty} \tensor{} \AD{ty}
+                                  ~|~ \AD{ty} \with{} \AD{ty}}
+$$
+
+The calculus' sequents (\AB{Γ} \entails{} \AB{σ}) are composed of
+a multiset of types (\AB{Γ}) describing the resources available in
+the context and a type (\AB{σ}) corressponding to the proposition
+one is trying to prove. Each type constructor comes with both
+introduction and elimination rules described in \autoref{fig:IMLLRules}.
+In this presentation, we restrict the axiom rule to atomic formulas
+but it is no way crucial.
+
+\begin{figure*}[h]
+\begin{mathpar}
+\inferrule{ }{\text{\lmulti{} \AIC{κ} \AB{k} \rmulti{} \entails{} \AIC{κ} \AB{k}}}{ax}
+
+\and
+\inferrule{
+     \text{\AB{Γ} \entails{} \AB{σ}}
+\and \text{\AB{Δ} \entails{} \AB{τ}}
+}{   \text{\AB{Γ} \disjoint{} \AB{Δ} \entails{} \AB{σ} \tensor{} \AB{τ}}
+}{\tensor{}^r}
+
+\and
+\inferrule{
+     \text{\AB{Γ} \disjoint{} \lmulti{} \AB{σ}, \AB{τ} \rmulti{} \entails{} \AB{υ}}
+}{   \text{\AB{Γ} \disjoint{} \lmulti{} \AB{σ} \tensor{} \AB{τ} \rmulti{} \entails{} \AB{υ}}
+}{\tensor{}^l}
+\end{mathpar}
+\begin{mathpar}
+\inferrule{
+     \text{\AB{Γ} \entails{} \AB{σ}}
+\and \text{\AB{Γ} \entails{} \AB{τ}}
+}{   \text{\AB{Γ} \entails{} \AB{σ} \with{} \AB{τ}}
+}{\with{}^r}
+
+\and
+\inferrule{
+     \text{\AB{Γ} \disjoint{} \lmulti{} \AB{σ} \rmulti{} \entails{} \AB{υ}}
+}{   \text{\AB{Γ} \disjoint{} \lmulti{} \AB{σ} \with{} \AB{τ} \rmulti{} \entails{} \AB{υ}}
+}{\with{}_1^l}
+
+\and
+\inferrule{
+     \text{\AB{Γ} \disjoint{} \lmulti{} \AB{τ} \rmulti{} \entails{} \AB{υ}}
+}{   \text{\AB{Γ} \disjoint{} \lmulti{} \AB{σ} \with{} \AB{τ} \rmulti{} \entails{} \AB{υ}}
+}{\with{}_2^l}
+\end{mathpar}
+\caption{Introduction and Elimination rules for IMLL\label{fig:IMLLRules}}
+\end{figure*}
+
+\section{Generalising the Problem\label{sec:general}}
+
+Rather than sticking to the original presentation and
+trying to work around the inconvenience of dealing with
+intrinsically extensional notions such as the one of
+multisets, it is possible to generalise the calculus
+in order to have a more palatable formal treatment.
+
+The principal insight in this development is that proof
+search in Linear Logic is not just about fully using the
+context provided to us as an input in order to discharge
+a goal. The bulk of the work is rather to use parts of
+some of the assumptions of a context to discharge a first
+subgoal; collect the leftovers and invest them into trying
+to discharge another subproblem. Only in the end should the
+leftovers be down to nothing.
+
+This observation leads to the definition of two new notions:
+first, the calculus is generalized to one incorporating the
+notion of leftovers; second, the contexts are made
+resource-aware meaning that they keep the same structure
+whilst tracking whether (parts of) an assumption has been
+used already. In this section, we will start by studying a
+simple example showcasing this idea and then dive into the
+implementation details of such concepts.
+
+\subsection{Example\label{example}}
+
+In the following paragraphs, we are going to study how one
+would describe the process of running a proof search algorithm
+trying to produce a derivation of type
+(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ} \entails{} \AB{τ} \tensor{} \AB{σ}
+where \AB{σ} and \AB{τ} are assumed to be atomic. In order to
+materialise the idea that some resources are consumed whilst
+discharging subgoals, we are going to mark with a box \fba{ }
+(the parts of) the assumptions which have been used.
+
+The goal's head symbol is a \tensor{}; let us start by looking
+for a proof of its left part. Given that \AB{τ} is an atomic
+formula, the only way to discharge this goal is to use an
+assumption available in the context. Luckily for us, there is
+a \AB{τ} in the context; we are therefore able to produce the
+following derivaton:
+\begin{mathpar}
+\inferrule{
+}{\text{(\AB{σ} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ} \entails{} \AB{τ}}
+}{ax}
+\end{mathpar}
+Now that we are done with the left subgoal, we can deal with
+the right. The main difference is that our available context
+is not (\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ} anymore but
+rather the consumption annotated (\AB{σ} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ}.
+We are once more facing an atomic formula which we can only
+discharge by using an assumption. This time there are two
+candidates in the context; except that one of them is inaccessible:
+solving the previous goal has had the side-effect of picking one
+side of the \with{} thus rejecting the other entirely. The only
+derivation we can produce is therefore:
+\begin{mathpar}
+\inferrule{
+}{\text{(\fba{\AB{σ}} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ} \entails{} \AB{σ}}
+}{ax}
+\end{mathpar}
+We can then combine these two by using a right introduction
+rule for \tensor{}. If we add an extra, englobing, box every
+time an entire subpart of an assumption is used, we end up
+with a tree whose conclusion is:
+\begin{mathpar}
+\inferrule{\vdots{} \and \vdots{}
+}{\text{\fbc{\fbb{(\fba{\AB{σ}} \tensor{} \fba{\AB{τ}})} \with{} \AB{σ}}
+        \entails{} \AB{τ} \tensor{} \AB{σ}}
+}{\tensor{}^r}
+\end{mathpar}
+The fact that the whole context is used by the end of the
+search tells us that this translates into a valid IMLL
+proof tree. And it is indeed the case:
+\begin{mathpar}
+\inferrule{
+ \inferrule{
+  \inferrule{
+        \inferrule{ }{\text{\AB{τ} \entails{} \AB{τ}}}{ax}
+   \and \inferrule{ }{\text{\AB{σ} \entails{} \AB{σ}}}{ax}
+  }{\text{\AB{σ}, \AB{τ} \entails{} \AB{τ} \tensor{} \AB{σ}}
+  }{\tensor{}^r}
+ }{\text{\AB{σ} \tensor{} \AB{τ} \entails{} \AB{τ} \tensor{} \AB{σ}}
+ }{\tensor{}^l}
+}{\text{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ} \entails{} \AB{τ} \tensor{} \AB{σ}}
+}{\with{}_1^l}
+\end{mathpar}
+
+\subsection{A Calculus with Leftovers}
+
+This observation of a proof search algorithm in action leads
+us to the definition of a three place relation describing the
+new calculus where the notion of leftovers from a subproof is
+internalised. When we write \AB{Γ} \entails{} \AB{σ} \coentails{}
+\AB{Δ}, we mean that from the input \AB{Γ}, we can prove \AB{σ}
+with leftovers \AB{Δ}. 
+
+If we assume that we have defined a similar relation
+\AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ} describing the act of
+consuming a resource \AIC{κ} \AB{k} from a context \AB{Γ}
+with leftovers \AB{Δ}, then the axiom rule translates to:
+\begin{mathpar}
+\inferrule{\text{\AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ}}
+}{\text{\AB{Γ} \entails{} \AIC{κ} \AB{k} \coentails{} \AB{Δ}}
+}{ax}
+\end{mathpar}
+The rule for tensor in the system with leftovers does not involve
+partioning a multiset (a list in our implementation) anymore: one
+starts by discharging the first subgoal, collects the leftover
+from this computation, and then focuses on the second one.
+\begin{mathpar}
+\inferrule{
+     \text{\AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ}}
+\and \text{\AB{Δ} \entails{} \AB{τ} \coentails{} \AB{E}}
+}{   \text{\AB{Γ} \entails{} \AB{σ} \tensor{} \AB{τ} \coentails{} \AB{E}}}
+\end{mathpar}
+The with type constructor on the other hand expects both
+subgoals to be proven using the same resources. We formalise
+this as the fact that both sides are proved using the input
+context and that both leftovers are then synchronized.
+Obviously, not all leftovers will be synchronizable: this
+step may reject proof candidates which are non compatible.
+\begin{mathpar}
+\inferrule{
+     \text{\AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ₁}}
+\and \text{\AB{Γ} \entails{} \AB{τ} \coentails{} \AB{Δ₂}}
+\and \text{\AB{Δ} \eqsync{} \AB{Δ₁} \synced{} \AB{Δ₂}}
+}{   \text{\AB{Γ} \entails{} \AB{σ} \with{} \AB{τ} \coentails{} \AB{Δ}}}
+\end{mathpar}
+We can now rewrite (see \autoref{fig:derivation}) the proof
+described earlier in a fashion which distinguishes between
+the state of the context before one starts proving and after.
+\begin{figure*}
+\begin{mathpar}
+\inferrule{
+  \inferrule{
+  }{\text{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ}
+    \entails{} \AB{τ} \coentails{}
+    (\AB{σ} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ}}
+  }{ax}
+  \and
+  \inferrule{
+  }{\text{(\AB{σ} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ}
+    \entails{} \AB{σ} \coentails{}
+    (\fba{\AB{σ}} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ}}
+  }{ax}
+}{\text{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ}
+        \entails{} \AB{τ} \tensor{} \AB{σ} \coentails{}
+        \fbc{\fbb{(\fba{\AB{σ}} \tensor{} \fba{\AB{τ}})} \with{} \AB{σ}}}
+}{\tensor{}^r}
+\end{mathpar}
+\caption{A proof with input / output contexts and usage
+annotations\label{fig:derivation}}
+\end{figure*}
+It should not come as a suprise that this calculus does not
+have any elimination rules for the various type constructors:
+elimination rules do not consume anything, they merely shuffle
+around (parts of) assumptions in the context. As a consequence,
+these are implicit in the process. But this is no issue as
+witnessed by the fact that the soundness result we give in
+\autoref{sec:soundness} is constructive: we can mechanically
+decide where to insert the appropriate left rules for the IMLL
+derivation to be correct.
+
+\subsubsection{Computational interpretation}
+
+Thinking of the derivation tree as the trace of a computation
+(the proof search); we can notice that it is a monadic computation
+that we are running. The axiom rule will introduce non-determinism;
+they are indeed as many ways of proving an atomic proposition
+as there assumptions of that type in the context. The rule for
+tensor looks like two stateful operations being run sequentially:
+one starts by discharging the first subgoal, waits for it to
+\emph{return} a modified context and then uses these leftovers
+to tackle the second one. And, last but not least, the rule for
+tensor looks very much like a map-reduce diagram: we start by
+generating two subcomputations which can be run in parallel and
+later on merge their results by checking that the output contexts
+are synchronized.
+
+\section{Keeping the Structure\label{sec:contexts}}
+
+We now have a calculus with input and output contexts; but
+there is no material artefact describing the relationship
+betwee these two. Sure, we could prove a lemma stating that
+the leftovers are precisely the subset of the input context
+which has not been used to discharge the goal but the proof
+would be quite involved because, among other things, of the
+merge operation hidden in the tensor rule.
+
+But this is only difficult because we have forgotten the
+structure of the problem and are still dealing with rather
+extensional notions. Indeed, all of these intermediate
+contexts are just \emph{the} one handed over to us when
+starting the proof search procedure except that they come
+with an usage annotation describing whether the various
+assumptions are still available or have already been
+consumed. This is the intuition we used in our example in
+\autoref{example} when marking used atomic formulas with
+a box \fba{ } rather than simply dropping them from the
+context.
+
+\subsection{Resource-Aware Contexts}
+
+Let us make this all more formal. We start by defining
+\AD{Cover}s: given a type \AB{σ}, a cover \AB{S} is a
+formal object describing precisely which (non-empty) set of
+parts of \AB{σ} have been consumed already. It is represented
+by an inductive type listing all the different ways in which
+a type may be partially used. The introduction rules, which
+are listed in \autoref{fig:cover}, can be justified in the
+following manner:
+\begin{figure*}
+\begin{mathpar}
+\inferrule{
+}{\text{\AIC{κ} \AB{k} \hasType{} \AD{Cover} \AIC{κ} \AB{k}}}
+\and 
+\inferrule{
+  \text{\AB{S} \hasType{} \AD{Cover} \AB{σ}}
+  \and \text{\AB{T} \hasType{} \AD{Cover} \AB{τ}}        
+}{\text{\AB{S} \tensor{} \AB{T} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
+\and 
+\inferrule{\text{\AB{S} \hasType{} \AD{Cover} \AB{σ}}  
+}{\text{\AB{S} \tensor \free{τ} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
+\and 
+\inferrule{\text{\AB{T} \hasType{} \AD{Cover} \AB{τ}}  
+}{\text{\free{σ}\tensor \AB{T} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
+\end{mathpar}
+\begin{mathpar}
+\inferrule{ }{\text{\AB{σ} \with{} \AB{τ} \hasType{} \AD{Cover} \AB{σ} \with{} \AB{τ}}}
+\and
+\inferrule{\text{S \hasType{} \AD{Cover} \AB{σ}}  
+}{\text{\AB{S} \with\free{τ} \hasType{} \AD{Cover} \AB{σ} \with{} \AB{τ}}}
+\and 
+\inferrule{\text{T \hasType{} \AD{Cover} \AB{τ}}  
+}{\text{\free{σ}\with{} \AB{T} \hasType{} \AD{Cover} \AB{σ} \with{} \AB{τ}}}
+\end{mathpar}
+\caption{The \AD{Cover} datatype\label{fig:cover}}
+\end{figure*}
+The cover for an atomic proposition can only be one thing:
+the atom itself;
+
+In the case of a tensor, both subtypes can be partially used
+(cf. \AB{S} \tensor{} \AB{T}) or it may be the case that only
+one side has been dug into so far (cf. \AB{S} \tensor \free{τ}
+and \free{σ}\tensor{} \AB{T});
+
+Similarly, a cover for a with-headed assumption can be a choice
+of a side (cf. \AB{S} \with\free{τ} and \free{σ}\with{} \AB{T}).
+Or, more surprisingly, it can be a full cover (cf. \AB{σ} \with{}
+\AB{τ}) which is saying that \emph{both} sides will be entirely
+used in different subtrees. This type of full cover is only ever
+created when synchronizing two output contexts when using a with
+introduction rule as in the following example:
+\begin{mathpar}
+\inferrule{
+  \inferrule{ }{\text{\AB{σ} \with{} \AB{τ}
+                \entails{} \AB{τ} \coentails{}
+                \AB{σ} \with{} \fba{\AB{τ}}}}{ax}
+  \and 
+  \inferrule{ }{\text{\AB{σ} \with{} \AB{τ}
+                \entails{} \AB{σ} \coentails{}
+                \fba{\AB{σ}} \with{} \AB{τ}}}{ax}
+}{\text{\AB{σ} \with{} \AB{τ}
+        \entails{} \AB{τ} \with{} \AB{σ} \coentails{}
+        \fbb{\fba{\AB{σ}} \with{} \fba{\AB{τ}}}}}{\with{}^r}
+\end{mathpar}
+
+The \AD{Usage} of a type \AB{σ} is directly based on the idea
+of a cover; it describes two different situations: either the
+assumption has not been touched yet or it has been (partially)
+used. Hence \AD{Usage} is the following datatype with two
+constructors:
+\begin{mathpar}
+\inferrule{
+}{\text{\AIC{[} \AB{σ} \AIC{]} \hasType{} \AD{Usage} \AB{σ}}
+}
+\and \inferrule{\text{\AB{pr} \hasType{} \AD{Cover} \AB{σ}}
+}{\text{\AIC{]} \AB{pr} \AIC{[} \hasType{} \AD{Usage} \AB{σ}}
+}
+\end{mathpar}
+
+Finally, we can extend the definition of \AD{Usage} to contexts
+by a simple pointwise lifting.
+\begin{mathpar}
+\inferrule{ }{\text{\AB{ε} \hasType{} \AD{Usage} \AIC{ε}}}
+\and \inferrule{
+     \text{\AB{Γ} \hasType{} \AD{Usage} \AB{γ}}
+\and \text{\AB{S} \hasType{} \AD{Usage} \AB{σ}}
+}{   \text{\AB{Γ} \mysnoc{} \AB{S} \hasType{} \AD{Usage} (\AB{γ} \mysnoc{} \AB{σ})}}
+\end{mathpar}
+
+\subsection{Resource-Aware Primitives}
+
+Now that \AD{Usage}s are defined, we can give a precise type to
+our three place relations evoked before; both
+\_\belongs{}\_\cobelongs{}\_
+∀ \{γ\} (\AB{Γ} \hasType{} \AD{Usage} γ) (\AB{σ} \hasType{} \AD{ℕ}) (\AB{Δ} \hasType{} \AD{Usage} γ) → \AgdaPrimitive{Set}
+
+ and \_\entails{}\_\coentails{}\_
+have type:
+
+ ∀ \{γ\} (\AB{Γ} \hasType{} \AD{Usage} γ) (\AB{σ} \hasType{} \AD{ty}) (\AB{Δ} \hasType{} \AD{Usage} γ) → \AgdaPrimitive{Set}
+
+
+\begin{mathpar}
+\inferrule{\text{\AB{pr} \hasType{} \AB{S} \belongs{} \AB{k} \cobelongs{} \AB{S′}}
+}{\text{\AIC{zro} \AB{pr} \hasType{} \AB{Γ} \mysnoc{} \AB{S}
+        \belongs{} \AB{k} \cobelongs{}
+        \AB{Γ} \mysnoc{} \AB{S′}}
+}
+\and
+\inferrule{\text{\AB{pr} \hasType{} \AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ}}
+}{\text{\AIC{suc} \AB{pr} \hasType{} \AB{Γ} \mysnoc{} \AB{S}
+        \belongs{} \AB{k} \cobelongs{}
+        \AB{Δ} \mysnoc{} \AB{S}}
+}
+\end{mathpar}
+
+
+\section{Soundness\label{sec:soundness}}
+
+The soundness result tells us that from a derivation in the more
+general calculus, one can create a valid derivation in IMLL.
+
+\begin{theorem}[Soundness of the Generalisation]
+For all context \AB{γ}, all \AB{Γ}, \AB{Δ} of type \AD{Usage}
+\AB{γ} and all goal \AB{σ} such that \AB{Γ} \entails{} \AB{σ}
+\coentails{} \AB{Δ} holds, there exists an \AB{E} such that
+\AB{Δ} \eqsync{} \AB{Γ} \AD{─} \AB{E} and \erasure{\AB{E}}
+\entails{} \AB{σ}.
+\end{theorem}
+
+\begin{corollary}[Soundness of the Proof Search]
+If the proof search shows that \AF{inj} \AB{γ} \entails{} \AB{σ}
+\coentails{} \AB{Δ} holds for some \AB{Δ} and \AB{Δ} is a
+complete usage then \AB{γ} \entails{} \AB{σ}.
+\end{corollary}
+
+The soundness result relating the new calculus to the original
+one makes explicit the fact that valid IMLL derivations correspond
+to the ones in the generalised calculus which have no leftovers.
+
+
+\section{Search Parallelisation\label{sec:parallel}}
+
+The reader familiar with linear logic will not have been surprised
+by the fact that with is well-suited for a parallel exploration
+of the provability of its sub-constituents. The algorithm we have
+presented however remains sequential when it comes to a goal whose
+head symbol is a tensor. But that is not a fatality: one can design
+a tensor introduction rule which will let us try to produce both
+subproofs in parallel. This is possible thanks to a check performed
+a posteriori to make sure that the output contexts of the two
+subcomputations are disjoint.
+\begin{mathpar}
+\inferrule{
+     \text{\AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ₁}}
+\and \text{\AB{Γ} \entails{} \AB{τ} \coentails{} \AB{Δ₂}}
+\and \text{\AB{Δ} \eqsync{} \AB{Δ₁} \disjoint{} \AB{Δ₂}}
+}{   \text{\AB{Γ} \entails{} \AB{σ} \tensor{} \AB{τ} \coentails{} \AB{Δ}}}
+\end{mathpar}
+This approach would allow for a complete parallelisation of the
+work at the cost of more subproofs being thrown away at the merge
+stage because they do not fit together.
+
+\section{Related work\label{sec:related}}
+
+Andreoli's influential work on focusing in Linear Logic~\cite{andreoli1992logic}
+demonstrates that by using a more structured calculus (the
+focused one), one can improve the proof search procedure by
+making sure that one ignores irrelevant variations between
+proof trees. The fact that we never apply a left rule explicitly
+is in the same vein: we obtain proof trees with a very specific
+shape where the left rules are delayed as much as possible.
+
+In the domain of certified proof search, Kokke and Swierstra
+have designed a prolog-style procedure in Agda~\cite{kokkeauto}
+which, using a fuel-based model, will explore a bounded part of
+the set of trees describing the potential proofs generated by
+backward-chaining with the goal as a starting point and a fixed
+set of deduction rules as methods.
+
+\bibliographystyle{alpha}
+\bibliography{main}
+
+\end{document}

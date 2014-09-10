@@ -1,0 +1,32 @@
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newcommand{\AD}{\AgdaDatatype}
+\newcommand{\AF}{\AgdaFunction}
+\newcommand{\AB}{\AgdaBound}
+\newcommand{\AIC}{\AgdaInductiveConstructor}
+
+\newcommand{\entails}[0]{\AgdaDatatype{⊢}}
+\newcommand{\coentails}[0]{\AgdaDatatype{⊣}}
+\newcommand{\belongs}[0]{\AgdaDatatype{∋}}
+\newcommand{\cobelongs}[0]{\AgdaDatatype{∈}}
+\newcommand{\eqsync}[0]{\AgdaDatatype{≡}}
+\newcommand{\synced}[0]{\AgdaDatatype{⊙}}
+\newcommand{\disjoint}[0]{\AgdaDatatype{⊎}}
+\newcommand{\tensor}[0]{\AgdaInductiveConstructor{⊗}}
+\newcommand{\mysnoc}[0]{\AgdaInductiveConstructor{∙}}
+\newcommand{\hasType}[0]{\AgdaKeyword{:}}
+\newcommand{\with}[0]{\AgdaInductiveConstructor{\&}}
+
+\newcommand{\erasure}[1]{\AF{\lceil} #1 \AF{\rfloor}}
+\newcommand{\free}[1]{\AIC{[} #1 \AIC{]}}
+
+\newcommand{\lmulti}[0]{\AF{⦃}}
+\newcommand{\rmulti}[0]{\AF{⦄}}
+
+\newcommand{\fbc}[1]{\framebox{\hspace*{-0.04in}\texttt{\raisebox{0in}[0.10in][0.04in]{#1}}\hspace*{-0.04in}}}
+\newcommand{\fbb}[1]{\framebox{\hspace*{-0.04in}\texttt{\raisebox{0in}[0.08in][0.02in]{#1}}\hspace*{-0.04in}}}
+\newcommand{\fba}[1]{\framebox{\hspace*{-0.04in}\texttt{\raisebox{0in}[0.06in][0in]{#1}}\hspace*{-0.04in}}}
