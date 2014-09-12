@@ -64,7 +64,7 @@ internalising the notion of leftovers and \autoref{sec:contexts}
 introduces resource-aware contexts thus giving us a powerful
 language to target with our proof search algorithm. The soudness
 result proved in \autoref{sec:soundness} is what lets us recover
-an IMLL proof from 
+an IMLL proof from one expressed in the more general system.
 
 
 \section{The Calculus, Informally\label{sec:IMLL}}
@@ -85,7 +85,7 @@ the context and a type (\AB{σ}) corressponding to the proposition
 one is trying to prove. Each type constructor comes with both
 introduction and elimination rules described in \autoref{fig:IMLLRules}.
 In this presentation, we restrict the axiom rule to atomic formulas
-but it is no way crucial.
+but it is in no way crucial.
 
 \begin{figure*}[h]
 \begin{mathpar}
@@ -199,9 +199,13 @@ with a tree whose conclusion is:
         \entails{} \AB{τ} \tensor{} \AB{σ}}
 }{\tensor{}^r}
 \end{mathpar}
-The fact that the whole context is used by the end of the
-search tells us that this translates into a valid IMLL
-proof tree. And it is indeed the case:
+The fact that the whole context is used by the end of the search
+tells us that this translates into a valid IMLL proof tree. And
+it is indeed the case: by following the structure of the pseudo-proof
+we just generated above and adding the required left rules\footnote{We
+will explain in \autoref{sec:soundness} how deciding where these left
+rules should go can be done automatically}, we get the following
+derivation.
 \begin{mathpar}
 \inferrule{
  \inferrule{
@@ -223,7 +227,7 @@ us to the definition of a three place relation describing the
 new calculus where the notion of leftovers from a subproof is
 internalised. When we write \AB{Γ} \entails{} \AB{σ} \coentails{}
 \AB{Δ}, we mean that from the input \AB{Γ}, we can prove \AB{σ}
-with leftovers \AB{Δ}. 
+with leftovers \AB{Δ}.
 
 If we assume that we have defined a similar relation
 \AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ} describing the act of
@@ -344,25 +348,25 @@ following manner:
 \begin{mathpar}
 \inferrule{
 }{\text{\AIC{κ} \AB{k} \hasType{} \AD{Cover} \AIC{κ} \AB{k}}}
-\and 
+\and
 \inferrule{
   \text{\AB{S} \hasType{} \AD{Cover} \AB{σ}}
-  \and \text{\AB{T} \hasType{} \AD{Cover} \AB{τ}}        
+  \and \text{\AB{T} \hasType{} \AD{Cover} \AB{τ}}
 }{\text{\AB{S} \tensor{} \AB{T} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
-\and 
-\inferrule{\text{\AB{S} \hasType{} \AD{Cover} \AB{σ}}  
+\and
+\inferrule{\text{\AB{S} \hasType{} \AD{Cover} \AB{σ}}
 }{\text{\AB{S} \tensor \free{τ} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
-\and 
-\inferrule{\text{\AB{T} \hasType{} \AD{Cover} \AB{τ}}  
+\and
+\inferrule{\text{\AB{T} \hasType{} \AD{Cover} \AB{τ}}
 }{\text{\free{σ}\tensor \AB{T} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
 \end{mathpar}
 \begin{mathpar}
 \inferrule{ }{\text{\AB{σ} \with{} \AB{τ} \hasType{} \AD{Cover} \AB{σ} \with{} \AB{τ}}}
 \and
-\inferrule{\text{S \hasType{} \AD{Cover} \AB{σ}}  
+\inferrule{\text{S \hasType{} \AD{Cover} \AB{σ}}
 }{\text{\AB{S} \with\free{τ} \hasType{} \AD{Cover} \AB{σ} \with{} \AB{τ}}}
-\and 
-\inferrule{\text{T \hasType{} \AD{Cover} \AB{τ}}  
+\and
+\inferrule{\text{T \hasType{} \AD{Cover} \AB{τ}}
 }{\text{\free{σ}\with{} \AB{T} \hasType{} \AD{Cover} \AB{σ} \with{} \AB{τ}}}
 \end{mathpar}
 \caption{The \AD{Cover} datatype\label{fig:cover}}
@@ -387,7 +391,7 @@ introduction rule as in the following example:
   \inferrule{ }{\text{\AB{σ} \with{} \AB{τ}
                 \entails{} \AB{τ} \coentails{}
                 \AB{σ} \with{} \fba{\AB{τ}}}}{ax}
-  \and 
+  \and
   \inferrule{ }{\text{\AB{σ} \with{} \AB{τ}
                 \entails{} \AB{σ} \coentails{}
                 \fba{\AB{σ}} \with{} \AB{τ}}}{ax}
@@ -411,13 +415,15 @@ constructors:
 \end{mathpar}
 
 Finally, we can extend the definition of \AD{Usage} to contexts
-by a simple pointwise lifting.
+by a simple pointwise lifting. We call this lifting \AD{Usages}
+to retain the connection between the two whilst avoiding any
+ambiguities.
 \begin{mathpar}
-\inferrule{ }{\text{\AB{ε} \hasType{} \AD{Usage} \AIC{ε}}}
+\inferrule{ }{\text{\AB{ε} \hasType{} \AD{Usages} \AIC{ε}}}
 \and \inferrule{
-     \text{\AB{Γ} \hasType{} \AD{Usage} \AB{γ}}
+     \text{\AB{Γ} \hasType{} \AD{Usages} \AB{γ}}
 \and \text{\AB{S} \hasType{} \AD{Usage} \AB{σ}}
-}{   \text{\AB{Γ} \mysnoc{} \AB{S} \hasType{} \AD{Usage} (\AB{γ} \mysnoc{} \AB{σ})}}
+}{   \text{\AB{Γ} \mysnoc{} \AB{S} \hasType{} \AD{Usages} (\AB{γ} \mysnoc{} \AB{σ})}}
 \end{mathpar}
 
 \subsection{Resource-Aware Primitives}
@@ -451,7 +457,49 @@ have type:
 \section{Soundness\label{sec:soundness}}
 
 The soundness result tells us that from a derivation in the more
-general calculus, one can create a valid derivation in IMLL.
+general calculus, one can create a valid derivation in IMLL. To
+be able to formulate such a statement, we need a way of listing
+the assumptions which have been used in a proof \AB{Γ} \entails{}
+\AB{σ} \coentails{} \AB{Δ}. To that effect, we introduce the notion
+of difference between two usages.
+
+\subsection{Usage Difference}
+
+A usage difference \AB{E} between \AB{Γ} and \AB{Δ} (two elements of
+type \AD{Usages} \AB{γ}) is a \AD{Usages} \AB{γ} such that \AB{Δ}
+\eqsync{} \AB{Γ} \AD{─} \AB{E} holds where the three place relation
+\_\eqsync{}\_\AD{─}\_ is defined as the pointwise lifting of a relation
+on \AD{Usage}s itself based on a definition of cover differences.
+
+Cover differences (\_\eqsync{}\_\diff{}\_) are defined by an
+inductive type described (minus the expected structural laws which we
+let the reader infer) in \autoref{fig:coverdiffs}
+\begin{figure*}[h]
+\begin{mathpar}
+\inferrule{ \text{\AB{S} \eqsync{} \AB{S₁} \diff{} \AB{S₂}}
+}{\text{\AB{S} \tensor{} \AB{T} \eqsync{} \AB{S₁} \tensor{} \AB{T}
+                                \diff{} \AB{S₂} \tensor\AIC{[} \AB{τ} \AIC{]}}
+}
+\and
+\inferrule{ \text{\AB{T} \eqsync{} \AB{T₁} \diff{} \AB{T₂}}
+}{\text{\AB{S} \tensor{} \AB{T} \eqsync{} \AB{S} \tensor{} \AB{T₁}
+                                \diff{} \AIC{[} \AB{σ} \AIC{]}\tensor{} \AB{T₂}}
+}
+\and
+\inferrule{
+}{\text{\AB{S} \tensor{} \AB{T} \eqsync{} \AIC{[} \AB{σ} \AIC{]}\tensor{} \AB{T}
+                                \diff{} \AB{S} \tensor\AIC{[} \AB{τ} \AIC{]}}
+}
+\and
+\inferrule{\text{\AB{T} \eqsync{} \AB{T₁} \diff{} \AB{T₂}}
+}{\text{\AB{S} \tensor{} \AB{T} \eqsync{} \AIC{[} \AB{σ} \AIC{]}\tensor{} \AB{T₁}
+                                \diff{} \AB{S} \tensor{} \AB{T₂}}
+}
+\end{mathpar}
+\caption{Cover differences\label{fig:coverdiffs}}
+\end{figure*}
+
+
 
 \begin{theorem}[Soundness of the Generalisation]
 For all context \AB{γ}, all \AB{Γ}, \AB{Δ} of type \AD{Usage}
@@ -496,13 +544,14 @@ stage because they do not fit together.
 
 \section{Related work\label{sec:related}}
 
-Andreoli's influential work on focusing in Linear Logic~\cite{andreoli1992logic}
-demonstrates that by using a more structured calculus (the
-focused one), one can improve the proof search procedure by
-making sure that one ignores irrelevant variations between
-proof trees. The fact that we never apply a left rule explicitly
-is in the same vein: we obtain proof trees with a very specific
-shape where the left rules are delayed as much as possible.
+Andreoli's vastly influential work on focusing in Linear
+Logic~\cite{andreoli1992logic} demonstrates that by using a more
+structured calculus (the focused one), the logician can improve
+her proof search procedure by making sure that she ignores irrelevant
+variations between proof trees. The fact that our approach is based on
+never applying a left rule explicitly and letting the soundness result
+insert them in an optimal fashion is in the same vein: we are, effectively,
+limiting the search space to proof trees with a very specific shape.
 
 In the domain of certified proof search, Kokke and Swierstra
 have designed a prolog-style procedure in Agda~\cite{kokkeauto}
