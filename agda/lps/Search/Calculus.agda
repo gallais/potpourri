@@ -36,21 +36,14 @@ module lps.Search.Calculus where
 
     open Context.Context
 
-    ⊢∈ : ∀ {γ} {Γ : Usage γ} {k : ℕ} →
-         Σ[ Γ′ ∈ Usage γ ] Γ BTC.∋ k ∈ Γ′ →
-         Σ[ Γ′ ∈ Usage γ ] Γ ⊢ `κ k ⊣ Γ′
-    ⊢∈ (Γ′ , pr) = Γ′ , `κ pr
-
     _⊢?_ : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Con (Σ[ Γ′ ∈ Usage γ ] Γ ⊢ σ ⊣ Γ′)
-    Γ ⊢? `κ k   = map ⊢∈ $ k BTC.∈? Γ
+    Γ ⊢? `κ k   = map (uncurry $ λ Δ pr → Δ , `κ pr) $ k BTC.∈? Γ
     Γ ⊢? σ `⊗ τ = Γ ⊢? σ >>= uncurry $ λ Δ prσ →
                   Δ ⊢? τ >>= uncurry $ λ E prτ →
                   return $ E , prσ `⊗ʳ prτ
     Γ ⊢? σ `& τ = Γ ⊢? σ >>= uncurry $ λ Δ₁ prσ →
                   Γ ⊢? τ >>= uncurry $ λ Δ₂ prτ →
-                  case Δ₁ ⊙? Δ₂ of λ
-                     { none            → ε
-                     ; (some (Δ , pr)) → return $ Δ , prσ `&ʳ prτ by pr }
+                  maybe (uncurry $ λ Δ pr → return $ Δ , prσ `&ʳ prτ by pr) ε (Δ₁ ⊙? Δ₂)
 
   module Examples where
 
@@ -103,17 +96,6 @@ module lps.Search.Calculus where
         open Consumption
         open Consumption.Type.Cover
         open Action.Type.Cover
-
-
-        bim : {σ : ty} {S S₂ : Cover σ} (prS : isUsed S₂) →
-              S₂ ≡[ σ ]─ S → isUsed S
-        bim (`κ k)       (`κ .k) = `κ k
-        bim (prA `⊗ prB) (pra `⊗ prb) = bim prA pra `⊗ bim prB prb
-        bim (a `& b) (.a `& .b) = a `& b
-        bim (prA `&[ b ]) (prS `&[ .b ]) = bim prA prS `&[ b ]
-        bim ([ a ]`& prB) ([ .a ]`& prT) = [ a ]`& bim prB prT
-
-
         open Con.BelongsTo
         open BelongsTo.BelongsTo
         open IMLL.RewriteRules
@@ -162,249 +144,111 @@ module lps.Search.Calculus where
         ⟦A⊙A⟧ (s `&[ b ]) rewrite ⟦A⊙A⟧ s = Eq.refl
         ⟦A⊙A⟧ ([ a ]`& s) rewrite ⟦A⊙A⟧ s = Eq.refl
 
-        mutual
+        ⟦⊙⟧⊢ : (Γ₁ Γ₂ Δ : Con ty) {a σ τ : ty} →
+          (E₁ : Cover a) (tm₁ : Γ₁ ++ ｢ E₁ ｣ ++ Δ ⊢ σ)
+          (E₂ : Cover a) (tm₂ : Γ₂ ++ ｢ E₂ ｣ ++ Δ ⊢ τ) →
+          (E : Cover a) → E ≡ E₁ ⊙ E₂ →
+          Γ₁ ++ ｢ E ｣ ++ Δ ⊢ σ × Γ₂ ++ ｢ E ｣ ++ Δ ⊢ τ
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ E₁ tm₁ E₂ tm₂ _ (sym s) =
+          let (tm₁ , tm₂) = ⟦⊙⟧⊢ Γ₂ Γ₁ Δ E₂ tm₂ E₁ tm₁ _ s
+          in tm₂ , tm₁
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ .(`κ k) tm₁ .(`κ k) tm₂ ._ (`κ k) = tm₁ , tm₂
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ (S₁ `⊗ T₁) tm₁ (S₂ `⊗ T₂) tm₂ (S `⊗ T) (s₁ `⊗ s₂) =
+          let (tm₁ , tm₂) = ⟦⊙⟧⊢ (Γ₁ ++ ｢ S₁ ｣) (Γ₂ ++ ｢ S₂ ｣) Δ
+                   T₁ (tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ tm₁)
+                   T₂ (tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ tm₂)
+                   T s₂
+              (tm₁ , tm₂) = ⟦⊙⟧⊢ Γ₁ Γ₂ (｢ T ｣ ++ Δ)
+                   S₁ (tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ T ｣ Δ tm₁)
+                   S₂ (tm-assoc (Γ₂ ++ ｢ S₂ ｣) ｢ T ｣ Δ tm₂)
+                   S s₁
+          in (tm-group Γ₁ ｢ S ｣ ｢ T ｣ Δ $ tm-assoc⁻¹ (Γ₁ ++ ｢ S ｣) ｢ T ｣ Δ tm₁)
+           , (tm-group Γ₂ ｢ S ｣ ｢ T ｣ Δ $ tm-assoc⁻¹ (Γ₂ ++ ｢ S ｣) ｢ T ｣ Δ tm₂)
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ ._ tm₁ ._ tm₂ ._ ([ s ]`⊗ b) = ⟦⊙⟧⊢ Γ₁ Γ₂ Δ _ tm₁ _ tm₂ _ s
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ ._ tm₁ ._ tm₂ ._ (a `⊗[ s ]) = ⟦⊙⟧⊢ Γ₁ Γ₂ Δ _ tm₁ _ tm₂ _ s
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ .(a `& b) tm₁ .(a `& b) tm₂ ._ (a `& b) = tm₁ , tm₂
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ ._ tm₁ ._ tm₂ ._ ] prA [`&] prB [ =
+            ⟦isUsed⟧ Γ₁ Δ (prA `&[ _ ]) tm₁
+          , ⟦isUsed⟧ Γ₂ Δ ([ _ ]`& prB) tm₂
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ ._ tm₁ ._ tm₂ ._ ] prB [`& = ⟦isUsed⟧ Γ₁ Δ ([ _ ]`& prB) tm₁ , tm₂
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ ._ tm₁ ._ tm₂ ._ `&] prA [ = ⟦isUsed⟧ Γ₁ Δ (prA `&[ _ ]) tm₁ , tm₂
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ ._ tm₁ ._ tm₂ ._ (s `&[ b ]) = ⟦⊙⟧⊢ Γ₁ Γ₂ Δ _ tm₁ _ tm₂ _ s
+        ⟦⊙⟧⊢ Γ₁ Γ₂ Δ ._ tm₁ ._ tm₂ ._ ([ a ]`& s) = ⟦⊙⟧⊢ Γ₁ Γ₂ Δ _ tm₁ _ tm₂ _ s
 
-          ⟦⊙⟧ : (Γ₁ Γ₂ Δ : Con ty) {a σ τ : ty} {A B₁ B₂ : Cover a} →
-            (E₁ : Cover a) (d₁ : B₁ ≡ A ─ E₁) (tm₁ : Γ₁ ++ ｢ E₁ ｣ ++ Δ ⊢ σ)
-            (E₂ : Cover a) (d₂ : B₂ ≡ A ─ E₂) (tm₂ : Γ₂ ++ ｢ E₂ ｣ ++ Δ ⊢ τ) →
-            {B : Cover a} → B ≡ B₁ ⊙ B₂ →
-            Σ[ E ∈ Cover a ] B ≡ A ─ E × Γ₁ ++ ｢ E ｣ ++ Δ ⊢ σ × Γ₂ ++ ｢ E ｣ ++ Δ ⊢ τ
-          ⟦⊙⟧ Γ₁ Γ₂ Δ E₁ d₁ tm₁ E₂ d₂ tm₂ (sym s) =
-            let (E , d , tm₂ , tm₁) = ⟦⊙⟧ Γ₂ Γ₁ Δ E₂ d₂ tm₂ E₁ d₁ tm₁ s
-            in E , d , tm₁ , tm₂
-          ⟦⊙⟧ Γ₁ Γ₂ Δ (S₁ `⊗ T₁) (d₁ `⊗ d₃) tm₁ 
-                     (S₂ `⊗ T₂) (d₂ `⊗ d₄) tm₂ (s₁ `⊗ s₂) =
-              let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ tm₁
-                  tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ tm₂
-                  (T , dT , tm₁ , tm₂) = ⟦⊙⟧ (Γ₁ ++ ｢ S₁ ｣) (Γ₂ ++ ｢ S₂ ｣) Δ
-                                         T₁ d₃ tm₁ T₂ d₄ tm₂ s₂
-                  tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ T ｣ Δ tm₁
-                  tm₂ = tm-assoc (Γ₂ ++ ｢ S₂ ｣) ｢ T ｣ Δ tm₂
-                  (S , dS , tm₁ , tm₂) =
-                    ⟦⊙⟧ Γ₁ Γ₂ (｢ T ｣ ++ Δ) S₁ d₁ tm₁ S₂ d₂ tm₂ s₁
-              in S `⊗ T , dS `⊗ dT
-               , (tm-group Γ₁ ｢ S ｣ ｢ T ｣ Δ $ tm-assoc⁻¹ (Γ₁ ++ ｢ S ｣) ｢ T ｣ Δ tm₁)
-               , (tm-group Γ₂ ｢ S ｣ ｢ T ｣ Δ $ tm-assoc⁻¹ (Γ₂ ++ ｢ S ｣) ｢ T ｣ Δ tm₂)
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (d₁ `⊗ˡ _) tm₁ ._ (d₂ `⊗ˡ ._) tm₂ (s₁ `⊗ s₂) =
-            let (S , d , tms) = ⟦⊙⟧ Γ₁ Γ₂ Δ _ d₁ tm₁ _ d₂ tm₂ s₁
-            in S `⊗[ _ ] , Eq.subst (λ B → _ `⊗ _ ≡ _ `⊗ B ─ _) (⟦A⊙A⟧ s₂) (d `⊗ˡ _) 
-             , tms
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (_ `⊗ʳ d₁) tm₁ ._ (._ `⊗ʳ d₂) tm₂ (s₁ `⊗ s₂) =
-            let (T , d , tms) = ⟦⊙⟧ Γ₁ Γ₂ Δ _ d₁ tm₁ _ d₂ tm₂ s₂
-            in [ _ ]`⊗ T , Eq.subst (λ A → _ `⊗ _ ≡ A `⊗ _ ─ _) (⟦A⊙A⟧ s₁) (_ `⊗ʳ d)
-             , tms
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ ([ prσ₁ ]`⊗ˡ B₂) tm₁ ._ ([ prσ₂ ]`⊗ˡ .B₂) tm₂ (s₁ `⊗ s₂) =
-            let (S , d , tms) = ⟦[⊙]⟧ Γ₁ Γ₂ Δ _ prσ₁ tm₁ _ prσ₂ tm₂ s₁
-            in S `⊗[ _ ]
-            , Eq.subst (λ B → _ `⊗ _ ≡ [ _ ]`⊗ B ─ _) (⟦A⊙A⟧ s₂) ([ d ]`⊗ˡ _)
-            , tms
-          ⟦⊙⟧ Γ₁ Γ₂ Δ (S₁ `⊗ T₁) ([ prσ₁ ]`⊗ˡʳ d₁) tm₁
-                     (S₂ `⊗ T₂) ([ prσ₂ ]`⊗ˡʳ d₂) tm₂ (s₁ `⊗ s₂) =
-            let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ tm₁
-                tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ tm₂
-                (T , dT , tm₁ , tm₂) =
-                  ⟦⊙⟧ (Γ₁ ++ ｢ S₁ ｣) (Γ₂ ++ ｢ S₂ ｣) Δ T₁ d₁ tm₁ T₂ d₂ tm₂ s₂
-                tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ T ｣ Δ tm₁
-                tm₂ = tm-assoc (Γ₂ ++ ｢ S₂ ｣) ｢ T ｣ Δ tm₂
-                (S , dS , tm₁ , tm₂) =
-                  ⟦[⊙]⟧ Γ₁ Γ₂ (｢ T ｣ ++ Δ) S₁ prσ₁ tm₁ S₂ prσ₂ tm₂ s₁
-            in S `⊗ T , [ dS ]`⊗ˡʳ dT
-             , (tm-group Γ₁ ｢ S ｣ ｢ T ｣ Δ $ tm-assoc⁻¹ (Γ₁ ++ ｢ S ｣) ｢ T ｣ Δ tm₁)
-             , (tm-group Γ₂ ｢ S ｣ ｢ T ｣ Δ $ tm-assoc⁻¹ (Γ₂ ++ ｢ S ｣) ｢ T ｣ Δ tm₂)
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (_ `⊗ʳ[ prτ₁ ]) tm₁ ._ (._ `⊗ʳ[ prτ₂ ]) tm₂ (s₁ `⊗ s₂) =
-            let (T , d , tms) = ⟦[⊙]⟧ Γ₁ Γ₂ Δ _ prτ₁ tm₁ _ prτ₂ tm₂ s₂
-            in [ _ ]`⊗ T
-            , Eq.subst (λ B → _ `⊗ _ ≡ B `⊗[ _ ] ─ _) (⟦A⊙A⟧ s₁) ( _ `⊗ʳ[ d ])
-            , tms
-          ⟦⊙⟧ Γ₁ Γ₂ Δ (S₁ `⊗ T₁) (d₁ `⊗ˡʳ[ prτ₁ ]) tm₁
-                     (S₂ `⊗ T₂) (d₂ `⊗ˡʳ[ prτ₂ ]) tm₂ (s₁ `⊗ s₂) =
-            let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ tm₁
-                tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ tm₂
-                (T , dT , tm₁ , tm₂) =
-                  ⟦[⊙]⟧ (Γ₁ ++ ｢ S₁ ｣) (Γ₂ ++ ｢ S₂ ｣) Δ T₁ prτ₁ tm₁ T₂ prτ₂ tm₂ s₂
-                tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ T ｣ Δ tm₁
-                tm₂ = tm-assoc (Γ₂ ++ ｢ S₂ ｣) ｢ T ｣ Δ tm₂
-                (S , dS , tm₁ , tm₂) =
-                  ⟦⊙⟧ Γ₁ Γ₂ (｢ T ｣ ++ Δ) S₁ d₁ tm₁ S₂ d₂ tm₂ s₁
-            in S `⊗ T , dS `⊗ˡʳ[ dT ]
-             , (tm-group Γ₁ ｢ S ｣ ｢ T ｣ Δ $ tm-assoc⁻¹ (Γ₁ ++ ｢ S ｣) ｢ T ｣ Δ tm₁)
-             , (tm-group Γ₂ ｢ S ｣ ｢ T ｣ Δ $ tm-assoc⁻¹ (Γ₂ ++ ｢ S ｣) ｢ T ｣ Δ tm₂)
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (d₁ `⊗[ _ ]) tm₁ ._ (d₂ `⊗[ ._ ]) tm₂ ([ sync ]`⊗ ._) =
-            let (E , d , tms) = ⟦⊙⟧ Γ₁ Γ₂ Δ _ d₁ tm₁ _ d₂ tm₂ sync
-            in E `⊗[ _ ] , d `⊗[ _ ] , tms
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ ([ _ ]`⊗ d₁) tm₁ ._ ([ ._ ]`⊗ d₂) tm₂ (._ `⊗[ sync ]) =
-            let (E , d , tms) = ⟦⊙⟧ Γ₁ Γ₂ Δ _ d₁ tm₁ _ d₂ tm₂ sync
-            in [ _ ]`⊗ E , [ _ ]`⊗ d , tms
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (d₁ `&[ b ]) tm₁ ._ (d₂ `&[ .b ]) tm₂ (sync `&[ .b ]) =
-             let (E , d , tms) = ⟦⊙⟧ Γ₁ Γ₂ Δ _ d₁ tm₁ _ d₂ tm₂ sync
-             in E `&[ _ ] , d `&[ _ ] , tms
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ ([ a ]`& d₁) tm₁ ._ ([ .a ]`& d₂) tm₂ ([ .a ]`& sync) =
-             let (E , d , tms) = ⟦⊙⟧ Γ₁ Γ₂ Δ _ d₁ tm₁ _ d₂ tm₂ sync
-             in [ _ ]`& E , [ _ ]`& d , tms
-          ⟦⊙⟧ Γ₁ Γ₂ Δ E₁ () tm₁ E₂ d₂ tm₂ (`κ k)
-          ⟦⊙⟧ Γ₁ Γ₂ Δ E₁ () tm₁ E₂ d₂ tm₂ (a `& b)
-          ⟦⊙⟧ Γ₁ Γ₂ Δ E₁ () tm₁ ._ ([ a ]`& d₂) tm₂ ] prA [`&] prB [
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ ([ a ]`& d₁) tm₁ E₂ () tm₂ ] prB [`&
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (d₁ `&[ b ]) tm₁ E₂ () tm₂ `&] prA [
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (_ `⊗ d₂) _ ._ (_ `⊗ˡ _) _ (_ `⊗ s₂) =
-             ⊥-elim $ ¬⊙diffʳ s₂ d₂
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (d₁ `⊗ _) _ ._ (_ `⊗ʳ _) _ (s₁ `⊗ _) =
-             ⊥-elim $ ¬⊙diffʳ s₁ d₁
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (_ `⊗ˡ _) _ ._ (_ `⊗ d₃) _ (_ `⊗ s₂) =
-             ⊥-elim $ ¬⊙diffˡ s₂ d₃
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (_ `⊗ˡ _) _ ._ (_ `⊗ʳ d₂) _ (_ `⊗ s₂) =
-            ⊥-elim $ ¬⊙diffˡ s₂ d₂
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (_ `⊗ʳ _) _ ._ (d₂ `⊗ _) _ (s₁ `⊗ _) =
-            ⊥-elim $ ¬⊙diffˡ s₁ d₂
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (_ `⊗ʳ _) _ ._ (d₂ `⊗ˡ _) _ (s₁ `⊗ _) =
-            ⊥-elim $ ¬⊙diffˡ s₁ d₂
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ ([ _ ]`⊗ˡ _) _ ._ ([ _ ]`⊗ˡʳ d₂) _ (_ `⊗ s₂) =
-            ⊥-elim $ ¬⊙diffˡ s₂ d₂
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ ([ _ ]`⊗ˡʳ d₁) _ ._ ([ _ ]`⊗ˡ _) _ (_ `⊗ s₂) =
-            ⊥-elim $ ¬⊙diffʳ s₂ d₁
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (_ `⊗ʳ[ _ ]) _ ._ (d₂ `⊗ˡʳ[ _ ]) tm₂ (s₁ `⊗ _) =
-            ⊥-elim $ ¬⊙diffˡ s₁ d₂
-          ⟦⊙⟧ Γ₁ Γ₂ Δ ._ (d₁ `⊗ˡʳ[ _ ]) _ ._ (_ `⊗ʳ[ _ ]) _ (s₁ `⊗ _) =
-            ⊥-elim $ ¬⊙diffʳ s₁ d₁
 
-          ⟦[⊙]⟧ : (Γ₁ Γ₂ Δ : Con ty) {a σ τ : ty} {B₁ B₂ : Cover a} →
-            (E₁ : Cover a) (d₁ : B₁ ≡[ a ]─ E₁) (tm₁ : Γ₁ ++ ｢ E₁ ｣ ++ Δ ⊢ σ)
-            (E₂ : Cover a) (d₂ : B₂ ≡[ a ]─ E₂) (tm₂ : Γ₂ ++ ｢ E₂ ｣ ++ Δ ⊢ τ) →
-            {B : Cover a} → B ≡ B₁ ⊙ B₂ →
-            Σ[ E ∈ Cover a ]
-               B ≡[ a ]─ E
-             × Γ₁ ++ ｢ E ｣ ++ Δ ⊢ σ
-             × Γ₂ ++ ｢ E ｣ ++ Δ ⊢ τ
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ E₁ d₁ tm₁ E₂ d₂ tm₂ (sym s) =
-            let (E , d , tm₂ , tm₁) = ⟦[⊙]⟧ Γ₂ Γ₁ Δ E₂ d₂ tm₂ E₁ d₁ tm₁ s
-            in E , d , tm₁ , tm₂
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ .(`κ k) (`κ k) tm₁ .(`κ k) (`κ .k) tm₂ (`κ .k) =
-            `κ k , `κ k , tm₁ , tm₂
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ (S₁ `⊗ T₁) (prS₁ `⊗ prT₁) tm₁
-                       (S₂ `⊗ T₂) (prS₂ `⊗ prT₂) tm₂ (syncl `⊗ syncr) =
-            let (E₁ , d₁ , tm₁ , tm₂) =
-                  ⟦[⊙]⟧ (Γ₁ ++ ｢ S₁ ｣) (Γ₂ ++ ｢ S₂ ｣) Δ
-                        T₁ prT₁ (tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ tm₁)
-                        T₂ prT₂ (tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ tm₂) syncr
-                (E₂ , d₂ , tm₁ , tm₂) =
-                  ⟦[⊙]⟧ Γ₁ Γ₂ (｢ E₁ ｣ ++ Δ)
-                       S₁ prS₁ (tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ E₁ ｣ Δ tm₁)
-                       S₂ prS₂ (tm-assoc (Γ₂ ++ ｢ S₂ ｣) ｢ E₁ ｣ Δ tm₂) syncl
-            in E₂ `⊗ E₁ , d₂ `⊗ d₁
-             , tm-group Γ₁ ｢ E₂ ｣ ｢ E₁ ｣ Δ (tm-assoc⁻¹ (Γ₁ ++ ｢ E₂ ｣) ｢ E₁ ｣ Δ tm₁)
-             , tm-group Γ₂ ｢ E₂ ｣ ｢ E₁ ｣ Δ (tm-assoc⁻¹ (Γ₂ ++ ｢ E₂ ｣) ｢ E₁ ｣ Δ tm₂)
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ ._ (prS₁ `⊗[ b ]) tm₁ ._ (prS₂ `⊗[ .b ]) tm₂
-            ([ sync ]`⊗ .b) =
-            let (E , d , tms) = ⟦[⊙]⟧ Γ₁ Γ₂ Δ _ prS₁ tm₁ _ prS₂ tm₂ sync
-            in E `⊗[ b ] , d `⊗[ b ] , tms
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ ._ ([ a ]`⊗ prT₁) tm₁ ._ ([ .a ]`⊗ prT₂) tm₂
-            (.a `⊗[ sync ]) =
-            let (E , d , tms) = ⟦[⊙]⟧ Γ₁ Γ₂ Δ _ prT₁ tm₁ _ prT₂ tm₂ sync
-            in [ a ]`⊗ E , [ a ]`⊗ d , tms
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ .(σ₁ `& b) (σ₁ `& b) tm₁ .(σ₁ `& b) (.σ₁ `& .b) tm₂
-            (.σ₁ `& .b) = σ₁ `& b , σ₁ `& b , tm₁ , tm₂
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ ._ (prS `&[ b ]) tm₁ ._ ([ a ]`& prT) tm₂
-            ] prA [`&] prB [ =
-            let t₁ = ⟦isUsed⟧ Γ₁ Δ (bim prA prS) tm₁
-                t₂ = ⟦isUsed⟧ Γ₂ Δ (bim prB prT) tm₂
-            in a `& b , a `& b
-             , ∈++ˡ Δ zro `&ˡ₁ Eq.subst (flip _⊢_ _) (Eq.sym $ actAt++ˡ Δ zro) t₁
-             , ∈++ˡ Δ zro `&ˡ₂ Eq.subst (flip _⊢_ _) (Eq.sym $ actAt++ˡ Δ zro) t₂
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ ._ ([ a ]`& prT) tm₁ .(a `& b) (.a `& b) tm₂
-            ] prB [`& =
-            let t₁ = ⟦isUsed⟧ Γ₁ Δ (bim prB prT) tm₁
-            in a `& b , a `& b
-             , ∈++ˡ Δ zro `&ˡ₂ Eq.subst (flip _⊢_ _) (Eq.sym $ actAt++ˡ Δ zro) t₁
-             , tm₂
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ ._ (prS `&[ b ]) tm₁ .(a `& b) (a `& .b) tm₂
-            `&] prA [ =
-            let t₁ = ⟦isUsed⟧ Γ₁ Δ (bim prA prS) tm₁
-            in a `& b , a `& b
-             , ∈++ˡ Δ zro `&ˡ₁ Eq.subst (flip _⊢_ _) (Eq.sym $ actAt++ˡ Δ zro) t₁
-             , tm₂
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ ._ (prS₁ `&[ b ]) tm₁ ._ (prS₂ `&[ .b ]) tm₂
-            (sync `&[ .b ]) =
-            let (E , d , tms) = ⟦[⊙]⟧ Γ₁ Γ₂ Δ _ prS₁ tm₁ _ prS₂ tm₂ sync
-            in E `&[ b ] , d `&[ b ] , tms
-          ⟦[⊙]⟧ Γ₁ Γ₂ Δ ._ ([ a ]`& prT₁) tm₁ ._ ([ .a ]`& prT₂) tm₂ 
-            ([ .a ]`& sync) =
-            let (E , d , tms) = ⟦[⊙]⟧ Γ₁ Γ₂ Δ _ prT₁ tm₁ _ prT₂ tm₂ sync
-            in [ a ]`& E , [ a ]`& d , tms
+        ⟦⊙⟧─ : {a : ty} {A B₁ B₂ : Cover a} →
+            (E₁ : Cover a) (d₁ : B₁ ≡ A ─ E₁) (E₂ : Cover a) (d₂ : B₂ ≡ A ─ E₂) →
+            {B : Cover a} → B ≡ B₁ ⊙ B₂ → Σ[ E ∈ Cover a ] B ≡ A ─ E × E ≡ E₁ ⊙ E₂
+        ⟦⊙⟧─ E₁ d₁ E₂ d₂ (sym s) = let (E , d , s) = ⟦⊙⟧─ E₂ d₂ E₁ d₁ s in E , d , sym s
+        ⟦⊙⟧─ ._ (d₁ `⊗ d₂) ._ (d₃ `⊗ d₄) (s₁ `⊗ s₂) =
+          let (F₁ , d₁ , s₁) = ⟦⊙⟧─ _ d₁ _ d₃ s₁
+              (F₂ , d₂ , s₂) = ⟦⊙⟧─ _ d₂ _ d₄ s₂
+          in F₁ `⊗ F₂ , d₁ `⊗ d₂ , s₁ `⊗ s₂
+        ⟦⊙⟧─ ._ (d₁ `⊗ˡ B₁) ._ (d₂ `⊗ˡ .B₁) (s₁ `⊗ s₂) =
+          let (E , d , s) = ⟦⊙⟧─ _ d₁ _ d₂ s₁
+          in E `⊗[ _ ]
+           , Eq.subst (λ B → _ `⊗ B ≡ _ `⊗ _ ─ E `⊗[ _ ]) (Eq.sym $ ⟦A⊙A⟧ s₂) (d `⊗ˡ B₁)
+           , [ s ]`⊗ _
+        ⟦⊙⟧─ ._ (A₂ `⊗ʳ d₁) ._ (.A₂ `⊗ʳ d₂) (s₁ `⊗ s₂) =
+          let (E , d , s) = ⟦⊙⟧─ _ d₁ _ d₂ s₂
+          in [ _ ]`⊗ E
+           , Eq.subst (λ B → B `⊗ _ ≡ _ `⊗ _ ─ [ _ ]`⊗ E) (Eq.sym $ ⟦A⊙A⟧ s₁) (A₂ `⊗ʳ d)
+           , _ `⊗[ s ]
+        ⟦⊙⟧─ ._ ([ A₁ ]`⊗ˡ B₁) ._ ([ A₂ ]`⊗ˡ .B₁) {A `⊗ B} (s₁ `⊗ s₂) =
+             A `⊗[ _ ]
+           , Eq.subst (λ B → _ `⊗ B ≡ [ _ ]`⊗ _ ─ A `⊗[ _ ])
+                      (Eq.sym $ ⟦A⊙A⟧ s₂) ([ A ]`⊗ˡ B₁)
+           , [ s₁ ]`⊗ _
+        ⟦⊙⟧─ ._ ([ A₁ ]`⊗ˡʳ d₁) ._ ([ A₂ ]`⊗ˡʳ d₂) {A `⊗ B} (s₁ `⊗ s₂) =
+           let (B , d , s) = ⟦⊙⟧─ _ d₁ _ d₂ s₂
+           in A `⊗ B , [ A ]`⊗ˡʳ d , s₁ `⊗ s
+        ⟦⊙⟧─ ._ (A₁ `⊗ʳ[ B₁ ]) ._ (.A₁ `⊗ʳ[ B₂ ]) {A `⊗ B} (s₁ `⊗ s₂) =
+             [ _ ]`⊗ B 
+           , Eq.subst (λ A → A `⊗ _ ≡ _ `⊗[ _ ] ─ [ _ ]`⊗ B)
+                      (Eq.sym $ ⟦A⊙A⟧ s₁) (A₁ `⊗ʳ[ B ])
+           , _ `⊗[ s₂ ]
+        ⟦⊙⟧─ ._ (d₁ `⊗ˡʳ[ B₁ ]) ._ (d₂ `⊗ˡʳ[ B₂ ]) {A `⊗ B} (s₁ `⊗ s₂) =
+           let (A , d , s) = ⟦⊙⟧─ _ d₁ _ d₂ s₁
+           in A `⊗ B , d `⊗ˡʳ[ B ] , s `⊗ s₂
+        ⟦⊙⟧─ ._ (d₁ `⊗[ b ]) ._ (d₂ `⊗[ .b ]) ([ s ]`⊗ .b) =
+          let (E , d , s) = ⟦⊙⟧─ _ d₁ _ d₂ s
+          in E `⊗[ b ] , d `⊗[ b ] , [ s ]`⊗ b
+        ⟦⊙⟧─ ._ ([ σ ]`⊗ d₁) ._ ([ .σ ]`⊗ d₂) (.σ `⊗[ s ]) =
+          let (E , d , s) = ⟦⊙⟧─ _ d₁ _ d₂ s
+          in [ σ ]`⊗ E , [ σ ]`⊗ d , σ `⊗[ s ]
+        ⟦⊙⟧─ E₁ () ._ ([ σ ]`& d₂) ] prA [`&] prB [
+        ⟦⊙⟧─ E₁ d₁ E₂ () ] prB [`&
+        ⟦⊙⟧─ E₁ d₁ E₂ () `&] prA [
+        ⟦⊙⟧─ ._ (d₁ `&[ b ]) ._ (d₂ `&[ .b ]) (s `&[ .b ]) =
+           let (E , d , s) = ⟦⊙⟧─ _ d₁ _ d₂ s
+           in E `&[ b ] , d `&[ b ] , s `&[ b ]
+        ⟦⊙⟧─ ._ ([ σ ]`& d₁) ._ ([ .σ ]`& d₂) ([ .σ ]`& s) =
+           let (E , d , s) = ⟦⊙⟧─ _ d₁ _ d₂ s
+           in [ σ ]`& E , [ σ ]`& d , [ σ ]`& s
+        ⟦⊙⟧─ E₁ () E₂ d₂ (`κ k)
+        ⟦⊙⟧─ E₁ () E₂ d₂ (a `& b)
+        ⟦⊙⟧─ ._ (_  `⊗ d₂) ._ (_ `⊗ˡ _) (_ `⊗ s₂) = ⊥-elim $ ¬⊙diffʳ s₂ d₂
+        ⟦⊙⟧─ ._ (d₁ `⊗ d₂) ._ (_ `⊗ʳ _) (s₁ `⊗ _) = ⊥-elim $ ¬⊙diffʳ s₁ d₁
+        ⟦⊙⟧─ ._ (_ `⊗ˡ _) ._ (_ `⊗ d₃) (_ `⊗ s₂)  = ⊥-elim $ ¬⊙diffˡ s₂ d₃
+        ⟦⊙⟧─ ._ (_ `⊗ˡ _) ._ (_ `⊗ʳ d₂) (_ `⊗ s₂) = ⊥-elim $ ¬⊙diffˡ s₂ d₂
+        ⟦⊙⟧─ ._ (_ `⊗ʳ _) ._ (d₂ `⊗ _) (s₁ `⊗ _)  = ⊥-elim $ ¬⊙diffˡ s₁ d₂
+        ⟦⊙⟧─ ._ (_ `⊗ʳ _) ._ (d₂ `⊗ˡ _) (s₁ `⊗ _) = ⊥-elim $ ¬⊙diffˡ s₁ d₂
+        ⟦⊙⟧─ ._ ([ _ ]`⊗ˡ _) ._ ([ _ ]`⊗ˡʳ d₂) (_ `⊗ s₂) = ⊥-elim $ ¬⊙diffˡ s₂ d₂
+        ⟦⊙⟧─ ._ (_ `⊗ʳ[ _ ]) ._ (d₂ `⊗ˡʳ[ _ ]) (s₁ `⊗ _) = ⊥-elim $ ¬⊙diffˡ s₁ d₂
+        ⟦⊙⟧─ ._ ([ _ ]`⊗ˡʳ d₁) ._ ([ _ ]`⊗ˡ _) (_ `⊗ s₂) = ⊥-elim $ ¬⊙diffʳ s₂ d₁
+        ⟦⊙⟧─ ._ (d₁ `⊗ˡʳ[ _ ]) ._ (_ `⊗ʳ[ _ ]) (s₁ `⊗ _) = ⊥-elim $ ¬⊙diffʳ s₁ d₁
+
+        ⟦⊙⟧ : (Γ₁ Γ₂ Δ : Con ty) {a σ τ : ty} {A B₁ B₂ : Cover a} →
+          (E₁ : Cover a) (d₁ : B₁ ≡ A ─ E₁) (tm₁ : Γ₁ ++ ｢ E₁ ｣ ++ Δ ⊢ σ)
+          (E₂ : Cover a) (d₂ : B₂ ≡ A ─ E₂) (tm₂ : Γ₂ ++ ｢ E₂ ｣ ++ Δ ⊢ τ) →
+          {B : Cover a} → B ≡ B₁ ⊙ B₂ →
+          Σ[ E ∈ Cover a ] B ≡ A ─ E × Γ₁ ++ ｢ E ｣ ++ Δ ⊢ σ × Γ₂ ++ ｢ E ｣ ++ Δ ⊢ τ
+        ⟦⊙⟧ Γ₁ Γ₂ Δ E₁ d₁ tm₁ E₂ d₂ tm₂ s =
+          let (E , d , s) = ⟦⊙⟧─ E₁ d₁ E₂ d₂ s
+              (tm₁ , tm₂) = ⟦⊙⟧⊢ Γ₁ Γ₂ Δ E₁ tm₁ E₂ tm₂ E s
+          in E , d , tm₁ , tm₂
 
         open Interleaving
-
-        ⟦[]>>=⟧ : {σ : ty} {T U : Cover σ} (Γ₁ Δ₁ Γ₂ Δ₂ : Con ty) {a b : ty}
-             (V₁ : Cover σ) (d₁ : T ≡[ σ ]─ V₁) (tm₁ : Γ₁ ++ ｢ V₁ ｣ ++ Δ₁ ⊢ a)
-             (V₂ : Cover σ) (d₂ : U ≡ T ─ V₂) (tm₂ : Γ₂ ++ ｢ V₂ ｣ ++ Δ₂ ⊢ b) →
-             Σ[ V ∈ Cover σ ] Σ[ S₁ ∈ Con ty ] Σ[ S₂ ∈ Con ty ]
-               U ≡[ σ ]─ V × ｢ V ｣ ≡ S₁ ⋈ S₂
-             × Γ₁ ++ S₁ ++ Δ₁ ⊢ a × Γ₂ ++ S₂ ++ Δ₂ ⊢ b
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ .(`κ k) (`κ k) tm₁ V₂ () tm₂
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ T₁) (prσ `⊗ prτ) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ =
-          let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
-              tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
-              (T , T₁ , T₂ , dT , jT , tm₁ , tm₂) =
-                ⟦[]>>=⟧ (Γ₁ ++ ｢ S₁ ｣) Δ₁ (Γ₂ ++ ｢ S₂ ｣) Δ₂ T₁ prτ tm₁ T₂ d₃ tm₂
-              tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) T₁ Δ₁ tm₁
-              tm₂ = tm-assoc (Γ₂ ++ ｢ S₂ ｣) T₂ Δ₂ tm₂
-              (S , S₁ , S₂ , dS , jS , tm₁ , tm₂) =
-                ⟦[]>>=⟧ Γ₁ (T₁ ++ Δ₁) Γ₂ (T₂ ++ Δ₂) S₁ prσ tm₁ S₂ d₂ tm₂
-          in S `⊗ T , S₁ ++ T₁ , S₂ ++ T₂ , dS `⊗ dT , jS Interleaving.++ jT
-           , (tm-group Γ₁ S₁ T₁ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) T₁ Δ₁ tm₁)
-           , (tm-group Γ₂ S₂ T₂ Δ₂ $ tm-assoc⁻¹ (Γ₂ ++ S₂) T₂ Δ₂ tm₂)
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ T₁) (prσ `⊗ prτ) tm₁ (S₂ `⊗[ τ ]) (d₂ `⊗ˡ T) tm₂ =
-          let tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ T₁ ｣ Δ₁ $
-                    tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
-              (S , S₁ , S₂ , d , j , tm₁ , tm₂) =
-                ⟦[]>>=⟧ Γ₁ (｢ T₁ ｣ ++ Δ₁) Γ₂ Δ₂ S₁ prσ tm₁ S₂ d₂ tm₂
-          in S `⊗ T₁ , S₁ ++ ｢ T₁ ｣ , S₂ , d `⊗ prτ , j Interleaving.++ˡ ｢ T₁ ｣
-           , (tm-group Γ₁ S₁ ｢ T₁ ｣ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) ｢ T₁ ｣ Δ₁ tm₁) , tm₂
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ T₁) (prσ `⊗ prτ) tm₁ ([ σ ]`⊗ T₂) (S `⊗ʳ d₂) tm₂ =
-          let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
-              (T , T₁ , T₂ , d , j , tm₁ , tm₂) =
-                ⟦[]>>=⟧ (Γ₁ ++ ｢ S₁ ｣) Δ₁ Γ₂ Δ₂ T₁ prτ tm₁ T₂ d₂ tm₂
-          in S₁ `⊗ T , ｢ S₁ ｣ ++ T₁ , T₂ , prσ `⊗ d , ｢ S₁ ｣ Interleaving.ˡ++ j
-           , tm-group Γ₁ ｢ S₁ ｣ T₁ Δ₁ tm₁ , tm₂
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ T₁) ([ .σ ]`⊗ prτ) tm₁
-                           ([ .σ ]`⊗ T₂) ([ .σ ]`⊗ d₂) tm₂ =
-          let (T , T₁ , T₂ , d , jtms) = ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ T₁ prτ tm₁ T₂ d₂ tm₂
-          in [ σ ]`⊗ T , T₁ , T₂ , [ σ ]`⊗ d , jtms
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ T₁) ([ .σ ]`⊗ prτ) tm₁
-                           (S₂ `⊗[ τ ]) ([ prσ ]`⊗ˡ T) tm₂ =
-            S₂ `⊗ T₁ , ｢ T₁ ｣ , ｢ S₂ ｣ , prσ `⊗ prτ
-          , ｢ S₂ ｣ Interleaving.ʳ++ˡ ｢ T₁ ｣ , tm₁ , tm₂
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ T₁) ([ .σ ]`⊗ prτ) tm₁
-                           (S₂ `⊗ T₂) ([ prσ ]`⊗ˡʳ d₂) tm₂ =
-          let tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
-              (T , T₁ , T₂ , d , j , tm₁ , tm₂) =
-                ⟦[]>>=⟧ Γ₁ Δ₁ (Γ₂ ++ ｢ S₂ ｣) Δ₂ T₁ prτ tm₁ T₂ d₂ tm₂
-          in S₂ `⊗ T , T₁ , ｢ S₂ ｣ ++ T₂ , prσ `⊗ d , ｢ S₂ ｣ Interleaving.ʳ++ j
-           , tm₁ , tm-group Γ₂ ｢ S₂ ｣ T₂ Δ₂ tm₂
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗[ τ ]) (prσ `⊗[ .τ ]) tm₁
-                           (S₂ `⊗[ .τ ]) (d₂ `⊗[ .τ ]) tm₂ =
-          let (S , S₁ , S₂ , d , jtms) = ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ S₁ prσ tm₁ S₂ d₂ tm₂
-          in S `⊗[ τ ] , S₁ , S₂ , d `⊗[ τ ] , jtms
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗[ τ ]) (prσ `⊗[ .τ ]) tm₁
-                           ([ σ ]`⊗ T₂) (S `⊗ʳ[ prτ ]) tm₂ =
-            S₁ `⊗ T₂ , ｢ S₁ ｣ , ｢ T₂ ｣ , prσ `⊗ prτ
-          , ｢ S₁ ｣ Interleaving.ˡ++ʳ ｢ T₂ ｣ , tm₁ , tm₂
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗[ τ ]) (prσ `⊗[ .τ ]) tm₁ 
-                            (S₂ `⊗ T₂) (d₂ `⊗ˡʳ[ prτ ]) tm₂ =
-          let tm₂ = tm-assoc (Γ₂ ++ ｢ S₂ ｣) ｢ T₂ ｣ Δ₂ $
-                    tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
-              (S , S₁ , S₂ , d , j , tm₁ , tm₂) =
-                ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ (｢ T₂ ｣ ++ Δ₂) S₁ prσ tm₁ S₂ d₂ tm₂
-          in S `⊗ T₂ , S₁ , S₂ ++ ｢ T₂ ｣ , d `⊗ prτ , j Interleaving.++ʳ ｢ T₂ ｣ , tm₁
-           , (tm-group Γ₂ S₂ ｢ T₂ ｣ Δ₂ $ tm-assoc⁻¹ (Γ₂ ++ S₂) ｢ T₂ ｣ Δ₂ tm₂)
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ .(σ `& τ) (σ `& τ) tm₁ V₂ () tm₂
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`& T₁) ([ .σ ]`& prT) tm₁
-                           ([ .σ ]`& T₂) ([ .σ ]`& d₂) tm₂ =
-          let (T , T₁ , T₂ , d , jtms) = ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ T₁ prT tm₁ T₂ d₂ tm₂
-          in [ σ ]`& T , T₁ , T₂ , [ σ ]`& d , jtms
-        ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `&[ τ ]) (prS `&[ .τ ]) tm₁
-                           (S₂ `&[ .τ ]) (d₂ `&[ .τ ]) tm₂ =
-          let (S , S₁ , S₂ , d , jtms) = ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ S₁ prS tm₁ S₂ d₂ tm₂
-          in S `&[ τ ] , S₁ , S₂ , d `&[ τ ] , jtms
 
         ⟦>>=⟧ : {σ : ty} {S T U : Cover σ} (Γ₁ Δ₁ Γ₂ Δ₂ : Con ty) {a b : ty}
              (V₁ : Cover σ) (d₁ : T ≡ S ─ V₁) (tm₁ : Γ₁ ++ ｢ V₁ ｣ ++ Δ₁ ⊢ a)
@@ -447,30 +291,30 @@ module lps.Search.Calculus where
           let (T , T₁ , T₂ , d , j , tms) = ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ _ d₁ tm₁ _ d₂ tm₂
           in [ σ ]`⊗ T , T₁ , T₂ , [ σ ]`⊗ d , j , tms
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ T₁) ([ .σ ]`⊗ d₁) tm₁
-                         (S₂ `⊗[ τ ]) ([ prσ ]`⊗ˡ T₂) tm₂ =
-           S₂ `⊗ T₁ , ｢ T₁ ｣ , ｢ S₂ ｣ , [ prσ ]`⊗ˡʳ d₁
+                         (.S₂ `⊗[ τ ]) ([ S₂ ]`⊗ˡ T₂) tm₂ =
+           S₂ `⊗ T₁ , ｢ T₁ ｣ , ｢ S₂ ｣ , [ S₂ ]`⊗ˡʳ d₁
          , ｢ S₂ ｣ Interleaving.ʳ++ˡ ｢ T₁ ｣ , tm₁ , tm₂
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ .σ ]`⊗ T₁) ([ σ ]`⊗ d₁) tm₁
-                         (S₂ `⊗ T₂) ([ prσ ]`⊗ˡʳ d₂) tm₂ =
+                         (.S₂ `⊗ T₂) ([ S₂ ]`⊗ˡʳ d₂) tm₂ =
           let (T , T₁ , T₂ , d , j , tm₁ , tm₂) =
                 ⟦>>=⟧ Γ₁ Δ₁ (Γ₂ ++ ｢ S₂ ｣) Δ₂ T₁ d₁ tm₁ T₂ d₂ $
                 tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
-          in S₂ `⊗ T , T₁ , ｢ S₂ ｣ ++ T₂ , [ prσ ]`⊗ˡʳ d
+          in S₂ `⊗ T , T₁ , ｢ S₂ ｣ ++ T₂ , [ S₂ ]`⊗ˡʳ d
            , ｢ S₂ ｣ Interleaving.ʳ++ j , tm₁ , tm-group Γ₂ ｢ S₂ ｣ T₂ Δ₂ tm₂
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ (d₁ `⊗[ τ ]) tm₁ ._ (d₂ `⊗[ .τ ]) tm₂ =
           let (S , S₁ , S₂ , d , j , tms) = ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ _ d₁ tm₁ _ d₂ tm₂
           in S `⊗[ τ ] , S₁ , S₂ , d `⊗[ τ ] , j , tms
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗[ .τ ]) (d₁ `⊗[ τ ]) tm₁
-                         ([ σ ]`⊗ T₂) (S₂ `⊗ʳ[ prτ ]) tm₂ =
-            S₁ `⊗ T₂ , ｢ S₁ ｣ , ｢ T₂ ｣ , d₁ `⊗ˡʳ[ prτ ]
+                         ([ σ ]`⊗ .T₂) (S₂ `⊗ʳ[ T₂ ]) tm₂ =
+            S₁ `⊗ T₂ , ｢ S₁ ｣ , ｢ T₂ ｣ , d₁ `⊗ˡʳ[ T₂ ]
           , ｢ S₁ ｣ Interleaving.ˡ++ʳ ｢ T₂ ｣ , tm₁ , tm₂
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗[ .τ ]) (d₁ `⊗[ τ ]) tm₁
-                         (S₂ `⊗ T₂) (d₂ `⊗ˡʳ[ prτ ]) tm₂ =
+                         (S₂ `⊗ .T₂) (d₂ `⊗ˡʳ[ T₂ ]) tm₂ =
            let tm₂ = tm-assoc (Γ₂ ++ ｢ S₂ ｣) ｢ T₂ ｣ Δ₂ $
                      tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
                (S , S₁ , S₂ , d , j , tm₁ , tm₂) =
                  ⟦>>=⟧ Γ₁ Δ₁ Γ₂ (｢ T₂ ｣ ++ Δ₂) _ d₁ tm₁ _ d₂ tm₂
-           in S `⊗ T₂ , S₁ , S₂ ++ ｢ T₂ ｣ , d `⊗ˡʳ[ prτ ] ,
+           in S `⊗ T₂ , S₁ , S₂ ++ ｢ T₂ ｣ , d `⊗ˡʳ[ T₂ ] ,
              j Interleaving.++ Interleaving.reflʳ {Γ = ｢ T₂ ｣} , tm₁
            , (tm-group Γ₂ S₂ ｢ T₂ ｣ Δ₂ $ tm-assoc⁻¹ (Γ₂ ++ S₂) ｢ T₂ ｣ Δ₂ tm₂)
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗[ τ ]) (d₁ `⊗ˡ T) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ =
@@ -498,22 +342,28 @@ module lps.Search.Calculus where
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ (S `⊗ʳ d₁) tm₁ ._ (.S `⊗ʳ d₂) tm₂ = 
           let (T , T₁ , T₂ , d , jtms) = ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ _ d₁ tm₁ _ d₂ tm₂
           in [ _ ]`⊗ T , T₁ , T₂ , S `⊗ʳ d , jtms
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗[ τ ]) ([ prσ ]`⊗ˡ T) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ =
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗[ τ ]) ([ S₁ ]`⊗ˡ T) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ = {!!}
+{-
           let (S , S₁ , S₂ , d , j , tm₁ , tm₂) =
                 ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ (｢ T₂ ｣ ++ Δ₂) S₁ prσ tm₁ S₂ d₂ $
                   tm-assoc (Γ₂ ++ ｢ S₂ ｣) ｢ T₂ ｣ Δ₂ $
                   tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
           in S `⊗ T₂ , S₁ , S₂ ++ ｢ T₂ ｣ , [ d ]`⊗ˡʳ d₃ , j Interleaving.++ʳ ｢ T₂ ｣
            , tm₁ , (tm-group Γ₂ S₂ ｢ T₂ ｣ Δ₂ $ tm-assoc⁻¹ (Γ₂ ++ S₂) ｢ T₂ ｣ Δ₂ tm₂)
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗[ τ ]) ([ prσ ]`⊗ˡ T) tm₁ 
-                         (S₂ `⊗[ .τ ]) (d₂ `⊗ˡ .T) tm₂ =
+-}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗[ τ ]) ([ S₁ ]`⊗ˡ T) tm₁ 
+                         (S₂ `⊗[ .τ ]) (d₂ `⊗ˡ .T) tm₂ = {!!}
+{-
           let (S , S₁ , S₂ , d , j , tms) = ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ S₁ prσ tm₁ S₂ d₂ tm₂
-          in S `⊗[ τ ] , S₁ , S₂ , [ d ]`⊗ˡ T , j , tms
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗[ τ ]) ([ prσ ]`⊗ˡ T) tm₁
-                         ([ σ ]`⊗ T₂) (S `⊗ʳ d₂) tm₂ =
+          in S `⊗[ τ ] , S₁ , S₂ , [ d ]`⊗ˡ T , j , tms-}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗[ τ ]) ([ S₁ ]`⊗ˡ T₁) tm₁
+                         ([ σ ]`⊗ T₂) (.S₁ `⊗ʳ d₂) tm₂ = {!!}
+{-
             S₁ `⊗ T₂ , ｢ S₁ ｣ , ｢ T₂ ｣ , [ prσ ]`⊗ˡʳ d₂
           , ｢ S₁ ｣ Interleaving.ˡ++ʳ ｢ T₂ ｣ , tm₁ , tm₂
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ T₁) ([ prσ ]`⊗ˡʳ d₁) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ =
+-}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗ T₁) ([ S₁ ]`⊗ˡʳ d₁) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ = {!!}
+{-
           let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
               tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
               (T , T₁ , T₂ , dT , jT , tm₁ , tm₂) =
@@ -525,35 +375,43 @@ module lps.Search.Calculus where
           in S `⊗ T , S₁ ++ T₁ , S₂ ++ T₂ , [ dS ]`⊗ˡʳ dT , jS Interleaving.++ jT
            , (tm-group Γ₁ S₁ T₁ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) T₁ Δ₁ tm₁)
            , (tm-group Γ₂ S₂ T₂ Δ₂ $ tm-assoc⁻¹ (Γ₂ ++ S₂) T₂ Δ₂ tm₂)
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ T₁) ([ prσ ]`⊗ˡʳ d₁) tm₁
-                         (S₂ `⊗[ τ ]) (d₂ `⊗ˡ T) tm₂ =
+-}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗ T₁) ([ S₁ ]`⊗ˡʳ d₁) tm₁
+                         (S₂ `⊗[ τ ]) (d₂ `⊗ˡ T) tm₂ = {!!}
+{-
           let tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ T₁ ｣ Δ₁ $
                     tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
               (S , S₁ , S₂ , d , j , tm₁ , tm₂) =
                 ⟦[]>>=⟧ Γ₁ (｢ T₁ ｣ ++ Δ₁) Γ₂ Δ₂ S₁ prσ tm₁ S₂ d₂ tm₂
           in S `⊗ T₁ , S₁ ++ ｢ T₁ ｣ , S₂ , [ d ]`⊗ˡʳ d₁ , j Interleaving.++ˡ ｢ T₁ ｣
            , (tm-group Γ₁ S₁ ｢ T₁ ｣ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) ｢ T₁ ｣ Δ₁ tm₁) , tm₂
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ T₁) ([ prσ ]`⊗ˡʳ d₁) tm₁
-                         ([ σ ]`⊗ T₂) (S `⊗ʳ d₂) tm₂ =
+-}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗ T₁) ([ S₁ ]`⊗ˡʳ d₁) tm₁
+                         ([ σ ]`⊗ T₂) (.S₁ `⊗ʳ d₂) tm₂ =
           let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
               (T , T₁ , T₂ , d , j , tm₁ , tm₂) =
                 ⟦>>=⟧ (Γ₁ ++ ｢ S₁ ｣) Δ₁ Γ₂ Δ₂ T₁ d₁ tm₁ T₂ d₂ tm₂
-          in S₁ `⊗ T , ｢ S₁ ｣ ++ T₁ , T₂ , [ prσ ]`⊗ˡʳ d
+          in S₁ `⊗ T , ｢ S₁ ｣ ++ T₁ , T₂ , [ S₁ ]`⊗ˡʳ d
            , ｢ S₁ ｣ Interleaving.ˡ++ j , tm-group Γ₁ ｢ S₁ ｣ T₁ Δ₁ tm₁ , tm₂
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ T₁) (S `⊗ʳ[ prτ ]) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ =
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ .T₁) (S `⊗ʳ[ T₁ ]) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ = {!!}
+{-
           let tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
               (T , T₁ , T₂ , d , j , tm₁ , tm₂) =
                 ⟦[]>>=⟧ Γ₁ Δ₁ (Γ₂ ++ ｢ S₂ ｣) Δ₂ T₁ prτ tm₁ T₂ d₃ tm₂
           in S₂ `⊗ T , T₁ , ｢ S₂ ｣ ++ T₂ , d₂ `⊗ˡʳ[ d ] , ｢ S₂ ｣ Interleaving.ʳ++ j
            , tm₁ , tm-group Γ₂ ｢ S₂ ｣ T₂ Δ₂ tm₂
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ T₁) (S `⊗ʳ[ prτ ]) tm₁
-                         (S₂ `⊗[ τ ]) (d₂ `⊗ˡ T) tm₂ =
-            S₂ `⊗ T₁ , ｢ T₁ ｣ , ｢ S₂ ｣ , d₂ `⊗ˡʳ[ prτ ]
+-}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ .T₁) (S `⊗ʳ[ T₁ ]) tm₁
+                         (S₂ `⊗[ τ ]) (d₂ `⊗ˡ .T₁) tm₂ =
+            S₂ `⊗ T₁ , ｢ T₁ ｣ , ｢ S₂ ｣ , d₂ `⊗ˡʳ[ T₁ ]
           , ｢ S₂ ｣ Interleaving.ʳ++ˡ ｢ T₁ ｣ , tm₁ , tm₂
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ T₁) (S `⊗ʳ[ prτ ]) tm₁ ._ (.S `⊗ʳ d₂) tm₂ =
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ .T₁) (S `⊗ʳ[ T₁ ]) tm₁ ._ (.S `⊗ʳ d₂) tm₂ = {!!}
+{-
           let (T , T₁ , T₂ , d , jtms) = ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ T₁ prτ tm₁ _ d₂ tm₂
           in [ σ ]`⊗ T , T₁ , T₂ , S `⊗ʳ[ d ] , jtms
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ T₁) (d₁ `⊗ˡʳ[ prτ ]) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ =
+-}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ .T₁) (d₁ `⊗ˡʳ[ T₁ ]) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ = {!!}
+{-
           let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
               tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
               (T , T₁ , T₂ , dT , jT , tm₁ , tm₂) =
@@ -565,22 +423,26 @@ module lps.Search.Calculus where
           in S `⊗ T , S₁ ++ T₁ , S₂ ++ T₂ , dS `⊗ˡʳ[ dT ] , jS Interleaving.++ jT
            , (tm-group Γ₁ S₁ T₁ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) T₁ Δ₁ tm₁)
            , (tm-group Γ₂ S₂ T₂ Δ₂ $ tm-assoc⁻¹ (Γ₂ ++ S₂) T₂ Δ₂ tm₂)
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ T₁) (d₁ `⊗ˡʳ[ prτ ]) tm₁
-                         (S₂ `⊗[ τ ]) (d₂ `⊗ˡ T) tm₂ =
+-}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ .T₁) (d₁ `⊗ˡʳ[ T₁ ]) tm₁
+                         (S₂ `⊗[ τ ]) (d₂ `⊗ˡ .T₁) tm₂ =
           let tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ T₁ ｣ Δ₁ $
                     tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
               (S , S₁ , S₂ , d , j , tm₁ , tm₂) = 
                 ⟦>>=⟧ Γ₁ (｢ T₁ ｣ ++ Δ₁) Γ₂ Δ₂ S₁ d₁ tm₁ S₂ d₂ tm₂
-          in S `⊗ T₁ , S₁ ++ ｢ T₁ ｣ , S₂ , d `⊗ˡʳ[ prτ ] , j Interleaving.++ˡ ｢ T₁ ｣
+          in S `⊗ T₁ , S₁ ++ ｢ T₁ ｣ , S₂ , d `⊗ˡʳ[ T₁ ] , j Interleaving.++ˡ ｢ T₁ ｣
            , (tm-group Γ₁ S₁ ｢ T₁ ｣ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) ｢ T₁ ｣ Δ₁ tm₁) , tm₂
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ T₁) (d₁ `⊗ˡʳ[ prτ ]) tm₁
-                         ([ σ ]`⊗ T₂) (S `⊗ʳ d₂) tm₂ =
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ .T₁) (d₁ `⊗ˡʳ[ T₁ ]) tm₁
+                         ([ σ ]`⊗ T₂) (S `⊗ʳ d₂) tm₂ = {!!}
+{-
           let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
               (T , T₁ , T₂ , d , j , tm₁ , tm₂) =
                 ⟦[]>>=⟧ (Γ₁ ++ ｢ S₁ ｣) Δ₁ Γ₂ Δ₂ T₁ prτ tm₁ T₂ d₂ tm₂
           in S₁ `⊗ T , ｢ S₁ ｣ ++ T₁ , T₂ , d₁ `⊗ˡʳ[ d ] , ｢ S₁ ｣ Interleaving.ˡ++ j
            , tm-group Γ₁ ｢ S₁ ｣ T₁ Δ₁ tm₁ , tm₂
+-}
 
+{-
       module Usage where
 
         open Linearity.Type
@@ -594,17 +456,19 @@ module lps.Search.Calculus where
               {B : Usage a} → B ≡ B₁ ⊙ B₂ →
               Σ[ E ∈ Usage a ] B ≡ A ─ E ×
               Γ₁ ++ ｢ E ｣ ++ Δ ⊢ σ × Γ₂ ++ ｢ E ｣ ++ Δ ⊢ τ
-        ⟦⊙⟧ Γ₁ Γ₂ Δ .([ a ]) `id tm₁ .([ a ]) `id tm₂ [ a ] = [ a ] , `id , tm₁ , tm₂
-        ⟦⊙⟧ Γ₁ Γ₂ Δ ([ a ]) `id tm₁ ._ `id tm₂ ] prA [ rewrite Cover.⟦A⊙A⟧ prA =
-         [ a ] , `id , tm₁ , tm₂
-        ⟦⊙⟧ Γ₁ Γ₂ Δ ._ [ prS₁ ] tm₁ ._ [ prS₂ ] tm₂ ] prA [ =
-          let (S , prS , tms) = Cover.⟦[⊙]⟧ Γ₁ Γ₂ Δ _ prS₁ tm₁ _ prS₂ tm₂ prA
-          in ] S [ , [ prS ] , tms
+        ⟦⊙⟧ Γ₁ Γ₂ Δ .([ a ]) `idˡ tm₁ .([ a ]) `idˡ tm₂ [ a ] = [ a ] , `idˡ , tm₁ , tm₂
+        ⟦⊙⟧ Γ₁ Γ₂ Δ .([ a ]) `idˡ tm₁ .([ a ]) `idʳ tm₂ [ a ] = [ a ] , `idˡ , tm₁ , tm₂
+        ⟦⊙⟧ Γ₁ Γ₂ Δ .([ a ]) `idʳ tm₁ .([ a ]) `idˡ tm₂ [ a ] = [ a ] , `idˡ , tm₁ , tm₂
+        ⟦⊙⟧ Γ₁ Γ₂ Δ .([ a ]) `idʳ tm₁ .([ a ]) `idʳ tm₂ [ a ] = [ a ] , `idˡ , tm₁ , tm₂
+        ⟦⊙⟧ Γ₁ Γ₂ Δ ._ `idˡ tm₁ ._ `idˡ tm₂ ] prA [ = [ _ ] , pr , tm₁ , tm₂
+          where pr = Eq.subst (λ A → ] _ [ ≡ ] A [ ─ [ _ ]) (Cover.⟦A⊙A⟧ prA) `idˡ
+        ⟦⊙⟧ Γ₁ Γ₂ Δ ._ `idʳ tm₁ ._ `idʳ tm₂ ] prA [ =
+          ] _ [ , `idʳ , Cover.⟦⊙⟧⊢ Γ₁ Γ₂ Δ _ tm₁ _ tm₂ _ prA
         ⟦⊙⟧ Γ₁ Γ₂ Δ ._ ] prS₁ [ tm₁ ._ ] prS₂ [ tm₂ ] prA [ =
           let (S , prS , tms) = Cover.⟦⊙⟧ Γ₁ Γ₂ Δ _ prS₁ tm₁ _ prS₂ tm₂ prA
           in ] S [ , ] prS [ , tms
-        ⟦⊙⟧ Γ₁ Γ₂ Δ ._ `id _ ._ ] prS [ _ ] prA [ = ⊥-elim $ Cover.¬⊙diffˡ prA prS
-        ⟦⊙⟧ Γ₁ Γ₂ Δ ._ ] prS [ _ ._ `id _ ] prA [ = ⊥-elim $ Cover.¬⊙diffʳ prA prS
+        ⟦⊙⟧ _ _ _ ._ `idˡ _ ._ ] prS [ _ ] prA [ = ⊥-elim $ Cover.¬⊙diffˡ prA prS
+        ⟦⊙⟧ _ _ _ ._ ] prS [ _ ._ `idˡ _ ] prA [ = ⊥-elim $ Cover.¬⊙diffʳ prA prS
 
         open Interleaving
 
@@ -614,21 +478,23 @@ module lps.Search.Calculus where
                Σ[ V ∈ Usage σ ] Σ[ S₁ ∈ Con ty ] Σ[ S₂ ∈ Con ty ]
                  U ≡ S ─ V × ｢ V ｣ ≡ S₁ ⋈ S₂
                × Γ₁ ++ S₁ ++ Δ₁ ⊢ a × Γ₂ ++ S₂ ++ Δ₂ ⊢ b
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ V₁ d₁ tm₁ ._ `id tm₂ =
+        ⟦>>=⟧ = {!!}
+{-
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ V₁ d₁ tm₁ ._ `idˡ tm₂ =
           V₁ , ｢ V₁ ｣ , ε , d₁ , reflˡ , tm₁ , tm₂
           where open Interleaving.Interleaving
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ `id tm₁ V₂ d₂ tm₂ =
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ `idˡ tm₁ V₂ d₂ tm₂ =
           V₂ , ε , ｢ V₂ ｣ , d₂ , reflʳ , tm₁ , tm₂
           where open Interleaving.Interleaving
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ ] prS₁ [ tm₁ ._ ] prS₂ [ tm₂ =
           let (S , S₁ , S₂ , d , jtms) =
                 Cover.⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ _ prS₁ tm₁ _ prS₂ tm₂
           in ] S [ , S₁ , S₂ , ] d [ , jtms
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ [ prS₁ ] tm₁ ._ ] prS₂ [ tm₂ =
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ [ prS₁ ] tm₁ ._ ] prS₂ [ tm₂ = 
           let (S , S₁ , S₂ , d , jtms) =
                 Cover.⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ _ prS₁ tm₁ _ prS₂ tm₂
           in ] S [ , S₁ , S₂ , [ d ] , jtms
-
+-}
     module Context where
 
       open Con
@@ -708,3 +574,4 @@ module lps.Search.Calculus where
       ⟦ prσ `&ʳ prτ by acc ⟧ =
         let (E , diff , tmσ , tmτ) = ⟦&ʳ⟧ ⟦ prσ ⟧ ⟦ prτ ⟧ _ acc
         in E , diff , tmσ `&ʳ tmτ
+-}

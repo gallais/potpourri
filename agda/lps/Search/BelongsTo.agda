@@ -190,23 +190,13 @@ module lps.Search.BelongsTo where
               Σ[ ST ∈ Cover $ σ `& τ ] [ σ ]`& T₂ ≡ [ σ ]`& T₁ ─ ST × ｢ ST ｣ ⊢ `κ k
         ⟦&ʳ⟧ σ (T , diff , tm) = [ σ ]`& T , [ σ ]`& diff , tm
 
-        ⟦⊗ʳ[]⟧ : ∀ {k} σ {τ} (S : Cover σ) {T : Cover τ} →
-                Σ[ E ∈ Cover τ ] T ≡[ τ ]─ E × ｢ E ｣ ⊢ `κ k → 
-                Σ[ ST ∈ Cover $ σ `⊗ τ ] S `⊗ T ≡ S `⊗[ τ ] ─ ST × ｢ ST ｣ ⊢ `κ k
-        ⟦⊗ʳ[]⟧ σ S (E , diff , tm) = [ σ ]`⊗ E , S `⊗ʳ[ diff ] , tm
-
-        ⟦⊗ˡ[]⟧ : ∀ {k} {σ} τ {S : Cover σ} (T : Cover τ) →
-                Σ[ E ∈ Cover σ ] S ≡[ σ ]─ E × ｢ E ｣ ⊢ `κ k → 
-                Σ[ ST ∈ Cover $ σ `⊗ τ ] S `⊗ T ≡ [ σ ]`⊗ T ─ ST × ｢ ST ｣ ⊢ `κ k
-        ⟦⊗ˡ[]⟧ τ T (E , diff , tm) = E `⊗[ τ ] , [ diff ]`⊗ˡ T , tm
-
         ⟦_⟧ : {σ : ty} {S : Cover σ} {k : ℕ} {T : Cover σ} (pr : S ∋ k ∈ T) →
               Σ[ E ∈ Cover σ ] T ≡ S ─ E × ｢ E ｣ ⊢ `κ k
         ⟦ pr `⊗ˡ T     ⟧ = ⟦⊗ˡ⟧ _ _ ⟦ pr ⟧
         ⟦ S `⊗ʳ pr     ⟧ = ⟦⊗ʳ⟧ _ _ ⟦ pr ⟧
         ⟦ [ σ ]`⊗ pr   ⟧ = ⟦[]⊗⟧ _ ⟦ pr ⟧
-        ⟦ S `⊗ʳ[ prT ] ⟧ = ⟦⊗ʳ[]⟧ _ S $ _ , inj[ _ ] , FromFree.⟦ prT ⟧
-        ⟦ [ prS ]`⊗ˡ T ⟧ = ⟦⊗ˡ[]⟧ _ T $ _ , inj[ _ ] , FromFree.⟦ prS ⟧
+        ⟦ S `⊗ʳ[ prT ] ⟧ = [ _ ]`⊗ _ , S `⊗ʳ[ _ ] , FromFree.⟦ prT ⟧
+        ⟦ [ prS ]`⊗ˡ T ⟧ = _ `⊗[ _ ] , [ _ ]`⊗ˡ T , FromFree.⟦ prS ⟧
         ⟦ pr `⊗[ τ ]   ⟧ = ⟦⊗[]⟧ _ ⟦ pr ⟧
         ⟦ pr `&ˡ τ     ⟧ = ⟦&ˡ⟧ _ ⟦ pr ⟧
         ⟦ σ `&ʳ pr     ⟧ = ⟦&ʳ⟧ _ ⟦ pr ⟧
@@ -316,7 +306,7 @@ module lps.Search.BelongsTo where
       ⟦suc⟧ : {γ : Con ty} {Γ Δ : Usage γ} (σ : ty) {S : LT.Usage σ} {k : ℕ} →
               Σ[ E ∈ Usage γ ] Δ ≡ Γ ─ E × ｢ E ｣ ⊢ `κ k →
               Σ[ E ∈ Usage $ γ ∙ σ ] Δ ∙ S ≡ Γ ∙ S ─ E × ｢ E ｣ ⊢ `κ k
-      ⟦suc⟧ σ (E , diff , tm) = E ∙ LT.[ σ ] , diff ∙ LCT.Usage.`id , tm
+      ⟦suc⟧ σ (E , diff , tm) = E ∙ LT.[ σ ] , diff ∙ LCT.Usage.`idˡ , tm
 
       ⟦_⟧ : {γ : Con ty} {Γ : Usage γ} {k : ℕ} {Δ : Usage γ} (pr : Γ ∋ k ∈ Δ) →
             Σ[ E ∈ Usage γ ] Δ ≡ Γ ─ E × ｢ E ｣ ⊢ `κ k
