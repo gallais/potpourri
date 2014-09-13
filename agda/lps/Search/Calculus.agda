@@ -250,6 +250,19 @@ module lps.Search.Calculus where
 
         open Interleaving
 
+        ｢─｣ : {a : ty} {S S₁ S₂ : Cover a} (d : S ≡ S₁ ─ S₂) → ｢ S ｣ ≡ ｢ S₁ ｣ ⋈ ｢ S₂ ｣
+        ｢─｣ (d₁ `⊗ d₂)    = ｢─｣ d₁ Interleaving.++ ｢─｣ d₂
+        ｢─｣ ([ σ ]`⊗ d)   = ｢─｣ d
+        ｢─｣ (d `⊗[ τ ])   = ｢─｣ d
+        ｢─｣ ([ σ ]`& d)   = ｢─｣ d
+        ｢─｣ (d `&[ τ ])   = ｢─｣ d
+        ｢─｣ (d `⊗ˡ T)     = ｢─｣ d Interleaving.++ˡ ｢ T ｣
+        ｢─｣ (S `⊗ʳ d)     = ｢ S ｣ Interleaving.ˡ++ ｢─｣ d
+        ｢─｣ ([ S ]`⊗ˡ T)  = ｢ S ｣ Interleaving.ʳ++ˡ ｢ T ｣
+        ｢─｣ ([ S ]`⊗ˡʳ d) = ｢ S ｣ Interleaving.ʳ++ ｢─｣ d
+        ｢─｣ (S `⊗ʳ[ T ])  = ｢ S ｣ Interleaving.ˡ++ʳ ｢ T ｣
+        ｢─｣ (d `⊗ˡʳ[ T ]) = ｢─｣ d Interleaving.++ʳ ｢ T ｣
+
         ⟦>>=⟧ : {σ : ty} {S T U : Cover σ} (Γ₁ Δ₁ Γ₂ Δ₂ : Con ty) {a b : ty}
              (V₁ : Cover σ) (d₁ : T ≡ S ─ V₁) (tm₁ : Γ₁ ++ ｢ V₁ ｣ ++ Δ₁ ⊢ a)
              (V₂ : Cover σ) (d₂ : U ≡ T ─ V₂) (tm₂ : Γ₂ ++ ｢ V₂ ｣ ++ Δ₂ ⊢ b) →
@@ -342,50 +355,20 @@ module lps.Search.Calculus where
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ (S `⊗ʳ d₁) tm₁ ._ (.S `⊗ʳ d₂) tm₂ = 
           let (T , T₁ , T₂ , d , jtms) = ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ _ d₁ tm₁ _ d₂ tm₂
           in [ _ ]`⊗ T , T₁ , T₂ , S `⊗ʳ d , jtms
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗[ τ ]) ([ S₁ ]`⊗ˡ T) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ = {!!}
-{-
-          let (S , S₁ , S₂ , d , j , tm₁ , tm₂) =
-                ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ (｢ T₂ ｣ ++ Δ₂) S₁ prσ tm₁ S₂ d₂ $
-                  tm-assoc (Γ₂ ++ ｢ S₂ ｣) ｢ T₂ ｣ Δ₂ $
-                  tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
-          in S `⊗ T₂ , S₁ , S₂ ++ ｢ T₂ ｣ , [ d ]`⊗ˡʳ d₃ , j Interleaving.++ʳ ｢ T₂ ｣
-           , tm₁ , (tm-group Γ₂ S₂ ｢ T₂ ｣ Δ₂ $ tm-assoc⁻¹ (Γ₂ ++ S₂) ｢ T₂ ｣ Δ₂ tm₂)
--}
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗[ τ ]) ([ S₁ ]`⊗ˡ T) tm₁ 
-                         (S₂ `⊗[ .τ ]) (d₂ `⊗ˡ .T) tm₂ = {!!}
-{-
-          let (S , S₁ , S₂ , d , j , tms) = ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ S₁ prσ tm₁ S₂ d₂ tm₂
-          in S `⊗[ τ ] , S₁ , S₂ , [ d ]`⊗ˡ T , j , tms-}
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗[ τ ]) ([ S₁ ]`⊗ˡ T₁) tm₁
-                         ([ σ ]`⊗ T₂) (.S₁ `⊗ʳ d₂) tm₂ = {!!}
-{-
-            S₁ `⊗ T₂ , ｢ S₁ ｣ , ｢ T₂ ｣ , [ prσ ]`⊗ˡʳ d₂
-          , ｢ S₁ ｣ Interleaving.ˡ++ʳ ｢ T₂ ｣ , tm₁ , tm₂
--}
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗ T₁) ([ S₁ ]`⊗ˡʳ d₁) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ = {!!}
-{-
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗[ τ ]) ([ S₁ ]`⊗ˡ T) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ =
+          _ `⊗ T₂ , ｢ S₁ ｣ , ｢ S₂ ｣ ++ ｢ T₂ ｣ , [ _ ]`⊗ˡʳ d₃ , ｢─｣ d₂ Interleaving.++ʳ ｢ T₂ ｣ , tm₁ , tm₂
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗[ τ ]) ([ S₁ ]`⊗ˡ T) tm₁ (S₂ `⊗[ .τ ]) (d₂ `⊗ˡ .T) tm₂ =
+           _ , ｢ S₁ ｣ , ｢ S₂ ｣ , [ _ ]`⊗ˡ T , ｢─｣ d₂ , tm₁ , tm₂
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗[ τ ]) ([ S₁ ]`⊗ˡ T₁) tm₁ ([ σ ]`⊗ T₂) (.S₁ `⊗ʳ d₂) tm₂ =
+          S₁ `⊗ T₂ , ｢ S₁ ｣ , ｢ T₂ ｣ , [ _ ]`⊗ˡʳ d₂ , ｢ S₁ ｣ Interleaving.ˡ++ʳ ｢ T₂ ｣ , tm₁ , tm₂
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗ T₁) ([ S₁ ]`⊗ˡʳ d₁) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ =
           let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
               tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
-              (T , T₁ , T₂ , dT , jT , tm₁ , tm₂) =
-                ⟦>>=⟧ (Γ₁ ++ ｢ S₁ ｣) Δ₁ (Γ₂ ++ ｢ S₂ ｣) Δ₂ T₁ d₁ tm₁ T₂ d₃ tm₂ 
-              tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) T₁ Δ₁ tm₁
-              tm₂ = tm-assoc (Γ₂ ++ ｢ S₂ ｣) T₂ Δ₂ tm₂
-              (S , S₁ , S₂ , dS , jS , tm₁ , tm₂) =
-                ⟦[]>>=⟧ Γ₁ (T₁ ++ Δ₁) Γ₂ (T₂ ++ Δ₂) S₁ prσ tm₁ S₂ d₂ tm₂
-          in S `⊗ T , S₁ ++ T₁ , S₂ ++ T₂ , [ dS ]`⊗ˡʳ dT , jS Interleaving.++ jT
-           , (tm-group Γ₁ S₁ T₁ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) T₁ Δ₁ tm₁)
-           , (tm-group Γ₂ S₂ T₂ Δ₂ $ tm-assoc⁻¹ (Γ₂ ++ S₂) T₂ Δ₂ tm₂)
--}
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗ T₁) ([ S₁ ]`⊗ˡʳ d₁) tm₁
-                         (S₂ `⊗[ τ ]) (d₂ `⊗ˡ T) tm₂ = {!!}
-{-
-          let tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ T₁ ｣ Δ₁ $
-                    tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
-              (S , S₁ , S₂ , d , j , tm₁ , tm₂) =
-                ⟦[]>>=⟧ Γ₁ (｢ T₁ ｣ ++ Δ₁) Γ₂ Δ₂ S₁ prσ tm₁ S₂ d₂ tm₂
-          in S `⊗ T₁ , S₁ ++ ｢ T₁ ｣ , S₂ , [ d ]`⊗ˡʳ d₁ , j Interleaving.++ˡ ｢ T₁ ｣
-           , (tm-group Γ₁ S₁ ｢ T₁ ｣ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) ｢ T₁ ｣ Δ₁ tm₁) , tm₂
--}
+              (T , T₁ , T₂ , dT , jT , tm₁ , tm₂) = ⟦>>=⟧ (Γ₁ ++ ｢ S₁ ｣) Δ₁ (Γ₂ ++ ｢ S₂ ｣) Δ₂ T₁ d₁ tm₁ T₂ d₃ tm₂
+          in _ `⊗ T , ｢ S₁ ｣ ++ T₁ , ｢ S₂ ｣ ++ T₂ , [ _ ]`⊗ˡʳ dT , ｢─｣ d₂ Interleaving.++ jT
+           , tm-group Γ₁ ｢ S₁ ｣ T₁ Δ₁ tm₁ , tm-group Γ₂ ｢ S₂ ｣ T₂ Δ₂ tm₂
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗ T₁) ([ S₁ ]`⊗ˡʳ d₁) tm₁ (S₂ `⊗[ τ ]) (d₂ `⊗ˡ T) tm₂ =
+           _ `⊗ T₁ , ｢ S₁ ｣ ++ ｢ T₁ ｣ , ｢ S₂ ｣ , [ _ ]`⊗ˡʳ d₁ , ｢─｣ d₂ Interleaving.++ˡ ｢ T₁ ｣ , tm₁ , tm₂
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (.S₁ `⊗ T₁) ([ S₁ ]`⊗ˡʳ d₁) tm₁
                          ([ σ ]`⊗ T₂) (.S₁ `⊗ʳ d₂) tm₂ =
           let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
@@ -393,37 +376,21 @@ module lps.Search.Calculus where
                 ⟦>>=⟧ (Γ₁ ++ ｢ S₁ ｣) Δ₁ Γ₂ Δ₂ T₁ d₁ tm₁ T₂ d₂ tm₂
           in S₁ `⊗ T , ｢ S₁ ｣ ++ T₁ , T₂ , [ S₁ ]`⊗ˡʳ d
            , ｢ S₁ ｣ Interleaving.ˡ++ j , tm-group Γ₁ ｢ S₁ ｣ T₁ Δ₁ tm₁ , tm₂
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ .T₁) (S `⊗ʳ[ T₁ ]) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ = {!!}
-{-
-          let tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
-              (T , T₁ , T₂ , d , j , tm₁ , tm₂) =
-                ⟦[]>>=⟧ Γ₁ Δ₁ (Γ₂ ++ ｢ S₂ ｣) Δ₂ T₁ prτ tm₁ T₂ d₃ tm₂
-          in S₂ `⊗ T , T₁ , ｢ S₂ ｣ ++ T₂ , d₂ `⊗ˡʳ[ d ] , ｢ S₂ ｣ Interleaving.ʳ++ j
-           , tm₁ , tm-group Γ₂ ｢ S₂ ｣ T₂ Δ₂ tm₂
--}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ .T₁) (S `⊗ʳ[ T₁ ]) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ =
+          S₂ `⊗ _ , ｢ T₁ ｣ , ｢ S₂ ｣ ++ ｢ T₂ ｣ , d₂ `⊗ˡʳ[ _ ] , ｢ S₂ ｣ Interleaving.ʳ++ ｢─｣ d₃ , tm₁ , tm₂
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ .T₁) (S `⊗ʳ[ T₁ ]) tm₁
                          (S₂ `⊗[ τ ]) (d₂ `⊗ˡ .T₁) tm₂ =
             S₂ `⊗ T₁ , ｢ T₁ ｣ , ｢ S₂ ｣ , d₂ `⊗ˡʳ[ T₁ ]
           , ｢ S₂ ｣ Interleaving.ʳ++ˡ ｢ T₁ ｣ , tm₁ , tm₂
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ .T₁) (S `⊗ʳ[ T₁ ]) tm₁ ._ (.S `⊗ʳ d₂) tm₂ = {!!}
-{-
-          let (T , T₁ , T₂ , d , jtms) = ⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ T₁ prτ tm₁ _ d₂ tm₂
-          in [ σ ]`⊗ T , T₁ , T₂ , S `⊗ʳ[ d ] , jtms
--}
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ .T₁) (d₁ `⊗ˡʳ[ T₁ ]) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ = {!!}
-{-
-          let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
-              tm₂ = tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
-              (T , T₁ , T₂ , dT , jT , tm₁ , tm₂) =
-                ⟦[]>>=⟧ (Γ₁ ++ ｢ S₁ ｣) Δ₁ (Γ₂ ++ ｢ S₂ ｣) Δ₂ T₁ prτ tm₁ T₂ d₃ tm₂
-              tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) T₁ Δ₁ tm₁
-              tm₂ = tm-assoc (Γ₂ ++ ｢ S₂ ｣) T₂ Δ₂ tm₂
-              (S , S₁ , S₂ , dS , jS , tm₁ , tm₂) =
-                ⟦>>=⟧ Γ₁ (T₁ ++ Δ₁) Γ₂ (T₂ ++ Δ₂) S₁ d₁ tm₁ S₂ d₂ tm₂
-          in S `⊗ T , S₁ ++ T₁ , S₂ ++ T₂ , dS `⊗ˡʳ[ dT ] , jS Interleaving.++ jT
-           , (tm-group Γ₁ S₁ T₁ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) T₁ Δ₁ tm₁)
-           , (tm-group Γ₂ S₂ T₂ Δ₂ $ tm-assoc⁻¹ (Γ₂ ++ S₂) T₂ Δ₂ tm₂)
--}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ([ σ ]`⊗ .T₁) (S `⊗ʳ[ T₁ ]) tm₁ ([ .σ ]`⊗ T₂) (.S `⊗ʳ d₂) tm₂ =
+          [ σ ]`⊗ _ , ｢ T₁ ｣ , ｢ T₂ ｣ , S `⊗ʳ[ _ ] , ｢─｣ d₂ , tm₁ , tm₂
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ .T₁) (d₁ `⊗ˡʳ[ T₁ ]) tm₁ (S₂ `⊗ T₂) (d₂ `⊗ d₃) tm₂ =
+          let tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ T₁ ｣ Δ₁ $ tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
+              tm₂ = tm-assoc (Γ₂ ++ ｢ S₂ ｣) ｢ T₂ ｣ Δ₂ $ tm-group⁻¹ Γ₂ ｢ S₂ ｣ ｢ T₂ ｣ Δ₂ tm₂
+              (S , S₁ , S₂ , dS , jS , tm₁ , tm₂) = ⟦>>=⟧ Γ₁ (｢ T₁ ｣ ++ Δ₁) Γ₂ (｢ T₂ ｣ ++ Δ₂) S₁ d₁ tm₁ S₂ d₂ tm₂
+          in S `⊗ _ , S₁ ++ ｢ T₁ ｣ , S₂ ++ ｢ T₂ ｣ , dS `⊗ˡʳ[ _ ] , jS Interleaving.++ ｢─｣ d₃
+           , (tm-group Γ₁ S₁ ｢ T₁ ｣ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) ｢ T₁ ｣ Δ₁ tm₁)
+           , (tm-group Γ₂ S₂ ｢ T₂ ｣ Δ₂ $ tm-assoc⁻¹ (Γ₂ ++ S₂) ｢ T₂ ｣ Δ₂ tm₂)
         ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ .T₁) (d₁ `⊗ˡʳ[ T₁ ]) tm₁
                          (S₂ `⊗[ τ ]) (d₂ `⊗ˡ .T₁) tm₂ =
           let tm₁ = tm-assoc (Γ₁ ++ ｢ S₁ ｣) ｢ T₁ ｣ Δ₁ $
@@ -432,17 +399,9 @@ module lps.Search.Calculus where
                 ⟦>>=⟧ Γ₁ (｢ T₁ ｣ ++ Δ₁) Γ₂ Δ₂ S₁ d₁ tm₁ S₂ d₂ tm₂
           in S `⊗ T₁ , S₁ ++ ｢ T₁ ｣ , S₂ , d `⊗ˡʳ[ T₁ ] , j Interleaving.++ˡ ｢ T₁ ｣
            , (tm-group Γ₁ S₁ ｢ T₁ ｣ Δ₁ $ tm-assoc⁻¹ (Γ₁ ++ S₁) ｢ T₁ ｣ Δ₁ tm₁) , tm₂
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ .T₁) (d₁ `⊗ˡʳ[ T₁ ]) tm₁
-                         ([ σ ]`⊗ T₂) (S `⊗ʳ d₂) tm₂ = {!!}
-{-
-          let tm₁ = tm-group⁻¹ Γ₁ ｢ S₁ ｣ ｢ T₁ ｣ Δ₁ tm₁
-              (T , T₁ , T₂ , d , j , tm₁ , tm₂) =
-                ⟦[]>>=⟧ (Γ₁ ++ ｢ S₁ ｣) Δ₁ Γ₂ Δ₂ T₁ prτ tm₁ T₂ d₂ tm₂
-          in S₁ `⊗ T , ｢ S₁ ｣ ++ T₁ , T₂ , d₁ `⊗ˡʳ[ d ] , ｢ S₁ ｣ Interleaving.ˡ++ j
-           , tm-group Γ₁ ｢ S₁ ｣ T₁ Δ₁ tm₁ , tm₂
--}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ (S₁ `⊗ .T₁) (d₁ `⊗ˡʳ[ T₁ ]) tm₁ ([ σ ]`⊗ T₂) (S `⊗ʳ d₂) tm₂ =
+          S₁ `⊗ _ , ｢ S₁ ｣ ++ ｢ T₁ ｣ , ｢ T₂ ｣ , d₁ `⊗ˡʳ[ _ ] , ｢ S₁ ｣ Interleaving.ˡ++ ｢─｣ d₂ , tm₁ , tm₂
 
-{-
       module Usage where
 
         open Linearity.Type
@@ -478,23 +437,15 @@ module lps.Search.Calculus where
                Σ[ V ∈ Usage σ ] Σ[ S₁ ∈ Con ty ] Σ[ S₂ ∈ Con ty ]
                  U ≡ S ─ V × ｢ V ｣ ≡ S₁ ⋈ S₂
                × Γ₁ ++ S₁ ++ Δ₁ ⊢ a × Γ₂ ++ S₂ ++ Δ₂ ⊢ b
-        ⟦>>=⟧ = {!!}
-{-
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ V₁ d₁ tm₁ ._ `idˡ tm₂ =
-          V₁ , ｢ V₁ ｣ , ε , d₁ , reflˡ , tm₁ , tm₂
-          where open Interleaving.Interleaving
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ `idˡ tm₁ V₂ d₂ tm₂ =
-          V₂ , ε , ｢ V₂ ｣ , d₂ , reflʳ , tm₁ , tm₂
-          where open Interleaving.Interleaving
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ ] prS₁ [ tm₁ ._ ] prS₂ [ tm₂ =
-          let (S , S₁ , S₂ , d , jtms) =
-                Cover.⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ _ prS₁ tm₁ _ prS₂ tm₂
-          in ] S [ , S₁ , S₂ , ] d [ , jtms
-        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ [ prS₁ ] tm₁ ._ ] prS₂ [ tm₂ = 
-          let (S , S₁ , S₂ , d , jtms) =
-                Cover.⟦[]>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ _ prS₁ tm₁ _ prS₂ tm₂
-          in ] S [ , S₁ , S₂ , [ d ] , jtms
--}
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ V₁ d₁   tm₁ ._ `idˡ tm₂ = V₁ , ｢ V₁ ｣ , ε , d₁   , Interleaving.reflˡ , tm₁ , tm₂
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ `idˡ tm₁ V₂ d₂   tm₂ = V₂ , ε , ｢ V₂ ｣ , d₂   , Interleaving.reflʳ , tm₁ , tm₂
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ `idʳ tm₁ V₂ `idʳ tm₂ = V₂ , ε , ｢ V₂ ｣ , `idʳ , Interleaving.reflʳ , tm₁ , tm₂
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ] V₁ [ `idʳ tm₁ ] V₂ [ ] pr [ tm₂ =
+           _ , Cover.｢ V₁ ｣ , Cover.｢ V₂ ｣ , `idʳ , Cover.｢─｣ pr , tm₁ , tm₂
+        ⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ ._ ] prS [ tm₁ ._ ] prT [ tm₂ =
+           let (S , S₁ , S₂ , d , jtms) = Cover.⟦>>=⟧ Γ₁ Δ₁ Γ₂ Δ₂ _ prS tm₁ _ prT tm₂
+           in ] S [ , S₁ , S₂ , ] d [ , jtms
+
     module Context where
 
       open Con
@@ -574,4 +525,3 @@ module lps.Search.Calculus where
       ⟦ prσ `&ʳ prτ by acc ⟧ =
         let (E , diff , tmσ , tmτ) = ⟦&ʳ⟧ ⟦ prσ ⟧ ⟦ prτ ⟧ _ acc
         in E , diff , tmσ `&ʳ tmτ
--}
