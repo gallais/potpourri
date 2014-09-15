@@ -81,15 +81,13 @@ $$
 
 The calculus' sequents (\AB{Γ} \entails{} \AB{σ}) are composed of
 a multiset of types (\AB{Γ}) describing the resources available in
-the context and a type (\AB{σ}) corressponding to the proposition
+the context and a type (\AB{σ}) corresponding to the proposition
 one is trying to prove. Each type constructor comes with both
 introduction and elimination rules described in \autoref{fig:IMLLRules}.
-In this presentation, we restrict the axiom rule to atomic formulas
-but it is in no way crucial.
 
 \begin{figure*}[h]
 \begin{mathpar}
-\inferrule{ }{\text{\lmulti{} \AIC{κ} \AB{k} \rmulti{} \entails{} \AIC{κ} \AB{k}}}{ax}
+\inferrule{ }{\text{\lmulti{} \AB{σ} \rmulti{} \entails{} \AB{σ}}}{ax}
 
 \and
 \inferrule{
@@ -229,19 +227,23 @@ internalised. When we write \AB{Γ} \entails{} \AB{σ} \coentails{}
 \AB{Δ}, we mean that from the input \AB{Γ}, we can prove \AB{σ}
 with leftovers \AB{Δ}.
 
-If we assume that we have defined a similar relation
+If we assume that we already have in our possesion a similar relation
 \AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ} describing the act of
-consuming a resource \AIC{κ} \AB{k} from a context \AB{Γ}
+consuming a resource \AIC{κ} \AB{k}\footnote{In this presentation,
+we limit the axiom rule to atomic formulas only but it is not an
+issue: it is a well-known fact that more general rules are admissible
+by a simple induction on the goal's type.} from a context \AB{Γ}
 with leftovers \AB{Δ}, then the axiom rule translates to:
 \begin{mathpar}
 \inferrule{\text{\AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ}}
 }{\text{\AB{Γ} \entails{} \AIC{κ} \AB{k} \coentails{} \AB{Δ}}
 }{ax}
 \end{mathpar}
-The rule for tensor in the system with leftovers does not involve
-partioning a multiset (a list in our implementation) anymore: one
-starts by discharging the first subgoal, collects the leftover
-from this computation, and then focuses on the second one.
+The introduction rule for tensor in the system with leftovers does
+not involve partioning a multiset (a list in our implementation)
+anymore: one starts by discharging the first subgoal, collects
+the leftover from this computation, and then focuses on the second
+one.
 \begin{mathpar}
 \inferrule{
      \text{\AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ}}
@@ -263,7 +265,8 @@ step may reject proof candidates which are non compatible.
 \end{mathpar}
 We can now rewrite (see \autoref{fig:derivation}) the proof
 described earlier in a fashion which distinguishes between
-the state of the context before one starts proving and after.
+the state of the context before one starts proving a goal
+and after it has been discharged entirely.
 \begin{figure*}
 \begin{mathpar}
 \inferrule{
@@ -286,15 +289,23 @@ the state of the context before one starts proving and after.
 \caption{A proof with input / output contexts and usage
 annotations\label{fig:derivation}}
 \end{figure*}
+
 It should not come as a suprise that this calculus does not
 have any elimination rules for the various type constructors:
 elimination rules do not consume anything, they merely shuffle
-around (parts of) assumptions in the context. As a consequence,
-these are implicit in the process. But this is no issue as
+around (parts of) assumptions in the context and are, as a
+consequence, not interesting proof steps. These are therefore
+implicit in the process. This remark resonates a lot with
+Andreoli's definition of focusing~\cite{andreoli1992logic}
+whose goal was to prune the space search by declaring that the
+logician does not care about the order in which some rules are
+applied.
+
+Ultimately, these rules being implicit is not an issue as
 witnessed by the fact that the soundness result we give in
 \autoref{sec:soundness} is constructive: we can mechanically
-decide where to insert the appropriate left rules for the IMLL
-derivation to be correct.
+decide where to optimally insert the appropriate left rules
+for the IMLL derivation to be correct.
 
 \subsubsection{Computational interpretation}
 
@@ -358,7 +369,7 @@ following manner:
 }{\text{\AB{S} \tensor \free{τ} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
 \and
 \inferrule{\text{\AB{T} \hasType{} \AD{Cover} \AB{τ}}
-}{\text{\free{σ}\tensor \AB{T} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
+}{\text{\free{σ}\tensor{} \AB{T} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
 \end{mathpar}
 \begin{mathpar}
 \inferrule{ }{\text{\AB{σ} \with{} \AB{τ} \hasType{} \AD{Cover} \AB{σ} \with{} \AB{τ}}}
@@ -426,18 +437,86 @@ ambiguities.
 }{   \text{\AB{Γ} \mysnoc{} \AB{S} \hasType{} \AD{Usages} (\AB{γ} \mysnoc{} \AB{σ})}}
 \end{mathpar}
 
+\subsection{Being Synchronised, Formally}
+
+Now that \AD{Usages} have been introduced, we can give a formal
+treatment of the notion of synchronisation we evoked when giving
+the with introduction rule for the calculus with leftovers.
+Synchronization is a three place relation \AB{Δ} \eqsync{} \AB{Δ₁}
+\synced{} \AB{Δ₂} defined as the pointwise lifting of an analogous
+one working on \AD{Cover}s. Let us study the latter one which is
+defined in an inductive manner.
+
+It is reflexive which means that its diagonal \AB{S} \eqsync{} \AB{S}
+\synced{} \AB{S} is always inhabited. For the sake of simplicty, we
+do not add a constructor for reflexivity: this rule is admissible by
+induction on \AB{S} based on the fact that synchronization for covers
+comes with all the structural rule one would expect: if two covers'
+root constructors are equal and their subcovers are synchronized then
+it is only fair to say that both of them are synchronized.
+
+It is also symmetric in its two last arguments which means that for
+any \AB{Δ₁} and \AB{Δ₂}, if \AB{Δ} \eqsync{} \AB{Δ₁} \synced{} \AB{Δ₂}
+then \AB{Δ} \eqsync{} \AB{Δ₂} \synced{} \AB{Δ₁}.
+
+Synchronisation is not quite equality: subderivations may very-well
+use different parts of a with-headed assumption without it being
+problematic. Indeed: if both of these parts are \emph{entirely}
+consumed then it simply means that we will  have to introduce a
+different left rule at some point in each one of the subderivations.
+This is the only point in the process where we may introduce the
+cover \AB{σ} \with{} \AB{τ}. It can take place in different
+situations:
+
+The two subderivations may be using completely different parts of
+the assumption:
+\begin{mathpar}
+\inferrule{\text{\isUsed{\AB{σ}}{\AB{S}}} \and \text{\isUsed{\AB{τ}}{\AB{T}}}
+}{\text{\AB{σ} \with{} \AB{τ} \eqsync{} \AB{S} \with\free{\AB{τ}}
+                              \synced{} \free{\AB{σ}}\with{} \AB{T}}
+}
+\end{mathpar}
+But it may also be the case that only one of them is using only one
+side of the \with{} whilst the other one is using both (e.g. think
+of a proof of \AB{σ} \with{} \AB{τ} \entails{} \AB{σ} (\AB{σ} \with{} \AB{τ})):
+\begin{mathpar}
+\inferrule{\text{\isUsed{\AB{σ}}{\AB{S}}}
+}{\text{\AB{σ} \with{} \AB{τ} \eqsync{} \AB{S} \with\free{\AB{τ}}
+                              \synced{} \AB{σ} \with{} \AB{τ}}
+}
+\and
+\inferrule{\text{\isUsed{\AB{τ}}{\AB{T}}}
+}{\text{\AB{σ} \with{} \AB{τ} \eqsync{} \free{\AB{σ}}\with{} \AB{T}
+                              \synced{} \AB{σ} \with{} \AB{τ}}
+}
+\end{mathpar}
+
+
 \subsection{Resource-Aware Primitives}
 
-Now that \AD{Usage}s are defined, we can give a precise type to
-our three place relations evoked before; both
-\_\belongs{}\_\cobelongs{}\_
-∀ \{γ\} (\AB{Γ} \hasType{} \AD{Usage} γ) (\AB{σ} \hasType{} \AD{ℕ}) (\AB{Δ} \hasType{} \AD{Usage} γ) → \AgdaPrimitive{Set}
+Now that \AD{Usages} are properly defined, we can give a precise
+type to our three place relations evoked before:
 
- and \_\entails{}\_\coentails{}\_
-have type:
+\begin{mathpar}
+\inferrule{\text{\AB{Γ} \hasType{} \AD{Usages} \AB{γ}}
+      \and \text{\AB{k} \hasType{} \AD{ℕ}}
+      \and \text{\AB{Δ} \hasType{} \AD{Usages} \AB{γ}}
+}{\text{\AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ} \hasType{} \AP{Set}}
+}
+\and
+\inferrule{\text{\AB{Γ} \hasType{} \AD{Usages} \AB{γ}}
+      \and \text{\AB{σ} \hasType{} \AD{ty}}
+      \and \text{\AB{Δ} \hasType{} \AD{Usages} \AB{γ}}
+}{\text{\AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ} \hasType{} \AP{Set}}
+}
+\end{mathpar}
 
- ∀ \{γ\} (\AB{Γ} \hasType{} \AD{Usage} γ) (\AB{σ} \hasType{} \AD{ty}) (\AB{Δ} \hasType{} \AD{Usage} γ) → \AgdaPrimitive{Set}
-
+The definition of the calculus has already be given before and
+will not be changed. However we can at once define what it means
+for a resource to be consumed in an axiom rule. \_\belongs{}\_\cobelongs{}\_
+for \AD{Usages} is basically a proof-carrying de Bruijn index~\cite{de1972lambda}.
+The proof is stored in the \AIC{zro} constructor and simply leverages
+the definition of an anlogous \_\belongs{}\_\cobelongs{}\_ for \AD{Usage}.
 
 \begin{mathpar}
 \inferrule{\text{\AB{pr} \hasType{} \AB{S} \belongs{} \AB{k} \cobelongs{} \AB{S′}}
@@ -453,6 +532,58 @@ have type:
 }
 \end{mathpar}
 
+The definition of \_\belongs{}\_\cobelongs{}\_ for \AD{Usage} is based
+on two inductive types respectively describing what it means for a
+resource to be consumed out of a mint assumption or out of an existing
+cover.
+
+\subsubsection{Consumption from a Mint Assumption}
+
+We write \freebelongs{\AB{σ}} \AB{k} \cobelongs{} \AB{S} to mean that
+by starting with a completely mint assumption of type \AB{σ}, we
+consume \AB{k} and end up with the cover \AB{S} describing the leftovers.
+
+In the case of an atomic formula there is only one solution: to use it
+and end up with a total cover:
+\begin{mathpar}
+\inferrule{
+}{\text{\freebelongs{\AIC{κ} \AB{k}} \AB{k} \cobelongs{} \AIC{κ} \AB{k}}
+}
+\end{mathpar}
+
+In the case of with and tensor, one can decide to dig either in the left
+or the right hand side of the assumption to find the right resource. This
+give rise to four similarly built rules; we will only give one example:
+going left on a tensor:
+\begin{mathpar}
+\inferrule{\text{\freebelongs{\AB{σ}} \AB{k} \cobelongs{} \AB{S}}
+}{\text{\freebelongs{\AB{σ} \tensor{} \AB{τ}} \AB{k}
+        \cobelongs{} \AB{S} \tensor\free{\AB{τ}}}
+}
+\end{mathpar}
+
+\subsubsection{Consumption from an Existing Cover}
+
+When we have an existing cover, the situation is slightly more
+complicated. First, we can dig into an already partially used
+sub-assumption using what we could call structural rules. All
+of these are pretty similar so we will present only the one
+harvesting the content on the left of a with type constructor:
+\begin{mathpar}
+\inferrule{\text{S \belongs{} \AB{k} \cobelongs{} \AB{S′}}
+}{\text{S \with{} \AB{τ} \belongs{} \AB{k} \cobelongs{} \AB{S′} \with{} \AB{τ}}
+}
+\end{mathpar}
+Second, we could invoke the rules defined in the previous paragraphs
+to extract a resource from a sub-assumption that had been spared
+so far. This can only affect tensor-headed assumption as covers for
+with-headed ones imply that we have already picked a side and may not
+using anything from the other one. Here is a such rule:
+\begin{mathpar}
+\inferrule{\text{\freebelongs{\AB{τ}} \AB{k} \cobelongs{} \AB{T}}
+}{\text{S \tensor\free{\AB{τ}} \belongs{} \AB{k} \cobelongs{} \AB{S} \tensor{} \AB{T}}
+}
+\end{mathpar}
 
 \section{Soundness\label{sec:soundness}}
 
@@ -460,8 +591,9 @@ The soundness result tells us that from a derivation in the more
 general calculus, one can create a valid derivation in IMLL. To
 be able to formulate such a statement, we need a way of listing
 the assumptions which have been used in a proof \AB{Γ} \entails{}
-\AB{σ} \coentails{} \AB{Δ}. To that effect, we introduce the notion
-of difference between two usages.
+\AB{σ} \coentails{} \AB{Δ}; informally, we should be able to describe
+a usage \AB{E} such that \erasure{E} \entails{} \AB{σ}. To that effect,
+we introduce the notion of difference between two usages.
 
 \subsection{Usage Difference}
 
@@ -473,7 +605,7 @@ on \AD{Usage}s itself based on a definition of cover differences.
 
 Cover differences (\_\eqsync{}\_\diff{}\_) are defined by an
 inductive type described (minus the expected structural laws which we
-let the reader infer) in \autoref{fig:coverdiffs}
+let the reader infer) in \autoref{fig:coverdiffs}.
 \begin{figure*}[h]
 \begin{mathpar}
 \inferrule{ \text{\AB{S} \eqsync{} \AB{S₁} \diff{} \AB{S₂}}
@@ -481,19 +613,31 @@ let the reader infer) in \autoref{fig:coverdiffs}
                                 \diff{} \AB{S₂} \tensor\AIC{[} \AB{τ} \AIC{]}}
 }
 \and
+\inferrule{ \text{\AB{S} \eqsync{} \AB{S₁} \diff{} \AB{S₂}}
+}{\text{\AB{S} \tensor{} \AB{T} \eqsync{} \AB{S₁} \tensor\AIC{[} \AB{τ} \AIC{]}
+                                \diff{} \AB{S₂} \tensor{} \AB{T}}
+}
+\end{mathpar}
+\begin{mathpar}
 \inferrule{ \text{\AB{T} \eqsync{} \AB{T₁} \diff{} \AB{T₂}}
 }{\text{\AB{S} \tensor{} \AB{T} \eqsync{} \AB{S} \tensor{} \AB{T₁}
                                 \diff{} \AIC{[} \AB{σ} \AIC{]}\tensor{} \AB{T₂}}
 }
 \and
+\inferrule{\text{\AB{T} \eqsync{} \AB{T₁} \diff{} \AB{T₂}}
+}{\text{\AB{S} \tensor{} \AB{T} \eqsync{} \AIC{[} \AB{σ} \AIC{]}\tensor{} \AB{T₁}
+                                \diff{} \AB{S} \tensor{} \AB{T₂}}
+}
+\end{mathpar}
+\begin{mathpar}
 \inferrule{
 }{\text{\AB{S} \tensor{} \AB{T} \eqsync{} \AIC{[} \AB{σ} \AIC{]}\tensor{} \AB{T}
                                 \diff{} \AB{S} \tensor\AIC{[} \AB{τ} \AIC{]}}
 }
 \and
-\inferrule{\text{\AB{T} \eqsync{} \AB{T₁} \diff{} \AB{T₂}}
-}{\text{\AB{S} \tensor{} \AB{T} \eqsync{} \AIC{[} \AB{σ} \AIC{]}\tensor{} \AB{T₁}
-                                \diff{} \AB{S} \tensor{} \AB{T₂}}
+\inferrule{
+}{\text{\AB{S} \tensor{} \AB{T} \eqsync{} \AB{S} \tensor\AIC{[} \AB{τ} \AIC{]}
+                                \diff{} \AIC{[} \AB{σ} \AIC{]}\tensor{} \AB{T}}
 }
 \end{mathpar}
 \caption{Cover differences\label{fig:coverdiffs}}
@@ -502,12 +646,16 @@ let the reader infer) in \autoref{fig:coverdiffs}
 
 
 \begin{theorem}[Soundness of the Generalisation]
-For all context \AB{γ}, all \AB{Γ}, \AB{Δ} of type \AD{Usage}
+For all context \AB{γ}, all \AB{Γ}, \AB{Δ} of type \AD{Usages}
 \AB{γ} and all goal \AB{σ} such that \AB{Γ} \entails{} \AB{σ}
 \coentails{} \AB{Δ} holds, there exists an \AB{E} such that
 \AB{Δ} \eqsync{} \AB{Γ} \AD{─} \AB{E} and \erasure{\AB{E}}
 \entails{} \AB{σ}.
 \end{theorem}
+\begin{proof}
+The proof is by induction on the derivation; using auxiliary
+lemmas to combine the induction hypothesis.
+\end{proof}
 
 \begin{corollary}[Soundness of the Proof Search]
 If the proof search shows that \AF{inj} \AB{γ} \entails{} \AB{σ}
