@@ -24,15 +24,7 @@
            { }
 
 \begin{document}
-
-\special{papersize=8.5in,11in}
-\setlength{\pdfpageheight}{\paperheight}
-\setlength{\pdfpagewidth}{\paperwidth}
-
-\conferenceinfo{CONF 'yy}{Month d--d, 20yy, City, ST, Country} 
-\copyrightyear{20yy} 
-\copyrightdata{978-1-nnnn-nnnn-n/yy/mm} 
-\doi{nnnnnnn.nnnnnnn}
+\input{header.tex}
 
 
 \maketitle
@@ -47,8 +39,8 @@ can alleviate her suffering.
 The calculus we target is a fragment of Intuitionistic
 Linear Logic (ILL onwards) and the tool we use to construct
 the search procedure is Agda (but any reasonable type theory
-equipped with data types could do). We believe the approach
-described here can be used in other settings.
+equipped with inductive families would do). We believe the
+approach described here can be used in other settings.
 \end{abstract}
 
 \section{Introduction}
@@ -74,8 +66,9 @@ of pitfalls to avoid and the generic ideas leading to better-behaved
 formulations.
 In \autoref{sec:ILL} we describe the fragment of ILL we are
 studying; \autoref{sec:general} defines a more general calculus
-internalising the notion of leftovers and \autoref{sec:contexts}
-introduces resource-aware contexts thus giving us a powerful
+internalising the notion of leftovers thus making the informal
+description of the proof search mechanism formal; and \autoref{sec:contexts}
+introduces resource-aware contexts therefore giving us a powerful
 language to target with our proof search algorithm. The soudness
 result proved in \autoref{sec:soundness} is what lets us recover
 an ILL proof from one expressed in the more general system.
@@ -84,9 +77,9 @@ an ILL proof from one expressed in the more general system.
 \section{The Calculus, Informally\label{sec:ILL}}
 
 The calculus we are considering is a fragment of Intuitionistic
-Multiplicative Linear Logic composed of countably many \textit{atomic}
-types, \textit{tensor} products and \textit{with}. This is summed
-up by the following grammar for types:
+Linear Logic composed of countably many \textit{atomic} types,
+\textit{tensor} and \textit{with} products. This is summed up by
+the following grammar for types:
 
 $$
 \text{\AD{ty} ~∷=~ \AIC{κ} \AD{ℕ} ~|~ \AD{ty} \tensor{} \AD{ty}
@@ -97,7 +90,7 @@ The calculus' sequents (\AB{Γ} \entails{} \AB{σ}) are composed of
 a multiset of types (\AB{Γ}) describing the resources available in
 the context and a type (\AB{σ}) corresponding to the proposition
 one is trying to prove. Each type constructor comes with both
-introduction and elimination rules (also known as, repesctively,
+introduction and elimination rules (also known as, respectively,
 right and left rules because of the side of the sequent they affect)
 described in \autoref{fig:ILLRules}. Multisets are intrinsically
 extensional hence the lack of a permutation rule one may be used to
@@ -141,7 +134,7 @@ seeing in various list-based presentations.
 \caption{Introduction and Elimination rules for ILL\label{fig:ILLRules}}
 \end{figure*}
 
-However these rules are from algorithmic: the logician needs to
+However these rules are far from algorithmic: the logician needs to
 \emph{guess} when to apply an elimination rule or which partition
 to pick when introducing a tensor. This makes this calculus really
 ill-designed for her to perform a proof search in a sensible manner.
@@ -169,29 +162,32 @@ consumption annotation.
 
 \section{Generalising the Problem\label{sec:general}}
 
- In this section, we will start by studying a
-simple example showcasing this idea and then dive into the
-implementation details of such concepts.
+In this section, we will start by studying a simple example showcasing
+the role the idea of leftovers plays during proof search before diving
+into the implementation details of such concepts.
 
-\subsection{Example\label{example}}
+\subsection{Example\label{sec:example}}
 
-In the following paragraphs, we are going to study how one
-would describe the process of running a proof search algorithm
-trying to produce a derivation of type
+In the following paragraphs, we are going to study how one would describe
+the process of running a proof search algorithm. The intermediate data
+structures, despite looking similar to usual ILL sequents, are not valid
+proof trees; they are actually meant to represent the state the algorithm
+is in throughout the search. They will ultimately correspond to an alternative
+linear logic we have yet to define.
+
+In order to materialise the idea that some resources are consumed whilst
+discharging subgoals, we are going to mark with a box \fba{ } (the parts
+of) the assumptions which have been used by a derivation.
+
+Let us now go ahead and observe how one looks for a proof of
 (\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ} \entails{} \AB{τ} \tensor{} \AB{σ}
-where \AB{σ} and \AB{τ} are assumed to be atomic. In order to
-materialise the idea that some resources are consumed whilst
-discharging subgoals, we are going to mark with a box \fba{ }
-(the parts of) the assumptions which have been used.
-
-The goal's head symbol is a \tensor{}; as we have no interest
-in guessing whether to apply left rules or how to partition
-the current context ─if at all necessary─, we are simply going
-to start by looking for a proof of its left part. Given that
-\AB{τ} is an atomic formula, the only way to discharge this goal
-is to use an assumption available in the context. Luckily for
-us, there is a \AB{τ} in the context; we are therefore able to
-produce the following derivation:
+where \AB{σ} and \AB{τ} are assumed to be atomic. The goal's head symbol is
+a \tensor{}; as we have no interest in guessing whether to apply left rules
+or how to partition the current context ─if at all necessary─, we are simply
+going to start by looking for a proof of its left part. Given that \AB{τ} is
+an atomic formula, the only way to discharge this goal is to use an assumption
+available in the context. Luckily for us, there is a \AB{τ} in the context;
+we are therefore able to produce the following derivation:
 \begin{mathpar}
 \inferrule{
 }{\text{(\AB{σ} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ} \entails{} \AB{τ}}
@@ -205,8 +201,9 @@ We are once more facing an atomic formula which we can only
 discharge by using an assumption. This time there are two
 candidates in the context except that one of them is inaccessible:
 solving the previous goal has had the side-effect of picking one
-side of the \with{} thus rejecting the other entirely. The only
-derivation we can produce is therefore:
+side of the \with{} thus rejecting the other entirely. In other
+words: a left rule has been applied implicitly! The only derivation
+we can produce is therefore:
 \begin{mathpar}
 \inferrule{
 }{\text{(\fba{\AB{σ}} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ} \entails{} \AB{σ}}
@@ -223,7 +220,7 @@ with a tree whose conclusion is:
 }{\tensor{}^r}
 \end{mathpar}
 The fact that the whole context is used by the end of the search
-tells us that this translates into a valid ILL proof tree. And
+tells us that this should translate into a valid ILL proof tree. And
 it is indeed the case: by following the structure of the pseudo-proof
 we just generated above and adding the required left rules\footnote{We
 will explain in \autoref{sec:soundness} how deciding where these left
@@ -345,8 +342,8 @@ for the ILL derivation to be correct.
 Thinking of the derivation tree as the trace of a computation
 (the proof search); we can notice that it is a monadic computation
 that we are running. The axiom rule will introduce non-determinism;
-they are indeed as many ways of proving an atomic proposition
-as there assumptions of that type in the context. The rule for
+there are indeed as many ways of proving an atomic proposition as
+there are assumptions of that type in the context. The rule for
 tensor looks like two stateful operations being run sequentially:
 one starts by discharging the first subgoal, waits for it to
 \emph{return} a modified context and then uses these leftovers
@@ -354,7 +351,7 @@ to tackle the second one. And, last but not least, the rule for
 with looks very much like a map-reduce diagram: we start by
 generating two subcomputations which can be run in parallel and
 later on merge their results by checking that the output contexts
-are synchronized.
+can be said to be synchronized.
 
 \section{Keeping the Structure\label{sec:contexts}}
 
@@ -374,9 +371,9 @@ starting the proof search procedure except that they come
 with an usage annotation describing whether the various
 assumptions are still available or have already been
 consumed. This is the intuition we used in our example in
-\autoref{example} when marking used atomic formulas with
+\autoref{sec:example} when marking used atomic formulas with
 a box \fba{ } rather than simply dropping them from the
-context.
+context and that is made fully explicit in \autoref{fig:derivation}.
 
 \subsection{Resource-Aware Contexts}
 
@@ -428,7 +425,7 @@ Similarly, a cover for a with-headed assumption can be a choice
 of a side (cf. \AB{S} \with\free{τ} and \free{σ}\with{} \AB{T}).
 Or, more surprisingly, it can be a full cover (cf. \AB{σ} \with{}
 \AB{τ}) which is saying that \emph{both} sides will be entirely
-used in different subtrees. This type of full cover is only ever
+used in different subtrees. This sort of full cover is only ever
 created when synchronising two output contexts by using a with
 introduction rule as in the following example:
 \begin{mathpar}
@@ -464,7 +461,7 @@ by a simple pointwise lifting. We call this lifting \AD{Usages}
 to retain the connection between the two whilst avoiding any
 ambiguities.
 \begin{mathpar}
-\inferrule{ }{\text{\AB{ε} \hasType{} \AD{Usages} \AIC{ε}}}
+\inferrule{ }{\text{\AIC{ε} \hasType{} \AD{Usages} \AIC{ε}}}
 \and \inferrule{
      \text{\AB{Γ} \hasType{} \AD{Usages} \AB{γ}}
 \and \text{\AB{S} \hasType{} \AD{Usage} \AB{σ}}
@@ -476,6 +473,11 @@ ambiguities.
 Now that \AD{Usages} have been introduced, we can give a formal
 treatment of the notion of synchronisation we evoked when giving
 the with introduction rule for the calculus with leftovers.
+Synchronization is meant to say that the two \AD{Usages} are equal
+modulo some inconsequential variations. These inconsequential
+variations partly correspond to the fact that left rules may be
+inserted at different places in different subtrees.
+
 Synchronization is a three place relation \AB{Δ} \eqsync{} \AB{Δ₁}
 \synced{} \AB{Δ₂} defined as the pointwise lifting of an analogous
 one working on \AD{Cover}s. Let us study the latter one which is
@@ -502,8 +504,10 @@ This is the only point in the process where we may introduce the
 cover \AB{σ} \with{} \AB{τ}. It can take place in different
 situations:
 
-The two subderivations may be using completely different parts of
-the assumption:
+The two subderivations may be \emph{fully} using completely different
+parts of the assumption\footnote{The definition of the predicate \AD{isUsed}
+is basically mimicking the one of \AD{Cover} except that the tensor
+constructors leaving one side untouched are disallowed.}:
 \begin{mathpar}
 \inferrule{\text{\isUsed{\AB{σ}}{\AB{S}}} \and \text{\isUsed{\AB{τ}}{\AB{T}}}
 }{\text{\AB{σ} \with{} \AB{τ} \eqsync{} \AB{S} \with\free{\AB{τ}}
@@ -512,7 +516,7 @@ the assumption:
 \end{mathpar}
 But it may also be the case that only one of them is using only one
 side of the \with{} whilst the other one is a full cover
-(see \autoref{fig:fullcov} for an example):
+(see \autoref{fig:fullcov} for an example of such a case):
 \begin{mathpar}
 \inferrule{\text{\isUsed{\AB{σ}}{\AB{S}}}
 }{\text{\AB{σ} \with{} \AB{τ} \eqsync{} \AB{S} \with\free{\AB{τ}}
@@ -545,16 +549,24 @@ side of the \with{} whilst the other one is a full cover
               \entails{} \AB{τ}
               \coentails{} \AB{σ} \with{} \fba{\AB{τ}}}
       }
-    \and \text{\fba{\AB{σ} \with{} \AB{τ}}
+    \and
+    \inferrule*{
+       \text{\isUsed{\AB{σ}} \fba{\AB{σ}}}
+       \and \text{\isUsed{\AB{τ}} \fba{\AB{τ}}}
+      }{\text{\fba{\AB{σ} \with{} \AB{τ}}
                \eqsync{} \fba{\AB{σ}} \with{} \AB{τ}
                \synced{} \AB{σ} \with{} \fba{\AB{τ}}}
+      }
     }{\text{\AB{σ} \with{} \AB{τ}
             \entails{} \AB{σ} \with{} \AB{τ}
             \coentails{} \fba{\AB{σ} \with{} \AB{τ}}}
     }
-  \and \text{\fba{\AB{σ} \with{} \AB{τ}}
+  \and
+  \inferrule*{\text{\isUsed{\AB{σ}} \fba{\AB{σ}}}
+    }{\text{\fba{\AB{σ} \with{} \AB{τ}}
              \eqsync{} \fba{\AB{σ}} \with{} \AB{τ}
              \synced{} \fba{\AB{σ} \with{} \AB{τ}}}
+    }
 }{\text{\AB{σ} \with{} \AB{τ}
         \entails{} \AB{σ} \with{} (\AB{σ} \with{} \AB{τ})
         \coentails{} \fba{\AB{σ} \with{} \AB{τ}}}
@@ -588,7 +600,7 @@ will not be changed. However we can at once define what it means
 for a resource to be consumed in an axiom rule. \_\belongs{}\_\cobelongs{}\_
 for \AD{Usages} is basically a proof-carrying de Bruijn index~\cite{de1972lambda}.
 The proof is stored in the \AIC{zro} constructor and simply leverages
-the definition of an anlogous \_\belongs{}\_\cobelongs{}\_ for \AD{Usage}.
+the definition of an anologous \_\belongs{}\_\cobelongs{}\_ for \AD{Usage}.
 
 \begin{mathpar}
 \inferrule{\text{\AB{pr} \hasType{} \AB{S} \belongs{} \AB{k} \cobelongs{} \AB{S′}}
@@ -625,7 +637,7 @@ and end up with a total cover:
 
 In the case of with and tensor, one can decide to dig either in the left
 or the right hand side of the assumption to find the right resource. This
-give rise to four similarly built rules; we will only give one example:
+gives rise to four similarly built rules; we will only give one example:
 going left on a tensor:
 \begin{mathpar}
 \inferrule{\text{\freebelongs{\AB{σ}} \AB{k} \cobelongs{} \AB{S}}
@@ -639,11 +651,11 @@ going left on a tensor:
 When we have an existing cover, the situation is slightly more
 complicated. First, we can dig into an already partially used
 sub-assumption using what we could call structural rules. All
-of these are pretty similar so we will present only the one
+of these are pretty similar so we will only present the one
 harvesting the content on the left of a with type constructor:
 \begin{mathpar}
 \inferrule{\text{S \belongs{} \AB{k} \cobelongs{} \AB{S′}}
-}{\text{S \with{} \AB{τ} \belongs{} \AB{k} \cobelongs{} \AB{S′} \with{} \AB{τ}}
+}{\text{S \with\free{\AB{τ}} \belongs{} \AB{k} \cobelongs{} \AB{S′} \with\free{\AB{τ}}}
 }
 \end{mathpar}
 Second, we could invoke the rules defined in the previous paragraphs
@@ -656,6 +668,10 @@ using anything from the other one. Here is a such rule:
 }{\text{S \tensor\free{\AB{τ}} \belongs{} \AB{k} \cobelongs{} \AB{S} \tensor{} \AB{T}}
 }
 \end{mathpar}
+
+We now have a fully formal definition of the more general system
+we hinted at when observing the execution of the search procedure
+in \autoref{sec:example}.
 
 \section{Proof Search}
 
@@ -671,22 +687,20 @@ to model non determinism and the maybe one to model partiality.
 
 Now, the presence of these effects is a major reason why it is important
 to have the elegant intermediate structures we can generate inhabitants
-of. Even if we are only interested in the satisfiability of a given problem,
-having material artefacts at our disposal allows us to state and prove
-properties of these functions easily rather than suffering from boolean
-blindness.\todo{cite a paper (?) on Boolean Blindness}.
-And we know that we should be able to optimise them
+of. Even if we are only interested in the satisfiability of a given
+problem, having material artefacts at our disposal allows us to state
+and prove properties of these functions easily rather than having to
+suffer from boolean blindness.\todo{cite a paper (?) on Boolean Blindness}.
+And we know that we may be able to optimise them
 away~\cite{wadler1990deforestation, gill1993short} in the case where
-we are indeed only interested in the satisfiability of the problem.
+we are indeed only interested in the satisfiability of the problem and
+they turn out to be useless.
 
 \subsection{Consuming an Atomic Proposition}
 
-The proof search procedures are rather simple to implement (they simply
-follow the specifications we have spelled out earlier) and their definitions
-are succinct. For instance, the decision procedure for
-\_\belongs{}\_\cobelongs{}\_ is made up of four functions totalling 18 lines
-of code, including a toplevel type annotation for each one of them. Let us
-study them.
+The proof search procedures are rather simple to implement (they
+straightforwardly follow the specifications we have spelled out
+earlier) and their definitions are succinct. Let us study them.
 
 \AgdaHide{
 \begin{code}
@@ -701,7 +715,7 @@ open Type
 open import lps.Search.Calculus
 open Calculus hiding (_⊢?_)
 open import lps.Search.BelongsTo as BelongsTo
-open BelongsTo.Context hiding (_∋_∈_)
+open BelongsTo.Context hiding (_∋_∈_ ; _∈?_)
 open BelongsTo.Type.Cover.FromFree hiding (_∈?[_])
 open BelongsTo.Type.Cover.FromDented hiding (_∈?_)
 open import lps.Linearity
@@ -731,14 +745,15 @@ pattern _&_ a b = a `& b
 \end{code}
 }
 
-\begin{lemma}Given a type \AB{σ}, we can decide whether it is possible
-to consume an atomic proposition \AB{k} from the corresponding mint
-assumption.
+\begin{lemma}Given a type \AB{σ} and an atomic proposition \AB{k},
+we can manufacture a list of pairs consisting of a \AD{Cover} \AB{σ}
+we will call \AB{S} and a proof that \freebelongs{\AB{σ}} \AB{k}
+\cobelongs{} \AB{S}.
 \end{lemma}
 \begin{proof}We write \AF{\_∈?[\_]} for the function describing the
-different ways in which one can consume an assumption from a mint
-assumption. This function, working in the list monad, is defined by
-structural induction on its second (explicit) argument: the mint
+different ways in which one can consume an atomic proposition from a
+mint assumption. This function, working in the list monad, is defined
+by structural induction on its second (explicit) argument: the mint
 assumption's type.
 
 \AgdaHide{
@@ -758,8 +773,9 @@ k ∈?[ κ l   ] = dec (k ≟ l) (return ∘ ∈κ k) (const [])
 
 \underline{Tensor \& With Case} Both the tensor and with case amount
 to picking a side. Both are equally valid so we just concatenate the
-lists of potential proofs after having mapped function inserting the
-right constructors to record the choices we have made on each side.
+lists of potential proofs after having mapped the appropriate lemmas
+inserting the constructors recording the choices made over the results
+obtained by induction hypothesis.
 
 \begin{code}
 k ∈?[ σ ⊗ τ ]  =   map (∈[⊗]ˡ τ)  (k ∈?[ σ ])
@@ -769,8 +785,11 @@ k ∈?[ σ & τ ]  =   map (∈[&]ˡ τ)  (k ∈?[ σ ])
 \end{code}
 \end{proof}
 
-\begin{lemma}Given a cover \AB{S}, we can decide whether it is possible
-to extract and consume an atomic proposition \AB{k} from it.
+The case where the assumption is not mint is just marginally more
+complicated as there are more cases to consider:
+
+\begin{lemma}Given a cover \AB{S} and an atomic proposition \AB{k},
+we can list the ways in which one may extract and consume \AB{k}.
 \end{lemma}
 \begin{proof}We write \AF{\_∈?]\_[} for the function describing the
 different ways in which one can consume an assumption from an already
@@ -791,10 +810,10 @@ k ∈?] κ l      [ = []
 \underline{Tensor Cases} The tensor cases all amount to collecting
 all the ways in which one may use the sub-assumptions. Whenever a
 sub-assumption is already partially used (in other words: a \AD{Cover})
-we use the induction hypothesis delivered by the function \AF{\_∈?]\_[};
-if it is mint then we can fall back to the previous lemma. In each case,
-we then map lemmas applying the appropriate rules recording the choices
-made.
+we use the induction hypothesis delivered by the function \AF{\_∈?]\_[}
+itself; if it is mint then we can fall back to the previous lemma. In
+each case, we then map lemmas applying the appropriate rules recording
+the choices made.
 
 \begin{code}
 k ∈?] A ⊗ B     [  =   map (∈⊗ˡ B)    (k ∈?] A [)
@@ -809,7 +828,8 @@ k ∈?] A ⊗[ b ]  [  =   map (∈⊗[] b)   (k ∈?] A [)
 they are stating that an assumption has been fully used (meaning
 that there is no way we can extract the atomic proposition \AB{k}
 out of it) or a side has already been picked and we can only
-explore one sub-assumption.
+explore one sub-assumption. As for the other cases, we need to
+map auxiliary lemmas.
 
 \begin{code}
 k ∈?] a & b       [ = []
@@ -821,13 +841,28 @@ k ∈?] [ a ]`& B   [ = map (∈[]& a)  (k ∈?] B [)
 Now that we know how to list the ways in which one can extract and
 consume an atomic proposition from a mint assumption or an already
 existing cover, it is trivial to define the corresponding process
-for an \AD{Usage} by calling the appropriate function.
+for an \AD{Usage}.
 
 \begin{corollary}Given an \AB{S} of type \AD{Usage} \AB{σ} and an atomic
 proposition \AB{k}, one can produce a list of pairs consisting of a
 \AD{Usage} \AB{σ} we will call \AB{T} and a proof that
 \AB{S} \belongs{} \AB{k} \cobelongs{} \AB{T}.
 \end{corollary}
+\begin{proof}
+It amounts to calling the appropriate function to do the job and
+apply a lemma to transport the result.
+
+\AgdaHide{
+\begin{code}
+module BTU = BelongsTo.Type.Usage
+open BTU hiding (_∈?_)
+_∈?_ : (k : ℕ) {σ : ty} (S : LT.Usage σ) → Con (Σ (LT.Usage σ) (λ S′ → S BTU.∋ k ∈ S′))
+\end{code}}
+\begin{code}
+k ∈? [ σ ] = map [∈] $ k ∈?[ σ ]
+k ∈? ] S [ = map ]∈[ $ k ∈?] S [
+\end{code}
+\end{proof}
 
 This leads us to the theorem describing how to implement proof
 search for the \_\belongs{}\_\cobelongs{}\_ relation used in
@@ -838,13 +873,36 @@ proposition \AB{k}, one can produce a list of pairs consisting of a
 \AD{Usages} \AB{γ} we will call \AB{Δ} and a proof that
 \AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ}.
 \end{theorem}
-\begin{proof}We simply apply the function described in the previous
-corollary to each one of the assumption in the context and collect
-all of the possible solutions.
+\begin{proof}
+We simply call the function \AF{\_∈?\_} described in the previous corollary
+to each one of the assumptions in the context and collect all of the possible
+solutions:
+
+\AgdaHide{
+\begin{code}
+module BC = BelongsTo.Context
+open Context.Pointwise
+infix 1 _∋?_
+_∋?_ : {γ : Con ty} (Γ : LC.Usage γ) (k : ℕ) → Con (Σ[ Γ′ ∈ LC.Usage γ ] Γ BC.∋ k ∈ Γ′)
+\end{code}}
+\begin{code}
+ε      ∋? k  =   ε
+Γ ∙ S  ∋? k  =   map (∈suc S) (Γ ∋? k)
+             ++  map (∈zro Γ) (k ∈? S)
+\end{code}
 \end{proof}
 
-
 \subsection{Producing Derivations}
+
+Assuming the following lemma stating that we can test for synchronizability,
+we have all the pieces necessary to write a proof search procedure listing
+all the ways in which a context may entail a goal.
+
+\begin{lemma}Given \AB{Δ₁} and \AB{Δ₂} two \AD{Usages} \AB{γ}, it is possible
+to test whether they are synchronizable and, if so, return a \AD{Usages} \AB{γ}
+which we will call \AB{Δ} together with a proof that \AB{Δ} \eqsync{} \AB{Δ₁}
+\synced{} \AB{Δ₂}. We call \AF{\_⊙?\_} this function.
+\end{lemma}
 
 \begin{theorem}[Proof Search] Given an \AB{S} of type \AD{Usage} \AB{σ}
 and a type \AB{σ}, it is possible to produce a list of pairs consisting
@@ -858,7 +916,7 @@ We work, the whole time, in the list monad.
 \AgdaHide{
 \begin{code}
 infix 1 _⊢?_
-_⊢?_ : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Con (Σ[ Δ ∈ Usage γ ] Γ ⊢ σ ⊣ Δ)
+_⊢?_ : ∀ {γ : Con ty} (Γ : LC.Usage γ) (σ : ty) → Con (Σ[ Δ ∈ Usage γ ] Γ ⊢ σ ⊣ Δ)
 
 whenSome : ∀ {γ : Con ty} {Γ : Usage γ} {Δ₁ Δ₂ : Usage γ}
              {σ τ : ty} → Γ ⊢ σ ⊣ Δ₁ → Γ ⊢ τ ⊣ Δ₂ →
@@ -875,16 +933,16 @@ whenSome prσ prτ (Δ , pr) = return $ Δ , prσ &ʳ prτ by pr
 
 \underline{Atomic Case} Trying to prove an atomic proposition amounts to
 lifting the various possibilities provided to us by \AF{\_∈?\_} thanks to
-the axiom rule \AF{ax}.
+the axiom rule \AIC{ax}.
 
 \begin{code}
-Γ ⊢? κ k =  map (Product.map id ax) $ k ∈? Γ
+Γ ⊢? κ k =  map (Product.map id ax) $ Γ ∋? k
 \end{code}
 
 \underline{Tensor Case} After collecting the leftovers for each potential
 proof of the first subgoal, we try to produce a proof of the second one.
 If both of these phases were successful, we can then combine them with the
-appropriate tree constructor \AD{⊗ʳ}.
+appropriate tree constructor \AIC{⊗ʳ}.
 
 \begin{code}
 Γ ⊢? σ ⊗ τ  =  Γ  ⊢? σ >>= uncurry $ λ Δ prσ →
@@ -894,9 +952,9 @@ appropriate tree constructor \AD{⊗ʳ}.
 
 \underline{With Case} Here we produce two independent sets of potential
 proofs and then check which subset of their cartesian product gives rise
-to valid proofs. \AF{\_⊙?\_} checks whether two \AD{Usages} are in sync;
-if they are then we return a derivation and otherwise we just output the
-empty list.
+to valid proofs. To do so, we call \AF{\_⊙?\_} on the returned \AD{Usages}
+to make sure that they are synchronizable and, based on the result, either
+combine them using \AF{whenSome} or fail by returning the empty list. 
 
 \begin{code}
 Γ ⊢? σ & τ  =  Γ ⊢? σ >>= uncurry $ λ Δ₁ prσ →
@@ -909,6 +967,8 @@ Where \AF{whenSome} is defined in the following manner:
 \ExecuteMetaData[lps.tex]{whenSomeCode}
 
 \end{proof}
+
+\todo{Examples of runs?}
 
 \section{Soundness\label{sec:soundness}}
 
