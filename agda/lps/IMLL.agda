@@ -10,13 +10,13 @@ open import lib.Nullary
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as Eq using (_≡_)
 
-module lps.IMLL where
+module lps.IMLL (Pr : Set) where
 
   module Type where
 
     infixl 40 _`⊗_ _`&_
     data ty : Set where
-      `κ        : (k : ℕ) → ty
+      `κ        : (k : Pr) → ty
       _`⊗_ _`&_ : (A B : ty) → ty
 
   open Type

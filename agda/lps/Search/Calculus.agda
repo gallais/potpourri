@@ -16,16 +16,16 @@ open import Function
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as Eq using (_≡_)
 
-module lps.Search.Calculus where
+module lps.Search.Calculus (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
 
   module Calculus where
 
     open Con
     open Context
-    open IMLL.Type
-    open Linearity.Context
-    open Action.Context
-    module BTC = BelongsTo.Context
+    open IMLL.Type Pr
+    open Linearity.Context Pr
+    open Action.Context Pr
+    module BTC = BelongsTo.Context Pr _≟_
 
     infix 1 _⊢_⊣_
     data _⊢_⊣_ {γ : Con ty} (Γ : Usage γ) : (σ : ty) (Δ : Usage γ) → Set where
@@ -45,60 +45,26 @@ module lps.Search.Calculus where
                   Γ ⊢? τ >>= uncurry $ λ Δ₂ prτ →
                   maybe (uncurry $ λ Δ pr → return $ Δ , prσ `&ʳ prτ by pr) ε (Δ₁ ⊙? Δ₂)
 
-  module Examples where
-
-    open Con
-    open Context
-    open IMLL.Type
-    open IMLL
-    open Linearity.Context
-    open Calculus
-
-    example⊗ :
-      let A = `κ 0
-          γ = ε ∙ A `⊗ A
-      in Con (Σ[ Γ′ ∈ Usage γ ] inj[ γ ] ⊢ A `⊗ A ⊣ Γ′)
-    example⊗ = _ ⊢? _ -- generates 2 proofs!
-
-    example& :
-      let A = `κ 0
-          γ = ε ∙ (A `& (A `⊗ A))
-      in Con (Σ[ Γ′ ∈ Usage γ ] inj[ γ ] ⊢ A ⊣ Γ′)
-    example& = _ ⊢? _ -- generates 3 proofs only one of which is meaningful!
-
-    example&′ :
-      let A = `κ 0
-          B = `κ 1
-          φ = (A `& B) `& B
-          γ = ε ∙ φ
-      in Con (Σ[ Γ′ ∈ Usage γ ] inj[ γ ] ⊢ φ ⊣ Γ′)
-    example&′ = _ ⊢? _ -- generates 4 proofs
-
-    checks : length example⊗  ≡ 2
-           × length example&  ≡ 3
-           × length example&′ ≡ 4
-    checks = Eq.refl , Eq.refl , Eq.refl
-
   module Soundness where
 
     module Type where
 
       open Con
       open Context
-      open IMLL
-      open IMLL.Type
+      open IMLL Pr
+      open IMLL.Type Pr
       open Context.Context
 
       module Cover where
 
-        open Linearity.Type
-        open Linearity.Type.Cover
-        open Consumption
-        open Consumption.Type.Cover
-        open Action.Type.Cover
+        open Linearity.Type Pr
+        open Linearity.Type.Cover Pr
+        open Consumption Pr
+        open Consumption.Type.Cover Pr
+        open Action.Type.Cover Pr
         open Con.BelongsTo
         open BelongsTo.BelongsTo
-        open IMLL.RewriteRules
+        open IMLL.RewriteRules Pr
 
         mutual
 
@@ -404,10 +370,10 @@ module lps.Search.Calculus where
 
       module Usage where
 
-        open Linearity.Type
-        open Linearity.Type.Usage
-        open Consumption.Type.Usage
-        open Action.Type.Usage
+        open Linearity.Type Pr
+        open Linearity.Type.Usage Pr
+        open Consumption.Type.Usage Pr
+        open Action.Type.Usage Pr
 
         ⟦⊙⟧ : (Γ₁ Γ₂ Δ : Con ty) {a σ τ : ty} {A : Usage a} {B₁ B₂ : Usage a} →
               (E₁ : Usage a) (d₁ : B₁ ≡ A ─ E₁) (tm₁ : Γ₁ ++ ｢ E₁ ｣ ++ Δ ⊢ σ) 
@@ -450,15 +416,15 @@ module lps.Search.Calculus where
 
       open Con
       open Context
-      open IMLL.Type
-      open IMLL
-      open IMLL.RewriteRules
+      open IMLL.Type Pr
+      open IMLL Pr
+      open IMLL.RewriteRules Pr
       open Pointwise
       open Context.Context
-      open Consumption.Context
-      open Action.Context
-      open Linearity
-      open Linearity.Context
+      open Consumption.Context Pr
+      open Action.Context Pr
+      open Linearity Pr
+      open Linearity.Context Pr
 
       ⟦⊙⟧ : {γ : Con ty} (δ : Con ty) (Γ : Usage γ) {σ τ : ty} (Δ₁ Δ₂ : Usage γ)
           (E₁ : Usage γ) (d₁ : Δ₁ ≡ Γ ─ E₁) (tm₁ : ｢ E₁ ｣ ++ δ ⊢ σ)

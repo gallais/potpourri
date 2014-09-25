@@ -11,11 +11,11 @@ open import lib.Nullary
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as Eq using (_≡_)
 
-module lps.Linearity where
+module lps.Linearity (Pr : Set) where
 
   module Type where
 
-    open IMLL.Type
+    open IMLL.Type Pr
     open Con.Context
 
     -- our definition is a bit convoluted because we want to avoid
@@ -26,7 +26,7 @@ module lps.Linearity where
     private
       module DummyCover where
         data Cover : ty → Set where
-          `κ     : (k : ℕ) → Cover $ `κ k
+          `κ     : (k : Pr) → Cover $ `κ k
           _`⊗_   : {a b : ty} (A : Cover a) (B : Cover b) → Cover $ a `⊗ b
           [_]`⊗_ : (a : ty) {b : ty} (B : Cover b) → Cover $ a `⊗ b
           _`⊗[_] : {a : ty} (A : Cover a) (b : ty) → Cover $ a `⊗ b
@@ -40,7 +40,7 @@ module lps.Linearity where
     module Cover where
 
       data isUsed : {σ : ty} (S : Cover σ) → Set where
-        `κ     : (k : ℕ) → isUsed $ `κ k
+        `κ     : (k : Pr) → isUsed $ `κ k
         _`⊗_   : {a b : ty} {A : Cover a} {B : Cover b}
                  (prA : isUsed A) (prB : isUsed B) → isUsed $ A `⊗ B
         _`&_   : (a b : ty) → isUsed $ a `& b
@@ -88,7 +88,7 @@ module lps.Linearity where
       ｢ A `&[ b ] ｣ = ｢ A ｣
       ｢ [ a ]`& B ｣ = ｢ B ｣
 
-      open IMLL
+      open IMLL Pr
       open Con.Context
       open Con.Context.Context
       open Con.BelongsTo
@@ -146,7 +146,7 @@ module lps.Linearity where
       ｢ [ a ] ｣ = ε
       ｢ ] A [  ｣ = Cover.｢ A ｣
 
-      open IMLL
+      open IMLL Pr
       open Con.Context.Context
 
       ⟦isUsed⟧ : (Γ Δ : Con ty) {σ τ : ty} {S : Usage σ} (prS : isUsed S)
@@ -155,7 +155,7 @@ module lps.Linearity where
 
   module Context where
 
-    open IMLL.Type
+    open IMLL.Type Pr
     open Con.Context
     open Con.Context.Pointwise
   
@@ -190,8 +190,8 @@ module lps.Linearity where
     ｢inj[_]｣ : (γ : Con ty) → ｢ inj[ γ ] ｣ ≡ ε
     ｢inj[_]｣ = Context.induction (λ _ → id) Eq.refl
 
-    open IMLL
-    open IMLL.RewriteRules
+    open IMLL Pr
+    open IMLL.RewriteRules Pr
     open Con.Context.Context
 
     ⟦isUsed⟧ : {γ : Con ty} {τ : ty} {Γ : Usage γ} (prΓ : isUsed Γ)

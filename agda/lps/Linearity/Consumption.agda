@@ -8,16 +8,16 @@ open import Function
 import lib.Context as Con
 open import lib.Maybe
 
-module lps.Linearity.Consumption where
+module lps.Linearity.Consumption (Pr : Set) where
 
   module Type where
 
     open Con.Context
-    open IMLL.Type
+    open IMLL.Type Pr
 
     module Cover where
 
-      open Linearity.Type
+      open Linearity.Type Pr
 
       infix 4 _≡_─_
       data _≡_─_ : {σ : ty} (S S₁ S₂ : Cover σ) → Set where
@@ -67,7 +67,7 @@ module lps.Linearity.Consumption where
 
     module Usage where
 
-      open Linearity.Type
+      open Linearity.Type Pr
 
       data _≡_─_ {σ : ty} : (S S₁ S₂ : Usage σ) → Set where
         `idˡ : {S : Usage σ} → S ≡ S ─ [ σ ]
@@ -84,8 +84,8 @@ module lps.Linearity.Consumption where
 
     open Con.Context
     open Pointwise
-    open IMLL.Type
-    open Linearity
+    open IMLL.Type Pr
+    open Linearity Pr
 
     infix 4 _≡_─_
     data _≡_─_ : {γ : Con ty} (E Δ₁ Δ₂ : LC.Usage γ) → Set where

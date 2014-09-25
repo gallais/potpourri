@@ -11,16 +11,16 @@ open import lib.Nullary
 
 open import Relation.Nullary
 
-module lps.Linearity.Action where
+module lps.Linearity.Action (Pr : Set) where
 
   module Type where
  
-    open IMLL.Type
+    open IMLL.Type Pr
 
     module Cover where
 
-      open Linearity.Type
-      open Linearity.Type.Cover
+      open Linearity.Type Pr
+      open Linearity.Type.Cover Pr
 
       -- this action is a notion of synchronization. It imposes restrictions
       -- on the sort of output contexts we can consider identical (see the
@@ -29,7 +29,7 @@ module lps.Linearity.Action where
       infix 4 _≡_⊙_
       data _≡_⊙_ : {σ : ty} (S S₁ S₂ : Cover σ) → Set where
         sym      : {a : ty} {A B C : Cover a} (pr : A ≡ B ⊙ C) → A ≡ C ⊙ B
-        `κ       : (k : ℕ) → `κ k ≡ `κ k ⊙ `κ k
+        `κ       : (k : Pr) → `κ k ≡ `κ k ⊙ `κ k
         _`⊗_     : {a b : ty} {A A₁ A₂ : Cover a} {B B₁ B₂ : Cover b} →
                    (prA : A ≡ A₁ ⊙ A₂) (prB : B ≡ B₁ ⊙ B₂) → 
                    A `⊗ B ≡ A₁ `⊗ B₁ ⊙ A₂ `⊗ B₂
@@ -84,8 +84,8 @@ module lps.Linearity.Action where
 
     module Usage where
 
-      open Linearity.Type
-      open Linearity.Type.Usage
+      open Linearity.Type Pr
+      open Linearity.Type.Usage Pr
 
       infix 4 _≡_⊙_
       data _≡_⊙_ : {σ : ty} (S S₁ S₂ : Usage σ) → Set where
@@ -103,9 +103,9 @@ module lps.Linearity.Action where
 
   module Context where
 
-    open IMLL.Type
-    open Linearity
-    open Linearity.Context
+    open IMLL.Type Pr
+    open Linearity Pr
+    open Linearity.Context Pr
     open Con.Context
     open Pointwise
 

@@ -3,7 +3,6 @@ import lps.Linearity             as Linearity
 import lps.Linearity.Consumption as Consumption
 
 open import Data.Product hiding (map)
-open import Data.Nat as ℕ
 open import Function
 
 import lib.Context as Con
@@ -13,21 +12,21 @@ open import lib.Nullary
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as Eq using (_≡_)
 
-module lps.Search.BelongsTo where
+module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
 
   module Type where
 
     open Con.Context
-    open IMLL.Type
+    open IMLL.Type Pr
 
     module Cover where
 
-      open Linearity.Type
+      open Linearity.Type Pr
 
       module FromFree where
 
         infix 4 _∈[_]▸_
-        data _∈[_]▸_ (k : ℕ) : (σ : ty) (S : Cover σ) → Set where
+        data _∈[_]▸_ (k : Pr) : (σ : ty) (S : Cover σ) → Set where
           `κ    : k ∈[ `κ k ]▸ `κ k
           _`&ˡ_ : {σ : ty} {S : Cover σ} (prS : k ∈[ σ ]▸ S) (τ : ty) →
                   k ∈[ σ `& τ ]▸ S `&[ τ ]
@@ -39,7 +38,7 @@ module lps.Search.BelongsTo where
                   k ∈[ σ `⊗ τ ]▸ [ σ ]`⊗ T
 
         infix 4 [_]∋_∈_
-        [_]∋_∈_ : (σ : ty) (k : ℕ) (T : Cover σ) → Set
+        [_]∋_∈_ : (σ : ty) (k : Pr) (T : Cover σ) → Set
         [ σ ]∋ k ∈ τ = k ∈[ σ ]▸ τ
 
         ∈κ : ∀ k {l} → k ≡ l → Σ[ C ∈ Cover $ `κ l ] [ `κ l ]∋ k ∈ C
@@ -64,14 +63,14 @@ module lps.Search.BelongsTo where
 
         open Context
         infix 6 _∈?[_]
-        _∈?[_] : (k : ℕ) (σ : ty) → Con (Σ[ S′ ∈ Cover σ ] [ σ ]∋ k ∈ S′)
+        _∈?[_] : (k : Pr) (σ : ty) → Con (Σ[ S′ ∈ Cover σ ] [ σ ]∋ k ∈ S′)
         k ∈?[ `κ l   ] = dec (k ≟ l) (return ∘ ∈κ k) (const ε)
         k ∈?[ σ `⊗ τ ] = map (∈[⊗]ˡ τ) (k ∈?[ σ ]) ++ map (∈[⊗]ʳ σ) (k ∈?[ τ ])
         k ∈?[ σ `& τ ] = map (∈[&]ˡ τ) (k ∈?[ σ ]) ++ map (∈[&]ʳ σ) (k ∈?[ τ ])
 
-        open IMLL
-        open Linearity.LTC
-        ⟦_⟧ : {σ : ty} {k : ℕ} {T : Cover σ} (pr : [ σ ]∋ k ∈ T) → ｢ T ｣ ⊢ `κ k
+        open IMLL Pr
+        open Linearity.LTC Pr
+        ⟦_⟧ : {σ : ty} {k : Pr} {T : Cover σ} (pr : [ σ ]∋ k ∈ T) → ｢ T ｣ ⊢ `κ k
         ⟦ `κ       ⟧ = `v
         ⟦ pr `&ˡ τ ⟧ = ⟦ pr ⟧
         ⟦ σ `&ʳ pr ⟧ = ⟦ pr ⟧
@@ -83,7 +82,7 @@ module lps.Search.BelongsTo where
         open FromFree hiding (⟦_⟧)
 
         infix 4 _∈_▸_
-        data _∈_▸_ (k : ℕ) : {σ : ty} (S : Cover σ) (T : Cover σ) → Set where
+        data _∈_▸_ (k : Pr) : {σ : ty} (S : Cover σ) (T : Cover σ) → Set where
           _`⊗ˡ_   : {σ : ty} {S S′ : Cover σ} (s : k ∈ S ▸ S′)
                     {τ : ty} (T : Cover τ) → k ∈ S `⊗ T ▸ S′ `⊗ T
           _`⊗ʳ_   : {σ : ty} (S : Cover σ) {τ : ty} {T T′ : Cover τ}
@@ -102,7 +101,7 @@ module lps.Search.BelongsTo where
                     k ∈ [ σ ]`& T ▸ [ σ ]`& T′
 
         infix 4 _∋_∈_
-        _∋_∈_ : {σ : ty} (S : Cover σ) (k : ℕ) (T : Cover σ) → Set
+        _∋_∈_ : {σ : ty} (S : Cover σ) (k : Pr) (T : Cover σ) → Set
         σ ∋ k ∈ τ = k ∈ σ ▸ τ
 
         ∈⊗ˡ : ∀ {k a b} {A : Cover a} (B : Cover b) →
@@ -115,39 +114,39 @@ module lps.Search.BelongsTo where
               Σ[ AB ∈ Cover $ a `⊗ b ] A `⊗ B ∋ k ∈ AB
         ∈⊗ʳ A (B′ , prB) = A `⊗ B′ , A `⊗ʳ prB
 
-        ∈[]⊗ : ∀ {k : ℕ} {b : ty} {B : Cover b} (a : ty) →
+        ∈[]⊗ : ∀ {k : Pr} {b : ty} {B : Cover b} (a : ty) →
                Σ[ B′ ∈ Cover b ] B ∋ k ∈ B′ →
                Σ[ AB ∈ Cover $ a `⊗ b ] [ a ]`⊗ B ∋ k ∈ AB
         ∈[]⊗ a (B′ , prB) = [ a ]`⊗ B′ , [ a ]`⊗ prB
 
-        ∈[]⊗ˡ : ∀ {k : ℕ} {b : ty} (B : Cover b) {a : ty} →
+        ∈[]⊗ˡ : ∀ {k : Pr} {b : ty} (B : Cover b) {a : ty} →
                 Σ[ A ∈ Cover a ] [ a ]∋ k ∈ A →
                 Σ[ AB ∈ Cover $ a `⊗ b ] [ a ]`⊗ B ∋ k ∈ AB
         ∈[]⊗ˡ B (A , prA) = A `⊗ B , [ prA ]`⊗ˡ B
 
-        ∈⊗[] : ∀ {k : ℕ} {a : ty} {A : Cover a} (b : ty) →
+        ∈⊗[] : ∀ {k : Pr} {a : ty} {A : Cover a} (b : ty) →
                Σ[ A′ ∈ Cover a ] A ∋ k ∈ A′ →
                Σ[ AB ∈ Cover $ a `⊗ b ] A `⊗[ b ] ∋ k ∈ AB
         ∈⊗[] b (A′ , prA) = A′ `⊗[ b ] , prA `⊗[ b ]
 
-        ∈⊗[]ʳ : ∀ {k : ℕ} {a : ty} (A : Cover a) {b : ty} →
+        ∈⊗[]ʳ : ∀ {k : Pr} {a : ty} (A : Cover a) {b : ty} →
                 Σ[ B ∈ Cover b ] [ b ]∋ k ∈ B →
                 Σ[ AB ∈ Cover $ a `⊗ b ] A `⊗[ b ] ∋ k ∈ AB
         ∈⊗[]ʳ A (B , prB) = A `⊗ B , A `⊗ʳ[ prB ]
   
-        ∈[]& : ∀ {k : ℕ} {b : ty} {B : Cover b} (a : ty) →
+        ∈[]& : ∀ {k : Pr} {b : ty} {B : Cover b} (a : ty) →
                Σ[ B′ ∈ Cover b ] B ∋ k ∈ B′ →
                Σ[ AB ∈ Cover $ a `& b ] [ a ]`& B ∋ k ∈ AB
         ∈[]& a (B′ , prB) = [ a ]`& B′ , a `&ʳ prB
 
-        ∈&[] : ∀ {k : ℕ} {a : ty} {A : Cover a} (b : ty) →
+        ∈&[] : ∀ {k : Pr} {a : ty} {A : Cover a} (b : ty) →
                Σ[ A′ ∈ Cover a ] A ∋ k ∈ A′ →
                Σ[ AB ∈ Cover $ a `& b ] A `&[ b ] ∋ k ∈ AB
         ∈&[] b (A′ , prA) = A′ `&[ b ] , prA `&ˡ b
         open Context
 
         infix 6 _∈?_
-        _∈?_ : (k : ℕ) {σ : ty} (S : Cover σ) → Con (Σ[ S′ ∈ Cover σ ] S ∋ k ∈ S′)
+        _∈?_ : (k : Pr) {σ : ty} (S : Cover σ) → Con (Σ[ S′ ∈ Cover σ ] S ∋ k ∈ S′)
         k ∈? `κ l      = ε
         k ∈? A `⊗ B    = map (∈⊗ˡ B) (k ∈? A) ++ map (∈⊗ʳ A) (k ∈? B)
         k ∈? [ a ]`⊗ B = map (∈[]⊗ˡ B) (k ∈?[ a ]) ++ map (∈[]⊗ a) (k ∈? B)
@@ -156,9 +155,9 @@ module lps.Search.BelongsTo where
         k ∈? A `&[ b ] = map (∈&[] b) (k ∈? A)
         k ∈? [ a ]`& B = map (∈[]& a) (k ∈? B)
 
-        open IMLL
-        open Linearity.LTC
-        open Consumption.LCT.Cover
+        open IMLL Pr
+        open Linearity.LTC Pr
+        open Consumption.LCT.Cover Pr
 
         ⟦⊗ˡ⟧ : ∀ {σ k} τ {S₁ S₂ : Cover σ} (T : Cover τ) →
                Σ[ S ∈ Cover σ ] S₂ ≡ S₁ ─ S × ｢ S ｣ ⊢ `κ k →
@@ -190,7 +189,7 @@ module lps.Search.BelongsTo where
               Σ[ ST ∈ Cover $ σ `& τ ] [ σ ]`& T₂ ≡ [ σ ]`& T₁ ─ ST × ｢ ST ｣ ⊢ `κ k
         ⟦&ʳ⟧ σ (T , diff , tm) = [ σ ]`& T , [ σ ]`& diff , tm
 
-        ⟦_⟧ : {σ : ty} {S : Cover σ} {k : ℕ} {T : Cover σ} (pr : S ∋ k ∈ T) →
+        ⟦_⟧ : {σ : ty} {S : Cover σ} {k : Pr} {T : Cover σ} (pr : S ∋ k ∈ T) →
               Σ[ E ∈ Cover σ ] T ≡ S ─ E × ｢ E ｣ ⊢ `κ k
         ⟦ pr `⊗ˡ T     ⟧ = ⟦⊗ˡ⟧ _ _ ⟦ pr ⟧
         ⟦ S `⊗ʳ pr     ⟧ = ⟦⊗ʳ⟧ _ _ ⟦ pr ⟧
@@ -204,17 +203,17 @@ module lps.Search.BelongsTo where
     module Usage where
 
       open Cover
-      open Linearity.Type
+      open Linearity.Type Pr
 
       infix 4 _∈_▸_
-      data _∈_▸_ (k : ℕ) : {σ : ty} (S : Usage σ) (T : Usage σ) → Set where
+      data _∈_▸_ (k : Pr) : {σ : ty} (S : Usage σ) (T : Usage σ) → Set where
         [_] : {σ : ty} {S : Cover σ} (prS : FromFree.[ σ ]∋ k ∈ S) →
               k ∈ [ σ ] ▸ ] S [
         ]_[ : {σ : ty} {S S′ : Cover σ} (prS : S FromDented.∋ k ∈ S′) →
               k ∈ ] S [ ▸ ] S′ [
 
       infix 4 _∋_∈_
-      _∋_∈_ : {σ : ty} (S : Usage σ) (k : ℕ) (T : Usage σ) → Set
+      _∋_∈_ : {σ : ty} (S : Usage σ) (k : Pr) (T : Usage σ) → Set
       σ ∋ k ∈ τ = k ∈ σ ▸ τ
 
       open Context
@@ -228,24 +227,24 @@ module lps.Search.BelongsTo where
       ]∈[ (S , prS) = ] S [ , ] prS [
 
       infix 6 _∈?_
-      _∈?_ : (k : ℕ) {σ : ty} (S : Usage σ) → Con (Σ[ S′ ∈ Usage σ ] S ∋ k ∈ S′)
+      _∈?_ : (k : Pr) {σ : ty} (S : Usage σ) → Con (Σ[ S′ ∈ Usage σ ] S ∋ k ∈ S′)
       k ∈? [ σ ] = map [∈] $ k FromFree.∈?[ σ ]
       k ∈? ] S [ = map ]∈[ $ k FromDented.∈? S
 
       module Soundness where
 
-        open IMLL
-        open Consumption
+        open IMLL Pr
+        open Consumption Pr
         open LCT.Usage
-        open Linearity.Type.Cover
-        open Linearity.Type.Usage
+        open Linearity.Type.Cover Pr
+        open Linearity.Type.Usage Pr
   
-        ⟦][⟧ : {σ : ty} {S : Cover σ} {k : ℕ} {T : Cover σ} →
+        ⟦][⟧ : {σ : ty} {S : Cover σ} {k : Pr} {T : Cover σ} →
                Σ[ E ∈ Cover σ ] T LCT.Cover.≡ S ─ E × Cover.｢ E ｣ ⊢ `κ k →
                Σ[ E ∈ Usage σ ] ] T [ ≡ ] S [ ─ E × Usage.｢ E ｣ ⊢ `κ k
         ⟦][⟧ (E , diff , tm) = ] E [ , ] diff [ , tm
 
-        ⟦_⟧ : {σ : ty} {S : Usage σ} {k : ℕ} {T : Usage σ} (pr : S ∋ k ∈ T) →
+        ⟦_⟧ : {σ : ty} {S : Usage σ} {k : Pr} {T : Usage σ} (pr : S ∋ k ∈ T) →
               Σ[ E ∈ Usage σ ] T ≡ S ─ E × Usage.｢ E ｣ ⊢ `κ k
         ⟦ [ prS ] ⟧ = _ , inj[ _ ] , FromFree.⟦ prS ⟧
         ⟦ ] prS [ ⟧ = ⟦][⟧ FromDented.⟦ prS ⟧
@@ -253,22 +252,22 @@ module lps.Search.BelongsTo where
   module Context where
 
     module SBT = Type
-    open IMLL.Type
+    open IMLL.Type Pr
     open Con.Context
-    open Linearity
-    open Linearity.Context
+    open Linearity Pr
+    open Linearity.Context Pr
     open Pointwise
     open Con.Context.Context
 
     infix 4 _∈_▸_ 
-    data _∈_▸_ (k : ℕ) : {γ : Con ty} (Γ Δ : Usage γ) → Set where
+    data _∈_▸_ (k : Pr) : {γ : Con ty} (Γ Δ : Usage γ) → Set where
       zro : ∀ {γ σ} {Γ : Usage γ} {S S′ : LT.Usage σ} →
             S Type.Usage.∋ k ∈ S′ → k ∈ Γ ∙ S ▸ Γ ∙ S′
       suc : ∀ {γ τ} {Γ Γ′ : Usage γ} {T : LT.Usage τ} →
             k ∈ Γ ▸ Γ′ → k ∈ Γ ∙ T ▸ Γ′ ∙ T
 
     infix 4 _∋_∈_ 
-    _∋_∈_ : {γ : Con ty} (Γ : Usage γ) (k : ℕ) (Δ : Usage γ) → Set
+    _∋_∈_ : {γ : Con ty} (Γ : Usage γ) (k : Pr) (Δ : Usage γ) → Set
     Γ ∋ k ∈ Δ = k ∈ Γ ▸ Δ
 
     ∈zro : ∀ {γ σ} (Γ : Usage γ) {S : LT.Usage σ} {k} →
@@ -282,19 +281,18 @@ module lps.Search.BelongsTo where
     ∈suc S (Γ′ , prΓ) = Γ′ ∙ S , suc prΓ
 
 
-    _∈?_ : (k : ℕ) {γ : Con ty} (Γ : Usage γ) → Con (Σ[ Γ′ ∈ Usage γ ] Γ ∋ k ∈ Γ′)
+    _∈?_ : (k : Pr) {γ : Con ty} (Γ : Usage γ) → Con (Σ[ Γ′ ∈ Usage γ ] Γ ∋ k ∈ Γ′)
     k ∈? ε       = ε
     k ∈? (Γ ∙ S) = map (∈suc S) (k ∈? Γ) ++ map (∈zro Γ) (k Type.Usage.∈? S)
       where open Con.Context.Context
 
     module Soundness where
 
-      open IMLL
-      open Linearity
-      open Consumption
-      open Consumption.Context
+      open IMLL Pr
+      open Consumption Pr
+      open Consumption.Context Pr
 
-      ⟦zro⟧ : (γ : Con ty) (Γ : Usage γ) {σ : ty} {S S′ : LT.Usage σ} (k : ℕ) →
+      ⟦zro⟧ : (γ : Con ty) (Γ : Usage γ) {σ : ty} {S S′ : LT.Usage σ} (k : Pr) →
               Σ[ T ∈ LT.Usage σ ] S′ LCT.Usage.≡ S ─ T × LTU.｢ T ｣ ⊢ `κ k →
               Σ[ E ∈ Usage $ γ ∙ σ ] Γ ∙ S′ ≡ Γ ∙ S ─ E × ｢ E ｣ ⊢ `κ k
       ⟦zro⟧ γ Γ k (T , diff , tm) =
@@ -303,12 +301,12 @@ module lps.Search.BelongsTo where
          , LCC.inj[ Γ ] ∙ diff
          , Eq.subst (flip _⊢_ (`κ k)) (Eq.sym eq) tm
 
-      ⟦suc⟧ : {γ : Con ty} {Γ Δ : Usage γ} (σ : ty) {S : LT.Usage σ} {k : ℕ} →
+      ⟦suc⟧ : {γ : Con ty} {Γ Δ : Usage γ} (σ : ty) {S : LT.Usage σ} {k : Pr} →
               Σ[ E ∈ Usage γ ] Δ ≡ Γ ─ E × ｢ E ｣ ⊢ `κ k →
               Σ[ E ∈ Usage $ γ ∙ σ ] Δ ∙ S ≡ Γ ∙ S ─ E × ｢ E ｣ ⊢ `κ k
       ⟦suc⟧ σ (E , diff , tm) = E ∙ LT.[ σ ] , diff ∙ LCT.Usage.`idˡ , tm
 
-      ⟦_⟧ : {γ : Con ty} {Γ : Usage γ} {k : ℕ} {Δ : Usage γ} (pr : Γ ∋ k ∈ Δ) →
+      ⟦_⟧ : {γ : Con ty} {Γ : Usage γ} {k : Pr} {Δ : Usage γ} (pr : Γ ∋ k ∈ Δ) →
             Σ[ E ∈ Usage γ ] Δ ≡ Γ ─ E × ｢ E ｣ ⊢ `κ k
       ⟦ zro x  ⟧ = ⟦zro⟧ _ _ _ SBT.Usage.Soundness.⟦ x ⟧
       ⟦ suc pr ⟧ = ⟦suc⟧ _ ⟦ pr ⟧
