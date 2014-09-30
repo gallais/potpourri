@@ -63,7 +63,13 @@ module Tactics (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
   isProducts-merge⁻¹ (Γ ∙ S) (mg Il.∙ʳ σ) = Σ-map id (λ E → E ∙ S) $ isProducts-merge⁻¹ Γ mg
   isProducts-merge⁻¹ (Γ ∙ S) (mg Il.∙ˡ σ) = Σ-map (λ Δ → Δ ∙ S) id $ isProducts-merge⁻¹ Γ mg
 
-  open import Function-universe equality-with-J as Function-universe
+  import Function-universe as FU
+  module FUJ = FU equality-with-J
+  open FUJ
+
+  ↔-refl : {xs : List Pr} → xs ≈-bag xs
+  ↔-refl {[]}     = ≈″⇒≈ []
+  ↔-refl {x ∷ xs} = refl ∷-cong ↔-refl
 
   isProduct↔ : {σ : ty} (S T : isProduct σ) → fromProduct S ≈-bag fromProduct T
   isProduct↔ (`κ p)     (`κ .p)    = ≈″⇒≈ (p ∷ [])
@@ -73,26 +79,37 @@ module Tactics (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
   isProducts↔ ε        ε        = ≈″⇒≈ []
   isProducts↔ (Γ ∙ S₁) (Δ ∙ S₂) = ++-cong (isProducts↔ Γ Δ) (isProduct↔ S₁ S₂)
 
+  ++-assoc : (xs ys zs : List Pr) → xs ++ ys ++ zs ≈-bag (xs ++ ys) ++ zs
+  ++-assoc []       ys zs = ↔-refl
+  ++-assoc (x ∷ xs) ys zs = refl ∷-cong ++-assoc xs ys zs
+
   isProducts⋈↔ : {γ δ e : Con ty} (Γ : isProducts γ) (Δ : isProducts δ) (E : isProducts e)
                  (mg : γ Interleaving.≡ δ ⋈ e) →
                  fromProducts Γ ≈-bag fromProducts Δ ++ fromProducts E
   isProducts⋈↔ ε        ε        ε        Il.ε         = ≈″⇒≈ []
   isProducts⋈↔ (Γ ∙ S₁) Δ        (E ∙ S₂) (mg Il.∙ʳ σ) = λ z →
     z ∈ fromProducts (Γ ∙ S₁) ↔⟨ ++-cong (isProducts⋈↔ Γ Δ E mg) (isProduct↔ S₁ S₂) z ⟩
-   {!!}
+    z ∈ (fromProducts Δ ++ fromProducts E) ++ fromProduct S₂
+              ↔⟨ inverse (++-assoc (fromProducts Δ) (fromProducts E) (fromProduct S₂) z) ⟩
+    z ∈ fromProducts Δ ++ fromProducts E ++ fromProduct S₂ □
   isProducts⋈↔ (Γ ∙ S₁) (Δ ∙ S₂) E        (mg Il.∙ˡ σ) = λ z →
-    z ∈ fromProducts (Γ ∙ S₁) ↔⟨ ++-cong (isProducts⋈↔ Γ Δ E mg) (isProduct↔ S₁ S₂) z ⟩
-    {!!}
+    z ∈ fromProducts (Γ ∙ S₁)
+              ↔⟨ ++-cong (isProducts⋈↔ Γ Δ E mg) (isProduct↔ S₁ S₂) z ⟩
+    z ∈ (fromProducts Δ ++ fromProducts E) ++ fromProduct S₂
+              ↔⟨ inverse (++-assoc (fromProducts Δ) (fromProducts E) (fromProduct S₂) z) ⟩
+    z ∈ fromProducts Δ ++ fromProducts E ++ fromProduct S₂
+              ↔⟨ ++-cong (↔-refl {fromProducts Δ}) (++-comm (fromProducts E) (fromProduct S₂)) z ⟩
+    z ∈ fromProducts Δ ++ fromProduct S₂ ++ fromProducts E
+              ↔⟨ ++-assoc (fromProducts Δ) (fromProduct S₂) (fromProducts E) z ⟩
+    z ∈ (fromProducts Δ ++ fromProduct S₂) ++ fromProducts E □
 
   split↔ : {γ : Con ty} {σ τ : ty} (Γ : isProducts γ) (var : σ `⊗ τ BT.∈ γ) →
            fromProducts Γ ≈-bag fromProducts (isProducts-split Γ var)
-  split↔ (Γ ∙ S `⊗ T) BT.zro       = λ z → {!!}
-{-
-    {!!} ↔⟨ Any-++ (_≡_ z) (fromProducts Γ) (fromProduct S ++ fromProduct T) ⟩
-    {!!} ↔⟨ ≡⇒↝ bijection refl ⊎-cong Any-++ (_≡_ z) (fromProduct S) (fromProduct T) ⟩
-    {!!}
--}
-  split↔ (Γ ∙ S)      (BT.suc var) = {!!}
+  split↔ (Γ ∙ S `⊗ T) BT.zro       = λ z →
+    z ∈ fromProducts Γ ++ fromProduct S ++ fromProduct T
+               ↔⟨ ++-assoc (fromProducts Γ) (fromProduct S) (fromProduct T) z ⟩
+    z ∈ (fromProducts Γ ++ fromProduct S) ++ fromProduct T □
+  split↔ (Γ ∙ S)      (BT.suc var) = ++-cong (split↔ Γ var) ↔-refl
 
   sound : {γ : Con ty} {σ : ty} (Γ : isProducts γ) (S : isProduct σ) →
           γ ⊢ σ → fromProducts Γ ≈-bag fromProduct S
@@ -156,3 +173,12 @@ module Tactics (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
   proveBagEq : (xs ys : List Pr) {_ : maybe (const ⊤) ⊥ $ proveM xs ys} → xs ≈-bag ys
   proveBagEq xs ys {pr} = Maybe.induction P ⊥-elim const (proveM xs ys) pr
     where P = λ a → ∀ (pr : maybe (const ⊤) ⊥ a) → xs ≈-bag ys
+
+
+module Examples where
+
+  open import Data.Nat as Nat
+  open Tactics Nat.ℕ Nat._≟_
+
+  1∷2∷3∷3 : 1 ∷ 2 ∷ 3 ∷ 3 ∷ [] ≈-bag 3 ∷ 2 ∷ 3 ∷ 1 ∷ []
+  1∷2∷3∷3 = proveBagEq _ _
