@@ -8,6 +8,8 @@ s/‿\([^\}]*\)/\_\\AgdaFontStyle\{\\scriptscriptstyle \1\}/g
 # Σ[ x ∈ X ] into (x : X) ×
 s/\\AgdaRecord{Σ\[} \(.*\) \\AgdaRecord{∈} \(.*\) \\AgdaRecord{]}/\\AgdaSymbol\{(\}\1 \\AgdaSymbol\{:\} \2\\AgdaSymbol\{)\} \\AgdaFunction\{×\}/g
 
+s/Prelude\.//g
+
 # Bind, Kleisli extension and fmap.
 s/>>=/\\mathbin\{>\\!\\!>\\mkern-6.7mu=\}/g
 s/>>/\\mathbin\{>\\!\\!>}/g
@@ -19,6 +21,8 @@ s/─\*/─\\!\\!\*/g
 
 # Append.
 s/++/+\\!+/g
+s/｢/\\AF\{\\lceil\{\}\}/g
+s/｣/\\AF\{\\rfloor\{\}\}/g
 
 # Comments.
 #s/AgdaComment{\-\-/AgdaComment\{\-\\!\-/g

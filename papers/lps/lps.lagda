@@ -473,6 +473,78 @@ ambiguities.
 }{   \text{\AB{Γ} \mysnoc{} \AB{S} \hasType{} \AD{Usages} \AB{γ} \mysnoc{} \AB{σ}}}
 \end{mathpar}
 
+\paragraph{Erasures} From an \AD{Usage}(\AD{s}), one can always
+define an erasure function building a context listing the hypotheses
+marked as used. We write \erasure{\_} for such functions and define
+them by induction on the structure of the \AD{Usage}(\AD{s}).
+
+The erasure for \AD{Usages} is the left to right concatenation
+of the erasures of its various components. The erasure of an
+\AD{Usage} \AB{σ} is the empty list if the assumption is mint
+or the erasure of the \AD{Cover} if is dented. The erasure of
+a cover is, quite naturally, defined as follows:
+
+\AgdaHide{
+\begin{code}
+open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality using (_≡_)
+
+module lps (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
+
+open import Data.Product as Product hiding (map)
+open import Function
+
+open import lps.IMLL Pr
+open Type
+open import lps.Search.Calculus Pr _≟_
+open Calculus hiding (_⊢?_)
+open import lps.Search.BelongsTo Pr _≟_ as BelongsTo
+open BelongsTo.Context hiding (_∋_∈_ ; _∈?_)
+open BelongsTo.Type.Cover.FromFree hiding (_∈?[_])
+open BelongsTo.Type.Cover.FromDented hiding (_∈?_)
+open import lps.Linearity Pr
+open LC hiding (｢_｣)
+open LT hiding (Usage)
+
+open import lps.Linearity.Action Pr as Action
+open Action.Context
+
+open import lib.Nullary
+open import lib.Maybe
+open import lib.Context as Con
+open Con.Context
+open Con.Context.Context
+
+pattern ax  k          = `κ k
+pattern _⊗ʳ_ a b       = _`⊗ʳ_ a b
+pattern _&ʳ_by_ a b pr = _`&ʳ_by_ a b pr
+
+pattern [] = ε
+
+pattern κ   k   = `κ k
+pattern _⊗[_] a b = a `⊗[ b ]
+pattern [_]⊗_ a b = [ a ]`⊗ b
+pattern _&[_] a b = a `&[ b ]
+pattern [_]&_ a b = [ a ]`& b
+pattern _⊗_ a b = a `⊗ b
+pattern _&_ a b = a `& b
+
+｢_｣ : {σ : ty} (S : Cover σ) → Con ty
+\end{code}}
+\begin{code}
+｢ κ k       ｣ = ε ∙ κ k
+｢ A ⊗ B     ｣ = ｢ A ｣ ++ ｢ B ｣
+｢ [ a ]⊗ B  ｣ = ｢ B ｣
+｢ A ⊗[ b ]  ｣ = ｢ A ｣
+｢ a & b     ｣ = ε ∙ (a & b)
+｢ A &[ b ]  ｣ = ｢ A ｣
+｢ [ a ]& B  ｣ = ｢ B ｣
+\end{code}
+
+\paragraph{Injection} We call \AD{inj} the function taking a
+context \AB{γ} as argument and describing the \AD{Usages} \AB{γ}
+corresponding to a completely mint context.
+
 \subsection{Being Synchronised, Formally}
 
 Now that \AD{Usages} have been introduced, we can give a formal
@@ -667,7 +739,7 @@ Second, we could invoke the rules defined in the previous paragraphs
 to extract a resource from a sub-assumption that had been spared
 so far. This can only affect tensor-headed assumption as covers for
 with-headed ones imply that we have already picked a side and may not
-using anything from the other one. Here is a such rule:
+use anything from the other one. Here is a such rule:
 \begin{mathpar}
 \inferrule{\text{\freebelongs{\AB{τ}} \AB{k} \cobelongs{} \AB{T}}
 }{\text{S \tensor\free{\AB{τ}} \belongs{} \AB{k} \cobelongs{} \AB{S} \tensor{} \AB{T}}
@@ -707,52 +779,6 @@ The proof search procedures are rather simple to implement (they
 straightforwardly follow the specifications we have spelled out
 earlier) and their definitions are succinct. Let us study them.
 
-\AgdaHide{
-\begin{code}
-open import Relation.Nullary
-open import Relation.Binary.PropositionalEquality using (_≡_)
-
-module lps (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
-
-open import Data.Product as Product hiding (map)
-open import Function
-
-open import lps.IMLL Pr
-open Type
-open import lps.Search.Calculus Pr _≟_
-open Calculus hiding (_⊢?_)
-open import lps.Search.BelongsTo Pr _≟_ as BelongsTo
-open BelongsTo.Context hiding (_∋_∈_ ; _∈?_)
-open BelongsTo.Type.Cover.FromFree hiding (_∈?[_])
-open BelongsTo.Type.Cover.FromDented hiding (_∈?_)
-open import lps.Linearity Pr
-open LC
-open LT hiding (Usage)
-
-open import lps.Linearity.Action Pr as Action
-open Action.Context
-
-open import lib.Nullary
-open import lib.Maybe
-open import lib.Context as Con
-open Con.Context
-open Con.Context.Context
-
-pattern ax  k          = `κ k
-pattern _⊗ʳ_ a b       = _`⊗ʳ_ a b
-pattern _&ʳ_by_ a b pr = _`&ʳ_by_ a b pr
-
-pattern [] = ε
-
-pattern κ   k   = `κ k
-pattern _⊗[_] a b = a `⊗[ b ]
-pattern [_]⊗_ a b = [ a ]`⊗ b
-pattern _&[_] a b = a `&[ b ]
-pattern [_]&_ a b = [ a ]`& b
-pattern _⊗_ a b = a `⊗ b
-pattern _&_ a b = a `& b
-\end{code}
-}
 
 \begin{lemma}Given a type \AB{σ} and an atomic proposition \AB{k},
 we can manufacture a list of pairs consisting of a \AD{Cover} \AB{σ}
@@ -1038,7 +1064,46 @@ let the reader infer) in \autoref{fig:coverdiffs}.
 \caption{Cover differences\label{fig:coverdiffs}}
 \end{figure*}
 
+\subsection{Auxiliary lemmas}
 
+The proof of soundness relies heavily on auxiliary lemmas. We state them
+here and skip the relatively tedious proofs. The interested reader can
+find them in the \file{Search/Calculus} file.
+
+\begin{lemma}[Introduction of with]
+Assuming that we are given two subproofs
+    \AB{Δ₁} \eqsync{} \AB{Γ} \diff{} \AB{E₁}
+and \erasure{\AB{E₁}} \entails{} \AB{σ}
+on one hand and
+    \AB{Δ₂} \eqsync{} \AB{Γ} \diff{} \AB{E₂}
+and \erasure{\AB{E₂}} \entails{} \AB{τ}
+on the other,
+and that we know that the two \AD{Usages} \AB{γ} respectively called
+\AB{Δ₁} and \AB{Δ₂} are such that
+    \AB{Δ} \eqsync{} \AB{Δ₁} \synced{} \AB{Δ₁}
+then we can generate \AB{E}, an \AD{Usages} \AB{γ}, such that
+    \AB{Δ} \eqsync{} \AB{Γ} \diff{} \AB{E},
+    \erasure{\AB{E}} \entails{} \AB{σ},
+and \erasure{\AB{E}} \entails{} \AB{τ}.
+\end{lemma}
+
+We can prove a similar theorem corresponding to the introduction of
+a tensor constructor:
+
+\begin{lemma}[Introduction of tensor]
+Given \AB{F₁} and \AB{F₂} two \AD{Usages} \AB{γ} such that:
+    \AB{Δ} \eqsync{} \AB{Γ} \diff{} \AB{F₁}
+and \erasure{\AB{F₁}} \entails{} \AB{σ}
+on one hand and
+    \AB{E} \eqsync{} \AB{Δ} \diff{} \AB{F₂}
+and \erasure{\AB{F₂}} \entails{} \AB{τ}
+on the other, then we can generate \AB{F} an \AD{Usages} \AB{γ}
+together with two contexts \AB{E₁} and \AB{E₂} such that:
+    \AB{E} \eqsync{} \AB{E} \diff{} \AB{F},
+    \erasure{\AB{F}} \eqsync{} \AB{E₁} \AD{⋈} \AB{E₂}\todo{Define interleaving!},
+    \AB{E₁} \entails{} \AB{σ}
+and \AB{E₂} \entails{} \AB{τ}
+\end{lemma}
 
 \begin{theorem}[Soundness of the Generalisation]
 For all context \AB{γ}, all \AB{Γ}, \AB{Δ} of type \AD{Usages}
@@ -1067,7 +1132,7 @@ to the ones in the generalised calculus which have no leftovers.
 A first, experimental, version of the procedure described in the
 previous sections was purposefully limited to handling atomic
 propositions and tensor product. One could argue that this fragment
-is akin to Hutton's razor: small enough to allow for quick
+is akin to Hutton's razor~\cite{hutton98}: small enough to allow for quick
 experiments whilst covering enough ground to articulate founding
 principles. Now, the theory of ILL with just atomic propositions
 and tensor products is precisely the one of bag equivalence: a goal
@@ -1076,9 +1141,10 @@ is the same one as the context's one.
 
 This relationship is made formal in the \file{Tactics} file where,
 using Danielsson's library for Bag Equivalence~\cite{danielsson2012bag},
-we build a tactics for proving bag equivalence of finite lists.
+we build a tactics for automatically proving bag equivalence of finite
+lists.
 
-First, we start by defining predicate describing precisely the subset
+First, we start by defining a predicate describing precisely the subset
 of the logic we are interested in: we want to consider only contexts
 and goals which are made up of nothing but products and atomic
 proposition. The predicate \AD{isProducts} for context is a pointwise
@@ -1087,9 +1153,8 @@ follows:
 
 \begin{mathpar}
 \inferrule{
-  }{\text{\AIC{`κ} \AB{k} \hasType{} \AD{isProduct} \AIC{`κ} \AB{k}}
+  }{\text{\AIC{κ} \AB{k} \hasType{} \AD{isProduct} \AIC{κ} \AB{k}}
   }
-
 \and
 \inferrule{
   \text{\AB{S} \hasType{} \AD{isProduct} \AB{σ}}
@@ -1098,20 +1163,66 @@ follows:
   }
 \end{mathpar}
 
+For each one of these predicates, we define erasure functions
+(\AF{fromProduct}(\AF{s})) collecting the list of atomic hypotheses
+used. We can then formulate the following soundness lemma:
+
 \begin{theorem}For any context \AB{γ} and goal \AB{σ} such that
-\AD{isProducts} \AB{γ} and \AD{isProduct} \AB{σ} hold, if there
-is a proof of \AB{γ} \entails{} \AB{σ} then \AB{γ} \eqbag{} \AB{σ}.
+\AB{Γ} and \AB{S} are respectively proofs of \AD{isProducts} \AB{γ}
+and \AD{isProduct} \AB{σ} hold, if there is a proof of
+\AB{γ} \entails{} \AB{σ} then
+\AF{fromProducts} \AB{Γ} \eqbag{} \AF{fromProduct} \AB{S}.
 \end{theorem}
 \begin{proof}This is proven by induction on the derivation
 \AB{γ} \entails{} \AB{σ}.
-
-Cases involving left or right rules for with are easily dismissed
-based on the assumption that both the goal and context are products.
-
-The variable case is trivial: we are given two identical lists.
-
 \end{proof}
 
+\begin{proposition}[Injection functions] From a list of atomic
+propositions \AB{xs}, one can produce a context \AB{γ} such that
+there is a proof \AB{Γ} of \AD{isProducts} \AB{γ} and \AF{fromProducts}
+\AB{Γ} is equal to \AB{xs}.
+
+Similarly, from a non-empty list \AB{x} \AIC{∷} \AB{xs}, one
+can produce a type \AB{σ} such that there is a proof \AB{S} of
+\AD{isProduct} \AB{S} and \AF{fromProduct} \AB{S} is equal to
+\AB{x} \AIC{∷} \AB{xs}.
+\end{proposition}
+\begin{proof}
+In the first case, we simply map the atomic constructor over the
+list of propositions.
+
+In the second one, we create a big right-nested tensor product.
+\end{proof}
+
+\begin{corollary}By combining the proof search for ILL sequents,
+the injection functions and the soundness lemma, we can generate
+proofs of bag equivalence.
+\end{corollary}
+
+Using the standard's library proof that equality on natural number
+is decidable, we can leverage the tactics we have just defined to
+discharge, for instance, the following goal:
+
+\AgdaHide{
+\begin{code}
+import Data.Nat as Nat
+open import Prelude
+open import Bag-equivalence
+open import lps.Tactics
+open Tactics Nat.ℕ Nat._≟_
+\end{code}}
+\begin{code}
+1∷2∷3∷3 : 1 ∷ 2 ∷ 3 ∷ 3 ∷ Prelude.[] ≈-bag 3 ∷ 2 ∷ 3 ∷ 1 ∷ Prelude.[]
+1∷2∷3∷3 = proveBagEq _ _
+\end{code}
+
+Dealing with variables would involve a little bit more work such as
+introducing names for them (e.g. by using \AD{String} \disjoint{} \AD{ℕ}
+as the type of atomic propositions) and extending the decision procedure
+accordingly as well as writing a bit of quotation machinery to automatize
+the process of generating a representation of the goal's type. All of these
+engineering issues have been thoroughly dealt with by Van Der Walt and
+Swierstra~\cite{van2012reflection,van2013engineering}.
 
 \section{Related and Future Work\label{sec:related}}
 
