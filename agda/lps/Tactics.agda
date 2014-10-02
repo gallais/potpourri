@@ -25,6 +25,9 @@ module Tactics (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
   toGoal : Pr → List Pr → ty
   toGoal p = foldr (λ p σ → σ `⊗ `κ p) $ `κ p
 
+  data isAtom : (σ : ty) → Set where
+    `κ : (p : Pr) → isAtom $ `κ p
+
   data isProduct : (σ : ty) → Set where
     `κ   : (p : Pr) → isProduct $ `κ p
     _`⊗_ : {σ τ : ty} (S : isProduct σ) (T : isProduct τ) → isProduct $ σ `⊗ τ
@@ -37,28 +40,27 @@ module Tactics (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
   fromProduct (`κ p)   = p ∷ []
   fromProduct (S `⊗ T) = fromProduct S ++ fromProduct T
 
-  isProducts : (Γ : Con ty) → Set
-  isProducts = PCon isProduct
+  isAtoms : (Γ : Con ty) → Set
+  isAtoms = PCon isAtom
 
-  isProductsToContext : (xs : List Pr) → isProducts $ toContext xs
-  isProductsToContext []       = ε
-  isProductsToContext (x ∷ xs) = isProductsToContext xs ∙ `κ x
+  isAtomsToContext : (xs : List Pr) → isAtoms $ toContext xs
+  isAtomsToContext []       = ε
+  isAtomsToContext (x ∷ xs) = isAtomsToContext xs ∙ `κ x
 
-  fromProducts : {γ : Con ty} (Γ : isProducts γ) → List Pr
-  fromProducts ε       = []
-  fromProducts (Γ ∙ S) = fromProducts Γ ++ fromProduct S
+  fromAtoms : {γ : Con ty} (Γ : isAtoms γ) → List Pr
+  fromAtoms ε          = []
+  fromAtoms (Γ ∙ `κ p) = p ∷ fromAtoms Γ 
 
-  noWiths : {γ : Con ty} {σ τ : ty} (Γ : isProducts γ) (var : σ `& τ BT.∈ γ) → ⊥ {lzero}
-  noWiths (Γ ∙ ()) BT.zro
-  noWiths (Γ ∙ _)  (BT.suc var) = noWiths Γ var
+  noWith : {γ : Con ty} {σ τ : ty} (Γ : isAtoms γ) (var : σ `& τ BT.∈ γ) → ⊥ {lzero}
+  noWith (Γ ∙ ()) BT.zro
+  noWith (Γ ∙ _)  (BT.suc var) = noWith Γ var
 
-  isProducts-split : {γ : Con ty} {σ τ : ty} (Γ : isProducts γ) (var : σ `⊗ τ BT.∈ γ) →
-                     isProducts $ split-⊗ var
-  isProducts-split (Γ ∙ S `⊗ T) BT.zro      = Γ ∙ S ∙ T
-  isProducts-split (Γ ∙ S)     (BT.suc var) = isProducts-split Γ var ∙ S
+  noTensor : {γ : Con ty} {σ τ : ty} (Γ : isAtoms γ) (var : σ `⊗ τ BT.∈ γ) → ⊥ {lzero}
+  noTensor (Γ ∙ ()) BT.zro
+  noTensor (Γ ∙ _) (BT.suc var) = noTensor Γ var
 
-  isProducts-merge⁻¹ : {γ δ e : Con ty} (Γ : isProducts γ) (mg : γ Interleaving.≡ δ ⋈ e) →
-                       isProducts δ × isProducts e
+  isProducts-merge⁻¹ : {γ δ e : Con ty} (Γ : isAtoms γ) (mg : γ Interleaving.≡ δ ⋈ e) →
+                       isAtoms δ × isAtoms e
   isProducts-merge⁻¹ ε       Il.ε         = ε , ε
   isProducts-merge⁻¹ (Γ ∙ S) (mg Il.∙ʳ σ) = Σ-map id (λ E → E ∙ S) $ isProducts-merge⁻¹ Γ mg
   isProducts-merge⁻¹ (Γ ∙ S) (mg Il.∙ˡ σ) = Σ-map (λ Δ → Δ ∙ S) id $ isProducts-merge⁻¹ Γ mg
@@ -75,71 +77,43 @@ module Tactics (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
   isProduct↔ (`κ p)     (`κ .p)    = ≈″⇒≈ (p ∷ [])
   isProduct↔ (S₁ `⊗ T₁) (S₂ `⊗ T₂) = ++-cong (isProduct↔ S₁ S₂) (isProduct↔ T₁ T₂)
 
-  isProducts↔ : {γ : Con ty} (Γ Δ : isProducts γ) → fromProducts Γ ≈-bag fromProducts Δ
-  isProducts↔ ε        ε        = ≈″⇒≈ []
-  isProducts↔ (Γ ∙ S₁) (Δ ∙ S₂) = ++-cong (isProducts↔ Γ Δ) (isProduct↔ S₁ S₂)
+  isAtoms↔ : {γ : Con ty} (Γ Δ : isAtoms γ) → fromAtoms Γ ≈-bag fromAtoms Δ
+  isAtoms↔ ε          ε           = ≈″⇒≈ []
+  isAtoms↔ (Γ ∙ `κ p) (Δ ∙ `κ .p) = refl ∷-cong isAtoms↔ Γ Δ
 
   ++-assoc : (xs ys zs : List Pr) → xs ++ ys ++ zs ≈-bag (xs ++ ys) ++ zs
   ++-assoc []       ys zs = ↔-refl
   ++-assoc (x ∷ xs) ys zs = refl ∷-cong ++-assoc xs ys zs
 
-  isProducts⋈↔ : {γ δ e : Con ty} (Γ : isProducts γ) (Δ : isProducts δ) (E : isProducts e)
-                 (mg : γ Interleaving.≡ δ ⋈ e) →
-                 fromProducts Γ ≈-bag fromProducts Δ ++ fromProducts E
-  isProducts⋈↔ ε        ε        ε        Il.ε         = ≈″⇒≈ []
-  isProducts⋈↔ (Γ ∙ S₁) Δ        (E ∙ S₂) (mg Il.∙ʳ σ) = λ z →
-    z ∈ fromProducts (Γ ∙ S₁) ↔⟨ ++-cong (isProducts⋈↔ Γ Δ E mg) (isProduct↔ S₁ S₂) z ⟩
-    z ∈ (fromProducts Δ ++ fromProducts E) ++ fromProduct S₂
-              ↔⟨ inverse (++-assoc (fromProducts Δ) (fromProducts E) (fromProduct S₂) z) ⟩
-    z ∈ fromProducts Δ ++ fromProducts E ++ fromProduct S₂ □
-  isProducts⋈↔ (Γ ∙ S₁) (Δ ∙ S₂) E        (mg Il.∙ˡ σ) = λ z →
-    z ∈ fromProducts (Γ ∙ S₁)
-              ↔⟨ ++-cong (isProducts⋈↔ Γ Δ E mg) (isProduct↔ S₁ S₂) z ⟩
-    z ∈ (fromProducts Δ ++ fromProducts E) ++ fromProduct S₂
-              ↔⟨ inverse (++-assoc (fromProducts Δ) (fromProducts E) (fromProduct S₂) z) ⟩
-    z ∈ fromProducts Δ ++ fromProducts E ++ fromProduct S₂
-              ↔⟨ ++-cong (↔-refl {fromProducts Δ}) (++-comm (fromProducts E) (fromProduct S₂)) z ⟩
-    z ∈ fromProducts Δ ++ fromProduct S₂ ++ fromProducts E
-              ↔⟨ ++-assoc (fromProducts Δ) (fromProduct S₂) (fromProducts E) z ⟩
-    z ∈ (fromProducts Δ ++ fromProduct S₂) ++ fromProducts E □
+  isAtoms⋈↔ : {γ δ e : Con ty} (Γ : isAtoms γ) (Δ : isAtoms δ) (E : isAtoms e)
+              (mg : γ Interleaving.≡ δ ⋈ e) → fromAtoms Γ ≈-bag fromAtoms Δ ++ fromAtoms E
+  isAtoms⋈↔ ε ε ε Il.ε = ≈″⇒≈ []
+  isAtoms⋈↔ (Γ ∙ `κ p) Δ (E ∙ `κ .p) (mg Il.∙ʳ .(`κ p)) = λ z →
+    z ∈ fromAtoms (Γ ∙ `κ p)                   ↔⟨ (refl ∷-cong isAtoms⋈↔ Γ Δ E mg) z ⟩
+    z ∈ p ∷ fromAtoms Δ ++ fromAtoms E         ↔⟨ ++-assoc (p ∷ []) (fromAtoms Δ) (fromAtoms E) z ⟩
+    z ∈ (p ∷ [] ++ fromAtoms Δ) ++ fromAtoms E ↔⟨ ++-cong (++-comm (p ∷ []) (fromAtoms Δ)) ↔-refl z ⟩
+    z ∈ (fromAtoms Δ ++ p ∷ []) ++ fromAtoms E ↔⟨ inverse (++-assoc (fromAtoms Δ) (p ∷ []) (fromAtoms E) z) ⟩
+    z ∈ fromAtoms Δ ++ p ∷ fromAtoms E □
+  isAtoms⋈↔ (Γ ∙ `κ p) (Δ ∙ `κ .p) E (mg Il.∙ˡ .(`κ p)) = refl ∷-cong isAtoms⋈↔ Γ Δ E mg
 
-  split↔ : {γ : Con ty} {σ τ : ty} (Γ : isProducts γ) (var : σ `⊗ τ BT.∈ γ) →
-           fromProducts Γ ≈-bag fromProducts (isProducts-split Γ var)
-  split↔ (Γ ∙ S `⊗ T) BT.zro       = λ z →
-    z ∈ fromProducts Γ ++ fromProduct S ++ fromProduct T
-               ↔⟨ ++-assoc (fromProducts Γ) (fromProduct S) (fromProduct T) z ⟩
-    z ∈ (fromProducts Γ ++ fromProduct S) ++ fromProduct T □
-  split↔ (Γ ∙ S)      (BT.suc var) = ++-cong (split↔ Γ var) ↔-refl
-
-  sound : {γ : Con ty} {σ : ty} (Γ : isProducts γ) (S : isProduct σ) →
-          γ ⊢ σ → fromProducts Γ ≈-bag fromProduct S
-  sound (ε ∙ S) T        `v                  = isProduct↔ S T
-  sound Γ       S        (var `⊗ˡ tm)        =
-    let ih = sound (isProducts-split Γ var) S tm
-    in λ z →
-       z ∈ fromProducts Γ                        ↔⟨ split↔ Γ var z ⟩
-       z ∈ fromProducts (isProducts-split Γ var) ↔⟨ ih z ⟩
-       z ∈ fromProduct S □
+  sound : {γ : Con ty} {σ : ty} (Γ : isAtoms γ) (S : isProduct σ) →
+          γ ⊢ σ → fromAtoms Γ ≈-bag fromProduct S
+  sound (ε ∙ `κ p) (`κ .p) `v                = ≈″⇒≈ (p ∷ [])
   sound Γ       (S `⊗ T) (tm₁ `⊗ʳ tm₂ by mg) =
     let (Δ , E) = isProducts-merge⁻¹ Γ mg
         ih₁     = sound Δ S tm₁
         ih₂     = sound E T tm₂
     in λ z →
-      z ∈ fromProducts Γ                   ↔⟨ isProducts⋈↔ Γ Δ E mg z ⟩
-      z ∈ fromProducts Δ ++ fromProducts E ↔⟨ ++-cong ih₁ ih₂ z ⟩
+      z ∈ fromAtoms Γ                   ↔⟨ isAtoms⋈↔ Γ Δ E mg z ⟩
+      z ∈ fromAtoms Δ ++ fromAtoms E ↔⟨ ++-cong ih₁ ih₂ z ⟩
       z ∈ fromProduct  S ++ fromProduct  T □
-  sound Γ       _        (var `&ˡ₁ _)        = ⊥-elim $ noWiths Γ var
-  sound Γ       _        (var `&ˡ₂ _)        = ⊥-elim $ noWiths Γ var
-  sound Γ       ()       (pr `&ʳ pr₁)
+  sound Γ       S        (var `⊗ˡ tm)        = ⊥-elim $ noTensor Γ var
+  sound Γ       _        (var `&ˡ₁ _)        = ⊥-elim $ noWith   Γ var
+  sound Γ       _        (var `&ˡ₂ _)        = ⊥-elim $ noWith   Γ var
 
-  fromToContext : (xs : List Pr) → xs ≈-bag fromProducts (isProductsToContext xs)
+  fromToContext : (xs : List Pr) → xs ≈-bag fromAtoms (isAtomsToContext xs)
   fromToContext []       = ≈″⇒≈ []
-  fromToContext (x ∷ xs) = λ z →
-    z ∈ x ∷ xs
-               ↔⟨ (refl ∷-cong fromToContext xs) z ⟩
-    z ∈ x ∷ fromProducts (isProductsToContext xs)
-               ↔⟨ ++-comm (x ∷ []) (fromProducts $ isProductsToContext xs) z ⟩
-    z ∈ fromProducts (isProductsToContext $ x ∷ xs) □
+  fromToContext (x ∷ xs) = refl ∷-cong fromToContext xs
 
   fromToGoal : (x : Pr) (xs : List Pr) → fromProduct (isProductToGoal x xs) ≈-bag x ∷ xs
   fromToGoal x []       = ≈″⇒≈ (x ∷ [])
@@ -159,13 +133,13 @@ module Tactics (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
   proveM : (xs ys : List Pr) → Maybe $ xs ≈-bag ys
   proveM [] []       = some $ ≈″⇒≈ []
   proveM xs (y ∷ ys) =
-    let okContext = isProductsToContext xs
+    let okContext = isAtomsToContext xs
         okGoal    = isProductToGoal y ys
         result    = search (toContext xs) (toGoal y ys)
         bag-eq    = sound okContext okGoal <$> result
    in (λ eq z →
          z ∈ xs                                    ↔⟨ fromToContext xs z ⟩
-         z ∈ fromProducts (isProductsToContext xs) ↔⟨ eq z ⟩
+         z ∈ fromAtoms (isAtomsToContext xs) ↔⟨ eq z ⟩
          z ∈ fromProduct (isProductToGoal y ys)    ↔⟨ fromToGoal y ys z ⟩
          z ∈ y ∷ ys □) <$> bag-eq
   proveM _  _        = none
