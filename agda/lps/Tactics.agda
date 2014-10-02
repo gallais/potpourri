@@ -370,8 +370,71 @@ module Examples where
             1 ∷ 2 ∷ 3 ∷ 3 ∷ [] ≈-bag 3 ∷ 2 ∷ 3 ∷ 1 ∷ []
   1∷2∷3∷3 = proveBagEq _ _
 
-  1+2+x+y : (x y : ℕ) → 1 + 2 + x + y RBEq.≡ x + 3 + y
-  1+2+x+y x y =
+  2+x+y+1 : (x y : ℕ) → 2 + (x + y + 1) RBEq.≡ x + 3 + y
+  2+x+y+1 x y =
      let `x = `v Fin.zero
          `y = `v (Fin.suc Fin.zero)
-     in proveMonEq {2} (`c 1 `∙ `c 2 `∙ `x `∙ `y) (`x `∙ `c 3 `∙ `y) (x Vec.∷ y Vec.∷ Vec.[])
+     in proveMonEq {2} (`c 2 `∙ (`x `∙ `y `∙ `c 1)) (`x `∙ `c 3 `∙ `y) (x Vec.∷ y Vec.∷ Vec.[])
+
+module TacticsBagEq2 (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
+
+  open import Algebra.Structures
+  open import Prelude
+  open TacticsBagEq Pr _≟_
+  open import Function-universe equality-with-J as FU
+
+  isSg : IsSemigroup _≈-bag_ _++_
+  isSg = record { isEquivalence = record { refl  = ↔-refl 
+                                         ; sym   = Prelude._∘_ inverse
+                                         ; trans = λ f g z → z ∈ _ ↔⟨ f z ⟩ z ∈ _ ↔⟨ g z ⟩ z ∈ _ □ }
+                ; assoc         = λ a b c → inverse Prelude.∘ ++-assoc a b c
+                ; ∙-cong        = ++-cong }
+
+  Mon : CommutativeMonoid lzero lzero
+  Mon = record
+          { Carrier = List Pr
+          ; _≈_     = _≈-bag_
+          ; _∙_     = _++_
+          ; ε       = []
+          ; isCommutativeMonoid = record { isSemigroup = isSg
+                                         ; identityˡ   = λ _ → ↔-refl
+                                         ; comm        = ++-comm }
+          }
+
+  ∷-inj : {x y : Pr} {xs ys : List Pr} (eq : RBEq._≡_ {_} {List Pr} (x ∷ xs) (y ∷ ys)) → x RBEq.≡ y × xs RBEq.≡ ys
+  ∷-inj RBEq.refl = RBEq.refl , RBEq.refl
+
+  _≟s_ : (xs ys : List Pr) → RN.Dec (xs RBEq.≡ ys)
+  []       ≟s [] = RN.yes RBEq.refl
+  []       ≟s (x ∷ ys) = RN.no (λ ())
+  (x ∷ xs) ≟s [] = RN.no (λ ())
+  (x ∷ xs) ≟s (y ∷ ys) with x ≟ y | xs ≟s ys
+  ... | RN.yes p | RN.yes ps = RN.yes $ RBEq.cong₂ _∷_ p ps
+  ... | _        | RN.no ¬ps = RN.no (¬ps Prelude.∘ proj₂ Prelude.∘ ∷-inj)
+  ... | RN.no ¬p | _         = RN.no (¬p Prelude.∘ proj₁ Prelude.∘ ∷-inj)
+
+  open TacticsAbMon Mon _≟s_ public
+
+module Example2 where
+
+  import Prelude as Pr
+  open import Data.Nat as Nat
+  open import Data.Fin as Fin
+  open import Data.Vec as Vec
+  open TacticsBagEq2 Nat.ℕ Nat._≟_
+  open import Function
+
+  sgl : ℕ → Pr.List ℕ
+  sgl x = x Pr.∷ Pr.[]
+
+  1∷2∷3∷3′ : let open Pr in
+             (xs : List Nat.ℕ) →
+             1 ∷ 2 ∷ 3 ∷ xs Pr.++ 3 ∷ [] ≈-bag 3 ∷ 2 ∷ xs Pr.++ 3 ∷ 1 ∷ []
+  1∷2∷3∷3′ xs = proveMonEq LHS RHS CTX
+    where `1  = `v Fin.zero
+          `2  = `v $ Fin.suc Fin.zero
+          `3  = `v $ Fin.suc $ Fin.suc Fin.zero
+          `xs = `v $ Fin.suc $ Fin.suc $ Fin.suc Fin.zero
+          LHS = (`1 `∙ `2 `∙ `3 `∙ `xs) `∙ `3 
+          RHS = (`3 `∙ `2 `∙ `xs) `∙ (`3 `∙ `1)
+          CTX = sgl 1 ∷ sgl 2 ∷ sgl 3 ∷ xs ∷ []
