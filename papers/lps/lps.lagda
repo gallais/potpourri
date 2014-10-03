@@ -7,7 +7,6 @@
 \usepackage{hyperref}
 
 \usepackage{todonotes}
-
 \usepackage{float}
 \floatstyle{boxed}
 \restylefloat{figure}
@@ -21,10 +20,10 @@
 
 \authorinfo{ }
            { }
-          { }
+           { }
 
 \begin{document}
-\input{header.tex}
+%\input{header.tex}
 
 
 \maketitle
@@ -64,6 +63,7 @@ should aim to develop better-structured algorithms. We show,
 working on a fragment of ILL~\cite{girard1987linear}, the sort
 of pitfalls to avoid and the generic ideas leading to better-behaved
 formulations.
+
 In \autoref{sec:ILL} we describe the fragment of ILL we are
 studying; \autoref{sec:general} defines a more general calculus
 internalising the notion of leftovers thus making the informal
@@ -72,7 +72,9 @@ introduces resource-aware contexts therefore giving us a powerful
 language to target with our proof search algorithm. The soudness
 result proved in \autoref{sec:soundness} is what lets us recover
 an ILL proof from one expressed in the more general system.
-
+\autoref{sec:application} presents an application of this proof
+search procedure to automatically proving two lists to be
+bag equivalent.
 
 \section{The Calculus, Informally\label{sec:ILL}}
 
@@ -1066,9 +1068,13 @@ let the reader infer) in \autoref{fig:coverdiffs}.
 
 \subsection{Auxiliary lemmas}
 
-The proof of soundness relies heavily on auxiliary lemmas. We state them
-here and skip the relatively tedious proofs. The interested reader can
-find them in the \file{Search/Calculus} file.
+The proof of soundness is split into auxiliary lemmas which are
+used to combine the induction hypothesis. These lemmas, where the
+bulk of the work is done, are maybe the places where the precise
+role played by the constraints enforced in the generalized calculus
+come to light. We state them here and skip the relatively tedious
+proofs. The interested reader can find them in the \file{Search/Calculus}
+file.
 
 \begin{lemma}[Introduction of with]
 Assuming that we are given two subproofs
@@ -1086,9 +1092,18 @@ then we can generate \AB{E}, an \AD{Usages} \AB{γ}, such that
     \erasure{\AB{E}} \entails{} \AB{σ},
 and \erasure{\AB{E}} \entails{} \AB{τ}.
 \end{lemma}
+\begin{proof}The proof is by induction over the structure of the
+derivation stating that \AB{Δ₁} and \AB{Δ₂} are synchronized.
+\end{proof}
 
 We can prove a similar theorem corresponding to the introduction of
-a tensor constructor:
+a tensor constructor. We write \AB{E} \eqsync{} \AB{E₁} \AD{⋈} \AB{E₂}
+to mean that the context \AB{E} is obtained by interleaving \AB{E₁}
+and \AB{E₂}. This notion is defined inductively and, naturally, is
+proof-relevant. It correponds in our list-based formalisation of ILL
+to the multiset union mentioned in the tensor introduction rule in
+\autoref{fig:ILLRules}.
+
 
 \begin{lemma}[Introduction of tensor]
 Given \AB{F₁} and \AB{F₂} two \AD{Usages} \AB{γ} such that:
@@ -1100,7 +1115,7 @@ and \erasure{\AB{F₂}} \entails{} \AB{τ}
 on the other, then we can generate \AB{F} an \AD{Usages} \AB{γ}
 together with two contexts \AB{E₁} and \AB{E₂} such that:
     \AB{E} \eqsync{} \AB{E} \diff{} \AB{F},
-    \erasure{\AB{F}} \eqsync{} \AB{E₁} \AD{⋈} \AB{E₂}\todo{Define interleaving!},
+    \erasure{\AB{F}} \eqsync{} \AB{E₁} \AD{⋈} \AB{E₂},
     \AB{E₁} \entails{} \AB{σ}
 and \AB{E₂} \entails{} \AB{τ}
 \end{lemma}
@@ -1127,29 +1142,142 @@ The soundness result relating the new calculus to the original
 one makes explicit the fact that valid ILL derivations correspond
 to the ones in the generalised calculus which have no leftovers.
 
-\section{Application: a Tactics for Bag Equivalence\label{sec:application}}
+\section{Applications: building Tactics\label{sec:application}}
 
-A first, experimental, version of the procedure described in the
-previous sections was purposefully limited to handling atomic
-propositions and tensor product. One could argue that this fragment
-is akin to Hutton's razor~\cite{hutton98}: small enough to allow for quick
-experiments whilst covering enough ground to articulate founding
-principles. Now, the theory of ILL with just atomic propositions
-and tensor products is precisely the one of bag equivalence: a goal
-will be provable if and only if the multiset of its atomic propositions
-is the same one as the context's one.
+A first, experimental, version of the procedure described in
+the previous sections was purposefully limited to handling
+atomic propositions and tensor product. One could argue that
+this fragment is akin to Hutton's razor~\cite{hutton98}: small
+enough to allow for quick experiments whilst covering enough
+ground to articulate founding principles. Now, the theory of
+ILL with just atomic propositions and tensor products is
+precisely the one of bag equivalence: a goal will be provable
+if and only if the multiset of its atomic propositions is the
+same one as the context's one.
 
-This relationship is made formal in the \file{Tactics} file where,
-using Danielsson's library for Bag Equivalence~\cite{danielsson2012bag},
-we build a tactics for automatically proving bag equivalence of finite
-lists.
+Naturally, one may want to write a solver for Bag Equivalence
+based on the one for ILL. But it is actually possible to solve
+an even more general problem: equations on a commutative monoid.
+Agda's standard library comes with a solver for equations on a
+semiring but it's not always the case that one has such a rich
+structure to take advantage of.
 
-First, we start by defining a predicate describing precisely the subset
-of the logic we are interested in: we want to consider only contexts
-and goals which are made up of nothing but products and atomic
-proposition. The predicate \AD{isProducts} for context is a pointwise
-lifting of \AD{isProduct} the one for types defined inductively as
-follows:
+\subsection{Equations on a Commutative Monoid}
+
+This whole section is parametrized by \AB{Mon} a commutative
+monoid (as defined in the file \file{Algebra} of Agda's standard
+library) whose carrier \AR{Carrier} \AB{Mon} is equipped with a
+decidable equality \AB{\_≟\_}. Alternatively, we may write
+\AB{M.name} to mean the \AB{name} defined by the commutative
+monoid \AB{Mon} (e.g. \AB{M.Carrier}).
+
+We start by defining a grammar for expressions with a finite number of
+variable whose carrier is a commutative monoid: a term may either be a
+variable (of which there are a finite amount \AB{n}), an element of the
+carrier set or the combination of two terms.
+
+\AgdaHide{
+\begin{code}
+open import Algebra
+open import Algebra.Structures
+open CommutativeMonoid
+open import Level
+
+module TacticsAbMonPaper
+         (Mon : CommutativeMonoid zero zero)
+         (_≟_ : (x y : Carrier Mon) → Dec (x ≡ y)) where
+
+  open import Data.Nat
+  open import Data.Fin
+  open import Data.Vec
+  open import Algebra
+  open import Algebra.Structures
+
+  module M = CommutativeMonoid Mon
+
+  infixl 6 _`∙_
+
+\end{code}}
+\begin{code}
+  data Expr (n : ℕ) : Set where
+    `v    : (k : Fin n)         → Expr n 
+    `c    : (el : Carrier Mon)  → Expr n
+    _`∙_  : (t u : Expr n)      → Expr n
+\end{code}
+
+Assuming the existence of a valuation assigning a value of the carrier
+set to each one of the variables, a simple semantics can be given to
+these expressions:
+
+\begin{code}
+  Valuation : ℕ → Set
+  Valuation n = Vec M.Carrier n
+
+  ⟦_⟧T : {n : ℕ} (t : Expr n) (ρ : Valuation n) → M.Carrier
+  ⟦ `v k    ⟧T ρ = lookup k ρ
+  ⟦ `c el   ⟧T ρ = el
+  ⟦ t `∙ u  ⟧T ρ = ⟦ t ⟧T ρ M.∙ ⟦ u ⟧T ρ
+\end{code}
+
+Now, we can normalize these terms down to vastly simpler structures:
+every \AD{Expr} \AB{n} is equivalent to a pair of an element of the
+carrier set (in which we have accumulated the constant values stored
+in the tree) together with the list of variables present in the term.
+We start by defining this \AF{Model} together with its semantics:
+
+\AgdaHide{
+\begin{code}
+  open import Prelude as Prelude hiding (ℕ ; _×_ ; Fin ; _$_ ; flip ; lookup)
+\end{code}}
+
+\begin{code}
+  Model : (n : ℕ) → Set
+  Model n = M.Carrier × List (Fin n)
+
+  ⟦_⟧M₂ : {n : ℕ} (ks : List (Fin n)) (ρ : Valuation n) → M.Carrier
+  ⟦ ks ⟧M₂ ρ = Prelude.foldr M._∙_ M.ε (Prelude.map (flip lookup ρ) ks)
+
+  ⟦_⟧M : {n : ℕ} (t : Model n) (ρ : Valuation n) → M.Carrier
+  ⟦ el , ks ⟧M ρ = el M.∙ ⟦ ks ⟧M₂ ρ
+\end{code}
+
+We then provide a normalization function turning a \AD{Expr} \AB{n}
+into such a pair. The variable and constant cases are trivial whilst
+the \AIC{\_`∙\_} is handled by an auxiliary definition combining the
+induction hypothesis:
+
+\begin{code}
+  _∙∙_ : {n : ℕ} → Model n → Model n → Model n
+  (e , ks) ∙∙ (f , ls) = e M.∙ f , ks Prelude.++ ls
+
+  norm : {n : ℕ} (t : Expr n) → Model n
+  norm (`v k)    = M.ε  , k ∷ Prelude.[]
+  norm (`c el)   = el   , Prelude.[]
+  norm (t `∙ u)  = norm t ∙∙ norm u
+\end{code}
+
+This first proof step is proved semantics preserving with respect to
+the commutative's monoid notion of equality by the following lemma:
+
+\begin{lemma}[Normalization Soundness]Given \AB{t} an \AD{Expr} \AB{n}
+and \AB{ρ} a \AF{Valuation} \AB{n}, \semT{\AB{t}} \AB{ρ} \AD{M.≈}
+\semM{\AF{norm} \AB{t}} \AB{ρ}.
+\end{lemma}
+
+This means that if we know how to check whether two elements of
+the model are equal then we know how to do the same for two
+expressions: we simply normalize both of them, test the normal
+forms for equality and transport the result back thanks to the
+soundness result. But equality for elements of the model is not
+complex to test: two terms are equal if their first components
+are and their second ones are the same multisets. This is where
+our solver for ILL steps in: if we limit the context to atoms
+only and the goal to being one big tensor of atomic formulas
+then we prove precisely multiset equality. Let us start by
+defining this subset of ILL we are interested in. We introduce
+two predicates on types \AD{isAtoms} saying that contexts are
+made out of atomic formulas and \AD{isProduct} restricting goal
+types to big products of atomic propositions:
 
 \begin{mathpar}
 \inferrule{
@@ -1163,18 +1291,39 @@ follows:
   }
 \end{mathpar}
 
-For each one of these predicates, we define erasure functions
-(\AF{fromProduct}(\AF{s})) collecting the list of atomic hypotheses
-used. We can then formulate the following soundness lemma:
+For each one of these predicates, we define the corresponding erasure
+function (\AF{fromAtoms} and \AF{fromProduct} respectively) collecting
+the list of atomic hypotheses used. We can then formulate the following
+soundness theorem:
 
-\begin{theorem}For any context \AB{γ} and goal \AB{σ} such that
-\AB{Γ} and \AB{S} are respectively proofs of \AD{isProducts} \AB{γ}
-and \AD{isProduct} \AB{σ} hold, if there is a proof of
-\AB{γ} \entails{} \AB{σ} then
+\begin{lemma}Given three contexts \AB{γ}, \AB{δ} and \AB{e} composed
+only of atoms (we call \AB{Γ}, \AB{Δ} and \AB{E} the respective proofs
+that \AD{isAtoms} holds for them) and a proof that \AB{γ} is obtained
+by merging \AB{δ} and \AB{e} together, we can demonstrate that for all
+\AB{ρ} a \AD{Valuation} \AB{n}:
+
+\semMM{\AF{fromAtoms} \AB{Γ}} \AB{ρ}
+\AD{M.≈} \semM{\AF{fromAtoms} \AB{Δ}} \AB{ρ} \AD{M.∙} \semMM{\AF{fromAtoms} \AB{E}} \AB{ρ}
+\end{lemma}
+\begin{proof}The proof is by induction on the structure of the proof
+that \AB{γ} is obtained by merging \AB{δ} and \AB{e} together.
+\end{proof}
+
+\begin{theorem}From a context \AB{γ} and a goal \AB{σ} such that
+\AB{Γ} and \AB{S} are respectively proofs that \AD{isAtoms} \AB{γ}
+and \AD{isProduct} \AB{σ} hold true, and from a given proof that
+\AB{γ} \entails{} \AB{σ} we can derive that
 \AF{fromProducts} \AB{Γ} \eqbag{} \AF{fromProduct} \AB{S}.
 \end{theorem}
-\begin{proof}This is proven by induction on the derivation
-\AB{γ} \entails{} \AB{σ}.
+\begin{proof}The proof is by induction on the derivation of type
+\AB{γ} \entails{} \AB{σ}. The hypothesis that assumptions are
+atomic discards all cases where a left rule might have been applied
+whilst the one saying that the goal is a big product helps us discard
+the with introduction case.
+
+The two cases left are therefore the variable one (trivial) and the
+tensor introduction one which is dealt with by combining the induction
+hypotheses generated by the subderivations using the previous lemma.
 \end{proof}
 
 \begin{proposition}[Injection functions] From a list of atomic
@@ -1194,35 +1343,70 @@ list of propositions.
 In the second one, we create a big right-nested tensor product.
 \end{proof}
 
-\begin{corollary}By combining the proof search for ILL sequents,
-the injection functions and the soundness lemma, we can generate
-proofs of bag equivalence.
-\end{corollary}
 
-Using the standard's library proof that equality on natural number
-is decidable, we can leverage the tactics we have just defined to
-discharge, for instance, the following goal:
+
+\subsection{Proving Bag Equivalence\label{sec:application}}
+
+We claimed that proving equations for a commutative monoids was
+more general than mere bag equivalence. It is now time to make
+such a statement formal: using Danielsson's rather consequent
+library for reasoning about Bag Equivalence~\cite{danielsson2012bag},
+we can build a tactics for proving bag equivalences of expressions
+involving finite lists (and list variables) by simply leveraging
+the solver defined in the previous subsection. Assuming that we
+have a base \AP{Set} named \AB{Pr} equipped with a decidable equality
+\AB{\_≟\_}, here is how to proceed:
+
+\begin{lemma}\AD{List} \AB{Pr} equipped with the binary operation
+\AF{\_++\_} is a commutative monoid for the equivalence relation
+\AF{\_≈-bag\_}.
+\end{lemma}
+
+We therefore have a solver for this theory. Now, it would be a
+grave mistake to translate constants using the \AIC{`c} constructor
+of the solver: results would be accumulated using concatenation and
+compared for \emph{syntactic equality} rather than up to permutation.
+This means that, for instance, \AN{1} \AIC{∷} \AN{2} \AIC{∷} \AB{xs}
+and \AN{2} \AIC{∷} \AN{1} \AIC{∷} \AB{xs} would be declared distinct
+because their normal forms would be, respectively, the pair
+\AN{1} \AIC{∷} \AN{2} \AIC{∷} \AIC{[]}, \AB{xs} \AIC{∷} \AIC{[]} on
+one hand and \AN{2} \AIC{∷} \AN{1} \AIC{∷} \AIC{[]}, \AB{xs} \AIC{∷}
+\AIC{[]} on the other one. Quite embarassing indeed.
+
+Instead we ought to treat the expressions as massive joins of lists
+of singletons (seen as variables) and list variables. And this works
+perfectly well as demonstrated by the following example:
 
 \AgdaHide{
 \begin{code}
-import Data.Nat as Nat
-open import Prelude
-open import Bag-equivalence
-open import lps.Tactics
-open Tactics Nat.ℕ Nat._≟_
+module Examples4 where
+
+  open import Prelude as Prelude hiding (_$_)
+  open import Bag-equivalence
+  open import Data.Nat as Nat
+  open import Data.Fin as Fin
+  open import Data.Vec as Vec
+  open import lps.Tactics
+  open TacticsBagEq2 Nat.ℕ Nat._≟_
+
 \end{code}}
 \begin{code}
-1∷2∷3∷3 : 1 ∷ 2 ∷ 3 ∷ 3 ∷ Prelude.[] ≈-bag 3 ∷ 2 ∷ 3 ∷ 1 ∷ Prelude.[]
-1∷2∷3∷3 = proveBagEq _ _
+  1∷2∷xs : (xs : List Nat.ℕ) → 1 ∷ 2 ∷ xs ≈-bag 2 ∷ 1 ∷ xs
+  1∷2∷xs xs = proveMonEq LHS RHS CTX
+    where  `1   = `v Fin.zero
+           `2   = `v (Fin.suc Fin.zero)
+           `xs  = `v (Fin.suc (Fin.suc Fin.zero))
+           LHS  = `1 `∙ `2 `∙ `xs
+           RHS  = `2 `∙ `1 `∙ `xs
+           CTX  = (1 Prelude.∷ Prelude.[]) ∷ (2 Prelude.∷ Prelude.[]) ∷ xs ∷ Vec.[]
 \end{code}
 
-Dealing with variables would involve a little bit more work such as
-introducing names for them (e.g. by using \AD{String} \disjoint{} \AD{ℕ}
-as the type of atomic propositions) and extending the decision procedure
-accordingly as well as writing a bit of quotation machinery to automatize
-the process of generating a representation of the goal's type. All of these
-engineering issues have been thoroughly dealt with by Van Der Walt and
-Swierstra~\cite{van2012reflection,van2013engineering}.
+Having a nice interface for these solvers would involve a little
+bit of engineering work such as writing a (partial) function turning
+elements of the \AD{Term} type describing quoted Agda term into the
+corresponding \AD{Expr}. All of these issues have been thoroughly
+dealt with by Van Der Walt and Swierstra~\cite{van2012reflection,van2013engineering}.
+
 
 \section{Related and Future Work\label{sec:related}}
 

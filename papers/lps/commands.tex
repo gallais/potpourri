@@ -4,10 +4,12 @@
 \newtheorem{proposition}[theorem]{Proposition}
 \newtheorem{corollary}[theorem]{Corollary}
 
+\newcommand{\AN}{\AgdaNumber}
 \newcommand{\AP}{\AgdaPrimitive}
 \newcommand{\AD}{\AgdaDatatype}
 \newcommand{\AF}{\AgdaFunction}
 \newcommand{\AB}{\AgdaBound}
+\newcommand{\AR}{\AgdaField}
 \newcommand{\AIC}{\AgdaInductiveConstructor}
 
 \newcommand{\entails}[0]{\AgdaDatatype{⊢}}
@@ -30,6 +32,10 @@
 \newcommand{\erasure}[1]{\AF{\lceil} #1 \AF{\rfloor}}
 \newcommand{\free}[1]{\AIC{[} #1 \AIC{]}}
 \newcommand{\freebelongs}[1]{\AD{[} #1 \AD{]}\belongs{}}
+\newcommand{\semT}[1]{\AF{⟦} #1 \AF{⟧T}}
+\newcommand{\semM}[1]{\AF{⟦} #1 \AF{⟧M}}
+\newcommand{\semMM}[1]{\AF{⟦} #1 \AF{⟧M₂}}
+
 
 \newcommand{\lmulti}[0]{\AF{⦃}}
 \newcommand{\rmulti}[0]{\AF{⦄}}
