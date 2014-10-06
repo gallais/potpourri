@@ -1,0 +1,17 @@
+diff -r equality/Prelude.agda nad-equality/Prelude.agda
+91,93c91
+< data ℕ : Set where
+<   zero : ℕ
+<   suc  : (n : ℕ) → ℕ
+---
+> import Data.Nat as Nat
+97c95,101
+< {-# BUILTIN NATURAL ℕ #-}
+---
+> module ℕ where
+> 
+>   ℕ = Nat.ℕ
+>   pattern suc n = Nat.suc n
+>   pattern zero  = Nat.zero
+> 
+> open ℕ public
