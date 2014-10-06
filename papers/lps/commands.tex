@@ -27,14 +27,16 @@
 \newcommand{\mysnoc}[0]{\AgdaInductiveConstructor{∙}}
 \newcommand{\hasType}[0]{\AgdaKeyword{:}}
 \newcommand{\with}[0]{\AgdaInductiveConstructor{\&}}
+\newcommand{\injs}[0]{\AgdaFunction{injs}}
+\newcommand{\inj}[0]{\AgdaFunction{inj}}
 
 \newcommand{\isUsed}[2]{\AD{isUsed}$_{\text{#1}}$#2}
 \newcommand{\erasure}[1]{\AF{\lceil} #1 \AF{\rfloor}}
 \newcommand{\free}[1]{\AIC{[} #1 \AIC{]}}
 \newcommand{\freebelongs}[1]{\AD{[} #1 \AD{]}\belongs{}}
-\newcommand{\semT}[1]{\AF{⟦} #1 \AF{⟧T}}
-\newcommand{\semM}[1]{\AF{⟦} #1 \AF{⟧M}}
-\newcommand{\semMM}[1]{\AF{⟦} #1 \AF{⟧M₂}}
+\newcommand{\semT}[1]{\AF{⟦} #1 \AF{⟧^E}}
+\newcommand{\semM}[1]{\AF{⟦} #1 \AF{⟧^M}}
+\newcommand{\semMM}[1]{\AF{⟦} #1 \AF{⟧^{Ms}}}
 
 
 \newcommand{\lmulti}[0]{\AF{⦃}}
