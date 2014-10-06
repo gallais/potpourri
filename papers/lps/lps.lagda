@@ -38,8 +38,9 @@ can alleviate her suffering.
 The calculus we target is a fragment of Intuitionistic
 Linear Logic (ILL onwards) and the tool we use to construct
 the search procedure is Agda (but any reasonable type theory
-equipped with inductive families would do). We believe the
-approach described here can be used in other settings.
+equipped with inductive families would do). The example is
+simple but already powerful enough to derive a solver for
+equations over a commutative monoid from it.
 \end{abstract}
 
 \section{Introduction}
@@ -49,8 +50,8 @@ Type theory is expressive enough that one can implement
 merely oracles outputting a one bit answer but full-blown
 automated provers producing derivations which are
 statically known to be correct. It is only natural to delve
-into the litterature to try and find decidability proofs
-which, through the curry-howard correspondence, could make
+into the literature to try and find decidability proofs
+which, through the curry-Howard correspondence, could make
 good candidates for mechanisation. Reality is however not
 as welcoming as one would hope: most of these proofs have
 not been formulated with formalisation in mind and would
@@ -69,22 +70,24 @@ studying; \autoref{sec:general} defines a more general calculus
 internalising the notion of leftovers thus making the informal
 description of the proof search mechanism formal; and \autoref{sec:contexts}
 introduces resource-aware contexts therefore giving us a powerful
-language to target with our proof search algorithm. The soudness
-result proved in \autoref{sec:soundness} is what lets us recover
-an ILL proof from one expressed in the more general system.
+language to target with our proof search algorithm implemented
+in \autoref{sec:proofsearch}. The soundness result proved in
+\autoref{sec:soundness} is what lets us recover an ILL proof
+from one expressed in the more general system. Finally,
 \autoref{sec:application} presents an application of this proof
-search procedure to automatically proving two lists to be
-bag equivalent.
+search procedure to automatically discharge equations over a
+commutative monoid (which can e.g. be specialised down to proving
+that two lists are bag equivalent).
 
 \section{The Calculus, Informally\label{sec:ILL}}
 
-Our whole development is parametrized by a type of atomic
+Our whole development is parametrised by a type of atomic
 proposition \AB{Pr} on which we do not put any constraint
 except for it being equipped with a decidable equality
 \AF{\_≟\_}.
 
 The calculus we are considering is a fragment of Intuitionistic
-Linear Logic composed of \textit{atomic} types (liftging \AB{Pr}),
+Linear Logic composed of \textit{atomic} types (lifting \AB{Pr}),
 \textit{tensor} and \textit{with} products. This is summed up by
 the following grammar for types:
 
@@ -161,7 +164,7 @@ into trying to discharge another subproblem. Only in the end should
 the leftovers be down to nothing.
 
 This observation leads to the definition of two new notions: first,
-the calculus is generalized to one incorporating the notion of
+the calculus is generalised to one incorporating the notion of
 leftovers; second, the contexts are made resource-aware meaning
 that they keep the same structure whilst tracking whether (parts
 of) an assumption has been used already. Proof search becomes
@@ -217,7 +220,7 @@ we can produce is therefore:
 }{ax}
 \end{mathpar}
 We can then combine these two by using a right introduction
-rule for \tensor{}. If we add an extra, englobing, box every
+rule for \tensor{}. If we add an extra, enclosing, box every
 time an entire subpart of an assumption is used, we end up
 with a tree whose conclusion is:
 \begin{mathpar}
@@ -270,7 +273,7 @@ with leftovers \AB{Δ}, then the axiom rule translates to:
 }{ax}
 \end{mathpar}
 The introduction rule for tensor in the system with leftovers does
-not involve partioning a multiset (a list in our implementation)
+not involve partitioning a multiset (a list in our implementation)
 anymore: one starts by discharging the first subgoal, collects
 the leftover from this computation, and then deals with the second
 one. 
@@ -289,9 +292,9 @@ generate.
 The with type constructor on the other hand expects both
 subgoals to be proven using the same resources. We formalise
 this as the fact that both sides are proved using the input
-context and that both leftovers are then synchronized (for a
+context and that both leftovers are then synchronised (for a
 sensible, yet to be defined, definition of synchronisation).
-Obviously, not all leftovers will be synchronizable: this
+Obviously, not all leftovers will be synchronisable: this
 step may reject proof candidates which are non compatible.
 \begin{mathpar}
 \inferrule{
@@ -327,7 +330,7 @@ and after it has been discharged entirely.
 annotations\label{fig:derivation}}
 \end{figure*}
 
-It should not come as a suprise that this calculus does not
+It should not come as a surprise that this calculus does not
 have any elimination rule for the various type constructors:
 elimination rules do not consume anything, they merely shuffle
 around (parts of) assumptions in the context and are, as a
@@ -344,27 +347,11 @@ witnessed by the fact that the soundness result we give in
 decide where to optimally insert the appropriate left rules
 for the ILL derivation to be correct.
 
-\subsubsection{Computational interpretation}
-
-Thinking of the derivation tree as the trace of a computation
-(the proof search); we can notice that it is a monadic computation
-that we are running. The axiom rule will introduce non-determinism;
-there are indeed as many ways of proving an atomic proposition as
-there are assumptions of that type in the context. The rule for
-tensor looks like two stateful operations being run sequentially:
-one starts by discharging the first subgoal, waits for it to
-\emph{return} a modified context and then uses these leftovers
-to tackle the second one. And, last but not least, the rule for
-with looks very much like a map-reduce diagram: we start by
-generating two subcomputations which can be run in parallel and
-later on merge their results by checking that the output contexts
-can be said to be synchronized.
-
 \section{Keeping the Structure\label{sec:contexts}}
 
 We now have a calculus with input and output contexts; but
 there is no material artefact describing the relationship
-betwee these two. Sure, we could prove a lemma stating that
+between these two. Sure, we could prove a lemma stating that
 the leftovers are precisely the subset of the input context
 which has not been used to discharge the goal but the proof
 would be quite involved because, among other things, of the
@@ -552,22 +539,22 @@ corresponding to a completely mint context.
 Now that \AD{Usages} have been introduced, we can give a formal
 treatment of the notion of synchronisation we evoked when giving
 the with introduction rule for the calculus with leftovers.
-Synchronization is meant to say that the two \AD{Usages} are equal
+Synchronisation is meant to say that the two \AD{Usages} are equal
 modulo some inconsequential variations. These inconsequential
 variations partly correspond to the fact that left rules may be
 inserted at different places in different subtrees.
 
-Synchronization is a three place relation \AB{Δ} \eqsync{} \AB{Δ₁}
+Synchronisation is a three place relation \AB{Δ} \eqsync{} \AB{Δ₁}
 \synced{} \AB{Δ₂} defined as the pointwise lifting of an analogous
 one working on \AD{Cover}s. Let us study the latter one which is
 defined in an inductive manner.
 
 It is reflexive which means that its diagonal \AB{S} \eqsync{} \AB{S}
-\synced{} \AB{S} is always inhabited. For the sake of simplicty, we
+\synced{} \AB{S} is always inhabited. For the sake of simplicity, we
 do not add a constructor for reflexivity: this rule is admissible by
-induction on \AB{S} based on the fact that synchronization for covers
+induction on \AB{S} based on the fact that synchronisation for covers
 comes with all the structural rules one would expect: if two covers'
-root constructors are equal and their subcovers are synchronized then
+root constructors are equal and their subcovers are synchronised then
 it is only fair to say that both of them are synchronised.
 
 It is also symmetric in its two last arguments which means that for
@@ -679,7 +666,7 @@ will not be changed. However we can at once define what it means
 for a resource to be consumed in an axiom rule. \_\belongs{}\_\cobelongs{}\_
 for \AD{Usages} is basically a proof-carrying de Bruijn index~\cite{de1972lambda}.
 The proof is stored in the \AIC{zro} constructor and simply leverages
-the definition of an anologous \_\belongs{}\_\cobelongs{}\_ for \AD{Usage}.
+the definition of an analogous \_\belongs{}\_\cobelongs{}\_ for \AD{Usage}.
 
 \begin{mathpar}
 \inferrule{\text{\AB{pr} \hasType{} \AB{S} \belongs{} \AB{k} \cobelongs{} \AB{S′}}
@@ -752,17 +739,27 @@ We now have a fully formal definition of the more general system
 we hinted at when observing the execution of the search procedure
 in \autoref{sec:example}.
 
-\section{Proof Search}
+\section{Proof Search\label{sec:proofsearch}}
 
 We have defined a lot of elegant datatypes so far but the original
 goal was to implement a proof search algorithm for the fragment of
 ILL we have decided to study. The good news is that all the systems
 we have described have algorithmic rules: read bottom-up, they are
 a set of constructor-directed recipes to search for a proof. Depending
-on the set of rules, they may or may not be deterministic and they
-clearly are not total because not all sequents are provable. This
-simply means that we will be working in various monads: the list one
-to model non determinism and the maybe one to model partiality.
+on the set of rules however, they may or may not be deterministic
+and they clearly are not total because not all sequents are provable.
+This simply means that we will be working in various monads. The axiom
+rule forces us to introduce non-determinism (which we will model using
+the list monad); there are indeed as many ways of proving an atomic
+proposition as there are assumptions of that type in the context. The
+rule for tensor looks like two stateful operations being run sequentially:
+one starts by discharging the first subgoal, waits for it to \emph{return}
+a modified context and then threads these leftovers to tackle the second
+one. And, last but not least, the rule for with looks very much like a
+map-reduce diagram: we start by generating two subcomputations which can
+be run in parallel and later on merge their results by checking whether
+the output contexts can be said to be synchronised (and this partiality
+will be dealt with using the maybe monad).
 
 Now, the presence of these effects is a major reason why it is important
 to have the elegant intermediate structures we can generate inhabitants
@@ -931,12 +928,12 @@ _∋?_ : {γ : Con ty} (Γ : LC.Usage γ) (k : Pr) → Con (Σ[ Γ′ ∈ LC.Usa
 
 \subsection{Producing Derivations}
 
-Assuming the following lemma stating that we can test for synchronizability,
+Assuming the following lemma stating that we can test for being synchronisable,
 we have all the pieces necessary to write a proof search procedure listing
 all the ways in which a context may entail a goal.
 
 \begin{lemma}Given \AB{Δ₁} and \AB{Δ₂} two \AD{Usages} \AB{γ}, it is possible
-to test whether they are synchronizable and, if so, return a \AD{Usages} \AB{γ}
+to test whether they are synchronisable and, if so, return a \AD{Usages} \AB{γ}
 which we will call \AB{Δ} together with a proof that \AB{Δ} \eqsync{} \AB{Δ₁}
 \synced{} \AB{Δ₂}. We call \AF{\_⊙?\_} this function.
 \end{lemma}
@@ -990,7 +987,7 @@ appropriate tree constructor \AIC{⊗ʳ}.
 \underline{With Case} Here we produce two independent sets of potential
 proofs and then check which subset of their cartesian product gives rise
 to valid proofs. To do so, we call \AF{\_⊙?\_} on the returned \AD{Usages}
-to make sure that they are synchronizable and, based on the result, either
+to make sure that they are synchronisable and, based on the result, either
 combine them using \AF{whenSome} or fail by returning the empty list. 
 
 \begin{code}
@@ -1023,8 +1020,30 @@ A usage difference \AB{E} between \AB{Γ} and \AB{Δ} (two elements of
 type \AD{Usages} \AB{γ}) is a \AD{Usages} \AB{γ} such that \AB{Δ}
 \eqsync{} \AB{Γ} \AD{─} \AB{E} holds where the three place relation
 \_\eqsync{}\_\AD{─}\_ is defined as the pointwise lifting of a relation
-on \AD{Usage}s itself based on a definition of cover differences.
-\todo{Usage constructors}
+on \AD{Usage}s described in \autoref{fig:usagediffs}. This inductive
+datatype, itself based on a definition of cover differences, distinguishes
+three cases: if the input and the output are equal then the difference
+is a mint assumption (which the careful reader will remember is erased
+down to nothing), if the input was a mint assumption then the difference
+is precisely the output \AD{Usage} and, finally, we can also be simply
+lift the notion of cover difference.
+\begin{figure*}[h]
+\begin{mathpar}
+
+\inferrule{
+  }{\text{\AB{S} \eqsync{} \AB{S} \diff{} \free{\AB{σ}}}
+  }
+\and 
+\inferrule{
+  }{\text{\AB{S} \eqsync{} \free{\AB{σ}} \diff{} \AB{S}}
+  }
+\and
+\inferrule{\text{\AB{S} \eqsync{} \AB{S₁} \diff{} \AB{S₂}}
+  }{\text{\dented{\AB{S}} \eqsync{} \dented{\AB{S₁}} \diff{} \dented{\AB{S₂}}}
+}
+\end{mathpar}
+\caption{\AD{Usage} differences\label{fig:usagediffs}}
+\end{figure*}
 
 Cover differences (\_\eqsync{}\_\diff{}\_) are defined by an
 inductive type described (minus the expected structural laws which we
@@ -1063,7 +1082,7 @@ let the reader infer) in \autoref{fig:coverdiffs}.
                                 \diff{} \AIC{[} \AB{σ} \AIC{]}\tensor{} \AB{T}}
 }
 \end{mathpar}
-\caption{Cover differences\label{fig:coverdiffs}}
+\caption{\AD{Cover} differences\label{fig:coverdiffs}}
 \end{figure*}
 
 \subsection{Auxiliary lemmas}
@@ -1071,7 +1090,7 @@ let the reader infer) in \autoref{fig:coverdiffs}.
 The proof of soundness is split into auxiliary lemmas which are
 used to combine the induction hypothesis. These lemmas, where the
 bulk of the work is done, are maybe the places where the precise
-role played by the constraints enforced in the generalized calculus
+role played by the constraints enforced in the generalised calculus
 come to light. We state them here and skip the relatively tedious
 proofs. The interested reader can find them in the \file{Search/Calculus}
 file.
@@ -1093,14 +1112,14 @@ then we can generate \AB{E}, an \AD{Usages} \AB{γ}, such that
 and \erasure{\AB{E}} \entails{} \AB{τ}.
 \end{lemma}
 \begin{proof}The proof is by induction over the structure of the
-derivation stating that \AB{Δ₁} and \AB{Δ₂} are synchronized.
+derivation stating that \AB{Δ₁} and \AB{Δ₂} are synchronised.
 \end{proof}
 
 We can prove a similar theorem corresponding to the introduction of
 a tensor constructor. We write \AB{E} \eqsync{} \AB{E₁} \AD{⋈} \AB{E₂}
 to mean that the context \AB{E} is obtained by interleaving \AB{E₁}
 and \AB{E₂}. This notion is defined inductively and, naturally, is
-proof-relevant. It correponds in our list-based formalisation of ILL
+proof-relevant. It corresponds in our list-based formalisation of ILL
 to the multiset union mentioned in the tensor introduction rule in
 \autoref{fig:ILLRules}.
 
@@ -1164,7 +1183,7 @@ structure to take advantage of.
 
 \subsection{Equations on a Commutative Monoid}
 
-This whole section is parametrized by \AB{Mon} a commutative
+This whole section is parametrised by \AB{Mon} a commutative
 monoid (as defined in the file \file{Algebra} of Agda's standard
 library) whose carrier \AR{Carrier} \AB{Mon} is equipped with a
 decidable equality \AB{\_≟\_}. Alternatively, we may write
@@ -1219,7 +1238,7 @@ these expressions:
   ⟦ t `∙ u  ⟧^E ρ = ⟦ t ⟧^E ρ M.∙ ⟦ u ⟧^E ρ
 \end{code}
 
-Now, we can normalize these terms down to vastly simpler structures:
+Now, we can normalise these terms down to vastly simpler structures:
 every \AD{Expr} \AB{n} is equivalent to a pair of an element of the
 carrier set (in which we have accumulated the constant values stored
 in the tree) together with the list of variables present in the term.
@@ -1241,7 +1260,7 @@ We start by defining this \AF{Model} together with its semantics:
   ⟦ el , ks ⟧^M ρ = el M.∙ ⟦ ks ⟧^Ms ρ
 \end{code}
 
-We then provide a normalization function turning a \AD{Expr} \AB{n}
+We then provide a normalisation function turning a \AD{Expr} \AB{n}
 into such a pair. The variable and constant cases are trivial whilst
 the \AIC{\_`∙\_} is handled by an auxiliary definition combining the
 induction hypothesis:
@@ -1259,14 +1278,14 @@ induction hypothesis:
 This first proof step is proved semantics preserving with respect to
 the commutative's monoid notion of equality by the following lemma:
 
-\begin{lemma}[Normalization Soundness]\label{lem:normsnd}Given \AB{t}
+\begin{lemma}[Normalisation Soundness]\label{lem:normsnd}Given \AB{t}
 an \AD{Expr} \AB{n} and \AB{ρ} a \AF{Valuation} \AB{n},
 \semT{\AB{t}} \AB{ρ} \AD{M.≈} \semM{\AF{norm} \AB{t}} \AB{ρ}.
 \end{lemma}
 
 This means that if we know how to check whether two elements of
 the model are equal then we know how to do the same for two
-expressions: we simply normalize both of them, test the normal
+expressions: we simply normalise both of them, test the normal
 forms for equality and transport the result back thanks to the
 soundness result. But equality for elements of the model is not
 complex to test: two terms are equal if their first components
@@ -1293,7 +1312,7 @@ types to big products of atomic propositions:
 
 For each one of these predicates, we define the corresponding erasure
 function (\AF{fromAtoms} and \AF{fromProduct} respectively) listing
-the hypotheses mentionned in the derivation. We can then formulate the
+the hypotheses mentioned in the derivation. We can then formulate the
 following soundness theorem:
 
 \begin{lemma}Given three contexts \AB{γ}, \AB{δ} and \AB{e} composed
@@ -1332,13 +1351,13 @@ hypotheses generated by the subderivations using the previous lemma.
 \end{proof}
 
 The existence of injection function taken a list of atomic proposition
-as an input, delivering an appropriately atomic context or producty
+as an input, delivering an appropriately atomic context or product
 goal is the last piece of boilerplate we need. Fortunately, it is very
 easy to deliver:
 
 \begin{proposition}[Injection functions] From a list of atomic
 propositions \AB{xs}, one can produce a context \injs{} AB{xs} such
-that there is a proof \AB{Γ} of \AD{isAtoms} \injs{} \AB{xs} and
+that there is a proof \AB{Γ} of \AD{isAtoms} (\injs{} \AB{xs}) and
 \AF{fromAtoms} \AB{Γ} is equal to \AB{xs}.
 
 Similarly, from a non-empty list \AB{x} \AIC{∷} \AB{xs}, one
@@ -1373,9 +1392,9 @@ combination of the soundness result and the injection functions'
 properties.
 \end{proof}
 
-\subsection{Proving Bag Equivalence\label{sec:application}}
+\subsection{Proving Bag Equivalence}
 
-We claimed that proving equations for a commutative monoids was
+We claimed that proving equations for a commutative monoid was
 more general than mere bag equivalence. It is now time to make
 such a statement formal: using Danielsson's rather consequent
 library for reasoning about Bag Equivalence~\cite{danielsson2012bag},
@@ -1399,7 +1418,7 @@ and \AN{2} \AIC{∷} \AN{1} \AIC{∷} \AB{xs} would be declared distinct
 because their normal forms would be, respectively, the pair
 \AN{1} \AIC{∷} \AN{2} \AIC{∷} \AIC{[]}, \AB{xs} \AIC{∷} \AIC{[]} on
 one hand and \AN{2} \AIC{∷} \AN{1} \AIC{∷} \AIC{[]}, \AB{xs} \AIC{∷}
-\AIC{[]} on the other one. Quite embarassing indeed.
+\AIC{[]} on the other one. Quite embarrassing indeed.
 
 Instead we ought to treat the expressions as massive joins of lists
 of singletons (seen as variables) and list variables. And this works
@@ -1457,7 +1476,7 @@ set of deduction rules as methods.
 As already heavily hinted at by the previous section, there is a
 number of realms who benefit from proof search in Linear Logic.
 Bag equivalence~\cite{danielsson2012bag} is clearly one of them
-but recent works also draw connections between Intuitionnistic
+but recent works also draw connections between Intuitionistic
 Linear Logic and narrative representation, proof search then
 becomes narrative generation~\cite{bosser2011structural,martens2013linear,bosser2010linear}.
 
@@ -1508,7 +1527,12 @@ stage because they do not fit together.
 \section*{Special Thanks}
 
 This paper was typeset thanks to Stevan Andjelkovic's work to make
-compilation from literate agda to latex possible.
+compilation from literate agda to \LaTeX{} possible.
+
+Ben Kavanagh was instrumental in pushing us to introduce a visual
+representation of consumption annotations thus making the lump of
+nested predicate definitions more accessible to the first time
+reader.
 
 \bibliographystyle{alpha}
 \bibliography{main}
