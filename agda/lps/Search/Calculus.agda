@@ -5,6 +5,8 @@ import lps.Linearity.Consumption as Consumption
 import lps.Search.BelongsTo      as BelongsTo
 
 import lib.Context               as Con
+module BT  = Con.BelongsTo
+module BTT = BT.BelongsTo
 open import lib.Maybe
 open import lib.Nullary
 
@@ -36,14 +38,37 @@ module lps.Search.Calculus (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) whe
 
     open Context.Context
 
+    ⊢κ : {γ : Con ty} (k : Pr) {Γ : Usage γ} (pr : Σ[ Γ′ ∈ Usage γ ] Γ BTC.∋ k ∈ Γ′) →
+         Σ[ Γ′ ∈ Usage γ ] Γ ⊢ `κ k ⊣ Γ′
+    ⊢κ k (Δ , pr) = Δ , `κ pr
+
     _⊢?_ : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Con (Σ[ Γ′ ∈ Usage γ ] Γ ⊢ σ ⊣ Γ′)
-    Γ ⊢? `κ k   = map (uncurry $ λ Δ pr → Δ , `κ pr) $ k BTC.∈? Γ
+    Γ ⊢? `κ k   = map (⊢κ k) $ k BTC.∈? Γ
     Γ ⊢? σ `⊗ τ = Γ ⊢? σ >>= uncurry $ λ Δ prσ →
                   Δ ⊢? τ >>= uncurry $ λ E prτ →
                   return $ E , prσ `⊗ʳ prτ
     Γ ⊢? σ `& τ = Γ ⊢? σ >>= uncurry $ λ Δ₁ prσ →
                   Γ ⊢? τ >>= uncurry $ λ Δ₂ prτ →
                   maybe (uncurry $ λ Δ pr → return $ Δ , prσ `&ʳ prτ by pr) ε (Δ₁ ⊙? Δ₂)
+
+    ⊢?-complete : ∀ {γ : Con ty} {Γ : Usage γ} (σ : ty) {Δ : Usage γ} (pr : Γ ⊢ σ ⊣ Δ) →
+                  Σ[ pr ∈ Γ ⊢ σ ⊣ Δ ] (Δ , pr) BT.∈ Γ ⊢? σ
+    ⊢?-complete (`κ k)   (`κ pr)             = `κ pr , BTT.map (⊢κ k) (BTC.∈?-complete k _ pr)
+    ⊢?-complete (σ `⊗ τ) (pr₁ `⊗ʳ pr₂) with ⊢?-complete σ pr₁ | ⊢?-complete τ pr₂
+    ... | tm₁ , bt₁ | tm₂ , bt₂ = tm₁ `⊗ʳ tm₂ , BTT.subst bt₁ (BTT.subst bt₂ BT.zro)
+    ⊢?-complete (σ `& τ) (_`&ʳ_by_ {Δ₁ = Δ₁} {Δ₂ = Δ₂} {E = Δ} pr₁ pr₂ mg)
+        with ⊢?-complete σ pr₁ | ⊢?-complete τ pr₂ | ⊙?-complete _ _ mg
+    ... | tm₁ , bt₁ | tm₂ , bt₂ | C , eq =
+        tm₁ `&ʳ tm₂ by C
+      , BTT.subst bt₁ (BTT.subst bt₂
+          (Eq.subst
+          (λ tm → (Δ , tm₁ `&ʳ tm₂ by C) BT.∈ maybe (uncurry $ λ Δ pr → return $ Δ , tm₁ `&ʳ tm₂ by pr) ε tm)
+          (Eq.sym eq) BT.zro))
+
+    _⊢-dec_ : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Dec (Σ[ Γ′ ∈ Usage γ ] Γ ⊢ σ ⊣ Γ′)
+    Γ ⊢-dec σ with Γ ⊢? σ | ⊢?-complete {Γ = Γ} σ
+    Γ ⊢-dec σ | ε       | cmplt = no (BTT.∈ε-elim ∘ proj₂ ∘ cmplt ∘ proj₂)
+    Γ ⊢-dec σ | ts ∙ pr | cmplt = yes pr
 
   module Soundness where
 

@@ -2,6 +2,9 @@ import lps.IMLL         as IMLL
 import lps.Linearity    as Linearity
 
 open import Data.Product hiding (map)
+open import Data.Empty
+open import Data.Unit hiding (_≟_)
+open import Data.Bool hiding (_≟_)
 open import Data.Nat
 open import Function
 
@@ -10,6 +13,7 @@ open import lib.Maybe
 open import lib.Nullary
 
 open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality as Eq using (_≡_)
 
 module lps.Linearity.Action (Pr : Set) where
 
@@ -82,6 +86,72 @@ module lps.Linearity.Action (Pr : Set) where
                                 return $ [ a ]`& C , [ a ]`& prC
       _ ⊙? _ = none
 
+      mutual
+
+        ⊙?-complete′ : {a : ty} (A B C : Cover a) (pr : C ≡ A ⊙ B) →
+                       Σ[ pr ∈ C ≡ B ⊙ A ] (B ⊙? A) ≡ some (C , pr)
+        ⊙?-complete′ B A C (sym pr) = ⊙?-complete A B C pr
+        ⊙?-complete′ ._ ._ ._ (`κ k) = `κ k , Eq.refl
+        ⊙?-complete′ (A₂ `⊗ B₂) (A₁ `⊗ B₁) ._ (pr₁ `⊗ pr₂)
+          with A₁ ⊙? A₂ | ⊙?-complete′ A₂ A₁ _ pr₁
+             | B₁ ⊙? B₂ | ⊙?-complete′ B₂ B₁ _ pr₂
+        ... | ._ | C₁ , Eq.refl | ._ | C₂ , Eq.refl = C₁ `⊗ C₂ , Eq.refl
+        ⊙?-complete′ (A₂ `⊗[ .b ]) (A₁ `⊗[ .b ]) ._ ([ pr ]`⊗ b)
+          with A₁ ⊙? A₂ | ⊙?-complete′ A₂ A₁ _ pr
+        ... | ._ | C , Eq.refl = [ C ]`⊗ b , Eq.refl
+        ⊙?-complete′ ([ .a ]`⊗ B₂) ([ .a ]`⊗ B₁) ._ (a `⊗[ pr ])
+          with B₁ ⊙? B₂ | ⊙?-complete′ B₂ B₁ _ pr
+        ... | ._ | C , Eq.refl = a `⊗[ C ] , Eq.refl
+        ⊙?-complete′ ._ ._ ._ (a `& b) = a `& b , Eq.refl
+        ⊙?-complete′ (A `&[ b ]) ([ a ]`& B) ._ ] prA [`&] prB [ with isUsed? A | isUsed? B
+        ... | yes p₁ | yes p₂ = sym ] p₁ [`&] p₂ [ , Eq.refl
+        ... | no ¬p₁ | _      = ⊥-elim $ ¬p₁ prA
+        ... | _      | no ¬p₂ = ⊥-elim $ ¬p₂ prB
+        ⊙?-complete′ ([ a ]`& B) ._ ._ ] prB [`& with isUsed? B
+        ... | yes p = sym ] p [`& , Eq.refl
+        ... | no ¬p = ⊥-elim $ ¬p prB
+        ⊙?-complete′ (A `&[ b ]) ._ ._ `&] prA [ with isUsed? A
+        ... | yes p = sym `&] p [ , Eq.refl
+        ... | no ¬p = ⊥-elim $ ¬p prA
+        ⊙?-complete′ (A₂ `&[ .b ]) (A₁ `&[ .b ]) ._ (pr `&[ b ])
+          with A₁ ⊙? A₂ | ⊙?-complete′ A₂ A₁ _ pr
+        ... | ._ | C , Eq.refl = C `&[ b ] , Eq.refl
+        ⊙?-complete′ ([ .a ]`& B₂) ([ .a ]`& B₁) ._ ([ a ]`& pr)
+          with B₁ ⊙? B₂ | ⊙?-complete′ B₂ B₁ _ pr
+        ... | ._ | C , Eq.refl = [ a ]`& C , Eq.refl
+
+        ⊙?-complete : {a : ty} (A B C : Cover a) (pr : C ≡ A ⊙ B) →
+                    Σ[ pr ∈ C ≡ A ⊙ B ] (A ⊙? B) ≡ some (C , pr)
+        ⊙?-complete A B C (sym pr) = ⊙?-complete′ B A C pr
+        ⊙?-complete ._ ._ ._ (`κ k) = `κ k , Eq.refl
+        ⊙?-complete (A₁ `⊗ B₁) (A₂ `⊗ B₂) ._ (pr₁ `⊗ pr₂)
+          with A₁ ⊙? A₂ | ⊙?-complete A₁ A₂ _ pr₁
+             | B₁ ⊙? B₂ | ⊙?-complete B₁ B₂ _ pr₂
+        ... | ._ | C₁ , Eq.refl | ._ | C₂ , Eq.refl = C₁ `⊗ C₂ , Eq.refl
+        ⊙?-complete (A₁ `⊗[ .b ]) (A₂ `⊗[ .b ]) ._ ([ pr ]`⊗ b)
+          with A₁ ⊙? A₂ | ⊙?-complete A₁ A₂ _ pr
+        ... | ._ | C , Eq.refl = [ C ]`⊗ b , Eq.refl
+        ⊙?-complete ([ .a ]`⊗ B₁) ([ .a ]`⊗ B₂) ._ (a `⊗[ pr ])
+          with B₁ ⊙? B₂ | ⊙?-complete B₁ B₂ _ pr
+        ... | ._ | C , Eq.refl = a `⊗[ C ] , Eq.refl
+        ⊙?-complete ._ ._ ._ (a `& b) = a `& b , Eq.refl
+        ⊙?-complete (A `&[ b ]) ([ a ]`& B) ._ ] prA [`&] prB [ with isUsed? A | isUsed? B
+        ... | yes p₁ | yes p₂ = ] p₁ [`&] p₂ [ , Eq.refl
+        ... | no ¬p₁ | _      = ⊥-elim $ ¬p₁ prA
+        ... | _      | no ¬p₂ = ⊥-elim $ ¬p₂ prB
+        ⊙?-complete ([ a ]`& B) ._ ._ ] prB [`& with isUsed? B
+        ... | yes p = ] p [`& , Eq.refl
+        ... | no ¬p = ⊥-elim $ ¬p prB
+        ⊙?-complete (A `&[ b ]) ._ ._ `&] prA [ with isUsed? A
+        ... | yes p = `&] p [ , Eq.refl
+        ... | no ¬p = ⊥-elim $ ¬p prA
+        ⊙?-complete (A₁ `&[ .b ]) (A₂ `&[ .b ]) ._ (pr `&[ b ])
+          with A₁ ⊙? A₂ | ⊙?-complete A₁ A₂ _ pr
+        ... | ._ | C , Eq.refl = C `&[ b ] , Eq.refl
+        ⊙?-complete ([ .a ]`& B₁) ([ .a ]`& B₂) ._ ([ a ]`& pr)
+          with B₁ ⊙? B₂ | ⊙?-complete B₁ B₂ _ pr
+        ... | ._ | C , Eq.refl = [ a ]`& C , Eq.refl
+
     module Usage where
 
       open Linearity.Type Pr
@@ -100,6 +170,12 @@ module lps.Linearity.Action (Pr : Set) where
       ] A [ ⊙? ] B [  = A Cover.⊙? B >>= uncurry $ λ C prC →
                         return $ ] C [ , ] prC [
       _ ⊙? _ = none
+
+      ⊙?-complete : {a : ty} (A B : Usage a) {C : Usage a} (pr : C ≡ A ⊙ B) →
+                    Σ[ pr ∈ C ≡ A ⊙ B ] (A ⊙? B) ≡ some (C , pr)
+      ⊙?-complete [ a ] [ .a ] [ .a ] = [ a ] , Eq.refl
+      ⊙?-complete ] A [ ] B [  ] pr [ with A Cover.⊙? B | Cover.⊙?-complete A B _ pr
+      ... | ._ | C , Eq.refl = ] C [ , Eq.refl
 
   module Context where
 
@@ -124,6 +200,14 @@ module lps.Linearity.Action (Pr : Set) where
       Δ₁ ⊙? Δ₂            >>= uncurry $ λ E prE →
       S₁ Type.Usage.⊙? S₂ >>= uncurry $ λ S prS →
       return $ E ∙ S , prE ∙ prS
+
+    ⊙?-complete : {γ : Con ty} (Δ₁ Δ₂ : Usage γ) {E : Usage γ} (pr : E ≡ Δ₁ ⊙ Δ₂) →
+                  Σ[ pr ∈ E ≡ Δ₁ ⊙ Δ₂ ] (Δ₁ ⊙? Δ₂) ≡ some (E , pr)
+    ⊙?-complete .ε .ε ε = ε , Eq.refl
+    ⊙?-complete (Δ₁ ∙ S₁) (Δ₂ ∙ S₂) (prΔ ∙ prS)
+         with Δ₁ ⊙? Δ₂ | ⊙?-complete Δ₁ Δ₂ prΔ
+            | S₁ Type.Usage.⊙? S₂ | Type.Usage.⊙?-complete S₁ S₂ prS
+    ... | ._ | E , Eq.refl | ._ | S , Eq.refl = E ∙ S , Eq.refl
 
 module LAT = Type
 module LAC = Context

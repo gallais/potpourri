@@ -2,10 +2,14 @@ import lps.IMLL                  as IMLL
 import lps.Linearity             as Linearity
 import lps.Linearity.Consumption as Consumption
 
+open import Data.Empty
 open import Data.Product hiding (map)
 open import Function
 
 import lib.Context as Con
+module BT = Con.BelongsTo
+module BTT = BT.BelongsTo
+
 open import lib.Maybe
 open import lib.Nullary
 
@@ -67,6 +71,19 @@ module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) wh
         k ∈?[ `κ l   ] = dec (k ≟ l) (return ∘ ∈κ k) (const ε)
         k ∈?[ σ `⊗ τ ] = map (∈[⊗]ˡ τ) (k ∈?[ σ ]) ++ map (∈[⊗]ʳ σ) (k ∈?[ τ ])
         k ∈?[ σ `& τ ] = map (∈[&]ˡ τ) (k ∈?[ σ ]) ++ map (∈[&]ʳ σ) (k ∈?[ τ ])
+
+
+        ∈?[]-complete : (k : Pr) (σ : ty) {T : Cover σ} (pr : [ σ ]∋ k ∈ T) →
+                        (T , pr) BT.∈ k ∈?[ σ ]
+        ∈?[]-complete k (`κ l)   pr with k ≟ l
+        ∈?[]-complete k (`κ .k) `κ | yes Eq.refl = BT.zro
+        ∈?[]-complete k (`κ .k) `κ | no ¬eq      = ⊥-elim $ ¬eq Eq.refl
+        ∈?[]-complete k (σ `⊗ τ) (pr `⊗ˡ .τ) = BTT.∈++ˡ (map (∈[⊗]ʳ σ) (k ∈?[ τ ]))
+                                                        (BTT.map (∈[⊗]ˡ τ) (∈?[]-complete k σ pr))
+        ∈?[]-complete k (σ `⊗ τ) (.σ `⊗ʳ pr) = BTT.∈++ʳ (BTT.map (∈[⊗]ʳ σ) (∈?[]-complete k τ pr))
+        ∈?[]-complete k (σ `& τ) (pr `&ˡ .τ) = BTT.∈++ˡ (map (∈[&]ʳ σ) (k ∈?[ τ ]))
+                                                        (BTT.map (∈[&]ˡ τ) (∈?[]-complete k σ pr))
+        ∈?[]-complete k (σ `& τ) (.σ `&ʳ pr) = BTT.∈++ʳ (BTT.map (∈[&]ʳ σ) (∈?[]-complete k τ pr))
 
         open IMLL Pr
         open Linearity.LTC Pr
@@ -155,6 +172,22 @@ module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) wh
         k ∈? A `&[ b ] = map (∈&[] b) (k ∈? A)
         k ∈? [ a ]`& B = map (∈[]& a) (k ∈? B)
 
+        ∈?-complete : (k : Pr) {σ : ty} (S : Cover σ) {T : Cover σ} (pr : S ∋ k ∈ T) →
+                      (T , pr) BT.∈ k ∈? S
+        ∈?-complete k (`κ l)      ()
+        ∈?-complete k (S `⊗ T)    (pr `⊗ˡ .T)    = BTT.∈++ˡ (map (∈⊗ʳ S) (k ∈? T))
+                                                            (BTT.map (∈⊗ˡ T) (∈?-complete k S pr))
+        ∈?-complete k (S `⊗ T)    (.S `⊗ʳ pr)    = BTT.∈++ʳ (BTT.map (∈⊗ʳ S) (∈?-complete k T pr))
+        ∈?-complete k ([ σ ]`⊗ T) ([ .σ ]`⊗ pr)  = BTT.∈++ʳ (BTT.map (∈[]⊗ σ) (∈?-complete k T pr))
+        ∈?-complete k ([ σ ]`⊗ T) ([ pr ]`⊗ˡ .T) = BTT.∈++ˡ (map (∈[]⊗ σ) (k ∈? T))
+                                                            (BTT.map (∈[]⊗ˡ T) (∈?[]-complete k σ pr))
+        ∈?-complete k (S `⊗[ τ ]) (.S `⊗ʳ[ pr ]) = BTT.∈++ʳ (BTT.map (∈⊗[]ʳ S) (∈?[]-complete k τ pr))
+        ∈?-complete k (S `⊗[ τ ]) (pr `⊗[ .τ ])  = BTT.∈++ˡ (map (∈⊗[]ʳ S) (k ∈?[ τ ]))
+                                                            (BTT.map (∈⊗[] τ) (∈?-complete k S pr))
+        ∈?-complete k (σ `& τ) ()
+        ∈?-complete k (S `&[ τ ]) (pr `&ˡ .τ)    = BTT.map (∈&[] τ) (∈?-complete k S pr)
+        ∈?-complete k ([ σ ]`& T) (.σ `&ʳ pr)    = BTT.map (∈[]& σ) (∈?-complete k T pr)
+
         open IMLL Pr
         open Linearity.LTC Pr
         open Consumption.LCT.Cover Pr
@@ -231,6 +264,11 @@ module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) wh
       k ∈? [ σ ] = map [∈] $ k FromFree.∈?[ σ ]
       k ∈? ] S [ = map ]∈[ $ k FromDented.∈? S
 
+      ∈?-complete : (k : Pr) {σ : ty} (S : Usage σ) {T : Usage σ} (pr : S ∋ k ∈ T) →
+                    (T , pr) BT.∈ k ∈? S
+      ∈?-complete k [ σ ] [ pr ] = BTT.map [∈] (FromFree.∈?[]-complete k σ pr)
+      ∈?-complete k ] S [ ] pr [ = BTT.map ]∈[ (FromDented.∈?-complete k S pr)
+
       module Soundness where
 
         open IMLL Pr
@@ -285,6 +323,13 @@ module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) wh
     k ∈? ε       = ε
     k ∈? (Γ ∙ S) = map (∈suc S) (k ∈? Γ) ++ map (∈zro Γ) (k Type.Usage.∈? S)
       where open Con.Context.Context
+
+    ∈?-complete : (k : Pr) {γ : Con ty} (Γ : Usage γ) {Δ : Usage γ} (pr : Γ ∋ k ∈ Δ) →
+                  (Δ , pr) BT.∈ k ∈? Γ
+    ∈?-complete k ε       ()
+    ∈?-complete k (Γ ∙ S) (zro pr) = BTT.∈++ʳ (BTT.map (∈zro Γ) (Type.Usage.∈?-complete k S pr))
+    ∈?-complete k (Γ ∙ S) (suc pr) = BTT.∈++ˡ (map (∈zro Γ) (k Type.Usage.∈? S)) 
+                                              (BTT.map (∈suc S) (∈?-complete k Γ pr))
 
     module Soundness where
 

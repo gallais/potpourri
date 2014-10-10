@@ -144,7 +144,7 @@ module lps.Linearity (Pr : Set) where
 
       ｢_｣ : {σ : ty} (S : Usage σ) → Con ty
       ｢ [ a ] ｣ = ε
-      ｢ ] A [  ｣ = Cover.｢ A ｣
+      ｢ ] A [ ｣ = Cover.｢ A ｣
 
       open IMLL Pr
       open Con.Context.Context

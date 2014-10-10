@@ -32,17 +32,18 @@ maybe : ∀ {ℓ ℓ′} {A : Set ℓ} {B : Set ℓ′} (s : A → B) (n : B) (m
 maybe s n none     = n
 maybe s n (some a) = s a
 
-isSome :  ∀ {ℓ} {A : Set ℓ} (ma : Maybe A) → Bool
-isSome = maybe (const true) false
-
-fromSome : ∀ {ℓ} {A : Set ℓ} (ma : Maybe A) {prf : maybe (const ⊤) ⊥ ma} → A
-fromSome none     = λ {}
-fromSome (some a) = a
-
-isNone :  ∀ {ℓ} {A : Set ℓ} (ma : Maybe A) → Bool
-isNone = not ∘ isSome
 
 module Maybe where
+
+  isSome :  ∀ {ℓ} {A : Set ℓ} (ma : Maybe A) → Bool
+  isSome = maybe (const true) false
+
+  fromSome : ∀ {ℓ} {A : Set ℓ} (ma : Maybe A) {prf : maybe (const ⊤) ⊥ ma} → A
+  fromSome none     = λ {}
+  fromSome (some a) = a
+
+  isNone :  ∀ {ℓ} {A : Set ℓ} (ma : Maybe A) → Bool
+  isNone = not ∘ isSome
 
   induction : ∀ {ℓ} {A : Set ℓ} (P : Maybe A → Set)
               (Pn : P none) (Pa : (a : A) → P $ some a) (ma : Maybe A) → P ma
@@ -78,3 +79,15 @@ module Maybe where
   syntax bind ma f           = ma >>= f
   syntax doBind ma (λ x → f) = x ← ma , f
   syntax doMap (λ x → f) ma  = x ←′ ma , f
+
+module Predicates where
+
+  data isSome {ℓ} {A : Set ℓ} : (ma : Maybe A) → Set ℓ where
+    some : (a : A) → isSome (some a)
+
+  fromSome : ∀ {ℓ} {A : Set ℓ} {ma : Maybe A} (pr : isSome ma) → A
+  fromSome (some a) = a
+
+  bind : ∀ {ℓ} {A B : Set ℓ} {ma : Maybe A} (pr : isSome ma) {f : A → Maybe B} →
+         isSome (f $ fromSome pr) → isSome (Maybe.bind ma f)
+  bind (some a) pr = pr

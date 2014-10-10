@@ -1,6 +1,7 @@
 module lib.Context where
 
 import Data.Nat as ℕ
+open import Data.Empty
 open import Data.Product hiding (map)
 open import Data.Sum hiding (map)
 open import Function
@@ -48,7 +49,7 @@ module Context where
     return a = ε ∙ a
 
     subst : {A B : Set} (Γ : Con A) (f : A → Con B) → Con B
-    subst Γ f = foldr (_++_ ∘ f) ε Γ
+    subst Γ f = foldl (_++_ ∘ f) ε Γ
     syntax subst ma f = ma >>= f
 
     -- properties
@@ -203,6 +204,9 @@ module BelongsTo where
 
   module BelongsTo where
 
+    ∈ε-elim : ∀ {A : Set} {σ : A} (pr : σ ∈ ε) → ⊥
+    ∈ε-elim ()
+
     map : ∀ {A B : Set} {σ : A} {Γ} (f : A → B) (pr : σ ∈ Γ) → f σ ∈ Context.map f Γ
     map f zro      = zro
     map f (suc pr) = suc $ map f pr
@@ -250,6 +254,11 @@ module BelongsTo where
                ≡ (have f actUpon Γ at pr) Context.++ Δ
     actAt++ˡ ε       pr = Eq.refl
     actAt++ˡ (Δ ∙ σ) pr = Eq.cong (flip _∙_ σ) $ actAt++ˡ Δ pr
+
+    subst : ∀ {A B Γ} {σ : A} (pr₁ : σ ∈ Γ) {f : A → Con B}
+            {τ : B} (pr₂ : τ ∈ f σ)→ τ ∈ Context.subst Γ f
+    subst {Γ = Γ ∙ σ} zro       {f} pr₂ = ∈++ˡ (Context.subst Γ f) pr₂
+    subst             (suc pr₁)     pr₂ = ∈++ʳ (subst pr₁ pr₂)
 
 {-
 
