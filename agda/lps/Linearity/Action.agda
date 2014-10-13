@@ -54,6 +54,15 @@ module lps.Linearity.Action (Pr : Set) where
         [_]`&_   : (a : ty) {b : ty} {B B₁ B₂ : Cover b} (prB : B ≡ B₁ ⊙ B₂) →
                    [ a ]`& B ≡ [ a ]`& B₁ ⊙ [ a ]`& B₂
 
+      ⊙-refl : {σ : ty} (S : Cover σ) → S ≡ S ⊙ S
+      ⊙-refl (`κ k)      = `κ k
+      ⊙-refl (S `⊗ T)    = ⊙-refl S `⊗ ⊙-refl T
+      ⊙-refl ([ σ ]`⊗ T) = σ `⊗[ ⊙-refl T ]
+      ⊙-refl (S `⊗[ τ ]) = [ ⊙-refl S ]`⊗ τ
+      ⊙-refl (σ `& τ)    = σ `& τ
+      ⊙-refl (S `&[ τ ]) = ⊙-refl S `&[ τ ]
+      ⊙-refl ([ σ ]`& T) = [ σ ]`& ⊙-refl T
+
       open Maybe
       infix 3 _⊙?_
       _⊙?_ : {a : ty} (A B : Cover a) → Maybe (Σ[ C ∈ Cover a ] C ≡ A ⊙ B)
@@ -163,6 +172,10 @@ module lps.Linearity.Action (Pr : Set) where
         ]_[ : {σ : ty} {A A₁ A₂ : Cover σ} (prA : A Cover.≡ A₁ ⊙ A₂) →
               ] A [ ≡ ] A₁ [ ⊙ ] A₂ [
  
+      ⊙-refl : {σ : ty} (S : Usage σ) → S ≡ S ⊙ S
+      ⊙-refl [ σ ] = [ σ ]
+      ⊙-refl ] S [ = ] Cover.⊙-refl S [
+
       open Maybe
       infix 3 _⊙?_
       _⊙?_ : {a : ty} (A B : Usage a) → Maybe (Σ[ C ∈ Usage a ] C ≡ A ⊙ B)
@@ -176,6 +189,7 @@ module lps.Linearity.Action (Pr : Set) where
       ⊙?-complete [ a ] [ .a ] [ .a ] = [ a ] , Eq.refl
       ⊙?-complete ] A [ ] B [  ] pr [ with A Cover.⊙? B | Cover.⊙?-complete A B _ pr
       ... | ._ | C , Eq.refl = ] C [ , Eq.refl
+
 
   module Context where
 
@@ -191,6 +205,10 @@ module lps.Linearity.Action (Pr : Set) where
       _∙_ : ∀ {γ σ} {Γ Δ₁ Δ₂ : Usage γ} {S S₁ S₂ : Type.Usage σ} →
             (prΓ : Γ ≡ Δ₁ ⊙ Δ₂) (prS : S Type.Usage.≡ S₁ ⊙ S₂) →
             Γ ∙ S ≡ Δ₁ ∙ S₁ ⊙ Δ₂ ∙ S₂
+
+    ⊙-refl : {γ : Con ty} (Γ : Usage γ) → Γ ≡ Γ ⊙ Γ
+    ⊙-refl ε       = ε
+    ⊙-refl (Γ ∙ S) = ⊙-refl Γ ∙ Type.Usage.⊙-refl S
 
     open Maybe
     infix 5 _⊙?_
