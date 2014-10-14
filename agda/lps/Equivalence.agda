@@ -47,6 +47,10 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   ] S [ ⊗U [ τ ] = ] S `⊗[ τ ] [
   ] S [ ⊗U ] T [ = ] S `⊗ T [
 
+  _isUsed⊗U_ : {σ τ : ty} {S : LT.Usage σ} {T : LT.Usage τ}
+               (prS : LTU.isUsed S) (prT : LTU.isUsed T) → LTU.isUsed $ S ⊗U T
+  ] prS [ isUsed⊗U ] prT [ = ] prS `⊗ prT [
+
   _&U[_] : {σ : ty} (S : LT.Usage σ) (τ : ty) → LT.Usage $ σ `& τ
   [ σ ] &U[ τ ] = [ σ `& τ ]
   ] S [ &U[ τ ] = ] S `&[ τ ] [
@@ -279,22 +283,60 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   mergeIsUsed (mg ∙ʳ σ) prΔ         (prE ∙ prS) = mergeIsUsed mg prΔ prE ∙ prS
   mergeIsUsed (mg ∙ˡ σ) (prΔ ∙ prS) prE         = mergeIsUsed mg prΔ prE ∙ prS
 
+  Usage-split-⊗⁻¹ : {γ : Con ty} {σ τ : ty} (var : σ `⊗ τ CBT.∈ γ) (Γ : LC.Usage $ split-⊗ var) → LC.Usage γ
+  Usage-split-⊗⁻¹ CBT.zro       (Γ ∙ S ∙ T) = Γ ∙ (S ⊗U T)
+  Usage-split-⊗⁻¹ (CBT.suc var) (Γ ∙ S)     = Usage-split-⊗⁻¹ var Γ ∙ S
+
+  ∋∈-split-⊗⁻¹ : {γ : Con ty} {σ τ : ty} {k : Pr} (var : σ `⊗ τ CBT.∈ γ) {Γ Δ : LC.Usage $ split-⊗ var}
+                 (tm : Γ BTC.∋ k ∈ Δ) → Usage-split-⊗⁻¹ var Γ BTC.∋ k ∈ Usage-split-⊗⁻¹ var Δ
+  ∋∈-split-⊗⁻¹ CBT.zro {Γ = Γ ∙ S₁ ∙ T₁} (BTC.zro pr) = BTC.zro (S₁ ⊗∈U pr)
+  ∋∈-split-⊗⁻¹ CBT.zro       (BTC.suc (BTC.zro pr))   = BTC.zro (pr ∈U⊗ _)
+  ∋∈-split-⊗⁻¹ CBT.zro       (BTC.suc (BTC.suc tm))   = BTC.suc tm
+  ∋∈-split-⊗⁻¹ (CBT.suc var) (BTC.zro pr)             = BTC.zro pr
+  ∋∈-split-⊗⁻¹ (CBT.suc var) (BTC.suc tm)             = BTC.suc (∋∈-split-⊗⁻¹ var tm)
+
+  ⊙-split-⊗⁻¹ : {γ : Con ty} {σ τ : ty} (var : σ `⊗ τ CBT.∈ γ)
+                {Γ Γ₁ Γ₂ : LC.Usage $ split-⊗ var} (sc : Γ LAC.≡ Γ₁ ⊙ Γ₂) →
+                Usage-split-⊗⁻¹ var Γ LAC.≡ Usage-split-⊗⁻¹ var Γ₁ ⊙ Usage-split-⊗⁻¹ var Γ₂
+  ⊙-split-⊗⁻¹ CBT.zro       (sc ∙ scS ∙ scT) = sc ∙ (scS ⊗⊙ scT)
+  ⊙-split-⊗⁻¹ (CBT.suc var) (sc ∙ scS)       = ⊙-split-⊗⁻¹ var sc ∙ scS
+
+  ⊢⊣-split-⊗⁻¹ : {γ : Con ty} {σ τ υ : ty} (var : σ `⊗ τ CBT.∈ γ) {Γ Δ : LC.Usage $ split-⊗ var}
+                 (tm : Γ ⊢ υ ⊣ Δ) → Usage-split-⊗⁻¹ var Γ ⊢ υ ⊣ Usage-split-⊗⁻¹ var Δ
+  ⊢⊣-split-⊗⁻¹ var (`κ pr)             = `κ (∋∈-split-⊗⁻¹ var pr)
+  ⊢⊣-split-⊗⁻¹ var (tm₁ `⊗ʳ tm₂)       = ⊢⊣-split-⊗⁻¹ var tm₁ `⊗ʳ ⊢⊣-split-⊗⁻¹ var tm₂
+  ⊢⊣-split-⊗⁻¹ var (tm₁ `&ʳ tm₂ by sc) = ⊢⊣-split-⊗⁻¹ var tm₁ `&ʳ ⊢⊣-split-⊗⁻¹ var tm₂ by ⊙-split-⊗⁻¹ var sc
+
+  split-⊗⁻¹-inj : {γ : Con ty} {σ τ : ty} (var : σ `⊗ τ CBT.∈ γ) →
+                  Usage-split-⊗⁻¹ var (inj[ split-⊗ var ]) ≡ inj[ γ ]
+  split-⊗⁻¹-inj CBT.zro       = Eq.refl
+  split-⊗⁻¹-inj (CBT.suc var) = Eq.cong₂ _∙_ (split-⊗⁻¹-inj var) Eq.refl
+
+  split-⊗⁻¹IsUsed : {γ : Con ty} {σ τ : ty} (var : σ `⊗ τ CBT.∈ γ) {Γ : LC.Usage $ split-⊗ var}
+                    (pr : LC.isUsed Γ) → LC.isUsed $ Usage-split-⊗⁻¹ var Γ
+  split-⊗⁻¹IsUsed CBT.zro       (prΓ ∙ prS ∙ prT) = prΓ ∙ (prS isUsed⊗U prT)
+  split-⊗⁻¹IsUsed (CBT.suc var) (prΓ ∙ prS)       = split-⊗⁻¹IsUsed var prΓ ∙ prS
+
   complete : {γ : Con ty} {σ : ty} (tm : γ ⊢ σ) →
              Σ[ Γ ∈ LC.Usage γ ] (LC.isUsed Γ) × (inj[ γ ] ⊢ σ ⊣ Γ)
   complete {σ = σ} `v          =
     let (S , U , tm) = axiom σ
     in ε ∙ ] S [ , ε ∙ ] U [ , tm
-  complete (var `⊗ˡ tm)        = {!!}
+  complete {σ = σ} (var `⊗ˡ tm)        =
+    let (Δ , U , tm) = complete tm
+        Δ′           = Usage-split-⊗⁻¹ var Δ
+        tm′          = Eq.subst (λ Γ → Γ ⊢ σ ⊣ Δ′) (split-⊗⁻¹-inj var) (⊢⊣-split-⊗⁻¹ var tm)
+    in Δ′ , split-⊗⁻¹IsUsed var U , tm′
   complete {γ} {σ} (var `&ˡ₁ tm)       =
-    let (S , U , tm) = complete tm
-        S′           = S >>U split₁ var
+    let (Γ , U , tm) = complete tm
+        Γ′           = Γ >>U split₁ var
         U′           = split₁IsUsed var U
-    in S′ , U′ , Eq.subst (λ Γ → Γ ⊢ σ ⊣ S′) (split₁-eq var) (⟨ split₁ var ⟩⊢ tm)
+    in Γ′ , U′ , Eq.subst (λ Γ → Γ ⊢ σ ⊣ Γ′) (split₁-eq var) (⟨ split₁ var ⟩⊢ tm)
   complete {γ} {σ} (var `&ˡ₂ tm)       =
-    let (S , U , tm) = complete tm
-        S′           = S >>U split₂ var
+    let (Γ , U , tm) = complete tm
+        Γ′           = Γ >>U split₂ var
         U′           = split₂IsUsed var U
-    in S′ , U′ , Eq.subst (λ Γ → Γ ⊢ σ ⊣ S′) (split₂-eq var) (⟨ split₂ var ⟩⊢ tm)
+    in Γ′ , U′ , Eq.subst (λ Γ → Γ ⊢ σ ⊣ Γ′) (split₂-eq var) (⟨ split₂ var ⟩⊢ tm)
   complete {γ} {σ `⊗ τ} (tm₁ `⊗ʳ tm₂ by mg) =
     let (Γ₁ , U₁ , tm₁) = complete tm₁
         (Γ₂ , U₂ , tm₂) = complete tm₂
