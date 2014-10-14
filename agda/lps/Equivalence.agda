@@ -251,6 +251,33 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
         (S , US , Ssc) = isUsed⊙Cov S₁ S₂
     in Γ ∙ ] S [ , UΓ ∙ ] US [ , Γsc ∙ ] Ssc [
 
+  open Interleaving
+
+  merge : {γ δ e : Con ty} (mg : γ ≡ δ ⋈ e) (Δ : LC.Usage δ) (E : LC.Usage e) →
+          ⟨ δ ⟩Usage γ × ⟨ e ⟩Usage γ
+  merge ε         Δ       E       = ε ε , ε ε
+  merge (mg ∙ʳ σ) Δ       (E ∙ S) = Prod.map (λ Γ → Γ ∙′ S) (λ Γ → Γ ∙ ⟨⟩) $ merge mg Δ E
+  merge (mg ∙ˡ σ) (Δ ∙ S) E       = Prod.map (λ Γ → Γ ∙ ⟨⟩) (λ Γ → Γ ∙′ S) $ merge mg Δ E
+
+  merge-eq : {γ δ e : Con ty} (mg : γ ≡ δ ⋈ e) (Δ : LC.Usage δ) (E : LC.Usage e) →
+             let (H₁ , H₂) = merge mg Δ E in E >>U H₂ ≡ Δ >>U H₁
+  merge-eq ε         Δ       E       = Eq.refl
+  merge-eq (mg ∙ʳ σ) Δ       (E ∙ S) = Eq.cong₂ _∙_ (merge-eq mg Δ E) Eq.refl
+  merge-eq (mg ∙ˡ σ) (Δ ∙ S) E       = Eq.cong₂ _∙_ (merge-eq mg Δ E) Eq.refl
+
+  merge-inj : {γ δ e : Con ty} (mg : γ ≡ δ ⋈ e) (Δ : LC.Usage δ) →
+              inj[ δ ] >>U proj₁ (merge mg Δ inj[ e ]) ≡ inj[ γ ]
+  merge-inj ε         Δ       = Eq.refl
+  merge-inj (mg ∙ʳ σ) Δ       = Eq.cong₂ _∙_ (merge-inj mg Δ) Eq.refl
+  merge-inj (mg ∙ˡ σ) (Δ ∙ S) = Eq.cong₂ _∙_ (merge-inj mg Δ) Eq.refl
+
+  mergeIsUsed : {γ δ e : Con ty} (mg : γ ≡ δ ⋈ e)
+                {Δ : LC.Usage δ} (prΔ : LC.isUsed Δ) {E : LC.Usage e} (prE : LC.isUsed E) →
+                LC.isUsed $ E >>U proj₂ (merge mg Δ inj[ e ])
+  mergeIsUsed ε         prΔ         prE         = ε
+  mergeIsUsed (mg ∙ʳ σ) prΔ         (prE ∙ prS) = mergeIsUsed mg prΔ prE ∙ prS
+  mergeIsUsed (mg ∙ˡ σ) (prΔ ∙ prS) prE         = mergeIsUsed mg prΔ prE ∙ prS
+
   complete : {γ : Con ty} {σ : ty} (tm : γ ⊢ σ) →
              Σ[ Γ ∈ LC.Usage γ ] (LC.isUsed Γ) × (inj[ γ ] ⊢ σ ⊣ Γ)
   complete {σ = σ} `v          =
@@ -267,7 +294,14 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
         S′           = S >>U split₂ var
         U′           = split₂IsUsed var U
     in S′ , U′ , Eq.subst (λ Γ → Γ ⊢ σ ⊣ S′) (split₂-eq var) (⟨ split₂ var ⟩⊢ tm)
-  complete (tm₁ `⊗ʳ tm₂ by mg) = {!!}
+  complete {γ} {σ `⊗ τ} (tm₁ `⊗ʳ tm₂ by mg) =
+    let (Γ₁ , U₁ , tm₁) = complete tm₁
+        (Γ₂ , U₂ , tm₂) = complete tm₂
+        (H₁ , H₂)       = merge mg Γ₁ inj[ _ ]
+        tm₁             = Eq.subst (λ Γ → Γ ⊢ σ ⊣ Γ₁ >>U H₁) (merge-inj mg Γ₁) (⟨ H₁ ⟩⊢ tm₁)
+        tm₂             = Eq.subst (λ Δ → Δ ⊢ τ ⊣ Γ₂ >>U H₂) (merge-eq mg Γ₁ inj[ _ ]) (⟨ H₂ ⟩⊢ tm₂)
+        U               = mergeIsUsed mg U₁ U₂
+    in Γ₂ >>U H₂ , U , tm₁ `⊗ʳ tm₂
   complete (tm₁ `&ʳ tm₂)       =
     let (Γ₁ , U₁ , tm₁) = complete tm₁
         (Γ₂ , U₂ , tm₂) = complete tm₂
