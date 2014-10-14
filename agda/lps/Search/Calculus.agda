@@ -42,22 +42,22 @@ module lps.Search.Calculus (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) whe
          Σ[ Γ′ ∈ Usage γ ] Γ ⊢ `κ k ⊣ Γ′
     ⊢κ k (Δ , pr) = Δ , `κ pr
 
-    _⊢?_ : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Con (Σ[ Γ′ ∈ Usage γ ] Γ ⊢ σ ⊣ Γ′)
-    Γ ⊢? `κ k   = map (⊢κ k) $ k BTC.∈? Γ
-    Γ ⊢? σ `⊗ τ = Γ ⊢? σ >>= uncurry $ λ Δ prσ →
-                  Δ ⊢? τ >>= uncurry $ λ E prτ →
+    _⊢⊣?_ : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Con (Σ[ Γ′ ∈ Usage γ ] Γ ⊢ σ ⊣ Γ′)
+    Γ ⊢⊣? `κ k   = map (⊢κ k) $ k BTC.∈? Γ
+    Γ ⊢⊣? σ `⊗ τ = Γ ⊢⊣? σ >>= uncurry $ λ Δ prσ →
+                  Δ ⊢⊣? τ >>= uncurry $ λ E prτ →
                   return $ E , prσ `⊗ʳ prτ
-    Γ ⊢? σ `& τ = Γ ⊢? σ >>= uncurry $ λ Δ₁ prσ →
-                  Γ ⊢? τ >>= uncurry $ λ Δ₂ prτ →
+    Γ ⊢⊣? σ `& τ = Γ ⊢⊣? σ >>= uncurry $ λ Δ₁ prσ →
+                  Γ ⊢⊣? τ >>= uncurry $ λ Δ₂ prτ →
                   maybe (uncurry $ λ Δ pr → return $ Δ , prσ `&ʳ prτ by pr) ε (Δ₁ ⊙? Δ₂)
 
-    ⊢?-complete : ∀ {γ : Con ty} {Γ : Usage γ} (σ : ty) {Δ : Usage γ} (pr : Γ ⊢ σ ⊣ Δ) →
-                  Σ[ pr ∈ Γ ⊢ σ ⊣ Δ ] (Δ , pr) BT.∈ Γ ⊢? σ
-    ⊢?-complete (`κ k)   (`κ pr)             = `κ pr , BTT.map (⊢κ k) (BTC.∈?-complete k _ pr)
-    ⊢?-complete (σ `⊗ τ) (pr₁ `⊗ʳ pr₂) with ⊢?-complete σ pr₁ | ⊢?-complete τ pr₂
+    ⊢⊣?-complete : ∀ {γ : Con ty} {Γ : Usage γ} (σ : ty) {Δ : Usage γ} (pr : Γ ⊢ σ ⊣ Δ) →
+                  Σ[ pr ∈ Γ ⊢ σ ⊣ Δ ] (Δ , pr) BT.∈ Γ ⊢⊣? σ
+    ⊢⊣?-complete (`κ k)   (`κ pr)             = `κ pr , BTT.map (⊢κ k) (BTC.∈?-complete k _ pr)
+    ⊢⊣?-complete (σ `⊗ τ) (pr₁ `⊗ʳ pr₂) with ⊢⊣?-complete σ pr₁ | ⊢⊣?-complete τ pr₂
     ... | tm₁ , bt₁ | tm₂ , bt₂ = tm₁ `⊗ʳ tm₂ , BTT.subst bt₁ (BTT.subst bt₂ BT.zro)
-    ⊢?-complete (σ `& τ) (_`&ʳ_by_ {Δ₁ = Δ₁} {Δ₂ = Δ₂} {E = Δ} pr₁ pr₂ mg)
-        with ⊢?-complete σ pr₁ | ⊢?-complete τ pr₂ | ⊙?-complete _ _ mg
+    ⊢⊣?-complete (σ `& τ) (_`&ʳ_by_ {Δ₁ = Δ₁} {Δ₂ = Δ₂} {E = Δ} pr₁ pr₂ mg)
+        with ⊢⊣?-complete σ pr₁ | ⊢⊣?-complete τ pr₂ | ⊙?-complete _ _ mg
     ... | tm₁ , bt₁ | tm₂ , bt₂ | C , eq =
         tm₁ `&ʳ tm₂ by C
       , BTT.subst bt₁ (BTT.subst bt₂
@@ -65,10 +65,22 @@ module lps.Search.Calculus (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) whe
           (λ tm → (Δ , tm₁ `&ʳ tm₂ by C) BT.∈ maybe (uncurry $ λ Δ pr → return $ Δ , tm₁ `&ʳ tm₂ by pr) ε tm)
           (Eq.sym eq) BT.zro))
 
-    _⊢-dec_ : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Dec (Σ[ Γ′ ∈ Usage γ ] Γ ⊢ σ ⊣ Γ′)
-    Γ ⊢-dec σ with Γ ⊢? σ | ⊢?-complete {Γ = Γ} σ
-    Γ ⊢-dec σ | ε       | cmplt = no (BTT.∈ε-elim ∘ proj₂ ∘ cmplt ∘ proj₂)
-    Γ ⊢-dec σ | ts ∙ pr | cmplt = yes pr
+    _⊢?_ : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Con (Σ[ Γ′ ∈ Usage γ ] isUsed Γ′ × (Γ ⊢ σ ⊣ Γ′))
+    Γ ⊢? σ = Γ ⊢⊣? σ >>= uncurry $ λ Γ′ tm → dec (isUsed? Γ′) (λ U → return $ Γ′ , U , tm) (const ε)
+
+    ⊢?-complete : ∀ {γ : Con ty} {Γ : Usage γ} {σ : ty} {Δ : Usage γ} (prΔ : isUsed Δ) (pr : Γ ⊢ σ ⊣ Δ) →
+                  Σ[ pr ∈ Γ ⊢ σ ⊣ Δ ] Σ[ prΔ ∈ isUsed Δ ] (Δ , prΔ , pr) BT.∈ Γ ⊢? σ
+    ⊢?-complete {Γ = Γ} {σ = σ} {Δ} prΔ pr with Γ ⊢⊣? σ | ⊢⊣?-complete σ pr | isUsed? Δ | Eq.inspect isUsed? Δ
+    ... | ts | (tm′ , bt) | yes U | Eq.[ eq ] =
+      tm′ , U ,
+      let P = λ d → (Δ , U , tm′) BT.∈ dec d (λ U → return $ Δ , U , tm′) (const ε)
+      in BTT.subst bt (Eq.subst P (Eq.sym eq) BT.zro)
+    ... | ts | (tm′ , bt) | no ¬U | eq = ⊥-elim $ ¬U prΔ
+
+    ⊢⊣-dec : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Dec (Σ[ Δ ∈ Usage γ ] isUsed Δ × (Γ ⊢ σ ⊣ Δ))
+    ⊢⊣-dec Γ σ with Γ ⊢? σ | ⊢?-complete {Γ = Γ} {σ = σ}
+    ... | ε      | cmplt = no (BTT.∈ε-elim ∘ proj₂ ∘ proj₂ ∘ uncurry cmplt ∘ proj₂)
+    ... | _ ∙ pr | cmplt = yes pr
 
   module Soundness where
 

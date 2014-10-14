@@ -80,6 +80,11 @@ module lps.Linearity.Consumption (Pr : Set) where
       inj[ [ a ] ] = `idˡ
       inj[ ] A [ ] = `idʳ
 
+      isUsed-inj : {σ : ty} {S T : Usage σ} (pr : Usage.isUsed S) →
+                  (diff : S ≡ [ σ ] ─ T) → Usage.isUsed T
+      isUsed-inj pr `idˡ = pr
+      isUsed-inj pr `idʳ = pr
+
   module Context where
 
     open Con.Context
@@ -97,6 +102,11 @@ module lps.Linearity.Consumption (Pr : Set) where
     inj[_] : ∀ {γ} (Γ : LC.Usage γ) → Γ ≡ Γ ─ LC.inj[ γ ]
     inj[_] = Pointwise.induction (λ γ Γ → Γ ≡ Γ ─ LC.inj[ γ ])
              (λ _ ih → ih ∙ Type.Usage.`idˡ) ε
+
+    isUsed-diff : {γ : Con ty} {Γ E : LC.Usage γ} (pr : LC.isUsed Γ) →
+                  (diff : Γ ≡ LC.inj[ γ ] ─ E) → LC.isUsed E
+    isUsed-diff pr            ε            = pr
+    isUsed-diff (pr LC.∙ prS) (diff ∙ dS) = isUsed-diff pr diff LC.∙ Type.Usage.isUsed-inj prS dS
 
 module LCT = Type
 module LCC = Context

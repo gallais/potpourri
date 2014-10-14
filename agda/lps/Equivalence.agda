@@ -39,6 +39,7 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   open Action.Context Pr
   open Action.Type.Usage Pr
   open Action.Type.Cover Pr
+  open Consumption Pr
 
   _⊗U_ : {σ τ : ty} (S : LT.Usage σ) (T : LT.Usage τ) → LT.Usage $ σ `⊗ τ 
   [ σ ] ⊗U [ τ ] = [ σ `⊗ τ ]
@@ -307,3 +308,11 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
         (Γ₂ , U₂ , tm₂) = complete tm₂
         (Γ , U , sc)    = isUsed⊙Con U₁ U₂
     in Γ , U , tm₁ `&ʳ tm₂ by sc
+
+
+  ⊢-dec : (γ : Con ty) (σ : ty) → Dec $ γ ⊢ σ
+  ⊢-dec γ σ with ⊢⊣-dec inj[ γ ] σ
+  ... | no ¬p = no (¬p ∘ complete)
+  ... | yes (Γ , U , tm) =
+    let (E , d , pr) = Soundness.Context.⟦ tm ⟧
+    in yes (LC.⟦isUsed⟧ (LCC.isUsed-diff U d) pr)
