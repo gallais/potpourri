@@ -90,6 +90,7 @@ module TacticsBasics (Pr : Set) where
   fromToGoal x []       = RBEq.refl
   fromToGoal x (y ∷ ys) = RBEq.cong₂ _∷_ RBEq.refl $ fromToGoal y ys
 
+{-
 module TacticsBagEq (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
 
   open import Prelude
@@ -151,6 +152,8 @@ module TacticsBagEq (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) wh
   fromToGoal′ x xs rewrite RBEq.sym (fromToGoal x xs) = ↔-refl
 
   open import lps.ProofSearch
+  open lps.Equivalence Pr _≟_
+
   open Prove Pr _≟_
   open Maybe
 
@@ -171,19 +174,22 @@ module TacticsBagEq (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) wh
   proveBagEq : (xs ys : List Pr) {_ : maybe (const ⊤) ⊥ $ proveM xs ys} → xs ≈-bag ys
   proveBagEq xs ys {pr} = Maybe.induction P ⊥-elim const (proveM xs ys) pr
     where P = λ a → ∀ (pr : maybe (const ⊤) ⊥ a) → xs ≈-bag ys
+-}
 
 open import Algebra
 open CommutativeMonoid
 open import Level
+import Data.Product as Prod
+import Data.Empty   as Zero
 
 module TacticsAbMon
-         (Mon : CommutativeMonoid zero zero)
-         (_≟_ : (x y : Carrier Mon) → RN.Dec (x RBEq.≡ y)) where
+  (Mon : CommutativeMonoid zero zero)
+  (_≟_ : (x y : Carrier Mon) → RN.Dec (x RBEq.≡ y))
+  where
 
   open import Algebra.Structures
   module M  = CommutativeMonoid Mon
 
-  import Data.Product as Prod
   open import Data.Nat as Nat hiding (_≟_)
   open import Prelude hiding (ℕ; Fin)
   open import Data.Fin
@@ -307,27 +313,34 @@ module TacticsAbMon
   open import lps.ProofSearch
   open import lib.Nullary as LN
   open Maybe
+  import Data.Empty as Zero
+  import lps.Equivalence as Equivalence
 
   eq-const : ∀ {n e f} (eq : e RBEq.≡ f) (ρ : Vec M.Carrier n) → ⟦ e , [] ⟧′ ρ M.≈ ⟦ f , [] ⟧′ ρ
   eq-const RBEq.refl ρ = M.refl
 
   proveM : {n : ℕ} (t u : Term n) (ρ : Vec M.Carrier n) → Maybe $ ⟦ t ⟧ ρ M.≈ ⟦ u ⟧ ρ
   proveM {n} t u ρ with norm t | norm u | norm-sound t ρ | norm-sound u ρ
-  ... | (e , []) | (f , [])     | sndt | sndu = flip (dec (e ≟ f)) (const none) $ λ pr → some $
-    begin
-      ⟦ t ⟧ ρ       ≈⟨ sndt ⟩
-      ⟦ e , [] ⟧′ ρ ≈⟨ eq-const pr ρ ⟩
-      ⟦ f , [] ⟧′ ρ ≈⟨ M.sym sndu ⟩
-      ⟦ u ⟧ ρ
-    ∎
-  ... | (e , ks) | (f , l ∷ ls) | sndt | sndu =
+  ... | (e , k ∷ ks) | (f , [])     | sndt | sndu = none
+  ... | (e , [])     | (f , [])     | sndt | sndu = dec (e ≟ f) (some ∘ p₁) (const none)
+    where
+      p₁ : (ef : e RBEq.≡ f) → ⟦ t ⟧ ρ M.≈ ⟦ u ⟧ ρ
+      p₁ ef =
+        begin
+          ⟦ t ⟧ ρ       ≈⟨ sndt ⟩
+          ⟦ e , [] ⟧′ ρ ≈⟨ eq-const ef ρ ⟩
+          ⟦ f , [] ⟧′ ρ ≈⟨ M.sym sndu ⟩
+          ⟦ u ⟧ ρ
+        ∎
+  ... | (e , ks)     | (f , l ∷ ls) | sndt | sndu =
     flip (dec (e ≟ f)) (const none) $ λ eq →
     let open FixedVars n ρ
         open TacticsBasics (Fin n)
         open Prove (Fin n) (MyFin._≟_ {n})
+        open Equivalence (Fin n) (MyFin._≟_ {n})
         okContext = isAtomsToContext ks
         okGoal    = isProductToGoal l ls
-        result    = search (toContext ks) (toGoal l ls)
+        result    = dec (⊢-dec (toContext ks) (toGoal l ls)) some (const none)
         mon-eq    = sound okContext okGoal <$> result
         fromTo l  = fromProduct ∘ isProductToGoal l
         rew-eqks  = RBEq.subst (λ e → ⟦ e ⟧s ρ M.≈ _) (RBEq.sym $ fromToContext ks)
@@ -340,12 +353,12 @@ module TacticsAbMon
           ⟦ f , l ∷ ls ⟧′ ρ        ≈⟨ M.sym sndu ⟩
           ⟦ u ⟧ ρ
         ∎) <$> mon-eq
-  ... | (e , ks) | (f , []) | _ | _ = none
 
   proveMonEq : {n : ℕ} (t u : Term n) (ρ : Vec M.Carrier n) {_ : maybe (const ⊤) ⊥ $ proveM t u ρ} →
                ⟦ t ⟧ ρ M.≈ ⟦ u ⟧ ρ
   proveMonEq t u ρ {pr} = Maybe.induction P ⊥-elim const (proveM t u ρ) pr
     where P = λ a → ∀ (pr : maybe (const ⊤) ⊥ a) → ⟦ t ⟧ ρ M.≈ ⟦ u ⟧ ρ
+
 
 module Examples where
 
@@ -356,7 +369,6 @@ module Examples where
 
   open import Data.Fin as Fin hiding (_+_)
   open import Data.Vec as Vec
-  open TacticsBagEq Nat.ℕ Nat._≟_
   open TacticsAbMon (record
                        { Carrier = ℕ
                        ; _≈_ = RBEq._≡_
@@ -366,16 +378,13 @@ module Examples where
                        }) Nat._≟_
   import Prelude
 
-  1∷2∷3∷3 : let open Prelude in
-            1 ∷ 2 ∷ 3 ∷ 3 ∷ [] ≈-bag 3 ∷ 2 ∷ 3 ∷ 1 ∷ []
-  1∷2∷3∷3 = proveBagEq _ _
-
   2+x+y+1 : (x y : ℕ) → 2 + (x + y + 1) RBEq.≡ x + 3 + y
   2+x+y+1 x y =
-     let `x = `v Fin.zero
-         `y = `v (Fin.suc Fin.zero)
-     in proveMonEq {2} (`c 2 `∙ (`x `∙ `y `∙ `c 1)) (`x `∙ `c 3 `∙ `y) (x Vec.∷ y Vec.∷ Vec.[])
+     let `x  = `v Fin.zero
+         `y  = `v (Fin.suc Fin.zero)
+     in proveMonEq (`c 2 `∙ (`x `∙ `y `∙ `c 1)) (`x `∙ `c 3 `∙ `y) (x Vec.∷ y Vec.∷ Vec.[])
 
+{-
 module TacticsBagEq2 (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
 
   open import Algebra.Structures
@@ -438,3 +447,4 @@ module Example2 where
           LHS = (`1 `∙ `2 `∙ `3 `∙ `xs) `∙ `3 
           RHS = (`3 `∙ `2 `∙ `xs) `∙ (`3 `∙ `1)
           CTX = sgl 1 ∷ sgl 2 ∷ sgl 3 ∷ xs ∷ []
+-}
