@@ -90,92 +90,6 @@ module TacticsBasics (Pr : Set) where
   fromToGoal x []       = RBEq.refl
   fromToGoal x (y ∷ ys) = RBEq.cong₂ _∷_ RBEq.refl $ fromToGoal y ys
 
-{-
-module TacticsBagEq (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
-
-  open import Prelude
-  open import lps.IMLL Pr
-  open Type
-  open Pointwise
-  open TacticsBasics Pr
-
-  import Function-universe as FU
-  module FUJ = FU equality-with-J
-  open FUJ
-
-  ↔-refl : {xs : List Pr} → xs ≈-bag xs
-  ↔-refl {[]}     = ≈″⇒≈ []
-  ↔-refl {x ∷ xs} = refl ∷-cong ↔-refl
-
-  isProduct↔ : {σ : ty} (S T : isProduct σ) → fromProduct S ≈-bag fromProduct T
-  isProduct↔ (`κ p)     (`κ .p)    = ≈″⇒≈ (p ∷ [])
-  isProduct↔ (S₁ `⊗ T₁) (S₂ `⊗ T₂) = ++-cong (isProduct↔ S₁ S₂) (isProduct↔ T₁ T₂)
-
-  isAtoms↔ : {γ : Con ty} (Γ Δ : isAtoms γ) → fromAtoms Γ ≈-bag fromAtoms Δ
-  isAtoms↔ ε          ε           = ≈″⇒≈ []
-  isAtoms↔ (Γ ∙ `κ p) (Δ ∙ `κ .p) = refl ∷-cong isAtoms↔ Γ Δ
-
-  ++-assoc : (xs ys zs : List Pr) → xs ++ ys ++ zs ≈-bag (xs ++ ys) ++ zs
-  ++-assoc []       ys zs = ↔-refl
-  ++-assoc (x ∷ xs) ys zs = refl ∷-cong ++-assoc xs ys zs
-
-  isAtoms⋈↔ : {γ δ e : Con ty} (Γ : isAtoms γ) (Δ : isAtoms δ) (E : isAtoms e)
-              (mg : γ Interleaving.≡ δ ⋈ e) → fromAtoms Γ ≈-bag fromAtoms Δ ++ fromAtoms E
-  isAtoms⋈↔ ε ε ε Il.ε = ≈″⇒≈ []
-  isAtoms⋈↔ (Γ ∙ `κ p) Δ (E ∙ `κ .p) (mg Il.∙ʳ .(`κ p)) = λ z →
-    z ∈ fromAtoms (Γ ∙ `κ p)                   ↔⟨ (refl ∷-cong isAtoms⋈↔ Γ Δ E mg) z ⟩
-    z ∈ p ∷ fromAtoms Δ ++ fromAtoms E         ↔⟨ ++-assoc (p ∷ []) (fromAtoms Δ) (fromAtoms E) z ⟩
-    z ∈ (p ∷ [] ++ fromAtoms Δ) ++ fromAtoms E ↔⟨ ++-cong (++-comm (p ∷ []) (fromAtoms Δ)) ↔-refl z ⟩
-    z ∈ (fromAtoms Δ ++ p ∷ []) ++ fromAtoms E ↔⟨ inverse (++-assoc (fromAtoms Δ) (p ∷ []) (fromAtoms E) z) ⟩
-    z ∈ fromAtoms Δ ++ p ∷ fromAtoms E □
-  isAtoms⋈↔ (Γ ∙ `κ p) (Δ ∙ `κ .p) E (mg Il.∙ˡ .(`κ p)) = refl ∷-cong isAtoms⋈↔ Γ Δ E mg
-
-  sound : {γ : Con ty} {σ : ty} (Γ : isAtoms γ) (S : isProduct σ) →
-          γ ⊢ σ → fromAtoms Γ ≈-bag fromProduct S
-  sound (ε ∙ `κ p) (`κ .p) `v                = ≈″⇒≈ (p ∷ [])
-  sound Γ       (S `⊗ T) (tm₁ `⊗ʳ tm₂ by mg) =
-    let (Δ , E) = isAtoms-merge⁻¹ Γ mg
-        ih₁     = sound Δ S tm₁
-        ih₂     = sound E T tm₂
-    in λ z →
-      z ∈ fromAtoms Γ                   ↔⟨ isAtoms⋈↔ Γ Δ E mg z ⟩
-      z ∈ fromAtoms Δ ++ fromAtoms E ↔⟨ ++-cong ih₁ ih₂ z ⟩
-      z ∈ fromProduct  S ++ fromProduct  T □
-  sound Γ       S        (var `⊗ˡ tm)        = ⊥-elim $ noTensor Γ var
-  sound Γ       _        (var `&ˡ₁ _)        = ⊥-elim $ noWith   Γ var
-  sound Γ       _        (var `&ˡ₂ _)        = ⊥-elim $ noWith   Γ var
-
-  fromToContext′ : (xs : List Pr) → xs ≈-bag fromAtoms (isAtomsToContext xs)
-  fromToContext′ xs rewrite RBEq.sym (fromToContext xs) = ↔-refl
-
-  fromToGoal′ : (x : Pr) (xs : List Pr) → fromProduct (isProductToGoal x xs) ≈-bag x ∷ xs
-  fromToGoal′ x xs rewrite RBEq.sym (fromToGoal x xs) = ↔-refl
-
-  open import lps.ProofSearch
-  open lps.Equivalence Pr _≟_
-
-  open Prove Pr _≟_
-  open Maybe
-
-  proveM : (xs ys : List Pr) → Maybe $ xs ≈-bag ys
-  proveM [] []       = some $ ≈″⇒≈ []
-  proveM xs (y ∷ ys) =
-    let okContext = isAtomsToContext xs
-        okGoal    = isProductToGoal y ys
-        result    = search (toContext xs) (toGoal y ys)
-        bag-eq    = sound okContext okGoal <$> result
-   in (λ eq z →
-         z ∈ xs                                    ↔⟨ fromToContext′ xs z ⟩
-         z ∈ fromAtoms (isAtomsToContext xs) ↔⟨ eq z ⟩
-         z ∈ fromProduct (isProductToGoal y ys)    ↔⟨ fromToGoal′ y ys z ⟩
-         z ∈ y ∷ ys □) <$> bag-eq
-  proveM _  _        = none
-
-  proveBagEq : (xs ys : List Pr) {_ : maybe (const ⊤) ⊥ $ proveM xs ys} → xs ≈-bag ys
-  proveBagEq xs ys {pr} = Maybe.induction P ⊥-elim const (proveM xs ys) pr
-    where P = λ a → ∀ (pr : maybe (const ⊤) ⊥ a) → xs ≈-bag ys
--}
-
 open import Algebra
 open CommutativeMonoid
 open import Level
@@ -359,45 +273,23 @@ module TacticsAbMon
   proveMonEq t u ρ {pr} = Maybe.induction P ⊥-elim const (proveM t u ρ) pr
     where P = λ a → ∀ (pr : maybe (const ⊤) ⊥ a) → ⟦ t ⟧ ρ M.≈ ⟦ u ⟧ ρ
 
-
-module Examples where
-
-  open import Algebra.Structures
-  open import Data.Nat as Nat
-  open import Data.Nat.Properties
-  module AbSR = IsCommutativeSemiring isCommutativeSemiring
-
-  open import Data.Fin as Fin hiding (_+_)
-  open import Data.Vec as Vec
-  open TacticsAbMon (record
-                       { Carrier = ℕ
-                       ; _≈_ = RBEq._≡_
-                       ; _∙_ = _+_
-                       ; ε   = 0
-                       ; isCommutativeMonoid = AbSR.+-isCommutativeMonoid
-                       }) Nat._≟_
-  import Prelude
-
-  2+x+y+1 : (x y : ℕ) → 2 + (x + y + 1) RBEq.≡ x + 3 + y
-  2+x+y+1 x y =
-     let `x  = `v Fin.zero
-         `y  = `v (Fin.suc Fin.zero)
-     in proveMonEq (`c 2 `∙ (`x `∙ `y `∙ `c 1)) (`x `∙ `c 3 `∙ `y) (x Vec.∷ y Vec.∷ Vec.[])
-
-{-
-module TacticsBagEq2 (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
+module BagEq (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
 
   open import Algebra.Structures
   open import Prelude
-  open TacticsBagEq Pr _≟_
   open import Function-universe equality-with-J as FU
+  import Bijection equality-with-J as Bij
 
   isSg : IsSemigroup _≈-bag_ _++_
-  isSg = record { isEquivalence = record { refl  = ↔-refl 
-                                         ; sym   = Prelude._∘_ inverse
-                                         ; trans = λ f g z → z ∈ _ ↔⟨ f z ⟩ z ∈ _ ↔⟨ g z ⟩ z ∈ _ □ }
-                ; assoc         = λ a b c → inverse Prelude.∘ ++-assoc a b c
+  isSg = record { isEquivalence = record { refl  = λ _ → Bij.id
+                                         ; sym   = Prelude._∘_ FU.inverse
+                                         ; trans = λ f g z → g z Bij.∘ f z }
+                ; assoc         = ++-assoc 
                 ; ∙-cong        = ++-cong }
+    where
+      ++-assoc : (xs ys zs : List Pr) → (xs ++ ys) ++ zs ≈-bag xs ++ ys ++ zs
+      ++-assoc []       ys zs = λ z → Bij.id
+      ++-assoc (x ∷ xs) ys zs = _≡_.refl ∷-cong ++-assoc xs ys zs
 
   Mon : CommutativeMonoid lzero lzero
   Mon = record
@@ -406,11 +298,11 @@ module TacticsBagEq2 (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) w
           ; _∙_     = _++_
           ; ε       = []
           ; isCommutativeMonoid = record { isSemigroup = isSg
-                                         ; identityˡ   = λ _ → ↔-refl
-                                         ; comm        = ++-comm }
-          }
+                                         ; identityˡ   = λ _ _ → Bij.id
+                                         ; comm        = ++-comm } }
 
-  ∷-inj : {x y : Pr} {xs ys : List Pr} (eq : RBEq._≡_ {_} {List Pr} (x ∷ xs) (y ∷ ys)) → x RBEq.≡ y × xs RBEq.≡ ys
+  ∷-inj : {x y : Pr} {xs ys : List Pr} (eq : RBEq._≡_ {_} {List Pr} (x ∷ xs) (y ∷ ys)) →
+          x RBEq.≡ y × xs RBEq.≡ ys
   ∷-inj RBEq.refl = RBEq.refl , RBEq.refl
 
   _≟s_ : (xs ys : List Pr) → RN.Dec (xs RBEq.≡ ys)
@@ -424,14 +316,33 @@ module TacticsBagEq2 (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) w
 
   open TacticsAbMon Mon _≟s_ public
 
-module Example2 where
 
-  import Prelude as Pr
+module Examples where
+
+  open import Algebra.Structures
   open import Data.Nat as Nat
-  open import Data.Fin as Fin
+  open import Data.Nat.Properties
+  module AbSR = IsCommutativeSemiring isCommutativeSemiring
+
+  open import Data.Fin as Fin hiding (_+_)
   open import Data.Vec as Vec
-  open TacticsBagEq2 Nat.ℕ Nat._≟_
-  open import Function
+  module ℕ+ = TacticsAbMon (record
+                        { Carrier = ℕ
+                        ; _≈_ = RBEq._≡_
+                        ; _∙_ = _+_
+                        ; ε   = 0
+                        ; isCommutativeMonoid = AbSR.+-isCommutativeMonoid
+                        }) Nat._≟_
+  import Prelude as Pr
+
+  2+x+y+1 : (x y : Nat.ℕ) → 2 + (x + y + 1) RBEq.≡ x + 3 + y
+  2+x+y+1 x y =
+     let open ℕ+
+         `x  = `v Fin.zero
+         `y  = `v (Fin.suc Fin.zero)
+     in proveMonEq (`c 2 `∙ (`x `∙ `y `∙ `c 1)) (`x `∙ `c 3 `∙ `y) (x Vec.∷ y Vec.∷ Vec.[])
+
+  module BE = BagEq Nat.ℕ Nat._≟_
 
   sgl : ℕ → Pr.List ℕ
   sgl x = x Pr.∷ Pr.[]
@@ -439,12 +350,12 @@ module Example2 where
   1∷2∷3∷3′ : let open Pr in
              (xs : List Nat.ℕ) →
              1 ∷ 2 ∷ 3 ∷ xs Pr.++ 3 ∷ [] ≈-bag 3 ∷ 2 ∷ xs Pr.++ 3 ∷ 1 ∷ []
-  1∷2∷3∷3′ xs = proveMonEq LHS RHS CTX
-    where `1  = `v Fin.zero
-          `2  = `v $ Fin.suc Fin.zero
-          `3  = `v $ Fin.suc $ Fin.suc Fin.zero
-          `xs = `v $ Fin.suc $ Fin.suc $ Fin.suc Fin.zero
+  1∷2∷3∷3′ xs = BE.proveMonEq LHS RHS CTX
+    where open BE
+          `1  = `v Fin.zero
+          `2  = `v Pr.$ Fin.suc Fin.zero
+          `3  = `v Pr.$ Fin.suc Pr.$ Fin.suc Fin.zero
+          `xs = `v Pr.$ Fin.suc Pr.$ Fin.suc Pr.$ Fin.suc Fin.zero
           LHS = (`1 `∙ `2 `∙ `3 `∙ `xs) `∙ `3 
           RHS = (`3 `∙ `2 `∙ `xs) `∙ (`3 `∙ `1)
-          CTX = sgl 1 ∷ sgl 2 ∷ sgl 3 ∷ xs ∷ []
--}
+          CTX = sgl 1 Vec.∷ sgl 2 Vec.∷ sgl 3 Vec.∷ xs Vec.∷ Vec.[]
