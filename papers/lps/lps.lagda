@@ -18,9 +18,9 @@
 
 \title{Certified Proof Search for Intuitionistic Linear Logic}
 
-\authorinfo{ }
-           { }
-           { }
+\authorinfo{}
+           {}
+           {}
 
 \begin{document}
 \input{header.tex}
@@ -276,7 +276,7 @@ The introduction rule for tensor in the system with leftovers does
 not involve partitioning a multiset (a list in our implementation)
 anymore: one starts by discharging the first subgoal, collects
 the leftover from this computation, and then deals with the second
-one. 
+one.
 \begin{mathpar}
 \inferrule{
      \text{\AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ}}
@@ -528,6 +528,7 @@ pattern _&_ a b = a `& b
 ｢ a & b     ｣ = ε ∙ (a & b)
 ｢ A &[ b ]  ｣ = ｢ A ｣
 ｢ [ a ]& B  ｣ = ｢ B ｣
+
 \end{code}
 
 \paragraph{Injection} We call \AD{inj} the function taking a
@@ -737,7 +738,160 @@ use anything from the other one. Here is a such rule:
 
 We now have a fully formal definition of the more general system
 we hinted at when observing the execution of the search procedure
-in \autoref{sec:example}.
+in \autoref{sec:example}. This alternative formulation of the fragment
+of ILL we have decided to study will only be useful if it is equivalent
+to the original one. The following two sections are dedicated to proving
+that the formulation is both sound (all the derivations in the generalised
+calculus give rise to corresponding ones in ILL) and complete (if a
+statement can be proven in ILL then a corresponding one is derivable
+in the generalised calculus).
+
+\section{Completeness\label{sec:complete}}
+
+The purpose of this section is to prove the completeness of our
+generalised calculus: to every derivation in ILL we can associate
+a corresponding one in the consumption-based calculus.
+
+One of the major differences between the two calculi is that in the
+one with leftovers, the context decorated with consumption annotations
+is the same throughout the whole derivation whereas we constantly chop
+up the multiset of resources in ILL. To go from ILL to ILLWL\todo{define?},
+we need to introduce a notion of weakening which give us the ability to
+talk about working in a larger context.
+
+\subsection{A Notion of Weakening for ILLWL}
+
+One of the particularities of Linear Logic is precisely that there is no
+notion of weakening allowing to discard resources without using them. In
+the calculus with leftovers however, it is perfectly sensible to talk
+about resources which are not impacted by the proof process: they are
+merely passed around and returned untouched at the end of the computation.
+This leads us to consider \AD{Usage}(\AD{s}) extensions describing
+how one may enrich a context.
+
+\subsubsection{\AD{Usage} extensions}
+
+We call \AB{h}-\AD{Usage} extension of type \AB{σ} (written \uext{\AB{h}}{\AB{σ}})
+the description of a structure containing exactly one hole denoted \hole{}
+into which, using \_\fillU{}\_, one may plug an \AD{Usage} \AB{h} in order
+to get a \AD{Usage} \AB{σ}. We give side by side the constructors for the
+inductive type \uext{\_}{\_} and the corresponding case for \_\fillU{}\_.
+The most basic constructor says that we may have nothing but a hole:
+
+\begin{mathpar}
+\inferrule{
+  }{\text{\hole{} \hasType{} \uext{\AB{h}}{\AB{h}}}
+  }
+\and \inferrule{}{\text{\AB{H} \fillU{} \hole{} = \AB{H}}}
+\end{mathpar}
+
+Alternatively, one may either have a hole on the left or right
+hand side of a tensor product (where \_\AF{⊗U}\_ is the intuitive
+lifting of tensor to \AD{Usage} unpacking both sides and outputting
+the appropriate annotation):
+
+\begin{mathpar}
+\inferrule{
+  \text{\AB{L} \hasType{} \uext{\AB{h}}{\AB{σ}}}
+  \and \text{\AB{R} \hasType{} \AD{Usage} \AB{τ}}
+  }{\text{\hole{\AB{L}} \tensor{} \AB{R} \hasType{} \uext{\AB{h}}{\AB{σ} \tensor{} \AB{τ}}}
+  }
+\and \inferrule{}{\text{\AB{H} \fillU{} \hole{\AB{L}} \tensor{} \AB{R} =
+                  (\AB{H} \fillU{} \AB{L}) \AF{⊗U} \AB{R}}}
+\and
+\inferrule{
+  \text{\AB{L} \hasType{} \AD{Usage} \AB{σ}}
+  \and \text{\AB{R} \hasType{} \uext{\AB{h}}{\AB{τ}}}
+  }{\text{\AB{L} \tensor\hole{\AB{R}} \hasType{} \uext{\AB{h}}{\AB{σ} \tensor{} \AB{τ}}}
+  }
+\and \inferrule{}{\text{\AB{H} \fillU{} \AB{L} \tensor\hole{\AB{R}} =
+                        \AB{L} \AF{⊗U} (\AB{H} \fillU{} \AB{R})}}
+\end{mathpar}
+
+Or one may have a hole on either side of a with constructor as long
+as the other side is kept mint (\_\AF{\&[}\_\AF{]} and \AF{[}\_\AF{]\&U}\_
+are, once more, operators lifting the \AD{Cover} constructors to \AD{Usage}):
+
+\begin{mathpar}
+\inferrule{
+  \text{\AB{L} \hasType{} \uext{\AB{h}}{\AB{σ}}}
+  }{\text{\hole{\AB{L}} \with\free{\AB{τ}} \hasType{} \uext{\AB{h}}{\AB{σ} \with{} \AB{τ}}}
+  }
+\and \inferrule{}{\text{\AB{H} \fillU{} \hole{\AB{L}}  \with\free{\AB{τ}} =
+                  (\AB{H} \fillU{} \AB{L}) \AF{\&U[} \AB{R} \AF{]}}}
+\and
+\inferrule{
+  \text{\AB{R} \hasType{} \uext{\AB{h}}{\AB{τ}}}
+    }{\text{\free{\AB{σ}}\with\hole{\AB{R}} \hasType{} \uext{\AB{h}}{\AB{σ} \tensor{} \AB{τ}}}
+  }
+\and \inferrule{}{\text{\AB{H} \fillU{} \free{\AB{σ}}\with\hole{\AB{R}} =
+                        \AF{[} \AB{σ} \AF{]\&U} (\AB{H} \fillU{} \AB{R})}}
+\end{mathpar}
+
+\subsubsection{\AD{Usages} extensions}
+
+\AD{Usages} extensions are akin to Altenkirch et al.'s Order Preserving
+Embeddings~\cite{altenkirch1995categorical}. One can embed the empty
+context into any other context:
+
+\begin{mathpar}
+\inferrule{\text{\AB{Δ} \hasType{} \AD{Usages} \AD{δ}}
+  }{\text{\AIC{ε} \AB{Δ} \hasType{} \usext{\AIC{ε}}{\AB{δ}}}
+  }
+\and \inferrule{}{\text{\AIC{ε} \fillUs{} \AIC{ε} \AB{Δ} = \AB{Δ}}}
+\end{mathpar}
+
+One may extend the head \AD{Usage} using the tools defined in the
+previous subsection:
+
+\begin{mathpar}
+\inferrule{
+    \text{\AB{hs} \hasType{} \usext{\AB{γ}}{\AB{δ}}}
+    \and \text{\AB{h} \hasType{} \uext{\AB{σ}}{\AB{τ}}}
+  }{\text{\AB{hs} \mysnoc{} \AB{h} \hasType{} \usext{\AB{γ} \mysnoc{} \AB{σ}}{\AB{δ} \mysnoc{} \AB{τ}}}
+  }
+\and \inferrule{}{\text{\AB{Γ} \mysnoc{} \AB{S} \fillUs{} \AB{hs} \mysnoc{} \AB{h} =
+                   (\AB{Γ} \fillUs{} \AB{hs}) \mysnoc{} (\AB{S} \fillU{} \AB{h}})}
+\end{mathpar}
+
+Or one may throw in an entirely new \AD{Usage}:
+
+\begin{mathpar}
+\inferrule{
+    \text{\AB{hs} \hasType{} \usext{\AB{γ}}{\AB{δ}}}
+    \and \text{\AB{S} \hasType{} \AD{Usage} \AB{σ}}
+  }{\text{\AB{hs} \AIC{∙′} \AB{S} \hasType{} \usext{\AB{γ}}{\AB{δ} \mysnoc{} \AB{σ}}}
+  }
+\and \inferrule{}{\text{\AB{Γ} \fillUs{} \AB{hs} \AIC{∙′} \AB{S} =
+                   (\AB{Γ} \fillUs{} \AB{hs}) \mysnoc{} \AB{S}}}
+\end{mathpar}
+
+Now that this machinery is defined, we can easily state and prove the
+following simple weakening lemmma:
+
+\begin{lemma}[Weakening for ILLWL]
+Given \AB{Γ} and \AB{Δ} two \AD{Usages} \AB{γ} and a goal \AB{σ}
+such that \AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ} holds true,
+for any \AB{hs} of type \usext{\AB{γ}}{\AB{δ}}, it holds that:
+\AB{Γ} \fillUs{} \AB{hs} \entails{} \AB{σ} \coentails{} \AB{Δ} \fillUs{} \AB{hs}.
+\end{lemma}
+
+\subsection{Proof of completeness}
+
+\begin{lemma}[Admissibility of the Axiom Rule]Given a type \AB{σ}, one
+can find \AB{S}, a full \AD{Usage} \AB{σ}, such that
+\injs{} (\AIC{ε} \mysnoc{} \AB{σ}) \entails{} \AB{σ} \coentails{} \AB{S}.
+\end{lemma}
+\begin{proof}By induction on \AB{σ}, using weakening to be able to combine
+the induction hypothesis.
+\end{proof}
+
+\begin{theorem}[Completeness]Given a context \AB{γ} and a type \AB{σ}
+such that \AB{γ} \entails{} \AB{σ}, we can prove that there exists \AB{Γ}
+a \emph{full} \AD{Usages} \AB{γ} such that \inj{} \AB{γ} \entails{} \AB{σ} \coentails{} \AB{Γ}.
+\end{theorem}
+
+
 
 \section{Proof Search\label{sec:proofsearch}}
 
@@ -988,7 +1142,7 @@ appropriate tree constructor \AIC{⊗ʳ}.
 proofs and then check which subset of their cartesian product gives rise
 to valid proofs. To do so, we call \AF{\_⊙?\_} on the returned \AD{Usages}
 to make sure that they are synchronisable and, based on the result, either
-combine them using \AF{whenSome} or fail by returning the empty list. 
+combine them using \AF{whenSome} or fail by returning the empty list.
 
 \begin{code}
 Γ ⊢? σ & τ  =  Γ ⊢? σ >>= uncurry $ λ Δ₁ prσ →
@@ -1033,7 +1187,7 @@ lift the notion of cover difference.
 \inferrule{
   }{\text{\AB{S} \eqsync{} \AB{S} \diff{} \free{\AB{σ}}}
   }
-\and 
+\and
 \inferrule{
   }{\text{\AB{S} \eqsync{} \free{\AB{σ}} \diff{} \AB{S}}
   }
@@ -1219,7 +1373,7 @@ module TacticsAbMonPaper
 \end{code}}
 \begin{code}
   data Expr (n : ℕ) : Set where
-    `v    : (k : Fin n)         → Expr n 
+    `v    : (k : Fin n)         → Expr n
     `c    : (el : Carrier Mon)  → Expr n
     _`∙_  : (t u : Expr n)      → Expr n
 \end{code}
@@ -1426,26 +1580,36 @@ perfectly well as demonstrated by the following example:
 
 \AgdaHide{
 \begin{code}
-module Examples4 where
+module ExamplesTactics where
 
-  open import Prelude as Prelude hiding (_$_)
-  open import Bag-equivalence
+  open import Algebra.Structures
   open import Data.Nat as Nat
-  open import Data.Fin as Fin
+  open import Data.Nat.Properties
+  open import Data.List
+  module AbSR = IsCommutativeSemiring isCommutativeSemiring
+
+  open import Data.Fin as Fin hiding (_+_)
   open import Data.Vec as Vec
   open import lps.Tactics
-  open TacticsBagEq2 Nat.ℕ Nat._≟_
-
+  module ℕ+ = TacticsAbMon (record
+                        { Carrier = ℕ
+                        ; _≈_ = _≡_
+                        ; _∙_ = _+_
+                        ; ε   = 0
+                        ; isCommutativeMonoid = AbSR.+-isCommutativeMonoid
+                        }) Nat._≟_
+  import Prelude as Pr
 \end{code}}
+
 \begin{code}
-  1∷2∷xs : (xs : List Nat.ℕ) → 1 ∷ 2 ∷ xs ≈-bag 2 ∷ 1 ∷ xs
-  1∷2∷xs xs = proveMonEq LHS RHS CTX
-    where  `1   = `v Fin.zero
-           `2   = `v (Fin.suc Fin.zero)
-           `xs  = `v (Fin.suc (Fin.suc Fin.zero))
-           LHS  = `1 `∙ `2 `∙ `xs
-           RHS  = `2 `∙ `1 `∙ `xs
-           CTX  = (1 Prelude.∷ Prelude.[]) ∷ (2 Prelude.∷ Prelude.[]) ∷ xs ∷ Vec.[]
+  2+x+y+1 : (x y : Nat.ℕ) → 2 + (x + y + 1) ≡ y + 3 + x
+  2+x+y+1 x y = proveMonEq LHS RHS CTX
+    where open ℕ+
+          `x  = `v Fin.zero
+          `y  = `v (Fin.suc Fin.zero)
+          LHS = `c 2 `∙ (`x `∙ `y `∙ `c 1)
+          RHS = `y `∙ `c 3 `∙ `x
+          CTX = x Vec.∷ y Vec.∷ Vec.[]
 \end{code}
 
 Having a nice interface for these solvers would involve a little
