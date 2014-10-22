@@ -59,35 +59,30 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   [ σ ]&U [ τ ] = [ σ `& τ ]
   [ σ ]&U ] T [ = ] [ σ ]`& T [
 
-  data ⟨_⟩Cover_ (h : ty) : (σ : ty) → Set where
-    ⟨⟩       : ⟨ h ⟩Cover h
-    ⟨_⟩`⊗_   : {σ τ : ty} (L : ⟨ h ⟩Cover σ) (R : Cover τ) → ⟨ h ⟩Cover σ `⊗ τ
-    ⟨_⟩`⊗[_] : {σ : ty} (L : ⟨ h ⟩Cover σ) (τ : ty) → ⟨ h ⟩Cover σ `⊗ τ
-    ⟨_⟩`&[_] : {σ : ty} (L : ⟨ h ⟩Cover σ) (τ : ty) → ⟨ h ⟩Cover σ `& τ
-    _`⊗⟨_⟩   : {σ τ : ty} (L : Cover σ) (R : ⟨ h ⟩Cover τ) → ⟨ h ⟩Cover σ `⊗ τ
-    [_]`⊗⟨_⟩ : (σ : ty) {τ : ty} (R : ⟨ h ⟩Cover τ) → ⟨ h ⟩Cover σ `⊗ τ
-    [_]`&⟨_⟩ : (σ : ty) {τ : ty} (R : ⟨ h ⟩Cover τ) → ⟨ h ⟩Cover σ `& τ
+  data ⟨_⟩Usage_ (h : ty) : (σ : ty) → Set where
+    ⟨⟩       : ⟨ h ⟩Usage h
+    ⟨_⟩`⊗_   : {σ τ : ty} (L : ⟨ h ⟩Usage σ) (R : LT.Usage τ) → ⟨ h ⟩Usage σ `⊗ τ
+    ⟨_⟩`&[_] : {σ : ty} (L : ⟨ h ⟩Usage σ) (τ : ty) → ⟨ h ⟩Usage σ `& τ
+    _`⊗⟨_⟩   : {σ τ : ty} (L : LT.Usage σ) (R : ⟨ h ⟩Usage τ) → ⟨ h ⟩Usage σ `⊗ τ
+    [_]`&⟨_⟩ : (σ : ty) {τ : ty} (R : ⟨ h ⟩Usage τ) → ⟨ h ⟩Usage σ `& τ
 
-  _>>C_ : {h σ : ty} (H : LT.Usage h) (S : ⟨ h ⟩Cover σ) → LT.Usage σ
-  H >>C ⟨⟩           = H
-  H >>C ⟨ S ⟩`⊗ T    = (H >>C S) ⊗U ] T [
-  H >>C ⟨ S ⟩`⊗[ τ ] = (H >>C S) ⊗U [ τ ]
-  H >>C ⟨ S ⟩`&[ τ ] = (H >>C S) &U[ τ ]
-  H >>C S `⊗⟨ T ⟩    = ] S [ ⊗U (H >>C T)
-  H >>C [ σ ]`⊗⟨ T ⟩ = [ σ ] ⊗U (H >>C T)
-  H >>C [ σ ]`&⟨ T ⟩ = [ σ ]&U (H >>C T)
+  _>>U_ : {h σ : ty} (H : LT.Usage h) (S : ⟨ h ⟩Usage σ) → LT.Usage σ
+  H >>U ⟨⟩           = H
+  H >>U ⟨ S ⟩`⊗ R    = (H >>U S) ⊗U R
+  H >>U ⟨ S ⟩`&[ τ ] = (H >>U S) &U[ τ ]
+  H >>U L `⊗⟨ S ⟩    = L ⊗U (H >>U S)
+  H >>U [ σ ]`&⟨ S ⟩ = [ σ ]&U (H >>U S)
 
-  infix 3 ⟨_⟩Usage_
-  data ⟨_⟩Usage_ : (γ δ : Con ty) → Set where
-    ε    : {δ : Con ty} (Δ : LC.Usage δ) → ⟨ ε ⟩Usage δ
-    _∙_  : {δ γ : Con ty} (Γ : ⟨ γ ⟩Usage δ) {h σ : ty} (S : ⟨ h ⟩Cover σ) → ⟨ γ ∙ h ⟩Usage δ ∙ σ
-    _∙′_ : {δ γ : Con ty} (Γ : ⟨ γ ⟩Usage δ) {σ : ty} (S : LT.Usage σ) → ⟨ γ ⟩Usage δ ∙ σ
+  infix 3 ⟨_⟩Usages_
+  data ⟨_⟩Usages_ : (γ δ : Con ty) → Set where
+    ε    : {δ : Con ty} (Δ : LC.Usage δ) → ⟨ ε ⟩Usages δ
+    _∙_  : {δ γ : Con ty} (Γ : ⟨ γ ⟩Usages δ) {h σ : ty} (S : ⟨ h ⟩Usage σ) → ⟨ γ ∙ h ⟩Usages δ ∙ σ
+    _∙′_ : {δ γ : Con ty} (Γ : ⟨ γ ⟩Usages δ) {σ : ty} (S : LT.Usage σ) → ⟨ γ ⟩Usages δ ∙ σ
 
-
-  _>>U_ : {γ δ : Con ty} (Γ : LC.Usage γ) (Δ : ⟨ γ ⟩Usage δ) → LC.Usage δ
-  Γ       >>U ε Δ      = Δ
-  (Γ ∙ H) >>U (Δ ∙ S)  = (Γ >>U Δ) ∙ (H >>C S)
-  Γ       >>U (Δ ∙′ S) = (Γ >>U Δ) ∙ S
+  _>>Us_ : {γ δ : Con ty} (Γ : LC.Usage γ) (Δ : ⟨ γ ⟩Usages δ) → LC.Usage δ
+  Γ       >>Us ε Δ      = Δ
+  (Γ ∙ H) >>Us (Δ ∙ S)  = (Γ >>Us Δ) ∙ (H >>U S)
+  Γ       >>Us (Δ ∙′ S) = (Γ >>Us Δ) ∙ S
 
   _⊗⊙_ : {a b : ty} {A A₁ A₂ : LT.Usage a} {B B₁ B₂ : LT.Usage b}
          (sca : A LAT.Usage.≡ A₁ ⊙ A₂) (scb : B LAT.Usage.≡ B₁ ⊙ B₂) →
@@ -107,18 +102,16 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   [ σ ]&⊙ [ τ ]   = [ σ `& τ ]
   [ σ ]&⊙ ] prT [ = ] [ σ ]`& prT [
 
-  ⟨_⟩⊙C_ : {h σ : ty} (H : ⟨ h ⟩Cover σ) {S S₁ S₂ : LT.Usage h} (sc : S LAT.Usage.≡ S₁ ⊙ S₂) →
-           S >>C H LAT.Usage.≡ S₁ >>C H ⊙ S₂ >>C H
+  ⟨_⟩⊙C_ : {h σ : ty} (H : ⟨ h ⟩Usage σ) {S S₁ S₂ : LT.Usage h} (sc : S LAT.Usage.≡ S₁ ⊙ S₂) →
+           S >>U H LAT.Usage.≡ S₁ >>U H ⊙ S₂ >>U H
   ⟨ ⟨⟩           ⟩⊙C sc = sc
-  ⟨ ⟨ H ⟩`⊗ R    ⟩⊙C sc = ⟨ H ⟩⊙C sc ⊗⊙ LAT.Usage.⊙-refl ] R [
-  ⟨ ⟨ H ⟩`⊗[ τ ] ⟩⊙C sc = ⟨ H ⟩⊙C sc ⊗⊙ LAT.Usage.⊙-refl [ τ ]
+  ⟨ ⟨ H ⟩`⊗ R    ⟩⊙C sc = ⟨ H ⟩⊙C sc ⊗⊙ LAT.Usage.⊙-refl R
   ⟨ ⟨ H ⟩`&[ τ ] ⟩⊙C sc = (⟨ H ⟩⊙C sc) &⊙[ τ ]
-  ⟨ L `⊗⟨ H ⟩    ⟩⊙C sc = LAT.Usage.⊙-refl ] L [ ⊗⊙ ⟨ H ⟩⊙C sc
-  ⟨ [ σ ]`⊗⟨ H ⟩ ⟩⊙C sc = LAT.Usage.⊙-refl [ σ ] ⊗⊙ ⟨ H ⟩⊙C sc
+  ⟨ L `⊗⟨ H ⟩    ⟩⊙C sc = LAT.Usage.⊙-refl L ⊗⊙ ⟨ H ⟩⊙C sc
   ⟨ [ σ ]`&⟨ H ⟩ ⟩⊙C sc = [ σ ]&⊙ ⟨ H ⟩⊙C sc
 
-  ⟨_⟩⊙Con_ : {γ δ : Con ty} (Δ : ⟨ γ ⟩Usage δ) {Γ Γ₁ Γ₂ : LC.Usage γ} (sc : Γ LAC.≡ Γ₁ ⊙ Γ₂) →
-             Γ >>U Δ LAC.≡ Γ₁ >>U Δ ⊙ Γ₂ >>U Δ 
+  ⟨_⟩⊙Con_ : {γ δ : Con ty} (Δ : ⟨ γ ⟩Usages δ) {Γ Γ₁ Γ₂ : LC.Usage γ} (sc : Γ LAC.≡ Γ₁ ⊙ Γ₂) →
+             Γ >>Us Δ LAC.≡ Γ₁ >>Us Δ ⊙ Γ₂ >>Us Δ 
   ⟨ Δ ∙′ S ⟩⊙Con sc        = ⟨ Δ ⟩⊙Con sc ∙ LAT.Usage.⊙-refl S
   ⟨ ε Δ    ⟩⊙Con ε         = LAC.⊙-refl Δ
   ⟨ Δ ∙ S  ⟩⊙Con (sc ∙ pr) = ⟨ Δ ⟩⊙Con sc ∙ ⟨ S ⟩⊙C pr
@@ -151,37 +144,34 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   [ σ ]&∈U [ var ] = [ σ `&ʳ var ]
   [ σ ]&∈U ] var [ = ] σ `&ʳ var [
 
-  ⟨_⟩∈U_ : {k : Pr} {h σ : ty} (S : ⟨ h ⟩Cover σ) {H₁ H₂ : LT.Usage h} (var : H₁ BTTU.∋ k ∈ H₂) →
-           H₁ >>C S BTTU.∋ k ∈ H₂ >>C S
+  ⟨_⟩∈U_ : {k : Pr} {h σ : ty} (S : ⟨ h ⟩Usage σ) {H₁ H₂ : LT.Usage h} (var : H₁ BTTU.∋ k ∈ H₂) →
+           H₁ >>U S BTTU.∋ k ∈ H₂ >>U S
   ⟨ ⟨⟩           ⟩∈U var = var
-  ⟨ ⟨ S ⟩`⊗ R    ⟩∈U var = (⟨ S ⟩∈U var) ∈U⊗ ] R [
-  ⟨ ⟨ S ⟩`⊗[ τ ] ⟩∈U var = (⟨ S ⟩∈U var) ∈U⊗ [ τ ]
+  ⟨ ⟨ S ⟩`⊗ R    ⟩∈U var = (⟨ S ⟩∈U var) ∈U⊗ R
   ⟨ ⟨ S ⟩`&[ τ ] ⟩∈U var = (⟨ S ⟩∈U var) ∈U&[ τ ]
-  ⟨ L `⊗⟨ S ⟩    ⟩∈U var = ] L [ ⊗∈U ⟨ S ⟩∈U var
-  ⟨ [ σ ]`⊗⟨ S ⟩ ⟩∈U var = [ σ ] ⊗∈U ⟨ S ⟩∈U var
+  ⟨ L `⊗⟨ S ⟩    ⟩∈U var = L ⊗∈U ⟨ S ⟩∈U var
   ⟨ [ σ ]`&⟨ S ⟩ ⟩∈U var = [ σ ]&∈U ⟨ S ⟩∈U var
 
-  ⟨_⟩∈_ : {k : Pr} {γ δ : Con ty} (Δ : ⟨ γ ⟩Usage δ) {Γ₁ Γ₂ : LC.Usage γ} (var : Γ₁ BTC.∋ k ∈ Γ₂) →
-           Γ₁ >>U Δ BTC.∋ k ∈ Γ₂ >>U Δ
+  ⟨_⟩∈_ : {k : Pr} {γ δ : Con ty} (Δ : ⟨ γ ⟩Usages δ) {Γ₁ Γ₂ : LC.Usage γ} (var : Γ₁ BTC.∋ k ∈ Γ₂) →
+           Γ₁ >>Us Δ BTC.∋ k ∈ Γ₂ >>Us Δ
   ⟨ ε _    ⟩∈ ()
   ⟨ Δ ∙′ S ⟩∈ var     = suc (⟨ Δ ⟩∈ var)
   ⟨ Δ ∙ S  ⟩∈ zro var = zro (⟨ S ⟩∈U var)
   ⟨ Δ ∙ S  ⟩∈ suc var = suc (⟨ Δ ⟩∈ var)
 
-  ⟨_⟩⊢_ : {τ : ty} {γ δ : Con ty} (Δ : ⟨ γ ⟩Usage δ) {Γ₁ Γ₂ : LC.Usage γ} (tm : Γ₁ ⊢ τ ⊣ Γ₂) →
-           Γ₁ >>U Δ ⊢ τ ⊣ Γ₂ >>U Δ
+  ⟨_⟩⊢_ : {τ : ty} {γ δ : Con ty} (Δ : ⟨ γ ⟩Usages δ) {Γ₁ Γ₂ : LC.Usage γ} (tm : Γ₁ ⊢ τ ⊣ Γ₂) →
+           Γ₁ >>Us Δ ⊢ τ ⊣ Γ₂ >>Us Δ
   ⟨ Δ ⟩⊢ `κ var              = `κ (⟨ Δ ⟩∈ var)
   ⟨ Δ ⟩⊢ (tm₁ `⊗ʳ tm₂)       = (⟨ Δ ⟩⊢ tm₁) `⊗ʳ (⟨ Δ ⟩⊢ tm₂)
   ⟨ Δ ⟩⊢ (tm₁ `&ʳ tm₂ by pr) = (⟨ Δ ⟩⊢ tm₁) `&ʳ ⟨ Δ ⟩⊢ tm₂ by ⟨ Δ ⟩⊙Con pr
-
 
   axiom : (σ : ty) → Σ[ S ∈ Cover σ ] LTC.isUsed S × (inj[ ε ∙ σ ] ⊢ σ ⊣ ε ∙ ] S [)
   axiom (`κ k)   = `κ k , `κ k , `κ (zro [ `κ ])
   axiom (σ `⊗ τ) =
     let (S₁ , U₁ , tm₁) = axiom σ
         (S₂ , U₂ , tm₂) = axiom τ
-        wkTm₁           = ⟨ ε ε ∙ ⟨ ⟨⟩ ⟩`⊗[ τ ] ⟩⊢ tm₁
-        wkTm₂           = ⟨ ε ε ∙ ( S₁ `⊗⟨ ⟨⟩ ⟩) ⟩⊢ tm₂
+        wkTm₁           = ⟨ ε ε ∙ ⟨ ⟨⟩ ⟩`⊗ [ τ ] ⟩⊢ tm₁
+        wkTm₂           = ⟨ ε ε ∙ ( ] S₁ [ `⊗⟨ ⟨⟩ ⟩) ⟩⊢ tm₂
     in S₁ `⊗ S₂ , U₁ `⊗ U₂ , wkTm₁ `⊗ʳ wkTm₂
   axiom (σ `& τ) =
     let (S₁ , U₁ , tm₁) = axiom σ
@@ -191,40 +181,40 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
     in σ `& τ , σ `& τ , wkTm₁ `&ʳ wkTm₂ by (ε ∙ ] ] U₁ [`&] U₂ [  [)
 
 
-  ⟨_⟩Usage-refl : (γ : Con ty) → ⟨ γ ⟩Usage γ
-  ⟨ ε     ⟩Usage-refl = ε ε
-  ⟨ γ ∙ σ ⟩Usage-refl = ⟨ γ ⟩Usage-refl ∙ ⟨⟩
+  ⟨_⟩Usages-refl : (γ : Con ty) → ⟨ γ ⟩Usages γ
+  ⟨ ε     ⟩Usages-refl = ε ε
+  ⟨ γ ∙ σ ⟩Usages-refl = ⟨ γ ⟩Usages-refl ∙ ⟨⟩
 
-  Usage-refl : (γ : Con ty) (Γ : LC.Usage γ) → Γ >>U ⟨ γ ⟩Usage-refl ≡ Γ
-  Usage-refl .ε ε       = Eq.refl
-  Usage-refl ._ (Γ ∙ S) rewrite Usage-refl _ Γ = Eq.refl
+  Usages-refl : (γ : Con ty) (Γ : LC.Usage γ) → Γ >>Us ⟨ γ ⟩Usages-refl ≡ Γ
+  Usages-refl .ε ε       = Eq.refl
+  Usages-refl ._ (Γ ∙ S) rewrite Usages-refl _ Γ = Eq.refl
 
-  split₁ : {σ τ : ty} {γ : Con ty} (var : σ `& τ BelongsTo.∈ γ) → ⟨ split-&₁ var ⟩Usage γ
-  split₁ CBT.zro       = ⟨ _ ⟩Usage-refl ∙ ⟨ ⟨⟩ ⟩`&[ _ ]
+  split₁ : {σ τ : ty} {γ : Con ty} (var : σ `& τ BelongsTo.∈ γ) → ⟨ split-&₁ var ⟩Usages γ
+  split₁ CBT.zro       = ⟨ _ ⟩Usages-refl ∙ ⟨ ⟨⟩ ⟩`&[ _ ]
   split₁ (CBT.suc var) = split₁ var ∙ ⟨⟩
 
   split₁-eq : {γ : Con ty} {σ τ : ty} (var : σ `& τ BelongsTo.∈ γ) →
-              inj[ split-&₁ var ] >>U split₁ var ≡ inj[ γ ]
-  split₁-eq {γ ∙ σ `& τ} CBT.zro rewrite Usage-refl γ (inj[ γ ]) = Eq.refl
+              inj[ split-&₁ var ] >>Us split₁ var ≡ inj[ γ ]
+  split₁-eq {γ ∙ σ `& τ} CBT.zro rewrite Usages-refl γ (inj[ γ ]) = Eq.refl
   split₁-eq (CBT.suc var)        rewrite split₁-eq var = Eq.refl
 
   split₁IsUsed : {σ τ : ty} {γ : Con ty} (var : σ `& τ CBT.∈ γ) {Γ : LC.Usage (split-&₁ var)}
-                 (pr : LC.isUsed Γ) → LC.isUsed $ Γ >>U split₁ var
-  split₁IsUsed CBT.zro       (prΓ ∙ ] prS [) = Eq.subst LC.isUsed (Eq.sym $ Usage-refl _ _) prΓ ∙ ] prS `&[ _ ] [
+                 (pr : LC.isUsed Γ) → LC.isUsed $ Γ >>Us split₁ var
+  split₁IsUsed CBT.zro       (prΓ ∙ ] prS [) = Eq.subst LC.isUsed (Eq.sym $ Usages-refl _ _) prΓ ∙ ] prS `&[ _ ] [
   split₁IsUsed (CBT.suc var) (prΓ ∙ prS)     = split₁IsUsed var prΓ ∙ prS
 
-  split₂ : {σ τ : ty} {γ : Con ty} (var : σ `& τ BelongsTo.∈ γ) → ⟨ split-&₂ var ⟩Usage γ
-  split₂ CBT.zro       = ⟨ _ ⟩Usage-refl ∙ [ _ ]`&⟨ ⟨⟩ ⟩
+  split₂ : {σ τ : ty} {γ : Con ty} (var : σ `& τ BelongsTo.∈ γ) → ⟨ split-&₂ var ⟩Usages γ
+  split₂ CBT.zro       = ⟨ _ ⟩Usages-refl ∙ [ _ ]`&⟨ ⟨⟩ ⟩
   split₂ (CBT.suc var) = split₂ var ∙ ⟨⟩
 
   split₂-eq : {γ : Con ty} {σ τ : ty} (var : σ `& τ BelongsTo.∈ γ) →
-              inj[ split-&₂ var ] >>U split₂ var ≡ inj[ γ ]
-  split₂-eq {γ ∙ σ `& τ} CBT.zro rewrite Usage-refl γ (inj[ γ ]) = Eq.refl
+              inj[ split-&₂ var ] >>Us split₂ var ≡ inj[ γ ]
+  split₂-eq {γ ∙ σ `& τ} CBT.zro rewrite Usages-refl γ (inj[ γ ]) = Eq.refl
   split₂-eq (CBT.suc var)        rewrite split₂-eq var = Eq.refl
 
   split₂IsUsed : {σ τ : ty} {γ : Con ty} (var : σ `& τ CBT.∈ γ) {Γ : LC.Usage (split-&₂ var)}
-                 (pr : LC.isUsed Γ) → LC.isUsed $ Γ >>U split₂ var
-  split₂IsUsed CBT.zro       (prΓ ∙ ] prS [) = Eq.subst LC.isUsed (Eq.sym $ Usage-refl _ _) prΓ ∙ ] [ _ ]`& prS [
+                 (pr : LC.isUsed Γ) → LC.isUsed $ Γ >>Us split₂ var
+  split₂IsUsed CBT.zro       (prΓ ∙ ] prS [) = Eq.subst LC.isUsed (Eq.sym $ Usages-refl _ _) prΓ ∙ ] [ _ ]`& prS [
   split₂IsUsed (CBT.suc var) (prΓ ∙ prS)     = split₂IsUsed var prΓ ∙ prS
 
   isUsed⊙Cov : {σ : ty} {S₁ S₂ : Cover σ} (U₁ : LTC.isUsed S₁) (U₂ : LTC.isUsed S₂) →
@@ -259,26 +249,26 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   open Interleaving
 
   merge : {γ δ e : Con ty} (mg : γ ≡ δ ⋈ e) (Δ : LC.Usage δ) (E : LC.Usage e) →
-          ⟨ δ ⟩Usage γ × ⟨ e ⟩Usage γ
+          ⟨ δ ⟩Usages γ × ⟨ e ⟩Usages γ
   merge ε         Δ       E       = ε ε , ε ε
   merge (mg ∙ʳ σ) Δ       (E ∙ S) = Prod.map (λ Γ → Γ ∙′ S) (λ Γ → Γ ∙ ⟨⟩) $ merge mg Δ E
   merge (mg ∙ˡ σ) (Δ ∙ S) E       = Prod.map (λ Γ → Γ ∙ ⟨⟩) (λ Γ → Γ ∙′ S) $ merge mg Δ E
 
   merge-eq : {γ δ e : Con ty} (mg : γ ≡ δ ⋈ e) (Δ : LC.Usage δ) (E : LC.Usage e) →
-             let (H₁ , H₂) = merge mg Δ E in E >>U H₂ ≡ Δ >>U H₁
+             let (H₁ , H₂) = merge mg Δ E in E >>Us H₂ ≡ Δ >>Us H₁
   merge-eq ε         Δ       E       = Eq.refl
   merge-eq (mg ∙ʳ σ) Δ       (E ∙ S) = Eq.cong₂ _∙_ (merge-eq mg Δ E) Eq.refl
   merge-eq (mg ∙ˡ σ) (Δ ∙ S) E       = Eq.cong₂ _∙_ (merge-eq mg Δ E) Eq.refl
 
   merge-inj : {γ δ e : Con ty} (mg : γ ≡ δ ⋈ e) (Δ : LC.Usage δ) →
-              inj[ δ ] >>U proj₁ (merge mg Δ inj[ e ]) ≡ inj[ γ ]
+              inj[ δ ] >>Us proj₁ (merge mg Δ inj[ e ]) ≡ inj[ γ ]
   merge-inj ε         Δ       = Eq.refl
   merge-inj (mg ∙ʳ σ) Δ       = Eq.cong₂ _∙_ (merge-inj mg Δ) Eq.refl
   merge-inj (mg ∙ˡ σ) (Δ ∙ S) = Eq.cong₂ _∙_ (merge-inj mg Δ) Eq.refl
 
   mergeIsUsed : {γ δ e : Con ty} (mg : γ ≡ δ ⋈ e)
                 {Δ : LC.Usage δ} (prΔ : LC.isUsed Δ) {E : LC.Usage e} (prE : LC.isUsed E) →
-                LC.isUsed $ E >>U proj₂ (merge mg Δ inj[ e ])
+                LC.isUsed $ E >>Us proj₂ (merge mg Δ inj[ e ])
   mergeIsUsed ε         prΔ         prE         = ε
   mergeIsUsed (mg ∙ʳ σ) prΔ         (prE ∙ prS) = mergeIsUsed mg prΔ prE ∙ prS
   mergeIsUsed (mg ∙ˡ σ) (prΔ ∙ prS) prE         = mergeIsUsed mg prΔ prE ∙ prS
@@ -329,22 +319,22 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
     in Δ′ , split-⊗⁻¹IsUsed var U , tm′
   complete {γ} {σ} (var `&ˡ₁ tm)       =
     let (Γ , U , tm) = complete tm
-        Γ′           = Γ >>U split₁ var
+        Γ′           = Γ >>Us split₁ var
         U′           = split₁IsUsed var U
     in Γ′ , U′ , Eq.subst (λ Γ → Γ ⊢ σ ⊣ Γ′) (split₁-eq var) (⟨ split₁ var ⟩⊢ tm)
   complete {γ} {σ} (var `&ˡ₂ tm)       =
     let (Γ , U , tm) = complete tm
-        Γ′           = Γ >>U split₂ var
+        Γ′           = Γ >>Us split₂ var
         U′           = split₂IsUsed var U
     in Γ′ , U′ , Eq.subst (λ Γ → Γ ⊢ σ ⊣ Γ′) (split₂-eq var) (⟨ split₂ var ⟩⊢ tm)
   complete {γ} {σ `⊗ τ} (tm₁ `⊗ʳ tm₂ by mg) =
     let (Γ₁ , U₁ , tm₁) = complete tm₁
         (Γ₂ , U₂ , tm₂) = complete tm₂
         (H₁ , H₂)       = merge mg Γ₁ inj[ _ ]
-        tm₁             = Eq.subst (λ Γ → Γ ⊢ σ ⊣ Γ₁ >>U H₁) (merge-inj mg Γ₁) (⟨ H₁ ⟩⊢ tm₁)
-        tm₂             = Eq.subst (λ Δ → Δ ⊢ τ ⊣ Γ₂ >>U H₂) (merge-eq mg Γ₁ inj[ _ ]) (⟨ H₂ ⟩⊢ tm₂)
+        tm₁             = Eq.subst (λ Γ → Γ ⊢ σ ⊣ Γ₁ >>Us H₁) (merge-inj mg Γ₁) (⟨ H₁ ⟩⊢ tm₁)
+        tm₂             = Eq.subst (λ Δ → Δ ⊢ τ ⊣ Γ₂ >>Us H₂) (merge-eq mg Γ₁ inj[ _ ]) (⟨ H₂ ⟩⊢ tm₂)
         U               = mergeIsUsed mg U₁ U₂
-    in Γ₂ >>U H₂ , U , tm₁ `⊗ʳ tm₂
+    in Γ₂ >>Us H₂ , U , tm₁ `⊗ʳ tm₂
   complete (tm₁ `&ʳ tm₂)       =
     let (Γ₁ , U₁ , tm₁) = complete tm₁
         (Γ₂ , U₂ , tm₂) = complete tm₂
