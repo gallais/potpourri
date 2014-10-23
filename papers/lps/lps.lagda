@@ -18,9 +18,7 @@
 
 \title{Certified Proof Search for Intuitionistic Linear Logic}
 
-\authorinfo{}
-           {}
-           {}
+\authorinfo{}{}{}
 
 \begin{document}
 \input{header.tex}
@@ -519,7 +517,7 @@ pattern _⊗_ a b = a `⊗ b
 pattern _&_ a b = a `& b
 
 ｢_｣ : {σ : ty} (S : Cover σ) → Con ty
-\end{code}}
+\end{code}}\todo{Do we care abou this?}
 \begin{code}
 ｢ κ k       ｣ = ε ∙ κ k
 ｢ A ⊗ B     ｣ = ｢ A ｣ ++ ｢ B ｣
@@ -818,7 +816,7 @@ are, once more, operators lifting the \AD{Cover} constructors to \AD{Usage}):
   }{\text{\hole{\AB{L}} \with\free{\AB{τ}} \hasType{} \uext{\AB{h}}{\AB{σ} \with{} \AB{τ}}}
   }
 \and \inferrule{}{\text{\AB{H} \fillU{} \hole{\AB{L}}  \with\free{\AB{τ}} =
-                  (\AB{H} \fillU{} \AB{L}) \AF{\&U[} \AB{R} \AF{]}}}
+                  (\AB{H} \fillU{} \AB{L}) \AF{\&U[} \AB{τ} \AF{]}}}
 \and
 \inferrule{
   \text{\AB{R} \hasType{} \uext{\AB{h}}{\AB{τ}}}
@@ -831,8 +829,12 @@ are, once more, operators lifting the \AD{Cover} constructors to \AD{Usage}):
 \subsubsection{\AD{Usages} extensions}
 
 \AD{Usages} extensions are akin to Altenkirch et al.'s Order Preserving
-Embeddings~\cite{altenkirch1995categorical}. One can embed the empty
-context into any other context:
+Embeddings~\cite{altenkirch1995categorical} except that they allow the
+modification of the individual elements which are embedded in the larger
+context using a \AD{Usage} extension. We list below the three OPE
+constructors together with the corresponding cases of \_\fillUs{}\_ 
+describing how to plug transport a \AD{Usages} along an extension.
+One can embed the empty context into any other context:
 
 \begin{mathpar}
 \inferrule{\text{\AB{Δ} \hasType{} \AD{Usages} \AD{δ}}
@@ -841,7 +843,7 @@ context into any other context:
 \and \inferrule{}{\text{\AIC{ε} \fillUs{} \AIC{ε} \AB{Δ} = \AB{Δ}}}
 \end{mathpar}
 
-One may extend the head \AD{Usage} using the tools defined in the
+Or one may extend the head \AD{Usage} using the tools defined in the
 previous subsection:
 
 \begin{mathpar}
@@ -854,7 +856,7 @@ previous subsection:
                    (\AB{Γ} \fillUs{} \AB{hs}) \mysnoc{} (\AB{S} \fillU{} \AB{h}})}
 \end{mathpar}
 
-Or one may throw in an entirely new \AD{Usage}:
+Finally, one may simply throw in an entirely new \AD{Usage}:
 
 \begin{mathpar}
 \inferrule{
@@ -875,12 +877,20 @@ such that \AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ} holds true,
 for any \AB{hs} of type \usext{\AB{γ}}{\AB{δ}}, it holds that:
 \AB{Γ} \fillUs{} \AB{hs} \entails{} \AB{σ} \coentails{} \AB{Δ} \fillUs{} \AB{hs}.
 \end{lemma}
+\begin{proof}The proof is by induction on the derivation
+\AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ} and relies on intermediate
+lemmas corresponding to the definition of weakening for \_\belongs{}\_\cobelongs{}\_
+and \_\eqsync{}\_\synced{}\_.
+\end{proof}
 
 \subsection{Proof of completeness}
 
+The first thing to do is to prove that the generalised axiom rule
+given in ILL is admissible in ILLWL.
+
 \begin{lemma}[Admissibility of the Axiom Rule]Given a type \AB{σ}, one
 can find \AB{S}, a full \AD{Usage} \AB{σ}, such that
-\injs{} (\AIC{ε} \mysnoc{} \AB{σ}) \entails{} \AB{σ} \coentails{} \AB{S}.
+\injs{} (\AIC{ε} \mysnoc{} \AB{σ}) \entails{} \AB{σ} \coentails{} \AIC{ε} \mysnoc{} \AB{S}.
 \end{lemma}
 \begin{proof}By induction on \AB{σ}, using weakening to be able to combine
 the induction hypothesis.
@@ -890,273 +900,29 @@ the induction hypothesis.
 such that \AB{γ} \entails{} \AB{σ}, we can prove that there exists \AB{Γ}
 a \emph{full} \AD{Usages} \AB{γ} such that \inj{} \AB{γ} \entails{} \AB{σ} \coentails{} \AB{Γ}.
 \end{theorem}
+\begin{proof}The proof is by induction on the derivation \AB{γ} \entails{} \AB{σ}.
 
+\underline{Axiom} The previous lemma is precisely dealing with this case.
 
+\underline{With Introduction} is combining the induction hypotheses
+by using the fact that two full \AD{Usages} are always synchronisable.
 
-\section{Proof Search\label{sec:proofsearch}}
+\underline{Tensor Introduction} relies on the fact that the (proof
+relevant) way in which the two premises' contexts are merged gives
+us enough information to generate the appropriate \AD{Usages} extensions
+along which to weaken the induction hypotheses.
 
-We have defined a lot of elegant datatypes so far but the original
-goal was to implement a proof search algorithm for the fragment of
-ILL we have decided to study. The good news is that all the systems
-we have described have algorithmic rules: read bottom-up, they are
-a set of constructor-directed recipes to search for a proof. Depending
-on the set of rules however, they may or may not be deterministic
-and they clearly are not total because not all sequents are provable.
-This simply means that we will be working in various monads. The axiom
-rule forces us to introduce non-determinism (which we will model using
-the list monad); there are indeed as many ways of proving an atomic
-proposition as there are assumptions of that type in the context. The
-rule for tensor looks like two stateful operations being run sequentially:
-one starts by discharging the first subgoal, waits for it to \emph{return}
-a modified context and then threads these leftovers to tackle the second
-one. And, last but not least, the rule for with looks very much like a
-map-reduce diagram: we start by generating two subcomputations which can
-be run in parallel and later on merge their results by checking whether
-the output contexts can be said to be synchronised (and this partiality
-will be dealt with using the maybe monad).
-
-Now, the presence of these effects is a major reason why it is important
-to have the elegant intermediate structures we can generate inhabitants
-of. Even if we are only interested in the satisfiability of a given
-problem, having material artefacts at our disposal allows us to state
-and prove properties of these functions easily rather than having to
-suffer from boolean blindness.\todo{cite a paper (?) on Boolean Blindness}.
-And we know that we may be able to optimise them
-away~\cite{wadler1990deforestation, gill1993short} in the case where
-we are indeed only interested in the satisfiability of the problem and
-they turn out to be useless.
-
-\subsection{Consuming an Atomic Proposition}
-
-The proof search procedures are rather simple to implement (they
-straightforwardly follow the specifications we have spelled out
-earlier) and their definitions are succinct. Let us study them.
-
-
-\begin{lemma}Given a type \AB{σ} and an atomic proposition \AB{k},
-we can manufacture a list of pairs consisting of a \AD{Cover} \AB{σ}
-we will call \AB{S} and a proof that \freebelongs{\AB{σ}} \AB{k}
-\cobelongs{} \AB{S}.
-\end{lemma}
-\begin{proof}We write \AF{\_∈?[\_]} for the function describing the
-different ways in which one can consume an atomic proposition from a
-mint assumption. This function, working in the list monad, is defined
-by structural induction on its second (explicit) argument: the mint
-assumption's type.
-
-\AgdaHide{
-\begin{code}
-_∈?[_] : (k : Pr) (σ : ty) → Con (Σ[ S′ ∈ Cover σ ] [ σ ]∋ k ∈ S′)
-\end{code}}
-
-\underline{Atomic Case} If the mint assumption is just an atomic
-proposition then it may be used if and only if it is the same
-proposition. Luckily this is decidable; in the case where propositions
-are indeed equal, we return the corresponding consumption whilst we
-simply output the empty list otherwise.
-
-\begin{code}
-k ∈?[ κ l   ] = dec (k ≟ l) (return ∘ ∈κ k) (const [])
-\end{code}
-
-\underline{Tensor \& With Case} Both the tensor and with case amount
-to picking a side. Both are equally valid so we just concatenate the
-lists of potential proofs after having mapped the appropriate lemmas
-inserting the constructors recording the choices made over the results
-obtained by induction hypothesis.
-
-\begin{code}
-k ∈?[ σ ⊗ τ ]  =   map (∈[⊗]ˡ τ)  (k ∈?[ σ ])
-               ++  map (∈[⊗]ʳ σ)  (k ∈?[ τ ])
-k ∈?[ σ & τ ]  =   map (∈[&]ˡ τ)  (k ∈?[ σ ])
-               ++  map (∈[&]ʳ σ)  (k ∈?[ τ ])
-\end{code}
+\underline{Left rules} The left rules are dealt with by defining
+ad-hoc functions mimicking the action of splitting a variable in
+the context (for tensor) or picking a side (for with) at the
+\AD{Usages} level and proving that these actions do not affect
+derivability in ILLWL negatively.
 \end{proof}
 
-The case where the assumption is not mint is just marginally more
-complicated as there are more cases to consider:
-
-\begin{lemma}Given a cover \AB{S} and an atomic proposition \AB{k},
-we can list the ways in which one may extract and consume \AB{k}.
-\end{lemma}
-\begin{proof}We write \AF{\_∈?]\_[} for the function describing the
-different ways in which one can consume an assumption from an already
-existing cover. This function, working in the list monad, is defined
-by structural induction on its second (explicit) argument: the cover.
-\AgdaHide{
-\begin{code}
-_∈?]_[ : (k : Pr) {σ : ty} (S : Cover σ) → Con (Σ[ S′ ∈ Cover σ ] S ∋ k ∈ S′)
-\end{code}}
-
-\underline{Atomic Case} The atomic proposition has already been used,
-there is therefore no potential proof:
-
-\begin{code}
-k ∈?] κ l      [ = []
-\end{code}
-
-\underline{Tensor Cases} The tensor cases all amount to collecting
-all the ways in which one may use the sub-assumptions. Whenever a
-sub-assumption is already partially used (in other words: a \AD{Cover})
-we use the induction hypothesis delivered by the function \AF{\_∈?]\_[}
-itself; if it is mint then we can fall back to the previous lemma. In
-each case, we then map lemmas applying the appropriate rules recording
-the choices made.
-
-\begin{code}
-k ∈?] A ⊗ B     [  =   map (∈⊗ˡ B)    (k ∈?] A [)
-                   ++  map (∈⊗ʳ A)    (k ∈?] B [)
-k ∈?] [ a ]⊗ B  [  =   map (∈[]⊗ˡ B)  (k ∈?[ a ])
-                   ++  map (∈[]⊗ a)   (k ∈?] B [)
-k ∈?] A ⊗[ b ]  [  =   map (∈⊗[] b)   (k ∈?] A [)
-                   ++  map (∈⊗[]ʳ A)  (k ∈?[ b ])
-\end{code}
-
-\underline{With Cases} Covers for with are a bit special: either
-they are stating that an assumption has been fully used (meaning
-that there is no way we can extract the atomic proposition \AB{k}
-out of it) or a side has already been picked and we can only
-explore one sub-assumption. As for the other cases, we need to
-map auxiliary lemmas.
-
-\begin{code}
-k ∈?] a & b      [ = []
-k ∈?] A &[ b ]   [ = map (∈&[] b)  (k ∈?] A [)
-k ∈?] [ a ]& B   [ = map (∈[]& a)  (k ∈?] B [)
-\end{code}
-\end{proof}
-
-Now that we know how to list the ways in which one can extract and
-consume an atomic proposition from a mint assumption or an already
-existing cover, it is trivial to define the corresponding process
-for an \AD{Usage}.
-
-\begin{corollary}Given an \AB{S} of type \AD{Usage} \AB{σ} and an atomic
-proposition \AB{k}, one can produce a list of pairs consisting of a
-\AD{Usage} \AB{σ} we will call \AB{T} and a proof that
-\AB{S} \belongs{} \AB{k} \cobelongs{} \AB{T}.
-\end{corollary}
-\begin{proof}
-It amounts to calling the appropriate function to do the job and
-apply a lemma to transport the result.
-
-\AgdaHide{
-\begin{code}
-module BTU = BelongsTo.Type.Usage
-open BTU hiding (_∈?_)
-_∈?_ : (k : Pr) {σ : ty} (S : LT.Usage σ) → Con (Σ (LT.Usage σ) (λ S′ → S BTU.∋ k ∈ S′))
-\end{code}}
-\begin{code}
-k ∈? [ σ ] = map [∈] $ k ∈?[ σ ]
-k ∈? ] S [ = map ]∈[ $ k ∈?] S [
-\end{code}
-\end{proof}
-
-This leads us to the theorem describing how to implement proof
-search for the \_\belongs{}\_\cobelongs{}\_ relation used in
-the axiom rule.
-
-\begin{theorem}Given a \AB{Γ} of type \AD{Usages} \AB{γ} and an atomic
-proposition \AB{k}, one can produce a list of pairs consisting of a
-\AD{Usages} \AB{γ} we will call \AB{Δ} and a proof that
-\AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ}.
-\end{theorem}
-\begin{proof}
-We simply call the function \AF{\_∈?\_} described in the previous corollary
-to each one of the assumptions in the context and collect all of the possible
-solutions:
-
-\AgdaHide{
-\begin{code}
-module BC = BelongsTo.Context
-open Context.Pointwise
-infix 1 _∋?_
-_∋?_ : {γ : Con ty} (Γ : LC.Usage γ) (k : Pr) → Con (Σ[ Γ′ ∈ LC.Usage γ ] Γ BC.∋ k ∈ Γ′)
-\end{code}}
-\begin{code}
-ε      ∋? k  =   ε
-Γ ∙ S  ∋? k  =   map (∈suc S) (Γ ∋? k)
-             ++  map (∈zro Γ) (k ∈? S)
-\end{code}
-\end{proof}
-
-\subsection{Producing Derivations}
-
-Assuming the following lemma stating that we can test for being synchronisable,
-we have all the pieces necessary to write a proof search procedure listing
-all the ways in which a context may entail a goal.
-
-\begin{lemma}Given \AB{Δ₁} and \AB{Δ₂} two \AD{Usages} \AB{γ}, it is possible
-to test whether they are synchronisable and, if so, return a \AD{Usages} \AB{γ}
-which we will call \AB{Δ} together with a proof that \AB{Δ} \eqsync{} \AB{Δ₁}
-\synced{} \AB{Δ₂}. We call \AF{\_⊙?\_} this function.
-\end{lemma}
-
-\begin{theorem}[Proof Search] Given an \AB{S} of type \AD{Usage} \AB{σ}
-and a type \AB{σ}, it is possible to produce a list of pairs consisting
-of a \AD{Usage} \AB{σ} we will call \AB{T} and a proof that
-\AB{S} \entails{} \AB{k} \coentails{} \AB{T}.
-\end{theorem}
-\begin{proof} We write \AF{\_⊢?\_} for this function. It is defined by
-structural induction on its second (explicit) argument: the goal's type.
-We work, the whole time, in the list monad.
-
-\AgdaHide{
-\begin{code}
-infix 1 _⊢?_
-_⊢?_ : ∀ {γ : Con ty} (Γ : LC.Usage γ) (σ : ty) → Con (Σ[ Δ ∈ Usage γ ] Γ ⊢ σ ⊣ Δ)
-
-whenSome : ∀ {γ : Con ty} {Γ : Usage γ} {Δ₁ Δ₂ : Usage γ}
-             {σ τ : ty} → Γ ⊢ σ ⊣ Δ₁ → Γ ⊢ τ ⊣ Δ₂ →
-             Σ[ Δ ∈ Usage γ ] Δ ≡ Δ₁ ⊙ Δ₂ →
-             Con (Σ[ Δ ∈ Usage γ ] Γ ⊢ σ & τ ⊣ Δ)
-\end{code}}
-\AgdaHide{
-%<*whenSomeCode>
-\begin{code}
-whenSome prσ prτ (Δ , pr) = return $ Δ , prσ &ʳ prτ by pr
-\end{code}
-%</whenSomeCode>
-}
-
-\underline{Atomic Case} Trying to prove an atomic proposition amounts to
-lifting the various possibilities provided to us by \AF{\_∈?\_} thanks to
-the axiom rule \AIC{ax}.
-
-\begin{code}
-Γ ⊢? κ k =  map (Product.map id ax) $ Γ ∋? k
-\end{code}
-
-\underline{Tensor Case} After collecting the leftovers for each potential
-proof of the first subgoal, we try to produce a proof of the second one.
-If both of these phases were successful, we can then combine them with the
-appropriate tree constructor \AIC{⊗ʳ}.
-
-\begin{code}
-Γ ⊢? σ ⊗ τ  =  Γ  ⊢? σ >>= uncurry $ λ Δ prσ →
-               Δ  ⊢? τ >>= uncurry $ λ E prτ →
-               return $ E , prσ ⊗ʳ prτ
-\end{code}
-
-\underline{With Case} Here we produce two independent sets of potential
-proofs and then check which subset of their cartesian product gives rise
-to valid proofs. To do so, we call \AF{\_⊙?\_} on the returned \AD{Usages}
-to make sure that they are synchronisable and, based on the result, either
-combine them using \AF{whenSome} or fail by returning the empty list.
-
-\begin{code}
-Γ ⊢? σ & τ  =  Γ ⊢? σ >>= uncurry $ λ Δ₁ prσ →
-               Γ ⊢? τ >>= uncurry $ λ Δ₂ prτ →
-               maybe (whenSome prσ prτ) [] $ Δ₁ ⊙? Δ₂
-\end{code}
-
-Where \AF{whenSome} is defined in the following manner:
-
-\ExecuteMetaData[lps.tex]{whenSomeCode}
-
-\end{proof}
-
-\todo{Examples of runs?}
+This is overall a reasonably simple proof but it had to be expected:
+ILL is a more explicit system listing precisely when every single
+left rule is applied whereas ILLWL is more on the elliptic side.
+Let us now deal with soudness:
 
 \section{Soundness\label{sec:soundness}}
 
@@ -1165,12 +931,12 @@ general calculus, one can create a valid derivation in ILL. To
 be able to formulate such a statement, we need a way of listing
 the assumptions which have been used in a proof \AB{Γ} \entails{}
 \AB{σ} \coentails{} \AB{Δ}; informally, we should be able to describe
-a usage \AB{E} such that \erasure{E} \entails{} \AB{σ}. To that effect,
+a \AD{Usages} \AB{E} such that \erasure{E} \entails{} \AB{σ}. To that effect,
 we introduce the notion of difference between two usages.
 
-\subsection{Usage Difference}
+\subsection{Usages Difference}
 
-A usage difference \AB{E} between \AB{Γ} and \AB{Δ} (two elements of
+A \AD{Usages} difference \AB{E} between \AB{Γ} and \AB{Δ} (two elements of
 type \AD{Usages} \AB{γ}) is a \AD{Usages} \AB{γ} such that \AB{Δ}
 \eqsync{} \AB{Γ} \AD{─} \AB{E} holds where the three place relation
 \_\eqsync{}\_\AD{─}\_ is defined as the pointwise lifting of a relation
@@ -1179,8 +945,9 @@ datatype, itself based on a definition of cover differences, distinguishes
 three cases: if the input and the output are equal then the difference
 is a mint assumption (which the careful reader will remember is erased
 down to nothing), if the input was a mint assumption then the difference
-is precisely the output \AD{Usage} and, finally, we can also be simply
-lift the notion of cover difference.
+is precisely the output \AD{Usage} and, finally, we maye also be simply
+lifting the notion of \AD{Cover} difference when both the input and the
+output are dented.
 \begin{figure*}[h]
 \begin{mathpar}
 
@@ -1239,7 +1006,7 @@ let the reader infer) in \autoref{fig:coverdiffs}.
 \caption{\AD{Cover} differences\label{fig:coverdiffs}}
 \end{figure*}
 
-\subsection{Auxiliary lemmas}
+\subsection{Soundness Proof}
 
 The proof of soundness is split into auxiliary lemmas which are
 used to combine the induction hypothesis. These lemmas, where the
@@ -1287,7 +1054,7 @@ on one hand and
 and \erasure{\AB{F₂}} \entails{} \AB{τ}
 on the other, then we can generate \AB{F} an \AD{Usages} \AB{γ}
 together with two contexts \AB{E₁} and \AB{E₂} such that:
-    \AB{E} \eqsync{} \AB{E} \diff{} \AB{F},
+    \AB{E} \eqsync{} \AB{Γ} \diff{} \AB{F},
     \erasure{\AB{F}} \eqsync{} \AB{E₁} \AD{⋈} \AB{E₂},
     \AB{E₁} \entails{} \AB{σ}
 and \AB{E₂} \entails{} \AB{τ}
@@ -1314,6 +1081,205 @@ complete usage then \AB{γ} \entails{} \AB{σ}.
 The soundness result relating the new calculus to the original
 one makes explicit the fact that valid ILL derivations correspond
 to the ones in the generalised calculus which have no leftovers.
+Together with the completeness result it implies that if we can
+write a decision procedure for ILLWL then we will automatically
+have one for ILL.
+
+\section{Proof Search\label{sec:proofsearch}}
+
+We have defined a lot of elegant datatypes so far but the original
+goal was to implement a proof search algorithm for the fragment of
+ILL we have decided to study. The good news is that all the systems
+we have described have algorithmic rules: read bottom-up, they are
+a set of constructor-directed recipes to search for a proof. Depending
+on the set of rules however, they may or may not be deterministic
+and they clearly are not total because not all sequents are provable.
+This simply means that we will be working in various monads. The axiom
+rule forces us to introduce non-determinism (which we will model using
+the list monad); there are indeed as many ways of proving an atomic
+proposition as there are assumptions of that type in the context. The
+rule for tensor looks like two stateful operations being run sequentially:
+one starts by discharging the first subgoal, waits for it to \emph{return}
+a modified context and then threads these leftovers to tackle the second
+one. And, last but not least, the rule for with looks very much like a
+map-reduce diagram: we start by generating two subcomputations which can
+be run in parallel and later on merge their results by checking whether
+the output contexts can be said to be synchronised (and this partiality
+will be dealt with using the maybe monad).
+
+Now, the presence of these effects is a major reason why it is important
+to have the elegant intermediate structures we can generate inhabitants
+of. Even if we are only interested in the satisfiability of a given
+problem, having material artefacts at our disposal allows us to state
+and prove properties of these functions easily rather than having to
+suffer from boolean blindness.\todo{cite a paper (?) on Boolean Blindness}.
+And we know that we may be able to optimise them
+away~\cite{wadler1990deforestation, gill1993short} in the case where
+we are indeed only interested in the satisfiability of the problem and
+they turn out to be useless.
+
+\subsection{Consuming an Atomic Proposition}
+
+The proof search procedures are rather simple to implement (they
+straightforwardly follow the specifications we have spelled out
+earlier) and their definitions are succinct. Let us study them.
+
+
+\begin{lemma}Given a type \AB{σ} and an atomic proposition \AB{k},
+we can manufacture a list of pairs consisting of a \AD{Cover} \AB{σ}
+we will call \AB{S} and a proof that \freebelongs{\AB{σ}} \AB{k}
+\cobelongs{} \AB{S}.
+\end{lemma}
+\begin{proof}We write \AF{\_∈?[\_]} for the function describing the
+different ways in which one can consume an atomic proposition from a
+mint assumption. This function, working in the list monad, is defined
+by structural induction on its second (explicit) argument: the mint
+assumption's type.
+
+\underline{Atomic Case} If the mint assumption is just an atomic
+proposition then it may be used if and only if it is the same
+proposition. Luckily this is decidable; in the case where propositions
+are indeed equal, we return the corresponding consumption whilst we
+simply output the empty list otherwise.
+
+\underline{Tensor \& With Case} Both the tensor and with case amount
+to picking a side. Both are equally valid so we just concatenate the
+lists of potential proofs after having mapped the appropriate lemmas
+inserting the constructors recording the choices made over the results
+obtained by induction hypothesis.
+\end{proof}
+
+The case where the assumption is not mint is just marginally more
+complicated as there are more cases to consider:
+
+\begin{lemma}Given a cover \AB{S} and an atomic proposition \AB{k},
+we can list the ways in which one may extract and consume \AB{k}.
+\end{lemma}
+\begin{proof}We write \AF{\_∈?]\_[} for the function describing the
+different ways in which one can consume an assumption from an already
+existing cover. This function, working in the list monad, is defined
+by structural induction on its second (explicit) argument: the cover.
+
+\underline{Atomic Case} The atomic proposition has already been used,
+there is therefore no potential proof:
+
+\underline{Tensor Cases} The tensor cases all amount to collecting
+all the ways in which one may use the sub-assumptions. Whenever a
+sub-assumption is already partially used (in other words: a \AD{Cover})
+we use the induction hypothesis delivered by the function \AF{\_∈?]\_[}
+itself; if it is mint then we can fall back to the previous lemma. In
+each case, we then map lemmas applying the appropriate rules recording
+the choices made.
+
+\underline{With Cases} Covers for with are a bit special: either
+they are stating that an assumption has been fully used (meaning
+that there is no way we can extract the atomic proposition \AB{k}
+out of it) or a side has already been picked and we can only
+explore one sub-assumption. As for the other cases, we need to
+map auxiliary lemmas.
+\end{proof}
+
+Now that we know how to list the ways in which one can extract and
+consume an atomic proposition from a mint assumption or an already
+existing cover, it is trivial to define the corresponding process
+for an \AD{Usage}.
+
+\begin{corollary}Given an \AB{S} of type \AD{Usage} \AB{σ} and an atomic
+proposition \AB{k}, one can produce a list of pairs consisting of a
+\AD{Usage} \AB{σ} we will call \AB{T} and a proof that
+\AB{S} \belongs{} \AB{k} \cobelongs{} \AB{T}.
+\end{corollary}
+\begin{proof}
+It amounts to calling the appropriate function to do the job and
+apply a lemma to transport the result.
+\end{proof}
+
+This leads us to the theorem describing how to implement proof
+search for the \_\belongs{}\_\cobelongs{}\_ relation used in
+the axiom rule.
+
+\begin{theorem}Given a \AB{Γ} of type \AD{Usages} \AB{γ} and an atomic
+proposition \AB{k}, one can produce a list of pairs consisting of a
+\AD{Usages} \AB{γ} we will call \AB{Δ} and a proof that
+\AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ}.
+\end{theorem}
+\begin{proof}
+We simply call the function \AF{\_∈?\_} described in the previous corollary
+to each one of the assumptions in the context and collect all of the possible
+solutions:
+\end{proof}
+
+\subsection{Producing Derivations}
+
+Assuming the following lemma stating that we can test for being synchronisable,
+we have all the pieces necessary to write a proof search procedure listing
+all the ways in which a context may entail a goal.
+
+\begin{lemma}Given \AB{Δ₁} and \AB{Δ₂} two \AD{Usages} \AB{γ}, it is possible
+to test whether they are synchronisable and, if so, return a \AD{Usages} \AB{γ}
+which we will call \AB{Δ} together with a proof that \AB{Δ} \eqsync{} \AB{Δ₁}
+\synced{} \AB{Δ₂}. We call \AF{\_⊙?\_} this function.
+\end{lemma}
+
+\begin{theorem}[Proof Search] Given an \AB{S} of type \AD{Usage} \AB{σ}
+and a type \AB{σ}, it is possible to produce a list of pairs consisting
+of a \AD{Usage} \AB{σ} we will call \AB{T} and a proof that
+\AB{S} \entails{} \AB{k} \coentails{} \AB{T}.
+\end{theorem}
+\begin{proof} We write \AF{\_⊢?\_} for this function. It is defined by
+structural induction on its second (explicit) argument: the goal's type.
+We work, the whole time, in the list monad.
+
+\underline{Atomic Case} Trying to prove an atomic proposition amounts to
+lifting the various possibilities provided to us by \AF{\_∈?\_} thanks to
+the axiom rule \AIC{ax}.
+
+\underline{Tensor Case} After collecting the leftovers for each potential
+proof of the first subgoal, we try to produce a proof of the second one.
+If both of these phases were successful, we can then combine them with the
+appropriate tree constructor \AIC{⊗ʳ}.
+
+\underline{With Case} Here we produce two independent sets of potential
+proofs and then check which subset of their cartesian product gives rise
+to valid proofs. To do so, we call \AF{\_⊙?\_} on the returned \AD{Usages}
+to make sure that they are synchronisable and, based on the result, either
+combine them using \AF{whenSome} or fail by returning the empty list.
+\end{proof}
+
+\subsection{From Proof Search to a Decision Procedure}
+
+The only thing lacking in order to have a decision procedure is a
+proof that all possible \emph{interesting} cases are considered by
+the proof search algorithm. The "interesting" keyword is here very
+important. In the \_\belongs{}\_\cobelongs{}\_ case, it is indeeed
+crucial that we try all potential candidates as future step may
+reject subproofs.
+
+\begin{lemma}[No Overlooked Assumption] Given \AB{Γ}, \AB{Δ} two
+\AD{Usages} \AB{γ} and \AB{k} an atom such that there is a proof
+\AB{pr} that \AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ} holds,
+\AB{k} \AF{∈?} \AB{Γ} contains the pair (\AB{Δ} \AIC{,} \AB{pr}).
+\end{lemma}
+
+In the \_\eqsync{}\_\synced{}\_ case, however, it is not as important:
+the formalisation is made shorter by having a constructor for symmetry
+rather than twice as many introduction rules. This does not mean that
+we are interested in the proofs where one spends time applying symmetry
+over and over again. This means that we have to acknowledge the fact
+that the proof discovered by the search procedure may be different.
+And this constraint is propagated all the way up to the main theorem
+
+\begin{theorem}[No Overlooked Derivation] Given \AB{Γ}, \AB{Δ}
+two \AD{Usages} \AB{γ} and \AB{σ} a type, if \AB{Γ} \entails{}
+\AB{σ} \coentails{} \AB{Δ} holds then there exists a derivation
+\AB{pr} of \AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ} such that
+the pair (\AB{Δ} \AIC{,} \AB{pr}) belongs to the list
+\AB{Γ} \AF{⊢?} \AB{σ}.
+\end{theorem}
+
+From this result, we can conclude that we have in pratice defined
+a decision procedure for ILLWL (and therefore ILL).
+
 
 \section{Applications: building Tactics\label{sec:application}}
 
@@ -1604,12 +1570,12 @@ module ExamplesTactics where
 \begin{code}
   2+x+y+1 : (x y : Nat.ℕ) → 2 + (x + y + 1) ≡ y + 3 + x
   2+x+y+1 x y = proveMonEq LHS RHS CTX
-    where open ℕ+
-          `x  = `v Fin.zero
-          `y  = `v (Fin.suc Fin.zero)
-          LHS = `c 2 `∙ (`x `∙ `y `∙ `c 1)
-          RHS = `y `∙ `c 3 `∙ `x
-          CTX = x Vec.∷ y Vec.∷ Vec.[]
+    where  open ℕ+
+           `x   = `v Fin.zero
+           `y   = `v (Fin.suc Fin.zero)
+           LHS  = `c 2 `∙ (`x `∙ `y `∙ `c 1)
+           RHS  = `y `∙ `c 3 `∙ `x
+           CTX  = x Vec.∷ y Vec.∷ Vec.[]
 \end{code}
 
 Having a nice interface for these solvers would involve a little
