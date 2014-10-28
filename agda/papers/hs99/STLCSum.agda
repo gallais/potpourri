@@ -1,4 +1,4 @@
-module papers.hs99.hs99 where
+module papers.hs99.STLCSum where
 
 -- This development is inspired by the amazing paper
 -- Short Proofs of Normalization by Joachimski & Matthes (1999)
