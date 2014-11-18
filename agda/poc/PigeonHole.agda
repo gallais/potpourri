@@ -2,31 +2,17 @@ module PigeonHole where
 
 open import Data.Empty
 open import Data.Sum
-open import Data.Product
 open import Data.Nat
 open import Data.List
-open import Data.List.Properties
 open import Function
 
-open import Relation.Binary.PropositionalEquality hiding ([_])
-open ≡-Reasoning
+open import Relation.Binary.PropositionalEquality
 
-open import Algebra
-private
-  module LM {a} {A : Set a} = Monoid (monoid A)
-
+-- membership predicate
 infix 5 _∈_
 data _∈_ {X : Set} (x : X) : (xs : List X) → Set where
   here! : {xs : List X} → x ∈ x ∷ xs
   there : {xs : List X} {y : X} (pr : x ∈ xs) → x ∈ y ∷ xs
-
-remove : {X : Set} {x : X} (xs : List X) (pr : x ∈ xs) → List X
-remove (_ ∷ xs) here!      = xs
-remove (y ∷ xs) (there pr) = y ∷ remove xs pr
-
-remove-length : {X : Set} {x : X} {xs : List X} (pr : x ∈ xs) → suc (length $ remove xs pr) ≡ length xs
-remove-length here!      = refl
-remove-length (there pr) = cong suc $ remove-length pr
 
 x∈[] : {X : Set} {x : X} (pr : x ∈ []) → ⊥
 x∈[] ()
@@ -37,9 +23,13 @@ x∈y∷ys : {X : Set} {x y : X} {ys : List X} {P : (x : X) (pr : x ∈ y ∷ ys
 x∈y∷ys phere! pthere here!      = phere!
 x∈y∷ys phere! pthere (there pr) = pthere _ pr
 
-data repeats {X : Set} : (xs : List X) → Set where
-  this : {x : X} {xs : List X} (pr : x ∈ xs) → repeats $ x ∷ xs
-  that : {x : X} {xs : List X} (pr : repeats xs) → repeats $ x ∷ xs
+remove : {X : Set} {x : X} (xs : List X) (pr : x ∈ xs) → List X
+remove (_ ∷ xs) here!      = xs
+remove (y ∷ xs) (there pr) = y ∷ remove xs pr
+
+remove-length : {X : Set} {x : X} {xs : List X} (pr : x ∈ xs) → suc (length $ remove xs pr) ≡ length xs
+remove-length here!      = refl
+remove-length (there pr) = cong suc $ remove-length pr
 
 remove-lemma : {X : Set} {x : X} {xs : List X} (pr : x ∈ xs) →
                {y : X} (pr′ : y ∈ xs) → x ≡ y ⊎ y ∈ remove xs pr
@@ -56,6 +46,10 @@ remove-hyp pr (x ∷ xs) hyp with remove-hyp pr xs (λ x → hyp x ∘ there) | 
 ...                        | inj₁ yin | _         = inj₁ $ there yin
 ...                        | inj₂ ih  | inj₂ xin  = inj₂ $ λ x′ → x∈y∷ys xin ih
 remove-hyp pr (y ∷ xs) hyp | _        | inj₁ refl = inj₁ here!
+
+data repeats {X : Set} : (xs : List X) → Set where
+  this : {x : X} {xs : List X} (pr : x ∈ xs) → repeats $ x ∷ xs
+  that : {x : X} {xs : List X} (pr : repeats xs) → repeats $ x ∷ xs
 
 pigeonHole : {X : Set} (xs ys : List X)
              (hyp : (x : X) → x ∈ xs → x ∈ ys) →
