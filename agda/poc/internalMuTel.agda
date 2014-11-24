@@ -102,7 +102,7 @@ mutual
 ⟦_⟧0 : Desc 0 → Set
 ⟦_⟧0 d = ⟦ d ⟧ (lift tt)
 
-natDesc : Desc 1
+natDesc : {n : ℕ} → Desc $ suc n
 natDesc = `σ Bool $ λ isZero →
              case isZero of λ
                { true  → `■
@@ -111,10 +111,10 @@ natDesc = `σ Bool $ λ isZero →
 ⟦nat⟧ : Set
 ⟦nat⟧ = ⟦ `μ natDesc ⟧0
 
-Zero : ⟦nat⟧
+Zero : {n : ℕ} {ds : tel n} → μ natDesc (ds , natDesc)
 Zero = ⟨ true , tt ⟩
 
-Succ : ⟦nat⟧ → ⟦nat⟧
+Succ : {n : ℕ} {ds : tel n} → μ natDesc (ds , _) → μ natDesc (ds , _)
 Succ n = ⟨ false , n , tt ⟩
 
 Bool-case : {ℓ : Level} {P : Bool → Set ℓ} (Pt : P true) (Pf : P false) (b : Bool) → P b
@@ -146,31 +146,38 @@ listDesc k =
          }
 
 rosetreeDesc : Desc 1
-rosetreeDesc = `μ $ listDesc $ # 0
+rosetreeDesc =
+       `σ Bool $ λ isLeaf →
+        case isLeaf of λ
+          { true  → `μ natDesc
+          ; false → `μ $ listDesc $ # 0 }
 
 rosetree : Set
 rosetree = ⟦ `μ rosetreeDesc ⟧0
 
-leaf : rosetree
-leaf = ⟨ ⟨ true , tt ⟩ ⟩
+rosetrees : Set
+rosetrees = μ (listDesc $ # 0) ((lift tt , rosetreeDesc) , listDesc (# 0))
 
-nil : ⟦ rosetreeDesc ⟧ (lift tt , rosetreeDesc)
+leaf : μ natDesc _ → rosetree
+leaf n = ⟨ true , n ⟩
+
+nil : rosetrees
 nil = ⟨ true , tt ⟩
 
-cons : rosetree → ⟦ rosetreeDesc ⟧ (lift tt , rosetreeDesc) →
-                  ⟦ rosetreeDesc ⟧ (lift tt , rosetreeDesc)
+cons : rosetree → rosetrees → rosetrees
 cons x xs = ⟨ false , x , xs , tt ⟩
 
-
-node : ⟦ rosetreeDesc ⟧ (lift tt , rosetreeDesc) → rosetree
-node ts = ⟨ ts ⟩
+node : μ (listDesc $ # 0) ((lift tt , rosetreeDesc) , listDesc (# 0))  → rosetree
+node ts = ⟨ false , ts ⟩
 
 example : rosetree
-example = node $ cons t₁ $ cons t₂ nil
+example = node $ cons t₁ $ cons t₃ nil
   where t₁ : rosetree
-        t₁ = node nil
+        t₁ = leaf $ Succ $ Succ Zero
         t₂ : rosetree
-        t₂ = node $ cons t₁ $ cons t₁ nil
+        t₂ = leaf $ Succ Zero
+        t₃ : rosetree
+        t₃ = node $ cons t₂ $ cons t₂ nil
 
 size : rosetree → ⟦nat⟧
 size rt = μinduction (lift tt) rosetreeDesc (lift tt) (Q , P) (λ ()) rt alg
@@ -178,15 +185,49 @@ size rt = μinduction (lift tt) rosetreeDesc (lift tt) (Q , P) (λ ()) rt alg
     P   : {A : Set} (a : A) → Set
     P   = const ⟦nat⟧
     Q   : prop rosetreeDesc (lift tt , rosetreeDesc)
-    Q   = Bool-case (lift tt) (lift tt) , P
+    Q   = Bool-case (Bool-case (lift tt) (lift tt) , const ⊤) (Bool-case (lift tt) (lift tt) , const ⟦nat⟧)
     ds  : tel 2
     ds = (lift tt , rosetreeDesc) , listDesc (# 0)
-    alg′ : (v : ⟦ listDesc (# 0) ⟧ ds) → fbelow ds (listDesc $ # 0) ((lift tt , Q , P) , Q) (proj₁ Q) v → ⟦nat⟧
-    alg′ (true  , _) _                       = Zero
-    alg′ (false , _) (size-r , size-rs , tt) = Succ $ Add size-r size-rs
-    alg : (v : ⟦ rosetreeDesc ⟧ (lift tt , rosetreeDesc)) →
-          fbelow (lift tt , rosetreeDesc) rosetreeDesc (lift tt , Q , P) Q v → ⟦nat⟧
-    alg _ ih = ih alg′
+    alg′ : (v : ⟦ listDesc (# 0) ⟧ ds)
+           (ih : fbelow ds (listDesc (# 0)) _ (Bool-case (lift tt) (lift tt)) v) →
+           ⟦nat⟧
+    alg′ (true  , v) ih                      = Zero
+    alg′ (false , v) (size-r , size-rs , tt) = Add size-r size-rs
+    alg : (v : ⟦ rosetreeDesc ⟧ (lift tt , rosetreeDesc))
+          (ih : fbelow (lift tt , rosetreeDesc) rosetreeDesc (lift tt , Q , P) Q v) →
+          ⟦nat⟧
+    alg (true  , _) _  = Succ Zero
+    alg (false , _) ih = ih alg′
 
-test′ : size example ≡ (Succ $ Succ $ Succ $ Succ $ Zero)
+test′ : size example ≡ (Succ $ Succ $ Succ $ Zero)
 test′ = refl
+
+open import Data.List
+
+leaves : rosetree → List $ μ natDesc ((lift tt , rosetreeDesc) , natDesc)
+leaves rt = μinduction (lift tt) rosetreeDesc (lift tt) (Q , P) (λ ()) rt alg
+  where
+    Res : Set
+    Res = List $ μ natDesc ((lift tt , rosetreeDesc) , natDesc)
+    P   : {A : Set} (a : A) → Set
+    P   = const Res
+    Q   : prop rosetreeDesc (lift tt , rosetreeDesc)
+    Q   = Bool-case (Bool-case (lift tt) (lift tt) , const ⊤) (Bool-case (lift tt) (lift tt) , const Res)
+    ds  : tel 2
+    ds = (lift tt , rosetreeDesc) , listDesc (# 0)
+    alg′ : (v : ⟦ listDesc (# 0) ⟧ ds)
+           (ih : fbelow ds (listDesc (# 0)) _ (Bool-case (lift tt) (lift tt)) v) →
+           Res
+    alg′ (true  , v) ih                      = []
+    alg′ (false , v) (leaves , leavess , tt) = leaves ++ leavess
+    alg : (v : ⟦ rosetreeDesc ⟧ (lift tt , rosetreeDesc))
+          (ih : fbelow (lift tt , rosetreeDesc) rosetreeDesc (lift tt , Q , P) Q v) →
+          Res
+    alg (true  , v) _  = v ∷ []
+    alg (false , _) ih = ih alg′
+
+test′′ :
+  let `1 = Succ Zero
+      `2 = Succ `1
+  in leaves example ≡ `2 ∷ `1 ∷ `1 ∷ []
+test′′ = refl
