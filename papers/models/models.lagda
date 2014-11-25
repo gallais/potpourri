@@ -4,6 +4,8 @@
 \usepackage[english]{babel}
 \usepackage[references]{agda}
 \usepackage{hyperref}
+\usepackage{xargs}
+\usepackage{latexsym}
 
 \usepackage{todonotes}
 \usepackage{float}
@@ -13,12 +15,53 @@
 \setmainfont[Ligatures=TeX]{XITS}
 \setmathfont{XITS Math}
 
+\include{commands}
+
 \title{Glueing Terms to Models: \\ Variations on Normalization by Evaluation}
 \author{}
 
 \begin{document}
 
 \maketitle{}
+Normalization by Evaluation is a technique leveraging the computational
+power of a host language in order to normalize expressions of a deeply
+embedded one. The process is based on a model construction associating
+to each context \AB{Γ} and type \AB{σ}, a set of values \model{}. Two
+procedures are then defined: the first one produces elements of \model{}
+provided a well-typed term of the corresponding \AB{Γ} \AD{⊢} \AB{σ} type
+and an interpretation for the variables in \AB{Γ} whilst the second one
+extracts, in a type-directed manner, normal forms \AB{Γ} \AD{⊢^{nf}} \AB{σ}
+from elements of the model \model{}. Normalization is achieved by composing
+the two procedures.
+
+The traditional model construction produces β-normal η-long terms
+whereas evaluation strategies implemented in proof systems tend to
+avoid applying η-rules as much as possible: quite unsurprisingly,
+when typechecking large developments expanding the proof terms is
+a really bad idea. In these systems, normal forms are neither η-long
+nor η-short: the η-rule is actually never considered except when
+comparing two terms for equality, one of which is neutral whilst
+the other is constructor-headed.
+
+This decision to lazily apply the η-rule can be pushed further: one may
+forgo the ξ-rule and simply perform weak-head normalization, performing
+the computation further only when absolutely necessary e.g. when the
+two terms compared for equality have matching head constructors.
+
+This paper shows how these different evaluation strategies emerge naturally
+as variations on Normalization by Evaluation obtained by enriching the
+traditional model with extra syntactical artefacts in a manner reminiscent
+of Coquand and Dybjer's approach to defining a Normalization by Evaluation
+procedure for the SK combinator calculus~\cite{CoqDybSK}.
+
+We start by defining the simple calculus to be normalized, then we recall
+the usual model construction and show how to exploit it to implement a
+normalization function for the equational theory given by the βξη rules.
+We then build alternative models retaining more and more syntactical
+information about the source term thus allowing us to decide the
+equational theories corresponding to the βξ rules first and to β alone
+finally.
+
 
 \begin{code}
 module models where
@@ -36,7 +79,6 @@ _$′_ = _$_
 data ty : Set where
   `Unit  : ty
   `Bool  : ty
---  `List  : (σ : ty) → ty
   _`→_   : (σ τ : ty) → ty
 
 data Con : Set where
@@ -47,6 +89,12 @@ infix 5 _[_]_
 _[_]_ : (Δ : Con) (R : (Δ : Con) (σ : ty) → Set) (Γ : Con) → Set
 Δ [ R ] ε      = ⊤
 Δ [ R ] Γ ∙ σ  = Δ [ R ] Γ × R Δ σ
+
+_<$>_ :  {R S : (Δ : Con) (σ : ty) → Set}
+         (f : {Δ : Con} {σ : ty} (r : R Δ σ) → S Δ σ)
+         {Γ Δ : Con} → Δ [ R ] Γ → Δ [ S ] Γ
+_<$>_ f {ε      } ρ       = ρ
+_<$>_ f {Γ ∙ σ  } (ρ , r) = f <$> ρ , f r
 
 infix 1 _∈_
 data _∈_ (σ : ty) : (Γ : Con) → Set where
@@ -114,6 +162,44 @@ wk⊢ inc `tt            = `tt
 wk⊢ inc `ff            = `ff
 wk⊢ inc (`ifte b l r)  = `ifte (wk⊢ inc b) (wk⊢ inc l) (wk⊢ inc r)
 
+var0 : {Γ : Con} {σ : ty} → Γ ∙ σ ⊢ σ
+var0 = `var here!
+
+⟦_⟧_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
+⟦ `var v       ⟧ ρ = ρ ‼ v
+⟦ t `$ u       ⟧ ρ = ⟦ t ⟧ ρ `$ ⟦ u ⟧ ρ
+⟦ `λ t         ⟧ ρ = `λ $′ ⟦ t ⟧ (wk[ wk⊢ ] (step refl) ρ , var0)
+⟦ `⟨⟩          ⟧ ρ = `⟨⟩
+⟦ `tt          ⟧ ρ = `tt
+⟦ `ff          ⟧ ρ = `ff
+⟦ `ifte b l r  ⟧ ρ = `ifte (⟦ b ⟧ ρ) (⟦ l ⟧ ρ) (⟦ r ⟧ ρ)
+
+_⟨_/var0⟩ : {Γ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
+t ⟨ u /var0⟩ = ⟦ t ⟧ (refl[ `var , wk⊢ ] _ , u)
+
+eta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) → Γ ⊢ σ `→ τ
+eta t = `λ (wk⊢ (step refl) t `$ var0)
+\end{code}
+
+\subsection{Recalling the three reduction rules}
+
+\begin{mathpar}
+\inferrule{
+  }{\text{(\AIC{`λ} \AB{t}) \AIC{`\$} \AB{u} ↝ \AB{t} \AF{⟨} \AB{u} \AF{/var0⟩}}
+  }{β}
+\and
+\inferrule{\text{\AB{t} ↝ \AB{t′}}
+  }{\text{\AIC{`λ} \AB{t} ↝ \AIC{`λ} \AB{t′}}
+  }{ξ}
+\and
+\inferrule{
+  }{\text{\AB{t} ↝ \AF{eta} \AB{t}}
+  }{η}
+\end{mathpar}
+
+\section{(Weak) Normal Forms}
+
+\begin{code}
 mutual
   infix 5 _⊢^ne_ _⊢^nf_
   data _⊢^ne_ (Γ : Con) (σ : ty) : Set where
@@ -130,6 +216,20 @@ mutual
     `λ      : {σ τ : ty} (b : Γ ∙ σ ⊢^nf τ) → Γ ⊢^nf σ `→ τ
 
 mutual
+  infix 5 _⊢^whne_ _⊢^whnf_
+  data _⊢^whne_ (Γ : Con) (σ : ty) : Set where
+    `var   : (v : σ ∈ Γ) → Γ ⊢^whne σ
+    _`$_   : {τ : ty} (t : Γ ⊢^whne τ `→ σ) (u : Γ ⊢ τ) → Γ ⊢^whne σ
+    `ifte  : (b : Γ ⊢^whne `Bool) (l r : Γ ⊢ σ) → Γ ⊢^whne σ
+
+  data _⊢^whnf_ (Γ : Con) : (σ : ty) → Set where
+    `embed  : {σ : ty} (t : Γ ⊢^whne σ) → Γ ⊢^whnf σ
+    `⟨⟩     : Γ ⊢^whnf `Unit
+    `tt     : Γ ⊢^whnf `Bool
+    `ff     : Γ ⊢^whnf `Bool
+    `λ      : {σ τ : ty} (b : Γ ∙ σ ⊢ τ) → Γ ⊢^whnf σ `→ τ
+
+mutual
 
   wk^ne : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^ne σ) → Δ ⊢^ne σ
   wk^ne inc (`var v)        = `var $′ wk∈ inc v
@@ -142,6 +242,19 @@ mutual
   wk^nf inc `tt         = `tt
   wk^nf inc `ff         = `ff
   wk^nf inc (`λ nf)     = `λ $′ wk^nf (pop! inc) nf
+
+wk^whne : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^whne σ) → Δ ⊢^whne σ
+wk^whne inc (`var v)        = `var $′ wk∈ inc v
+wk^whne inc (ne `$ u)       = wk^whne inc ne `$ wk⊢ inc u
+wk^whne inc (`ifte ne l r)  = `ifte (wk^whne inc ne) (wk⊢ inc l) (wk⊢ inc r)
+
+wk^whnf : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^whnf σ) → Δ ⊢^whnf σ
+wk^whnf inc (`embed t)  = `embed $′ wk^whne inc t
+wk^whnf inc `⟨⟩         = `⟨⟩
+wk^whnf inc `tt         = `tt
+wk^whnf inc `ff         = `ff
+wk^whnf inc (`λ b)      = `λ $′ wk⊢ (pop! inc) b
+
 \end{code}
 
 \section{Normalization by Evaluation for βξη}
@@ -267,33 +380,6 @@ norm^βξ Γ σ t = reify^βξ σ $′ ⟦ t ⟧^βξ (diag^βξ Γ)
 
 \begin{code}
 
-mutual
-  infix 5 _⊢^whne_ _⊢^whnf_
-  data _⊢^whne_ (Γ : Con) (σ : ty) : Set where
-    `var   : (v : σ ∈ Γ) → Γ ⊢^whne σ
-    _`$_   : {τ : ty} (t : Γ ⊢^whne τ `→ σ) (u : Γ ⊢ τ) → Γ ⊢^whne σ
-    `ifte  : (b : Γ ⊢^whne `Bool) (l r : Γ ⊢ σ) → Γ ⊢^whne σ
-
-  -- todo: promotion generic nf!
-  data _⊢^whnf_ (Γ : Con) : (σ : ty) → Set where
-    `embed  : {σ : ty} (t : Γ ⊢^whne σ) → Γ ⊢^whnf σ
-    `⟨⟩     : Γ ⊢^whnf `Unit
-    `tt     : Γ ⊢^whnf `Bool
-    `ff     : Γ ⊢^whnf `Bool
-    `λ      : {σ τ : ty} (b : Γ ∙ σ ⊢ τ) → Γ ⊢^whnf σ `→ τ
-
-wk^whne : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^whne σ) → Δ ⊢^whne σ
-wk^whne inc (`var v)        = `var $′ wk∈ inc v
-wk^whne inc (ne `$ u)       = wk^whne inc ne `$ wk⊢ inc u
-wk^whne inc (`ifte ne l r)  = `ifte (wk^whne inc ne) (wk⊢ inc l) (wk⊢ inc r)
-
-wk^whnf : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^whnf σ) → Δ ⊢^whnf σ
-wk^whnf inc (`embed t)  = `embed $′ wk^whne inc t
-wk^whnf inc `⟨⟩         = `⟨⟩
-wk^whnf inc `tt         = `tt
-wk^whnf inc `ff         = `ff
-wk^whnf inc (`λ b)      = `λ $′ wk⊢ (pop! inc) b
-
 erase^whne : {Γ : Con} {σ : ty} (t : Γ ⊢^whne σ) → Γ ⊢ σ
 erase^whne (`var v)       = `var v
 erase^whne (t `$ u)       = erase^whne t `$ u
@@ -333,6 +419,9 @@ reflect^β σ t = erase^whne t , inj₁ t
 var‿0^β : {Γ : Con} {σ : ty} → Γ ∙ σ ⊨^β σ
 var‿0^β = `var here! , inj₁ (`var here!)
 
+source : {Γ : Con} {σ : ty} (T : Γ ⊨^β σ) → Γ ⊢ σ
+source (t , _) = t
+
 mutual
 
   reify^β⋆ : {Γ : Con} (σ : ty) (T : Γ ⊨^β⋆ σ) → Γ ⊢^whnf σ
@@ -348,7 +437,6 @@ _$^β_ : {Γ : Con} {σ τ : ty} (t : Γ ⊨^β σ `→ τ) (u : Γ ⊨^β σ) �
 (t , inj₁ ne)  $^β (u , U) = t `$ u , inj₁ (ne `$ u)
 (t , inj₂ T)   $^β (u , U) = t `$ u , proj₂ (T refl (u , U))
 
-
 ifte^β : {Γ : Con} {σ : ty} (b : Γ ⊨^β `Bool) (l r : Γ ⊨^β σ) → Γ ⊨^β σ
 ifte^β (b , inj₁ ne)  (l , L) (r , R) = `ifte b l r , inj₁ (`ifte ne l r)
 ifte^β (b , inj₂ B)   (l , L) (r , R) = `ifte b l r , (if B then L else R)
@@ -356,7 +444,7 @@ ifte^β (b , inj₂ B)   (l , L) (r , R) = `ifte b l r , (if B then L else R)
 ⟦_⟧^β_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^β_ ] Γ) → Δ ⊨^β σ
 ⟦ `var v       ⟧^β ρ = ρ ‼ v
 ⟦ t `$ u       ⟧^β ρ = ⟦ t ⟧^β ρ $^β ⟦ u ⟧^β ρ
-⟦ `λ t         ⟧^β ρ = {!!} , inj₂ (λ inc u → ⟦ t ⟧^β (wk[ wk^β ] inc ρ , u))
+⟦ `λ t         ⟧^β ρ = ⟦ `λ t ⟧ (source <$> ρ) , inj₂ (λ inc u → ⟦ t ⟧^β (wk[ wk^β ] inc ρ , u))
 ⟦ `⟨⟩          ⟧^β ρ = `⟨⟩ , inj₂ tt
 ⟦ `tt          ⟧^β ρ = `tt , inj₂ true
 ⟦ `ff          ⟧^β ρ = `ff , inj₂ false
@@ -368,5 +456,8 @@ diag^β Γ = refl[ reflect^βξ _ ∘ `var , wk^βξ ] Γ
 norm^β : (Γ : Con) (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^nf σ
 norm^β Γ σ t = reify^βξ σ $′ ⟦ t ⟧^βξ (diag^βξ Γ)
 \end{code}
+
+\bibliographystyle{apalike}
+\bibliography{main}
 
 \end{document}
