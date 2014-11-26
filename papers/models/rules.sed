@@ -5,6 +5,8 @@ s/\\textasciicircum{}\([^\}]*\)/\{\^\\AgdaFontStyle\{\\scriptscriptstyle\{\}\1\}
 s/{\([^{]*\)\({\^\\AgdaFontStyle{\\scriptscriptstyle{}[^\]*}\)/\{\{\1\}\2/g
 s/‿\([^\}]*\)/\_\\AgdaFontStyle\{\\scriptscriptstyle \1\}/g
 
+s/₀/\_\{\\scriptscriptstyle\{\}0\}/g
+
 # Latex
 s/^\\begin{code}/\\begin\{code\}\n\\\\/g
 s/^\\end{code}/\\\\\\end\{code\}\n/g

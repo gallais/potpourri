@@ -1,11 +1,11 @@
 \documentclass{article}
+\usepackage{fullpage}
 \usepackage{amsthm, amsmath}
 \usepackage{mathpartir}
 \usepackage[english]{babel}
 \usepackage[references]{agda}
 \usepackage{hyperref}
 \usepackage{xargs}
-\usepackage{latexsym}
 
 \usepackage{todonotes}
 \usepackage{float}
@@ -44,7 +44,7 @@ comparing two terms for equality, one of which is neutral whilst
 the other is constructor-headed.
 
 This decision to lazily apply the η-rule can be pushed further: one may
-forgo the ξ-rule and simply perform weak-head normalization, performing
+forgo using the ξ-rule and simply perform weak-head normalization, pushing
 the computation further only when absolutely necessary e.g. when the
 two terms compared for equality have matching head constructors.
 
@@ -52,17 +52,29 @@ This paper shows how these different evaluation strategies emerge naturally
 as variations on Normalization by Evaluation obtained by enriching the
 traditional model with extra syntactical artefacts in a manner reminiscent
 of Coquand and Dybjer's approach to defining a Normalization by Evaluation
-procedure for the SK combinator calculus~\cite{CoqDybSK}.
+procedure for the SK combinator calculus~\cite{CoqDybSK}. Their resorting
+to glueing terms to elements of the model was dictated by the sheer impossibily
+to write a sensible reification procedure but, in hindsight, it provides
+us with a powerful technique to build models deciding alternative equational
+theories.
 
-We start by defining the simple calculus to be normalized, then we recall
-the usual model construction and show how to exploit it to implement a
-normalization function for the equational theory given by the βξη rules.
-We then build alternative models retaining more and more syntactical
-information about the source term thus allowing us to decide the
-equational theories corresponding to the βξ rules first and to β alone
-finally.
+\paragraph{Outline} We start by defining the simple calculus we will use
+as a running example, we then recall the usual model construction and show
+how to exploit it to implement a normalization function for the equational
+theory given by the βξη rules. The main contribution of the article consists
+of us building alternative models retaining more and more syntactical
+information about the source term which gave rise to the model's element
+thus allowing us to decide weaker equational theories corresponding to the
+βξ rules first and to β alone finally.
 
 
+  \paragraph{Notations} In all of our constructions, we carefully highlight the
+fact that similar definitions are introduced by using the same names suffixed
+with a superscript listing the set of rules handled by this construction. These
+similarities mainly reflect the fact that any model of the lambda calculus will
+be applicative in nature. For more details, see e.g. \cite{mitchell1996foundations}.
+
+\AgdaHide{
 \begin{code}
 module models where
 
@@ -75,7 +87,11 @@ open import Function
 infixr 1 _$′_
 _$′_ : {A B : Set} (f : A → B) (a : A) → B
 _$′_ = _$_
+\end{code}}
 
+\section{The calculus}
+
+\begin{code}
 data ty : Set where
   `Unit  : ty
   `Bool  : ty
@@ -162,30 +178,30 @@ wk⊢ inc `tt            = `tt
 wk⊢ inc `ff            = `ff
 wk⊢ inc (`ifte b l r)  = `ifte (wk⊢ inc b) (wk⊢ inc l) (wk⊢ inc r)
 
-var0 : {Γ : Con} {σ : ty} → Γ ∙ σ ⊢ σ
-var0 = `var here!
+var‿0 : {Γ : Con} {σ : ty} → Γ ∙ σ ⊢ σ
+var‿0 = `var here!
 
 ⟦_⟧_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
 ⟦ `var v       ⟧ ρ = ρ ‼ v
 ⟦ t `$ u       ⟧ ρ = ⟦ t ⟧ ρ `$ ⟦ u ⟧ ρ
-⟦ `λ t         ⟧ ρ = `λ $′ ⟦ t ⟧ (wk[ wk⊢ ] (step refl) ρ , var0)
+⟦ `λ t         ⟧ ρ = `λ $′ ⟦ t ⟧ (wk[ wk⊢ ] (step refl) ρ , var‿0)
 ⟦ `⟨⟩          ⟧ ρ = `⟨⟩
 ⟦ `tt          ⟧ ρ = `tt
 ⟦ `ff          ⟧ ρ = `ff
 ⟦ `ifte b l r  ⟧ ρ = `ifte (⟦ b ⟧ ρ) (⟦ l ⟧ ρ) (⟦ r ⟧ ρ)
 
-_⟨_/var0⟩ : {Γ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
-t ⟨ u /var0⟩ = ⟦ t ⟧ (refl[ `var , wk⊢ ] _ , u)
+_⟨_/var₀⟩ : {Γ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
+t ⟨ u /var₀⟩ = ⟦ t ⟧ (refl[ `var , wk⊢ ] _ , u)
 
 eta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) → Γ ⊢ σ `→ τ
-eta t = `λ (wk⊢ (step refl) t `$ var0)
+eta t = `λ (wk⊢ (step refl) t `$ var‿0)
 \end{code}
 
 \subsection{Recalling the three reduction rules}
 
 \begin{mathpar}
 \inferrule{
-  }{\text{(\AIC{`λ} \AB{t}) \AIC{`\$} \AB{u} ↝ \AB{t} \AF{⟨} \AB{u} \AF{/var0⟩}}
+  }{\text{(\AIC{`λ} \AB{t}) \AIC{`\$} \AB{u} ↝ \AB{t} \AF{⟨} \AB{u} \AF{/var₀⟩}}
   }{β}
 \and
 \inferrule{\text{\AB{t} ↝ \AB{t′}}
