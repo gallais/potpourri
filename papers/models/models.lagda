@@ -119,8 +119,8 @@ data _∈_ (σ : ty) : (Γ : Con) → Set where
 
 _‼_ :  {Δ : Con} {R : (Δ : Con) (σ : ty) → Set} {Γ : Con}
        (ρ : Δ [ R ] Γ) {σ : ty} (v : σ ∈ Γ) → R Δ σ
-(_ , r)  ‼ here!    = r
-(ρ , _)  ‼ there v  = ρ ‼ v
+(_ , r) ‼ here!    = r
+(ρ , _) ‼ there v  = ρ ‼ v
 
 infix 1 _⊆_
 
@@ -153,11 +153,11 @@ refl[_,_]_ :  {R : (Δ : Con) (σ : ty) → Set}
 refl[ var , wk ] ε        = tt
 refl[ var , wk ] (Γ ∙ σ)  = wk[ wk ] (step refl) (refl[ var , wk ] Γ) , var here!
 
-wk∈ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (pr : σ ∈ Γ) → σ ∈ Δ
-wk∈ base        ()
-wk∈ (pop! inc)  here!       = here!
-wk∈ (pop! inc)  (there pr)  = there $′ wk∈ inc pr
-wk∈ (step inc)  pr          = there $′ wk∈ inc pr
+wk^∈ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (pr : σ ∈ Γ) → σ ∈ Δ
+wk^∈ base        ()
+wk^∈ (pop! inc)  here!       = here!
+wk^∈ (pop! inc)  (there pr)  = there $′ wk^∈ inc pr
+wk^∈ (step inc)  pr          = there $′ wk^∈ inc pr
 
 infix 5 _⊢_
 data _⊢_ (Γ : Con) : (σ : ty) → Set where
@@ -169,14 +169,14 @@ data _⊢_ (Γ : Con) : (σ : ty) → Set where
   `ff    : Γ ⊢ `Bool
   `ifte  : {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) → Γ ⊢ σ
 
-wk⊢ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢ σ) → Δ ⊢ σ
-wk⊢ inc (`var v)       = `var $′ wk∈ inc v
-wk⊢ inc (t `$ u)       = wk⊢ inc t `$ wk⊢ inc u
-wk⊢ inc (`λ t)         = `λ $′ wk⊢ (pop! inc) t
-wk⊢ inc `⟨⟩            = `⟨⟩
-wk⊢ inc `tt            = `tt
-wk⊢ inc `ff            = `ff
-wk⊢ inc (`ifte b l r)  = `ifte (wk⊢ inc b) (wk⊢ inc l) (wk⊢ inc r)
+wk^⊢ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢ σ) → Δ ⊢ σ
+wk^⊢ inc (`var v)       = `var $′ wk^∈ inc v
+wk^⊢ inc (t `$ u)       = wk^⊢ inc t `$ wk^⊢ inc u
+wk^⊢ inc (`λ t)         = `λ $′ wk^⊢ (pop! inc) t
+wk^⊢ inc `⟨⟩            = `⟨⟩
+wk^⊢ inc `tt            = `tt
+wk^⊢ inc `ff            = `ff
+wk^⊢ inc (`ifte b l r)  = `ifte (wk^⊢ inc b) (wk^⊢ inc l) (wk^⊢ inc r)
 
 var‿0 : {Γ : Con} {σ : ty} → Γ ∙ σ ⊢ σ
 var‿0 = `var here!
@@ -184,17 +184,17 @@ var‿0 = `var here!
 ⟦_⟧_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
 ⟦ `var v       ⟧ ρ = ρ ‼ v
 ⟦ t `$ u       ⟧ ρ = ⟦ t ⟧ ρ `$ ⟦ u ⟧ ρ
-⟦ `λ t         ⟧ ρ = `λ $′ ⟦ t ⟧ (wk[ wk⊢ ] (step refl) ρ , var‿0)
+⟦ `λ t         ⟧ ρ = `λ $′ ⟦ t ⟧ (wk[ wk^⊢ ] (step refl) ρ , var‿0)
 ⟦ `⟨⟩          ⟧ ρ = `⟨⟩
 ⟦ `tt          ⟧ ρ = `tt
 ⟦ `ff          ⟧ ρ = `ff
 ⟦ `ifte b l r  ⟧ ρ = `ifte (⟦ b ⟧ ρ) (⟦ l ⟧ ρ) (⟦ r ⟧ ρ)
 
 _⟨_/var₀⟩ : {Γ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
-t ⟨ u /var₀⟩ = ⟦ t ⟧ (refl[ `var , wk⊢ ] _ , u)
+t ⟨ u /var₀⟩ = ⟦ t ⟧ (refl[ `var , wk^⊢ ] _ , u)
 
 eta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) → Γ ⊢ σ `→ τ
-eta t = `λ (wk⊢ (step refl) t `$ var‿0)
+eta t = `λ (wk^⊢ (step refl) t `$ var‿0)
 \end{code}
 
 \subsection{Recalling the three reduction rules}
@@ -248,7 +248,7 @@ mutual
 mutual
 
   wk^ne : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^ne σ) → Δ ⊢^ne σ
-  wk^ne inc (`var v)        = `var $′ wk∈ inc v
+  wk^ne inc (`var v)        = `var $′ wk^∈ inc v
   wk^ne inc (ne `$ u)       = wk^ne inc ne `$ wk^nf inc u
   wk^ne inc (`ifte ne l r)  = `ifte (wk^ne inc ne) (wk^nf inc l) (wk^nf inc r)
 
@@ -260,16 +260,16 @@ mutual
   wk^nf inc (`λ nf)     = `λ $′ wk^nf (pop! inc) nf
 
 wk^whne : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^whne σ) → Δ ⊢^whne σ
-wk^whne inc (`var v)        = `var $′ wk∈ inc v
-wk^whne inc (ne `$ u)       = wk^whne inc ne `$ wk⊢ inc u
-wk^whne inc (`ifte ne l r)  = `ifte (wk^whne inc ne) (wk⊢ inc l) (wk⊢ inc r)
+wk^whne inc (`var v)        = `var $′ wk^∈ inc v
+wk^whne inc (ne `$ u)       = wk^whne inc ne `$ wk^⊢ inc u
+wk^whne inc (`ifte ne l r)  = `ifte (wk^whne inc ne) (wk^⊢ inc l) (wk^⊢ inc r)
 
 wk^whnf : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^whnf σ) → Δ ⊢^whnf σ
 wk^whnf inc (`embed t)  = `embed $′ wk^whne inc t
 wk^whnf inc `⟨⟩         = `⟨⟩
 wk^whnf inc `tt         = `tt
 wk^whnf inc `ff         = `ff
-wk^whnf inc (`λ b)      = `λ $′ wk⊢ (pop! inc) b
+wk^whnf inc (`λ b)      = `λ $′ wk^⊢ (pop! inc) b
 
 \end{code}
 
@@ -279,12 +279,12 @@ wk^whnf inc (`λ b)      = `λ $′ wk⊢ (pop! inc) b
 infix 5 _⊨^βξη_
 _⊨^βξη_ : (Γ : Con) (σ : ty) → Set
 Γ ⊨^βξη `Unit   = ⊤
-Γ ⊨^βξη `Bool   = Γ ⊢^ne `Bool ⊎ Bool
+Γ ⊨^βξη `Bool   = Γ ⊢^nf `Bool
 Γ ⊨^βξη σ `→ τ  = {Δ : Con} (inc : Γ ⊆ Δ) (u : Δ ⊨^βξη σ) → Δ ⊨^βξη τ
 
 wk^βξη : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (T : Γ ⊨^βξη σ) → Δ ⊨^βξη σ
 wk^βξη inc {`Unit   } T = T
-wk^βξη inc {`Bool   } T = [ inj₁ ∘ wk^ne inc , inj₂ ]′ T
+wk^βξη inc {`Bool   } T = wk^nf inc T
 wk^βξη inc {σ `→ τ  } T = λ inc′ → T $′ trans inc inc′
 
 _$^βξη_ : {Γ : Con} {σ τ : ty} (t : Γ ⊨^βξη σ `→ τ) (u : Γ ⊨^βξη σ) → Γ ⊨^βξη τ
@@ -297,26 +297,26 @@ mutual
 
   reflect^βξη : {Γ : Con} (σ : ty) (t : Γ ⊢^ne σ) → Γ ⊨^βξη σ
   reflect^βξη `Unit     t = tt
-  reflect^βξη `Bool     t = inj₁ t
+  reflect^βξη `Bool     t = `embed t
   reflect^βξη (σ `→ τ)  t = λ inc u → reflect^βξη τ $′ wk^ne inc t `$ reify^βξη σ u
 
   reify^βξη : {Γ : Con} (σ : ty) (T : Γ ⊨^βξη σ) → Γ ⊢^nf σ
-  reify^βξη `Unit     T          = `⟨⟩
-  reify^βξη `Bool     (inj₁ ne)  = `embed ne
-  reify^βξη `Bool     (inj₂ T)   = if T then `tt else `ff
-  reify^βξη (σ `→ τ)  T          = `λ $′ reify^βξη τ $′ T (step refl) var‿0^βξη
+  reify^βξη `Unit     T = `⟨⟩
+  reify^βξη `Bool     T = T
+  reify^βξη (σ `→ τ)  T = `λ $′ reify^βξη τ $′ T (step refl) var‿0^βξη
 
 ifte^βξη : {Γ : Con} {σ : ty} (b : Γ ⊨^βξη `Bool) (l r : Γ ⊨^βξη σ) → Γ ⊨^βξη σ
-ifte^βξη (inj₁ T) l r = reflect^βξη _ $′ `ifte T (reify^βξη _ l) (reify^βξη _ r)
-ifte^βξη (inj₂ T) l r = if T then l else r
+ifte^βξη (`embed T)  l r = reflect^βξη _ $′ `ifte T (reify^βξη _ l) (reify^βξη _ r)
+ifte^βξη `tt         l r = l
+ifte^βξη `ff         l r = r
 
 ⟦_⟧^βξη_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^βξη_ ] Γ) → Δ ⊨^βξη σ
 ⟦ `var v       ⟧^βξη ρ = ρ ‼ v
 ⟦ t `$ u       ⟧^βξη ρ = ⟦ t ⟧^βξη ρ $^βξη ⟦ u ⟧^βξη ρ
 ⟦ `λ t         ⟧^βξη ρ = λ inc u → ⟦ t ⟧^βξη (wk[ wk^βξη ] inc ρ , u)
 ⟦ `⟨⟩          ⟧^βξη ρ = tt
-⟦ `tt          ⟧^βξη ρ = inj₂ true
-⟦ `ff          ⟧^βξη ρ = inj₂ false
+⟦ `tt          ⟧^βξη ρ = `tt
+⟦ `ff          ⟧^βξη ρ = `ff
 ⟦ `ifte b l r  ⟧^βξη ρ = ifte^βξη (⟦ b ⟧^βξη ρ) (⟦ l ⟧^βξη ρ) (⟦ r ⟧^βξη ρ)
 
 diag^βξη : (Γ : Con) → Γ [ _⊨^βξη_ ] Γ
@@ -426,8 +426,8 @@ wk^β⋆ inc {`Bool   } T = T
 wk^β⋆ inc {σ `→ τ  } T = λ inc′ → T $′ trans inc inc′
 
 wk^β : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (T : Γ ⊨^β σ) → Δ ⊨^β σ
-wk^β inc (t , inj₁ ne)  = wk⊢ inc t , inj₁ (wk^whne inc ne)
-wk^β inc (t , inj₂ T)   = wk⊢ inc t , inj₂ (wk^β⋆ inc T)
+wk^β inc (t , inj₁ ne)  = wk^⊢ inc t , inj₁ (wk^whne inc ne)
+wk^β inc (t , inj₂ T)   = wk^⊢ inc t , inj₂ (wk^β⋆ inc T)
 
 reflect^β : {Γ : Con} (σ : ty) (t : Γ ⊢^whne σ) → Γ ⊨^β σ
 reflect^β σ t = erase^whne t , inj₁ t
