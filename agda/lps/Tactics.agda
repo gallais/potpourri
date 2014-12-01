@@ -109,7 +109,7 @@ module TacticsAbMon
   open import Data.Fin
   open import Data.Vec as Vec
 
-  infixl 6 _`∙_
+  infixr 6 _`∙_
   data Term (n : ℕ) : Set where
     `v   : (k : Fin n)        → Term n 
     `c   : (el : Carrier Mon) → Term n
@@ -340,7 +340,9 @@ module Examples where
      let open ℕ+
          `x  = `v Fin.zero
          `y  = `v (Fin.suc Fin.zero)
-     in proveMonEq (`c 2 `∙ (`x `∙ `y `∙ `c 1)) (`x `∙ `c 3 `∙ `y) (x Vec.∷ y Vec.∷ Vec.[])
+         LHS = `c 2 `∙ ((`x `∙ `y) `∙ `c 1)
+         RHS = (`x `∙ `c 3) `∙ `y
+     in proveMonEq LHS RHS (x Vec.∷ y Vec.∷ Vec.[])
 
   module BE = BagEq Nat.ℕ Nat._≟_
 
