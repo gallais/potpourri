@@ -27,39 +27,40 @@ Normalization by Evaluation is a technique leveraging the computational
 power of a host language in order to normalize expressions of a deeply
 embedded one. The process is based on a model construction associating
 to each context \AB{Γ} and type \AB{σ}, a set of values \model{}. Two
-procedures are then defined: the first one produces elements of \model{}
-provided a well-typed term of the corresponding \AB{Γ} \AD{⊢} \AB{σ} type
-and an interpretation for the variables in \AB{Γ} whilst the second one
-extracts, in a type-directed manner, normal forms \AB{Γ} \AD{⊢^{nf}} \AB{σ}
-from elements of the model \model{}. Normalization is achieved by composing
-the two procedures.
+procedures are then defined: the first one (\AF{eval}) produces elements
+of \model{} provided a well-typed term of the corresponding \AB{Γ} \AD{⊢}
+\AB{σ} type and an interpretation for the variables in \AB{Γ} whilst
+the second one (\AF{reify}) extracts, in a type-directed manner, normal
+forms \AB{Γ} \AD{⊢^{nf}} \AB{σ} from elements of the model \model{}.
+Normalization is achieved by composing the two procedures.
 
-The traditional model construction produces β-normal η-long terms
-whereas evaluation strategies implemented in proof systems tend to
-avoid applying η-rules as much as possible: quite unsurprisingly,
-when typechecking large developments expanding the proof terms is
-a really bad idea. In these systems, normal forms are neither η-long
-nor η-short: the η-rule is actually never considered except when
-comparing two terms for equality, one of which is neutral whilst
-the other is constructor-headed.
+The traditional typed model construction leads to a normalization procedure
+producing β-normal η-long terms whereas evaluation strategies implemented
+in actual proof systems tend to avoid applying η-rules as much as possible:
+quite unsurprisingly, when typechecking large developments expanding the
+proof terms is a really bad idea. In these systems, normal forms are neither
+η-long nor η-short: the η-rule is actually never considered except when
+comparing two terms for equality, one of which is neutral whilst the other
+is constructor-headed.
 
 This decision to lazily apply the η-rule can be pushed further: one may
-forgo using the ξ-rule and simply perform weak-head normalization, pushing
-the computation further only when absolutely necessary e.g. when the
-two terms compared for equality have matching head constructors.
+forgo using the ξ-rule and simply perform weak-head normalization, pursuing
+the computation only when absolutely necessary e.g. when the two terms
+compared for equality have matching head constructors and these constructors'
+arguments need therefore to be inspected.
 
 This paper shows how these different evaluation strategies emerge naturally
-as variations on Normalization by Evaluation obtained by enriching the
-traditional model with extra syntactical artefacts in a manner reminiscent
-of Coquand and Dybjer's approach to defining a Normalization by Evaluation
-procedure for the SK combinator calculus~\cite{CoqDybSK}. Their resorting
-to glueing terms to elements of the model was dictated by the sheer impossibily
-to write a sensible reification procedure but, in hindsight, it provides
-us with a powerful technique to build models deciding alternative equational
-theories.
+as variations on Normalization by Evaluation. They may be obtained by
+enriching the traditional model with extra syntactical artefacts in a manner
+reminiscent of Coquand and Dybjer's approach to defining a Normalization by
+Evaluation procedure for the SK combinator calculus~\cite{CoqDybSK}. Their
+resorting to glueing terms to elements of the model was dictated by the
+sheer impossibily to write a sensible reification procedure but, in hindsight,
+it provides us with a powerful technique to build models internalizing
+alternative equational theories.
 
-\paragraph{Outline} We start by defining the simple calculus we will use
-as a running example, we then recall the usual model construction and show
+\paragraph{Outline} We shall start by defining the simple calculus we will use
+as a running example, then recall the usual model construction and show
 how to exploit it to implement a normalization function for the equational
 theory given by the βξη rules. The main contribution of the article consists
 of us building alternative models retaining more and more syntactical
@@ -322,8 +323,11 @@ ifte^βξη `ff         l r = r
 diag^βξη : (Γ : Con) → Γ [ _⊨^βξη_ ] Γ
 diag^βξη Γ = refl[ reflect^βξη _ ∘ `var , wk^βξη ] Γ
 
+eval^βξη : (Γ : Con) {σ : ty} (t : Γ ⊢ σ) → Γ ⊨^βξη σ
+eval^βξη Γ t = ⟦ t ⟧^βξη diag^βξη Γ
+
 norm^βξη : (Γ : Con) (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^nf σ
-norm^βξη Γ σ t = reify^βξη σ $′ ⟦ t ⟧^βξη (diag^βξη Γ)
+norm^βξη Γ σ t = reify^βξη σ $′ eval^βξη Γ t
 \end{code}
 
 \section{Normalization by Evaluation for βξ}
@@ -387,8 +391,11 @@ ifte^βξ (inj₂ T)  l r = if T then l else r
 diag^βξ : (Γ : Con) → Γ [ _⊨^βξ_ ] Γ
 diag^βξ Γ = refl[ reflect^βξ _ ∘ `var , wk^βξ ] Γ
 
+eval^βξ : (Γ : Con) {σ : ty} (t : Γ ⊢ σ) → Γ ⊨^βξ σ
+eval^βξ Γ t = ⟦ t ⟧^βξ diag^βξ Γ
+
 norm^βξ : (Γ : Con) (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^nf σ
-norm^βξ Γ σ t = reify^βξ σ $′ ⟦ t ⟧^βξ (diag^βξ Γ)
+norm^βξ Γ σ t = reify^βξ σ $′ eval^βξ Γ t
 \end{code}
 
 \section{Normalization by Evaluation for β}
@@ -466,11 +473,14 @@ ifte^β (b , inj₂ B)   (l , L) (r , R) = `ifte b l r , (if B then L else R)
 ⟦ `ff          ⟧^β ρ = `ff , inj₂ false
 ⟦ `ifte b l r  ⟧^β ρ = ifte^β (⟦ b ⟧^β ρ) (⟦ l ⟧^β ρ) (⟦ r ⟧^β ρ)
 
-diag^β : (Γ : Con) → Γ [ _⊨^βξ_ ] Γ
-diag^β Γ = refl[ reflect^βξ _ ∘ `var , wk^βξ ] Γ
+diag^β : (Γ : Con) → Γ [ _⊨^β_ ] Γ
+diag^β Γ = refl[ reflect^β _ ∘ `var , wk^β ] Γ
 
-norm^β : (Γ : Con) (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^nf σ
-norm^β Γ σ t = reify^βξ σ $′ ⟦ t ⟧^βξ (diag^βξ Γ)
+eval^β : (Γ : Con) {σ : ty} (t : Γ ⊢ σ) → Γ ⊨^β σ
+eval^β Γ t = ⟦ t ⟧^β diag^β Γ
+
+norm^β : (Γ : Con) (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^whnf σ
+norm^β Γ σ t = reify^β σ $′ eval^β Γ t
 \end{code}
 
 \bibliographystyle{apalike}
