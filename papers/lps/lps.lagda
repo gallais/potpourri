@@ -43,17 +43,19 @@ equations over a commutative monoid from it.
 
 \section{Introduction}
 
-Type theory is expressive enough that one can implement
-\emph{certified} proof search algorithms which are not
-merely oracles outputting a one bit answer but full-blown
-automated provers producing derivations which are
-statically known to be correct. It is only natural to delve
-into the literature to try and find decidability proofs
-which, through the curry-Howard correspondence, could make
-good candidates for mechanisation. Reality is however not
-as welcoming as one would hope: most of these proofs have
-not been formulated with formalisation in mind and would
-require a huge effort to be ported \emph{as is} in your
+Type theory~\cite{martin-lof:bibliopolis} equipped with
+inductive families~\cite{dybjer1994inductive} is expressive
+enough that one can implement \emph{certified} proof search
+algorithms which are not merely oracles outputting a one bit
+answer but full-blown automated provers producing derivations
+which are statically known to be correct~\cite{boutin1997using}.
+It is only natural to delve into the literature to try and find
+decidability proofs which, through the Curry-Howard correspondence,
+could make good candidates for mechanisation (see e.g. Pierre
+Crégut's work on Presburger arithmetic~\cite{cregut2004procedure}).
+Reality is however not as welcoming as one would hope: most of
+these proofs have not been formulated with formalisation in mind
+and would require a huge effort to be ported \emph{as is} in your
 favourite theorem prover.
 
 In this article, we argue that it would indeed be a grave
@@ -69,13 +71,16 @@ internalising the notion of leftovers thus making the informal
 description of the proof search mechanism formal; and \autoref{sec:contexts}
 introduces resource-aware contexts therefore giving us a powerful
 language to target with our proof search algorithm implemented
-in \autoref{sec:proofsearch}. The soundness result proved in
-\autoref{sec:soundness} is what lets us recover an ILL proof
-from one expressed in the more general system. Finally,
-\autoref{sec:application} presents an application of this proof
-search procedure to automatically discharge equations over a
-commutative monoid (which can e.g. be specialised down to proving
-that two lists are bag equivalent).
+in \autoref{sec:proofsearch}. The soundness and completeness
+results proved respectively in \autoref{sec:soundness} and
+\autoref{sec:completeness} are what let us recover a proof of
+the decidability of the ILL fragment considered from the one of
+the more general system. Finally, \autoref{sec:application}
+presents an application of this proof search procedure to
+automatically discharge equations over a commutative monoid.
+This solver is then further specialised to proving that two
+lists are bag equivalent thus integrating really well with
+Danielsson's previous work~\cite{danielsson2012bag}.
 
 \section{The Calculus, Informally\label{sec:ILL}}
 
@@ -144,8 +149,9 @@ seeing in various list-based presentations.
 
 However these rules are far from algorithmic: the logician needs to
 \emph{guess} when to apply an elimination rule or which partition
-to pick when introducing a tensor. This makes this calculus really
-ill-designed for her to perform a proof search in a sensible manner.
+of the current context to pick when introducing a tensor. This makes
+this calculus really ill-designed for her to perform a proof search
+in a sensible manner.
 
 So, rather than sticking to the original presentation and trying
 to work around the inconvenience of dealing with rules which are
@@ -273,8 +279,8 @@ with leftovers \AB{Δ}, then the axiom rule translates to:
 The introduction rule for tensor in the system with leftovers does
 not involve partitioning a multiset (a list in our implementation)
 anymore: one starts by discharging the first subgoal, collects
-the leftover from this computation, and then deals with the second
-one.
+the leftover from this computation, and then feeds them to the
+procedure now working on the second subgoal.
 \begin{mathpar}
 \inferrule{
      \text{\AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ}}
@@ -292,8 +298,9 @@ subgoals to be proven using the same resources. We formalise
 this as the fact that both sides are proved using the input
 context and that both leftovers are then synchronised (for a
 sensible, yet to be defined, definition of synchronisation).
-Obviously, not all leftovers will be synchronisable: this
-step may reject proof candidates which are non compatible.
+Obviously, not all leftovers will be synchronisable: checking
+whether they are may reject proof candidates which are non
+compatible.
 \begin{mathpar}
 \inferrule{
      \text{\AB{Γ} \entails{} \AB{σ} \coentails{} \AB{Δ₁}}
@@ -408,7 +415,7 @@ manner:
 The cover for an atomic proposition can only be one thing:
 the atom itself;
 
-In the case of a tensor, both subtypes can be partially used
+In the case of a tensor, both subparts can be partially used
 (cf. \AB{S} \tensor{} \AB{T}) or it may be the case that only
 one side has been dug into so far (cf. \AB{S} \tensor \free{τ}
 and \free{σ}\tensor{} \AB{T});
@@ -439,7 +446,9 @@ assumption has not been touched yet or it has been (partially)
 used. Hence \AD{Usage} is the following datatype with two infix
 constructors\footnote{The way the brackets are used is meant to
 convey the idea that \AIC{[} \AB{σ} \AIC{]} is in mint condition
-whilst \AIC{]} \AB{S} \AIC{[} is dented.}:
+whilst \AIC{]} \AB{S} \AIC{[} is dented. The box describing an
+hypothesis in mint conditions is naturally mimicking the \fba{ }
+we have written earlier on.}:
 \begin{mathpar}
 \inferrule{
 }{\text{\AIC{[} \AB{σ} \AIC{]} \hasType{} \AD{Usage} \AB{σ}}
@@ -744,7 +753,7 @@ calculus give rise to corresponding ones in ILL) and complete (if a
 statement can be proven in ILL then a corresponding one is derivable
 in the generalised calculus).
 
-\section{Completeness\label{sec:complete}}
+\section{Completeness\label{sec:completeness}}
 
 The purpose of this section is to prove the completeness of our
 generalised calculus: to every derivation in ILL we can associate
@@ -764,15 +773,96 @@ notion of weakening allowing to discard resources without using them. In
 the calculus with leftovers however, it is perfectly sensible to talk
 about resources which are not impacted by the proof process: they are
 merely passed around and returned untouched at the end of the computation.
-This leads us to consider \AD{Usage}(\AD{s}) extensions describing
-how one may enrich a context.
+Given, for instance, a derivation \AB{S} \entails{} \AB{G} \coentails{T}
+\footnote{We write \AB{S} for \AIC{ε} \AIC{∙}\AIC{]} \AB{S} \AIC{[} in
+order to lighten the presentation} in our calculus with leftovers, it
+makes sense to apply the same extension of the context to both the input
+and output context:
+
+\begin{center}
+\begin{tikzpicture}
+  \draw[black, thick]
+     (0   , 0)   --
+     (0.5 , 0)   --
+     (0.5 , 0.5) --
+     (1.5 , 0.5) --
+     (1.5 , 0)   --
+     (2   , 0)   --
+     (2   , 0.5) --
+     (1   , 1.5) --
+     (0.5 , 1.5) --
+     (0   , 1)   --
+     cycle;
+  \draw[black]
+     (0.25 , 0.4) --
+     (0.25 , 1)   --
+     (0.6  , 1.25);
+  \draw[black]
+     (1.25 , 0.9)  --
+     (1.25 , 1)    --
+     (0.9  , 1.25);
+  \draw[black]
+     (1.1 , 0.75) --
+     (1   , 0.6)  --
+     (1   , 0.4);
+  \draw[black]
+     (1.4  , 0.75) --
+     (1.75 , 0.6)  --
+     (1.75 , 0.4);
+  \node[draw=none] at (0.25 , 0.25) {\AIC{[}\AB{α}\AIC{]}};
+  \node[draw=none] at (0.75 , 1.25) {\AIC{\&}};
+  \node[draw=none] at (1.25 , 0.75) {\AIC{⊗}};
+  \node[draw=none] at (1    , 0.25) {\AB{S}};
+  \node[draw=none] at (1.75 , 0.25) {\AB{β}};
+  \node[draw=none] at (2.2  , 0.25) {\AD{⊢}};
+  \node[draw=none] at (2.5  , 0.25) {\AB{G}};
+  \node[draw=none] at (2.8  , 0.25) {\coentails{}};
+  \draw[black, thick]
+     (3   , 0)   --
+     (3.5 , 0)   --
+     (3.5 , 0.5) --
+     (4.5 , 0.5) --
+     (4.5 , 0)   --
+     (5   , 0)   --
+     (5   , 0.5) --
+     (4   , 1.5) --
+     (3.5 , 1.5) --
+     (3   , 1)   --
+     cycle;
+  \draw[black]
+     (3.25 , 0.4) --
+     (3.25 , 1)   --
+     (3.6  , 1.25);
+  \draw[black]
+     (4.25 , 0.9)  --
+     (4.25 , 1)    --
+     (3.9  , 1.25);
+  \draw[black]
+     (4.1 , 0.75) --
+     (4   , 0.6)  --
+     (4   , 0.4);
+  \draw[black]
+     (4.4  , 0.75) --
+     (4.75 , 0.6)  --
+     (4.75 , 0.4);
+  \node[draw=none] at (3.25 , 0.25) {\AIC{[}\AB{α}\AIC{]}};
+  \node[draw=none] at (3.75 , 1.25) {\AIC{\&}};
+  \node[draw=none] at (4.25 , 0.75) {\AIC{⊗}};
+  \node[draw=none] at (4    , 0.25) {\AB{T}};
+  \node[draw=none] at (4.75 , 0.25) {\AB{β}};
+\end{tikzpicture}
+\end{center}
+
+These considerations lead us to examine the notion of \AD{Usage}(\AD{s})
+extensions describing systematically how one may enrich a context and to
+prove their innocuousness when it comes to derivability.
 
 \subsubsection{\AD{Usage} extensions}
 
 We call \AB{h}-\AD{Usage} extension of type \AB{σ} (written \uext{\AB{h}}{\AB{σ}})
 the description of a structure containing exactly one hole denoted \hole{}
 into which, using \_\fillU{}\_, one may plug an \AD{Usage} \AB{h} in order
-to get a \AD{Usage} \AB{σ}. We give side by side the constructors for the
+to get an \AD{Usage} \AB{σ}. We give side by side the constructors for the
 inductive type \uext{\_}{\_} and the corresponding case for \_\fillU{}\_.
 The most basic constructor says that we may have nothing but a hole:
 
@@ -807,7 +897,7 @@ the appropriate annotation):
 \end{mathpar}
 
 Or one may have a hole on either side of a with constructor as long
-as the other side is kept mint (\_\AF{\&[}\_\AF{]} and \AF{[}\_\AF{]\&U}\_
+as the other side is kept mint (\_\AF{\&U[}\_\AF{]} and \AF{[}\_\AF{]\&U}\_
 are, once more, operators lifting the \AD{Cover} constructors to \AD{Usage}):
 
 \begin{mathpar}
@@ -832,8 +922,8 @@ are, once more, operators lifting the \AD{Cover} constructors to \AD{Usage}):
 Embeddings~\cite{altenkirch1995categorical} except that they allow the
 modification of the individual elements which are embedded in the larger
 context using a \AD{Usage} extension. We list below the three OPE
-constructors together with the corresponding cases of \_\fillUs{}\_ 
-describing how to plug transport a \AD{Usages} along an extension.
+constructors together with the corresponding cases of \_\fillUs{}\_
+describing how to transport a \AD{Usages} along an extension.
 One can embed the empty context into any other context:
 
 \begin{mathpar}
@@ -893,8 +983,11 @@ can find \AB{S}, a full \AD{Usage} \AB{σ}, such that
 \injs{} (\AIC{ε} \mysnoc{} \AB{σ}) \entails{} \AB{σ} \coentails{} \AIC{ε} \mysnoc{} \AB{S}.
 \end{lemma}
 \begin{proof}By induction on \AB{σ}, using weakening to be able to combine
-the induction hypothesis.
+the induction hypotheses.
 \end{proof}
+
+The admissibility of the axiom rule allows us to prove completeness
+by a structural induction on the derivation:
 
 \begin{theorem}[Completeness]Given a context \AB{γ} and a type \AB{σ}
 such that \AB{γ} \entails{} \AB{σ}, we can prove that there exists \AB{Γ}
@@ -905,12 +998,17 @@ a \emph{full} \AD{Usages} \AB{γ} such that \inj{} \AB{γ} \entails{} \AB{σ} \c
 \underline{Axiom} The previous lemma is precisely dealing with this case.
 
 \underline{With Introduction} is combining the induction hypotheses
-by using the fact that two full \AD{Usages} are always synchronisable.
+by using the fact that two full \AD{Usages} are always synchronisable
+and their synchronisation is a full \AD{Usages}.
 
 \underline{Tensor Introduction} relies on the fact that the (proof
 relevant) way in which the two premises' contexts are merged gives
 us enough information to generate the appropriate \AD{Usages} extensions
-along which to weaken the induction hypotheses.
+along which to weaken the induction hypotheses. The two weakened
+derivations are then proven to be compatible (the weakened output
+context of the first one is equal to the weakened input of the
+second one) and combined using a tensor introduction rule whose
+output context is indeed fully used.
 
 \underline{Left rules} The left rules are dealt with by defining
 ad-hoc functions mimicking the action of splitting a variable in
@@ -945,7 +1043,7 @@ datatype, itself based on a definition of cover differences, distinguishes
 three cases: if the input and the output are equal then the difference
 is a mint assumption (which the careful reader will remember is erased
 down to nothing), if the input was a mint assumption then the difference
-is precisely the output \AD{Usage} and, finally, we maye also be simply
+is precisely the output \AD{Usage} and, finally, we may also be simply
 lifting the notion of \AD{Cover} difference when both the input and the
 output are dented.
 \begin{figure*}[h]
@@ -1026,7 +1124,7 @@ and \erasure{\AB{E₂}} \entails{} \AB{τ}
 on the other,
 and that we know that the two \AD{Usages} \AB{γ} respectively called
 \AB{Δ₁} and \AB{Δ₂} are such that
-    \AB{Δ} \eqsync{} \AB{Δ₁} \synced{} \AB{Δ₁}
+    \AB{Δ} \eqsync{} \AB{Δ₁} \synced{} \AB{Δ₂}
 then we can generate \AB{E}, an \AD{Usages} \AB{γ}, such that
     \AB{Δ} \eqsync{} \AB{Γ} \diff{} \AB{E},
     \erasure{\AB{E}} \entails{} \AB{σ},
@@ -1112,7 +1210,7 @@ to have the elegant intermediate structures we can generate inhabitants
 of. Even if we are only interested in the satisfiability of a given
 problem, having material artefacts at our disposal allows us to state
 and prove properties of these functions easily rather than having to
-suffer from boolean blindness.\todo{cite a paper (?) on Boolean Blindness}.
+suffer from boolean blindness: "A Boolean is a bit uninformative"~\cite{mcbride2005epigram}.
 And we know that we may be able to optimise them
 away~\cite{wadler1990deforestation, gill1993short} in the case where
 we are indeed only interested in the satisfiability of the problem and
@@ -1248,11 +1346,11 @@ combine them using \AF{whenSome} or fail by returning the empty list.
 
 \subsection{From Proof Search to a Decision Procedure}
 
-The only thing lacking in order to have a decision procedure is a
+The only thing missing in order for us to have a decision procedure is a
 proof that all possible \emph{interesting} cases are considered by
-the proof search algorithm. The "interesting" keyword is here very
+the proof search algorithm. The ``interesting'' keyword is here very
 important. In the \_\belongs{}\_\cobelongs{}\_ case, it is indeeed
-crucial that we try all potential candidates as future step may
+crucial that we try all potential candidates as future steps may
 reject subproofs.
 
 \begin{lemma}[No Overlooked Assumption] Given \AB{Γ}, \AB{Δ} two
@@ -1265,9 +1363,10 @@ In the \_\eqsync{}\_\synced{}\_ case, however, it is not as important:
 the formalisation is made shorter by having a constructor for symmetry
 rather than twice as many introduction rules. This does not mean that
 we are interested in the proofs where one spends time applying symmetry
-over and over again. This means that we have to acknowledge the fact
-that the proof discovered by the search procedure may be different.
-And this constraint is propagated all the way up to the main theorem
+over and over again. As a consequence, we have to acknowledge the fact
+that the proof discovered by the search procedure may be different
+from any given proof of the same type. And this constraint is propagated
+all the way up to the main theorem
 
 \begin{theorem}[No Overlooked Derivation] Given \AB{Γ}, \AB{Δ}
 two \AD{Usages} \AB{γ} and \AB{σ} a type, if \AB{Γ} \entails{}
@@ -1277,8 +1376,10 @@ the pair (\AB{Δ} \AIC{,} \AB{pr}) belongs to the list
 \AB{Γ} \AF{⊢?} \AB{σ}.
 \end{theorem}
 
-From this result, we can conclude that we have in pratice defined
-a decision procedure for ILLWL (and therefore ILL).
+From this result, we can conclude that we have in practice defined
+a decision procedure for ILLWL and therefore ILL as per the
+soundness and completeness results proven in \autoref{sec:soundness}
+and \autoref{sec:completeness} respectively.
 
 
 \section{Applications: building Tactics\label{sec:application}}
@@ -1305,10 +1406,12 @@ structure to take advantage of.
 
 This whole section is parametrised by \AB{Mon} a commutative
 monoid (as defined in the file \file{Algebra} of Agda's standard
-library) whose carrier \AR{Carrier} \AB{Mon} is equipped with a
-decidable equality \AB{\_≟\_}. Alternatively, we may write
-\AB{M.name} to mean the \AB{name} defined by the commutative
-monoid \AB{Mon} (e.g. \AB{M.Carrier}).
+library) whose carrier \AR{Carrier} \AB{Mon} is assumed to be
+such that equality of its elements is decidable (\AB{\_≟\_} will
+be the name of the corresponding function). Alternatively, we may
+write \AB{M.name} to mean the \AB{name} defined by the commutative
+monoid \AB{Mon} (e.g. \AB{M.Carrier} will refer to the previously
+mentionned set \AR{Carrier} \AB{Mon}).
 
 We start by defining a grammar for expressions with a finite number of
 variable whose carrier is a commutative monoid: a term may either be a
@@ -1383,7 +1486,7 @@ We start by defining this \AF{Model} together with its semantics:
 We then provide a normalisation function turning a \AD{Expr} \AB{n}
 into such a pair. The variable and constant cases are trivial whilst
 the \AIC{\_`∙\_} is handled by an auxiliary definition combining the
-induction hypothesis:
+induction hypotheses:
 
 \begin{code}
   _∙∙_ : {n : ℕ} → Model n → Model n → Model n
@@ -1395,11 +1498,11 @@ induction hypothesis:
   norm (t `∙ u)  = norm t ∙∙ norm u
 \end{code}
 
-This first proof step is proved semantics preserving with respect to
+This normalization step is proved semantics preserving with respect to
 the commutative's monoid notion of equality by the following lemma:
 
 \begin{lemma}[Normalisation Soundness]\label{lem:normsnd}Given \AB{t}
-an \AD{Expr} \AB{n} and \AB{ρ} a \AF{Valuation} \AB{n},
+an \AD{Expr} \AB{n}, for any \AB{ρ} a \AF{Valuation} \AB{n}, we have:
 \semT{\AB{t}} \AB{ρ} \AD{M.≈} \semM{\AF{norm} \AB{t}} \AB{ρ}.
 \end{lemma}
 
@@ -1455,7 +1558,7 @@ from the one we already have:
 \begin{theorem}From a context \AB{γ} and a goal \AB{σ} such that
 \AB{Γ} and \AB{S} are respectively proofs that \AD{isAtoms} \AB{γ}
 and \AD{isProduct} \AB{σ} hold true, and from a given proof that
-\AB{γ} \entails{} \AB{σ} we can derive that for all (\AB{ρ}
+\AB{γ} \entails{} \AB{σ} we can derive that for any (\AB{ρ}
 \hasType{} \AF{Valuation} \AB{n}), \semMM{\AF{fromAtoms} \AB{Γ}} \AB{ρ}
 \AF{M.≈} \semMM{\AF{fromProduct} \AB{S}} \AB{ρ}.
 \end{theorem}
@@ -1512,6 +1615,55 @@ combination of the soundness result and the injection functions'
 properties.
 \end{proof}
 
+Now, the standard library already contains a proof that (\AD{ℕ}, \AN{0},
+\AF{\_+\_}) is a commutative monoid so we can use this fact (named \AM{ℕ+}
+here) to have a look at an example. In the following code snippet, \AF{LHS},
+\AF{RHS} and \AF{CTX} are respectively reified versions of the left and
+right hand sides of the equation, as well as the \AF{Valuation} \AN{2}
+mapping variables in the \AD{Expr} language to their names in Agda.
+
+\AgdaHide{
+\begin{code}
+module ExamplesTactics where
+
+  open import Algebra.Structures
+  open import Data.Nat as Nat
+  open import Data.Nat.Properties
+  open import Data.List
+  module AbSR = IsCommutativeSemiring isCommutativeSemiring
+
+  open import Data.Fin as Fin hiding (_+_)
+  open import Data.Vec as Vec
+  open import lps.Tactics
+  module ℕ+ = TacticsAbMon (record
+                        { Carrier = ℕ
+                        ; _≈_ = _≡_
+                        ; _∙_ = _+_
+                        ; ε   = 0
+                        ; isCommutativeMonoid = AbSR.+-isCommutativeMonoid
+                        }) Nat._≟_
+  import Prelude as Pr
+\end{code}}
+
+\begin{code}
+  2+x+y+1 : (x y : Nat.ℕ) → 2 + (x + y + 1) ≡ y + 3 + x
+  2+x+y+1 x y = proveMonEq LHS RHS CTX
+    where  open ℕ+
+           `x   = `v (Fin.# 0)
+           `y   = `v (Fin.# 1)
+           LHS  = `c 2 `∙ ((`x `∙ `y) `∙ `c 1)
+           RHS  = (`y `∙ `c 3) `∙ `x
+           CTX  = x Vec.∷ y Vec.∷ Vec.[]
+\end{code}
+
+
+The normalization step reduced proving this equation to proving
+that the pair (\AN{3}, \lmulti{}\AB{x}, \AB{y}\rmulti{}) is equal
+to the pair (\AN{3}, \lmulti{}\AB{y}, \AB{x}\rmulti{}). Equality
+of the first components is trivial whilst the multiset equality
+one is proven true by our solver.
+
+
 \subsection{Proving Bag Equivalence}
 
 We claimed that proving equations for a commutative monoid was
@@ -1546,69 +1698,83 @@ perfectly well as demonstrated by the following example:
 
 \AgdaHide{
 \begin{code}
-module ExamplesTactics where
+  open import Bag-equivalence
+  module BE = BagEq Nat.ℕ Nat._≟_
 
-  open import Algebra.Structures
-  open import Data.Nat as Nat
-  open import Data.Nat.Properties
-  open import Data.List
-  module AbSR = IsCommutativeSemiring isCommutativeSemiring
-
-  open import Data.Fin as Fin hiding (_+_)
-  open import Data.Vec as Vec
-  open import lps.Tactics
-  module ℕ+ = TacticsAbMon (record
-                        { Carrier = ℕ
-                        ; _≈_ = _≡_
-                        ; _∙_ = _+_
-                        ; ε   = 0
-                        ; isCommutativeMonoid = AbSR.+-isCommutativeMonoid
-                        }) Nat._≟_
-  import Prelude as Pr
+  sgl : ℕ → Pr.List ℕ
+  sgl x = x Pr.∷ Pr.[]
 \end{code}}
 
 \begin{code}
-  2+x+y+1 : (x y : Nat.ℕ) → 2 + (x + y + 1) ≡ y + 3 + x
-  2+x+y+1 x y = proveMonEq LHS RHS CTX
-    where  open ℕ+
-           `x   = `v Fin.zero
-           `y   = `v (Fin.suc Fin.zero)
-           LHS  = `c 2 `∙ (`x `∙ `y `∙ `c 1)
-           RHS  = `y `∙ `c 3 `∙ `x
-           CTX  = x Vec.∷ y Vec.∷ Vec.[]
+  example : (xs ys : Pr.List Nat.ℕ) → 
+    1 Pr.∷ 2 Pr.∷ xs Pr.++ 1 Pr.∷ ys ≈-bag  ys Pr.++ 2 Pr.∷ xs Pr.++ 1 Pr.∷ 1 Pr.∷ Pr.[]
+  example xs ys = proveMonEq LHS RHS CTX
+    where open BE
+          `1   = `v (Fin.# 0)
+          `2   = `v (Fin.# 1)
+          `xs  = `v (Fin.# 2)
+          `ys  = `v (Fin.# 3)
+          LHS  = ((`1 `∙ `2) `∙ `xs) `∙ `1 `∙ `ys
+          RHS  = `ys `∙ (`2 `∙ `xs) `∙ `1 `∙ `1
+          CTX  = sgl 1 Vec.∷ sgl 2 Vec.∷ xs Vec.∷ ys Vec.∷ Vec.[]
 \end{code}
 
-Having a nice interface for these solvers would involve a little
-bit of engineering work such as writing a (partial) function turning
-elements of the \AD{Term} type describing quoted Agda term into the
-corresponding \AD{Expr}. All of these issues have been thoroughly
-dealt with by Van Der Walt and Swierstra~\cite{van2012reflection,van2013engineering}.
+Once more, \AF{LHS}, \AF{RHS} and \AF{CTX} are the respective
+reifications of the left and right hand sides of the equation
+as well as the one of the context. All these reification are
+made by hand. Having a nice interface for these solvers would
+involve a little bit of engineering work such as writing a
+(partial) function turning elements of the \AD{Term} type
+describing quoted Agda term into the corresponding \AD{Expr}.
+All of these issues have been thoroughly dealt with by Van Der
+Walt and Swierstra~\cite{van2012reflection,van2013engineering}.
+
+\section{Conclusion, Related and Future Work\label{sec:related}}
+
+We have seen how, starting from provability in Intuitionistic
+Linear Logic, a problem with an extensional formulation, we
+can move towards a type-theoric approach to solving it. This
+was done firstly by generalising the problem to a calculus
+with leftovers better matching the proof search process and
+secondly by introducing resource-aware contexts which are
+datatypes retaining the important hidden \emph{structure}
+of the problem. These led to the definition of Intuitionistic
+Linear Logic With Leftovers, a more general calculus enjoying
+a notion of weakening but, at the same time, sound and complete
+with respect to ILL. Provability of ILL being decidable is
+then a simple corollary of it being decidable for ILLWL.
+Finally, a side effect of this formalization effort is the
+definition of helpful tactics targetting commutative monoids
+and, in particular, bag equivalence of lists.
 
 
-\section{Related and Future Work\label{sec:related}}
-
-Andreoli's vastly influential work on focusing in Linear
-Logic~\cite{andreoli1992logic} demonstrates that by using a more
-structured calculus (the focused one), the logician can improve
-her proof search procedure by making sure that she ignores irrelevant
-variations between proof trees. The fact that our approach is based on
-never applying a left rule explicitly and letting the soundness result
-insert them in an optimal fashion is in the same vein: we are, effectively,
-limiting the search space to proof trees with a very specific shape.
+This development has evident connections with Andreoli's vastly
+influential work on focusing in Linear Logic~\cite{andreoli1992logic}
+which demonstrates that by using a more structured calculus (the
+focused one), the logician can improve her proof search procedure
+by making sure that she ignores irrelevant variations between proof
+trees. The fact that our approach is based on never applying a left
+rule explicitly and letting the soundness result insert them in an
+optimal fashion is in the same vein: we are, effectively, limiting
+the search space to proof trees with a very specific shape without
+losing any expressivity.
 
 In the domain of certified proof search, Kokke and Swierstra
 have designed a prolog-style procedure in Agda~\cite{kokkeauto}
 which, using a fuel-based model, will explore a bounded part of
 the set of trees describing the potential proofs generated by
-backward-chaining with the goal as a starting point and a fixed
-set of deduction rules as methods.
+backward-chaining using a fixed set of deduction rules as methods.
 
 As already heavily hinted at by the previous section, there is a
-number of realms who benefit from proof search in Linear Logic.
+number of realms which benefit from proof search in Linear Logic.
 Bag equivalence~\cite{danielsson2012bag} is clearly one of them
 but recent works also draw connections between Intuitionistic
 Linear Logic and narrative representation, proof search then
-becomes narrative generation~\cite{bosser2011structural,martens2013linear,bosser2010linear}.
+becomes narrative generation~\cite{bosser2011structural,martens2013linear,bosser2010linear} and a proof is seen as a trace corresponding to one
+possible storyline given the plot-devices available in the context.
+Our approach is certified to produce all possible derivations
+(modulo commuting the application of the left rules) and therefore
+all the corresponding storylines.
 
 \subsection{Tackling a Larger Fragment}
 
@@ -1618,7 +1784,8 @@ bag equivalence between the context and the goal; limiting ourselves
 to with and atomic formulas would amount to checking that there is a
 non-empty intersection between the context and the goal. However mixing
 tensors and withs creates a more intricate theory hence this whole
-development.
+development. It would nonetheless be exciting to tackle a larger
+fragment in a similar, well-structured manner.
 
 A very important connector in ILL is the lollipop. Although dealing
 with it on the right hand side is extremely simple (one just extends
@@ -1630,12 +1797,13 @@ able to make this specific assumption temporarily unavailable when
 proving its premise. Indeed, it would otherwise be possible to use its
 own body to discharge the premise thus leading to a strange fixpoint
 making e.g. \AB{σ} \lolli{} (\AB{σ} \tensor{} \AB{σ}) \entails{} \AB{σ}
-provable. A well-structured solution has yet to be found.
+provable. We have explored various options but a well-structured
+solution has yet to be found.
 
 \subsection{Search Parallelisation\label{sec:parallel}}
 
 The reader familiar with linear logic will not have been surprised
-by the fact that with is well-suited for a parallel exploration
+by the fact that some rules are well-suited for a parallel exploration
 of the provability of its sub-constituents. The algorithm we have
 presented however remains sequential when it comes to a goal whose
 head symbol is a tensor. But that is not a fatality: it is possible
@@ -1653,6 +1821,8 @@ output contexts of the two subcomputations are disjoint.
 This approach would allow for a complete parallelisation of the
 work at the cost of more subproofs being thrown away at the merge
 stage because they do not fit together.
+
+\todo{Mention coeffects?}
 
 \section*{Special Thanks}
 
