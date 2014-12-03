@@ -183,56 +183,100 @@ into the implementation details of such concepts.
 \subsection{Example\label{sec:example}}
 
 In the following paragraphs, we are going to study how one would describe
-the process of running a proof search algorithm. The intermediate data
-structures, despite looking similar to usual ILL sequents, are not valid
-proof trees; they are actually meant to represent the state the algorithm
-is in throughout the search. They will ultimately correspond to an alternative
-linear logic we have yet to define.
-
-In order to materialise the idea that some resources are consumed whilst
-discharging subgoals, we are going to mark with a box \fba{ } (the parts
-of) the assumptions which have been used by a derivation.
-
-Let us now go ahead and observe how one looks for a proof of
-(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ} \entails{} \AB{τ} \tensor{} \AB{σ}
-where \AB{σ} and \AB{τ} are assumed to be atomic. The goal's head symbol is
-a \tensor{}; as we have no interest in guessing whether to apply left rules
-or how to partition the current context ─if at all necessary─, we are simply
-going to start by looking for a proof of its left part. Given that \AB{τ} is
-an atomic formula, the only way to discharge this goal is to use an assumption
-available in the context. Luckily for us, there is a \AB{τ} in the context;
-we are therefore able to produce the following derivation:
+the process of running a proof search algorithm for our fragment of ILL.
+The intermediate data structures, despite looking similar to usual ILL
+sequents, are not quite valid proof trees as we purposefully ignore left
+rules. We write
 \begin{mathpar}
+\text{Δ} \Rightarrow{}
+\inferrule{π}{\text{\AB{Γ} \entails{} \AB{σ}}}
+\end{mathpar}
+to mean that the current proof search state is \AB{Δ} and we managed to
+build a pseudo-derivation \AB{π} of type \AB{Γ} \entails{} \AB{σ}. \AB{π}
+and \AB{Γ} may be replaced by question marks when we haven't yet reached
+a point where we have a proof.
+
+In order to materialise the idea that some resources in \AB{Δ} are available
+whereas others have already been consumed, we are going to mark with a box
+\fba{ } (the parts of) the assumptions which are currently available. During
+the proof search, the state \AB{Δ} will kept its structure but we will update
+destructively its resource annotations. For instance, consuming \AB{σ} out of
+\AB{Δ} = \fba{(\AB{σ} \with{} \AB{τ})} \tensor{} \AB{υ} will turn \AB{Δ} into
+(\AB{σ} \with{} \fba{\AB{τ}}) \tensor{} \AB{υ}.
+
+Let us now go ahead and observe how one looks for a proof of the following
+formula (where \AB{σ} and \AB{τ} are assumed to be atomic):
+(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ} \entails{} \AB{τ} \tensor{} \AB{σ}.
+The proof search problem we are facing is therefore:
+\begin{mathpar}
+\text{\fba{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ}}}
+\Rightarrow
+\inferrule{\text{?}
+  }{\text{? \entails{} \AB{τ} \tensor{} \AB{σ}}
+  }
+\end{mathpar}
+The goal's head symbol is a \tensor{}; as we have no interest in guessing
+whether to apply left rules─if at all necessary─, or how to partition the
+current context, we are simply going to start by looking for a proof of
+its left subcomponent using the full context. Given that \AB{τ} is an atomic
+formula, the only way for us to discharge this goal is to use an assumption
+available in the context. Fortunately, there is a \AB{τ} in the context;
+we are therefore able to produce a derivation where \AB{τ} has now been
+consumed. In terms of our proof search, this is expressed by using an
+axiom rule and destructively updating the context:
+\begin{mathpar}
+\text{\fba{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ}}}
+\Rightarrow
+\inferrule{\text{?}
+  }{\text{? \entails{} \AB{τ}}
+  }
+\and \rightsquigarrow
+\and
+\text{(\fba{\AB{σ}} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}}}
+\Rightarrow
 \inferrule{
-}{\text{(\AB{σ} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ} \entails{} \AB{τ}}
+}{ \text{\AB{τ} \entails{} \AB{τ}}
 }{ax}
 \end{mathpar}
 Now that we are done with the left subgoal, we can deal with
-the right one. The main difference is that our available context
-is not (\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ} anymore but
-rather the consumption annotated (\AB{σ} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ}.
-We are once more facing an atomic formula which we can only
-discharge by using an assumption. This time there are two
-candidates in the context except that one of them is inaccessible:
+the right one using the leftovers (\fba{\AB{σ}} \tensor{} \AB{τ})
+\with{} \fba{\AB{σ}}. We are once more facing an atomic formula
+which we can only discharge by using an assumption. This time there
+are two candidates in the context except that one of them is inaccessible:
 solving the previous goal has had the side-effect of picking one
 side of the \with{} thus rejecting the other entirely. In other
-words: a left rule has been applied implicitly! The only derivation
-we can produce is therefore:
+words: a left rule has been applied implicitly! The only meaningful
+step in the proof search is therefore:
 \begin{mathpar}
+\text{(\fba{\AB{σ}} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}}}
+\Rightarrow
+\inferrule{\text{?}
+  }{\text{? \entails{} \AB{σ}}
+  }
+\and \rightsquigarrow
+\and
+\text{(\AB{σ} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}}}
+\Rightarrow
 \inferrule{
-}{\text{(\fba{\AB{σ}} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ} \entails{} \AB{σ}}
+}{ \text{\AB{σ} \entails{} \AB{σ}}
 }{ax}
 \end{mathpar}
-We can then combine these two by using a right introduction
-rule for \tensor{}. If we add an extra, enclosing, box every
-time an entire subpart of an assumption is used, we end up
-with a tree whose conclusion is:
+We can then come back to our \tensor{}-headed goal and combine these
+two derivations by using a right introduction rule for \tensor{}.
+(\AB{σ} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}} being a fully used
+context (\fba{\AB{σ}} is inaccessible), we can conclude that our
+search has ended successfully:
 \begin{mathpar}
-\inferrule{\vdots{} \and \vdots{}
-}{\text{\fbc{\fbb{(\fba{\AB{σ}} \tensor{} \fba{\AB{τ}})} \with{} \AB{σ}}
-        \entails{} \AB{τ} \tensor{} \AB{σ}}
+\text{(\AB{σ} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}}}
+\Rightarrow
+\inferrule{
+  \inferrule{ }{\text{\AB{τ} \entails{} \AB{τ}}}{ax}
+  \and \inferrule{ }{\text{\AB{σ} \entails{} \AB{σ}}}{ax}
+}{ \text{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ}
+   \entails{} \AB{τ} \tensor{} \AB{σ}}
 }{\tensor{}^r}
 \end{mathpar}
+
 The fact that the whole context is used by the end of the search
 tells us that this should translate into a valid ILL proof tree. And
 it is indeed the case: by following the structure of the pseudo-proof
