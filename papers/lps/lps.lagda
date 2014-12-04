@@ -1782,12 +1782,12 @@ was done firstly by generalising the problem to a calculus
 with leftovers better matching the proof search process and
 secondly by introducing resource-aware contexts which are
 datatypes retaining the important hidden \emph{structure}
-of the problem. These led to the definition of Intuitionistic
-Linear Logic With Leftovers, a more general calculus enjoying
-a notion of weakening but, at the same time, sound and complete
-with respect to ILL. Provability of ILL being decidable is
-then a simple corollary of it being decidable for ILLWL.
-Finally, a side effect of this formalization effort is the
+of the problem. These constructions led to the definition of
+Intuitionistic Linear Logic With Leftovers, a more general
+calculus enjoying a notion of weakening but, at the same time,
+sound and complete with respect to ILL. Provability of ILL being
+decidable is then a simple corollary of it being decidable for
+ILLWL. Finally, a side effect of this formalization effort is the
 definition of helpful tactics targetting commutative monoids
 and, in particular, bag equivalence of lists.
 
@@ -1802,6 +1802,8 @@ rule explicitly and letting the soundness result insert them in an
 optimal fashion is in the same vein: we are, effectively, limiting
 the search space to proof trees with a very specific shape without
 losing any expressivity.
+
+
 
 In the domain of certified proof search, Kokke and Swierstra
 have designed a prolog-style procedure in Agda~\cite{kokkeauto}
@@ -1866,7 +1868,31 @@ This approach would allow for a complete parallelisation of the
 work at the cost of more subproofs being thrown away at the merge
 stage because they do not fit together.
 
-\todo{Mention coeffects?}
+\subsection{Connection to Typechecking}
+
+A problem orthogonal to proof search but that could benefit
+from the same technique is the one of typechecking: provided
+a term and a type, we would like to know whether the term
+inhabits the type. 
+
+In the coeffect calculus introduced by Petricek, Orchard and
+Mycroft~\cite{petricek2014coeffects}, extra information is
+attached to the variables present in the context. Their approach
+allows for writing derivations in Bounded Linear Logic or building
+a program with an attached dataflow analysis. However their
+deduction rules, when read bottom-up, are suffering from some of
+the issues we highlighted in this paper's introduction (having to
+guess how to partition a context for instance). This may be
+tractable for Hindley-Milner-like type systems enjoying type
+inference but we are interested in more powerful type theories.
+
+We believe that moving from their presentation to one with input
+and output contexts as well as keeping more structured contexts
+would give rise to a range of calculi whose judgements are algorithmic
+in nature thus making them more amenable to (bidirectional) typechecking.
+This would allow the programmer to write terms rather than logical
+derivations and, provided a top-level type annotation, get the
+machine to do all the heavy-lifting.
 
 \section*{Special Thanks}
 
