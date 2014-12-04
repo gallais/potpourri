@@ -360,19 +360,19 @@ and after it has been discharged entirely.
 \begin{mathpar}
 \inferrule{
   \inferrule{
-  }{\text{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ}
+  }{\text{\fba{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ}}
     \entails{} \AB{τ} \coentails{}
-    (\AB{σ} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ}}
+    (\fba{\AB{σ}} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}}}
   }{ax}
   \and
   \inferrule{
-  }{\text{(\AB{σ} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ}
+  }{\text{(\fba{\AB{σ}} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}}
     \entails{} \AB{σ} \coentails{}
-    (\fba{\AB{σ}} \tensor{} \fba{\AB{τ}}) \with{} \AB{σ}}
+    (\AB{σ} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}}}
   }{ax}
-}{\text{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ}
+}{\text{\fba{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ}}
         \entails{} \AB{τ} \tensor{} \AB{σ} \coentails{}
-        \fbc{\fbb{(\fba{\AB{σ}} \tensor{} \fba{\AB{τ}})} \with{} \AB{σ}}}
+        (\AB{σ} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}}}
 }{\tensor{}^r}
 \end{mathpar}
 \caption{A proof with input / output contexts and usage
@@ -650,44 +650,44 @@ side of the \with{} whilst the other one is a full cover
 \begin{mathpar}
 \inferrule*[Right=\with{}$^r$]{
   \inferrule*[Right=\textit{ax}]{
-    }{\text{\AB{σ} \with{} \AB{τ}
+    }{\text{\fba{\AB{σ} \with{} \AB{τ}}
             \entails{} \AB{σ}
-            \coentails{} \fba{\AB{σ}} \with{} \AB{τ}}
+            \coentails{} \AB{σ} \with{} \fba{\AB{τ}}}
     }
   \and
   \inferrule*[Right=\with{}$^r$]{
     \inferrule*[Right=\textit{ax}]{
-      }{\text{\AB{σ} \with{} \AB{τ}
+      }{\text{\fba{\AB{σ} \with{} \AB{τ}}
               \entails{} \AB{σ}
-              \coentails{} \fba{\AB{σ}} \with{} \AB{τ}}
-      }
-    \and
-    \inferrule*[Right=\textit{ax}]{
-      }{\text{\AB{σ} \with{} \AB{τ}
-              \entails{} \AB{τ}
               \coentails{} \AB{σ} \with{} \fba{\AB{τ}}}
       }
     \and
-    \inferrule*{
-       \text{\isUsed{\AB{σ}} \fba{\AB{σ}}}
-       \and \text{\isUsed{\AB{τ}} \fba{\AB{τ}}}
+    \inferrule*[Right=\textit{ax}]{
       }{\text{\fba{\AB{σ} \with{} \AB{τ}}
-               \eqsync{} \fba{\AB{σ}} \with{} \AB{τ}
-               \synced{} \AB{σ} \with{} \fba{\AB{τ}}}
+              \entails{} \AB{τ}
+              \coentails{} \fba{\AB{σ}} \with{} \AB{τ}}
       }
-    }{\text{\AB{σ} \with{} \AB{τ}
+    \and
+    \inferrule*{
+       \text{\isUsed{\AB{σ}} \AB{σ}}
+       \and \text{\isUsed{\AB{τ}} \AB{τ}}
+      }{\text{\AB{σ} \with{} \AB{τ}
+              \eqsync{} \AB{σ} \with{} \fba{\AB{τ}}
+              \synced{} \fba{\AB{σ}} \with{} \AB{τ}}
+      }
+    }{\text{\fba{\AB{σ} \with{} \AB{τ}}
             \entails{} \AB{σ} \with{} \AB{τ}
-            \coentails{} \fba{\AB{σ} \with{} \AB{τ}}}
+            \coentails{} \AB{σ} \with{} \AB{τ}}
     }
   \and
-  \inferrule*{\text{\isUsed{\AB{σ}} \fba{\AB{σ}}}
-    }{\text{\fba{\AB{σ} \with{} \AB{τ}}
-             \eqsync{} \fba{\AB{σ}} \with{} \AB{τ}
-             \synced{} \fba{\AB{σ} \with{} \AB{τ}}}
+  \inferrule*{\text{\isUsed{\AB{σ}} \AB{σ}}
+    }{\text{\AB{σ} \with{} \AB{τ}
+            \eqsync{} \AB{σ} \with{} \fba{\AB{τ}}
+            \synced{} \AB{σ} \with{} \AB{τ}}
     }
-}{\text{\AB{σ} \with{} \AB{τ}
+}{\text{\fba{\AB{σ} \with{} \AB{τ}}
         \entails{} \AB{σ} \with{} (\AB{σ} \with{} \AB{τ})
-        \coentails{} \fba{\AB{σ} \with{} \AB{τ}}}
+        \coentails{} \AB{σ} \with{} \AB{τ}}
 }
 \end{mathpar}
 \caption{A derivation with a synchronisation combining a
