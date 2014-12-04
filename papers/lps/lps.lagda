@@ -414,9 +414,10 @@ starting the proof search procedure except that they come
 with an usage annotation describing whether the various
 assumptions are still available or have already been
 consumed. This is the intuition we used in our example in
-\autoref{sec:example} when marking used atomic formulas with
-a box \fba{ } rather than simply dropping them from the
-context and that is made fully explicit in \autoref{fig:derivation}.
+\autoref{sec:example} when marking available resources
+with a box \fba{ } and keeping used ones rather than simply
+dropping them from the context and that is made fully explicit
+in \autoref{fig:derivation}.
 
 \subsection{Resource-Aware Contexts}
 
