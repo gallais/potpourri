@@ -519,12 +519,6 @@ define an erasure function building a context listing the hypotheses
 marked as used. We write \erasure{\_} for such functions and define
 them by induction on the structure of the \AD{Usage}(\AD{s}).
 
-The erasure for \AD{Usages} is the left to right concatenation
-of the erasures of its various components. The erasure of an
-\AD{Usage} \AB{σ} is the empty list if the assumption is mint
-or the erasure of the \AD{Cover} if is dented. The erasure of
-a cover is, quite naturally, defined as follows:
-
 \AgdaHide{
 \begin{code}
 open import Relation.Nullary
@@ -571,8 +565,6 @@ pattern _⊗_ a b = a `⊗ b
 pattern _&_ a b = a `& b
 
 ｢_｣ : {σ : ty} (S : Cover σ) → Con ty
-\end{code}}\todo{Do we care abou this?}
-\begin{code}
 ｢ κ k       ｣ = ε ∙ κ k
 ｢ A ⊗ B     ｣ = ｢ A ｣ ++ ｢ B ｣
 ｢ [ a ]⊗ B  ｣ = ｢ B ｣
@@ -581,7 +573,7 @@ pattern _&_ a b = a `& b
 ｢ A &[ b ]  ｣ = ｢ A ｣
 ｢ [ a ]& B  ｣ = ｢ B ｣
 
-\end{code}
+\end{code}}
 
 \paragraph{Injection} We call \AD{inj} the function taking a
 context \AB{γ} as argument and describing the \AD{Usages} \AB{γ}
@@ -790,13 +782,15 @@ use anything from the other one. Here is a such rule:
 
 We now have a fully formal definition of the more general system
 we hinted at when observing the execution of the search procedure
-in \autoref{sec:example}. This alternative formulation of the fragment
-of ILL we have decided to study will only be useful if it is equivalent
-to the original one. The following two sections are dedicated to proving
-that the formulation is both sound (all the derivations in the generalised
-calculus give rise to corresponding ones in ILL) and complete (if a
-statement can be proven in ILL then a corresponding one is derivable
-in the generalised calculus).
+in \autoref{sec:example}. We call this alternative formulation of
+the fragment of ILL we have decided to study \textbf{ILLWL} which
+stands for \textbf{I}ntuitionistic \textbf{L}inear \textbf{L}ogic
+\textbf{W}ith \textbf{L}eftovers. It will only be useful if it is
+equivalent to ILL. The following two sections are dedicated to
+proving that the formulation is both sound (all the derivations in
+the generalised calculus give rise to corresponding ones in ILL)
+and complete (if a statement can be proven in ILL then a corresponding
+one is derivable in the generalised calculus).
 
 \section{Completeness\label{sec:completeness}}
 
@@ -807,7 +801,7 @@ a corresponding one in the consumption-based calculus.
 One of the major differences between the two calculi is that in the
 one with leftovers, the context decorated with consumption annotations
 is the same throughout the whole derivation whereas we constantly chop
-up the multiset of resources in ILL. To go from ILL to ILLWL\todo{define?},
+up the multiset of resources in ILL. To go from ILL to ILLWL,
 we need to introduce a notion of weakening which give us the ability to
 talk about working in a larger context.
 
