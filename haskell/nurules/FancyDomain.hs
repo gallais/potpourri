@@ -88,7 +88,7 @@ evalBinder (Let u) t rho = evalCheck t (maybe (evalInfer u rho) rho)
 evalCheck :: Check a -> (a -> Dom) -> Dom
 evalCheck (Bnd bd t) rho = evalBinder bd t rho
 evalCheck Zro        _   = NF ZRO
-evalCheck (Suc ns)    rho = NF $ SUC $ evalCheck ns rho
+evalCheck (Suc n)    rho = NF $ SUC $ evalCheck n rho
 evalCheck (Emb t)    rho = evalInfer t rho
 evalCheck Nat        _   = NF NAT
 evalCheck Set        _   = NF SET
@@ -163,7 +163,7 @@ norm t = reify (evalCheck t absurd) undefined 0
 plus :: Check a
 plus =
   lamAbs {- m -} $
-  lamAbs {- ns -} $
+  lamAbs {- n -} $
     Emb $ Cut (Var $ Just Nothing) $
     [ Rec (piAbs Nat Nat) (var Nothing) (lamAbs $ lamAbs $ Suc $ var Nothing) ]
 
