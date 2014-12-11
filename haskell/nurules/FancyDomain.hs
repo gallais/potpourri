@@ -32,7 +32,7 @@ type Spine a = [Elim a]
 
 data Elim a =
     App (Check a)
-  | Rec (Type (Maybe a)) (Check a) (Check a)
+  | Rec (Type a) (Check a) (Check a)
   deriving (Show, Functor)
 
 data Binder a =
@@ -69,7 +69,7 @@ data Dom =
 
 data ArgDom =
     APP Dom
-  | REC Dom Dom
+  | REC Dom Dom Dom
 
 data ActDom =
     LAM (Dom -> Dom)
@@ -95,36 +95,36 @@ evalCheck Set        _   = NF SET
 
 evalInfer :: Infer a -> (a -> Dom) -> Dom
 evalInfer (Var a)    rho = rho a
-evalInfer (Anns t _)  rho = evalCheck t rho
+evalInfer (Ann t _)  rho = evalCheck t rho
 evalInfer (Cut t sp) rho = cut (evalInfer t rho) $ fmap (\ el -> evalElim el rho) sp
 
 evalElim :: Elim a -> (a -> Dom) -> ArgDom
-evalElim (App t)     rho = APP $ evalCheck t rho
-evalElim (Rec _ z s) rho = REC (evalCheck z rho) (evalCheck s rho)
+evalElim (App t)      rho = APP $ evalCheck t rho
+evalElim (Rec ty z s) rho = REC (evalCheck ty rho) (evalCheck z rho) (evalCheck s rho)
 
 cut :: Dom -> [ArgDom] -> Dom
-cut d         []             = d
-cut BT        _              = BT
-cut (NE a sp) args           = NE a $ sp ++ args
-cut d         (APP u   : tl) = cut (app d u) tl
-cut d         (REC z s : tl) = cut (rec z s d) tl
+cut d         []                = d
+cut BT        _                 = BT
+cut (NE a sp) args              = NE a $ sp ++ args
+cut d         (APP u      : tl) = cut (app d u) tl
+cut d         (REC ty z s : tl) = cut (rec ty z s d) tl
 
 app :: Dom -> Dom -> Dom
 app (NF (LAM d)) u = d u
 app (NE a sp)    u = NE a $ sp ++ [APP u]
 app _            _ = BT
 
-rec :: Dom -> Dom -> Dom -> Dom
-rec z _ (NF ZRO)     = z
-rec z s (NF (SUC d)) = s `app` d `app` rec z s d
-rec z s (NE a sp)    = NE a $ sp ++ [REC z s]
-rec _ _ _            = BT
+rec :: Dom -> Dom -> Dom -> Dom -> Dom
+rec _  z _ (NF ZRO)     = z
+rec ty z s (NF (SUC d)) = s `app` d `app` rec ty z s d
+rec ty z s (NE a sp)    = NE a $ sp ++ [REC ty z s]
+rec _  _ _ _            = BT
 
 
 
 ----------------------------------------------------
 -- THE REIFICATION PROCESS
--- We turns de Bruijn levels into type-level de Bruijn indices
+-- We turn de Bruijn levels into type-level de Bruijn indices
 -- thanks to a Name Index (ni) mapping already used levels to
 -- the corresponding index and a Name Supply (ns) providing us
 -- fresh names
@@ -148,13 +148,8 @@ reifyAct NAT     _  _ = Nat
 reifyAct SET     _  _ = Set
 
 reifyArg :: ArgDom -> (Int -> a) -> (Int -> Elim a)
-reifyArg (APP t)   ni ns = App $ reify t ni ns
-reifyArg (REC z s) ni ns = Rec aaargh (reify z ni ns) (reify s ni ns)
-  where aaargh = undefined
-        -- We don't know what to do here. Our model is therefore
-        -- pretty bad. In practice, we should retain enough typing
-        -- information + add a type-checking / type-synthesis dynamic
-        -- to the reifications process to be successful.
+reifyArg (APP t)      ni ns = App $ reify t ni ns
+reifyArg (REC ty z s) ni ns = Rec (reify ty ni ns) (reify z ni ns) (reify s ni ns)
 
 instance Show Dom where
   show d = show $ reify d (const ()) 0
@@ -170,7 +165,7 @@ plus =
   lamAbs {- m -} $
   lamAbs {- ns -} $
     Emb $ Cut (Var $ Just Nothing) $
-    [ Rec Nat (var Nothing) (lamAbs $ lamAbs $ Suc $ var Nothing) ]
+    [ Rec (piAbs Nat Nat) (var Nothing) (lamAbs $ lamAbs $ Suc $ var Nothing) ]
 
 four :: Check Void
 four = Emb $ Cut (Ann plus (piAbs Nat $ piAbs Nat $ Nat)) $ [ App two , App two ]
