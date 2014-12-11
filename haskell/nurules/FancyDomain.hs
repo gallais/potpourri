@@ -25,7 +25,7 @@ data Check a =
 data Infer a =
     Var a
   | Cut (Infer a) (Spine a)
-  | Anns (Check a) (Type a)
+  | Ann (Check a) (Type a)
   deriving (Show, Functor)
 
 type Spine a = [Elim a]
@@ -48,7 +48,7 @@ lamAbs :: Check (Maybe a) -> Check a
 lamAbs = Bnd Lam
 
 letAbs :: Type a -> Check a -> Check (Maybe a) -> Check a
-letAbs ty te = Bnd (Let (Anns te ty))
+letAbs ty te = Bnd (Let (Ann te ty))
 
 var :: a -> Check a
 var = Emb . Var
@@ -173,7 +173,7 @@ plus =
     [ Rec Nat (var Nothing) (lamAbs $ lamAbs $ Suc $ var Nothing) ]
 
 four :: Check Void
-four = Emb $ Cut (Anns plus (piAbs Nat $ piAbs Nat $ Nat)) $ [ App two , App two ]
+four = Emb $ Cut (Ann plus (piAbs Nat $ piAbs Nat $ Nat)) $ [ App two , App two ]
   where two = Suc $ Suc Zro
 
 main :: IO ()
