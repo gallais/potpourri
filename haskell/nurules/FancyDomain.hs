@@ -98,6 +98,7 @@ reflect a = NE a []
 
 reify :: Dom a -> Check a
 reify (NF d)    = reifyAct d
+reify (NE a []) = Emb $ Var a
 reify (NE a sp) = Emb $ Cut (Var a) $ fmap reifyArg sp
 
 reifyAct :: ActDom a -> Check a
