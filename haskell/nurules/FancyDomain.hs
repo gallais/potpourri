@@ -5,7 +5,8 @@
 module FancyDomain where
 
 import Context
-import Language
+import qualified Language    as TM
+import qualified NormalForms as NF
 
 ----------------------------------------------------
 -- THE EVALUATION DOMAIN
@@ -45,30 +46,30 @@ data BndDom a = LAM | PI (Dom a)
 
 -- The evaluation functions
 
-evalScope :: Check (Maybe a) -> (a -> Dom b) -> forall c. (b -> c) -> Dom c -> Dom c
+evalScope :: TM.Check (Maybe a) -> (a -> Dom b) -> forall c. (b -> c) -> Dom c -> Dom c
 evalScope t rho wk d = evalCheck t $ maybe d $ fmap (fmap wk) rho
 
-evalBinder :: Binder a -> Check (Maybe a) -> (a -> Dom b) -> Dom b
-evalBinder Lam     t rho = NF $ BND LAM                    $ evalScope t rho
-evalBinder (Pi s)  t rho = NF $ BND (PI $ evalCheck s rho) $ evalScope t rho
-evalBinder (Let u) t rho = evalCheck t $ maybe (evalInfer u rho) rho
+evalBinder :: TM.Binder a -> TM.Check (Maybe a) -> (a -> Dom b) -> Dom b
+evalBinder TM.Lam     t rho = NF $ BND LAM                    $ evalScope t rho
+evalBinder (TM.Pi s)  t rho = NF $ BND (PI $ evalCheck s rho) $ evalScope t rho
+evalBinder (TM.Let u) t rho = evalCheck t $ maybe (evalInfer u rho) rho
 
-evalCheck :: Check a -> (a -> Dom b) -> Dom b
-evalCheck (Bnd bd t) rho = evalBinder bd t rho
-evalCheck Zro        _   = NF ZRO
-evalCheck (Suc n)    rho = NF $ SUC $ evalCheck n rho
-evalCheck (Emb t)    rho = evalInfer t rho
-evalCheck Nat        _   = NF NAT
-evalCheck Set        _   = NF SET
+evalCheck :: TM.Check a -> (a -> Dom b) -> Dom b
+evalCheck (TM.Bnd bd t) rho = evalBinder bd t rho
+evalCheck TM.Zro        _   = NF ZRO
+evalCheck (TM.Suc n)    rho = NF $ SUC $ evalCheck n rho
+evalCheck (TM.Emb t)    rho = evalInfer t rho
+evalCheck TM.Nat        _   = NF NAT
+evalCheck TM.Set        _   = NF SET
 
-evalInfer :: Infer a -> (a -> Dom b) -> Dom b
-evalInfer (Var a)    rho = rho a
-evalInfer (Ann t _)  rho = evalCheck t rho
-evalInfer (Cut t sp) rho = cut (evalInfer t rho) $ fmap (flip evalElim rho) sp
+evalInfer :: TM.Infer a -> (a -> Dom b) -> Dom b
+evalInfer (TM.Var a)    rho = rho a
+evalInfer (TM.Ann t _)  rho = evalCheck t rho
+evalInfer (TM.Cut t sp) rho = cut (evalInfer t rho) $ fmap (flip evalElim rho) sp
 
-evalElim :: Elim a -> (a -> Dom b) -> ArgDom b
-evalElim (App t)      rho = APP $ evalCheck t rho
-evalElim (Rec ty z s) rho = REC (evalCheck ty rho) (evalCheck z rho) (evalCheck s rho)
+evalElim :: TM.Elim a -> (a -> Dom b) -> ArgDom b
+evalElim (TM.App t)      rho = APP $ evalCheck t rho
+evalElim (TM.Rec ty z s) rho = REC (evalCheck ty rho) (evalCheck z rho) (evalCheck s rho)
 
 cut :: Dom a -> [ArgDom a] -> Dom a
 cut d         []                = d
@@ -96,25 +97,25 @@ rec _  _ _ _            = BT
 reflect :: a -> Dom a
 reflect a = NE a []
 
-reify :: Dom a -> Check a
+reify :: Dom a -> NF.Nf a
 reify (NF d)    = reifyAct d
-reify (NE a []) = Emb $ Var a
-reify (NE a sp) = Emb $ Cut (Var a) $ fmap reifyArg sp
+reify (NE a []) = NF.Emb $ NF.Var a
+reify (NE a sp) = NF.Emb $ NF.Cut a $ fmap reifyArg sp
 
-reifyAct :: ActDom a -> Check a
-reifyAct (BND LAM    d) = lamAbs          $ reify $ d Just $ reflect Nothing
-reifyAct (BND (PI s) d) = piAbs (reify s) $ reify $ d Just $ reflect Nothing
-reifyAct (SUC d)        = Suc $ reify d
-reifyAct ZRO            = Zro
-reifyAct NAT            = Nat
-reifyAct SET            = Set
+reifyAct :: ActDom a -> NF.Nf a
+reifyAct (BND LAM    d) = NF.lamAbs          $ reify $ d Just $ reflect Nothing
+reifyAct (BND (PI s) d) = NF.piAbs (reify s) $ reify $ d Just $ reflect Nothing
+reifyAct (SUC d)        = NF.Suc $ reify d
+reifyAct ZRO            = NF.Zro
+reifyAct NAT            = NF.Nat
+reifyAct SET            = NF.Set
 
-reifyArg :: ArgDom a -> Elim a
-reifyArg (APP t)      = App $ reify t
-reifyArg (REC ty z s) = Rec (reify ty) (reify z) (reify s)
+reifyArg :: ArgDom a -> NF.Elim a
+reifyArg (APP t)      = NF.App $ reify t
+reifyArg (REC ty z s) = NF.Rec (reify ty) (reify z) (reify s)
 
 instance Show a => Show (Dom a) where
   show d = show $ reify d
 
-norm :: ValidContext a => Check a -> Check a
+norm :: ValidContext a => TM.Check a -> NF.Nf a
 norm t = reify $ evalCheck t $ diag (reflect Nothing)

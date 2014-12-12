@@ -46,4 +46,4 @@ main = do
   print $ llv
   putStrLn "equals?"
   print $ llvv
-  print $ eqCheck llv llvv
+  print $ eqNf (norm llv) (norm llvv)
