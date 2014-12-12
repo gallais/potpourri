@@ -4,56 +4,8 @@
 
 module FancyDomain where
 
-import Data.Void
-
-----------------------------------------------------
--- THE LANGUAGE
--- We divide the language between checkable terms and inferrable
--- ones.
-----------------------------------------------------
-
-type Type a = Check a
-
-data Check a =
-    Bnd (Binder a) (Check (Maybe a))
-  | Zro
-  | Suc (Check a)
-  | Emb (Infer a)
-  | Nat
-  | Set
-  deriving (Show, Functor)
-
-data Infer a =
-    Var a
-  | Cut (Infer a) (Spine a)
-  | Ann (Check a) (Type a)
-  deriving (Show, Functor)
-
-type Spine a = [Elim a]
-
-data Elim a =
-    App (Check a)
-  | Rec (Type a) (Check a) (Check a)
-  deriving (Show, Functor)
-
-data Binder a =
-    Lam
-  | Pi  (Type a)
-  | Let (Infer a)
-  deriving (Show, Functor)
-
-piAbs :: Type a -> Type (Maybe a) -> Type a
-piAbs a = Bnd (Pi a)
-
-lamAbs :: Check (Maybe a) -> Check a
-lamAbs = Bnd Lam
-
-letAbs :: Type a -> Check a -> Check (Maybe a) -> Check a
-letAbs ty te = Bnd (Let (Ann te ty))
-
-var :: a -> Check a
-var = Emb . Var
-
+import Context
+import Language
 
 ----------------------------------------------------
 -- THE EVALUATION DOMAIN
@@ -163,34 +115,5 @@ reifyArg (REC ty z s) = Rec (reify ty) (reify z) (reify s)
 instance Show a => Show (Dom a) where
   show d = show $ reify d
 
-norm :: Check Void -> Check Void
-norm t = reify $ evalCheck t absurd
-
-
--- examples!
-
-idType :: Check a
-idType = piAbs Set $ piAbs (var Nothing) $ var $ Just Nothing
-
-plus :: Check a
-plus =
-  lamAbs {- m -} $
-  lamAbs {- n -} $
-    Emb $ Cut (Var $ Just Nothing) $
-    [ Rec (piAbs Nat Nat) (var Nothing) (lamAbs $ lamAbs $ Suc $ var Nothing) ]
-
-four :: Check a
-four = Emb $ Cut (Ann plus (piAbs Nat $ piAbs Nat $ Nat)) $ [ App two , App two ]
-  where two = Suc $ Suc Zro
-
-main :: IO ()
-main = do
-  print $ (four :: Check Void)
-  putStrLn "reduces to..."
-  print $ norm four
-  let beta :: Check Void
-      beta = Emb $ Cut (Ann idType Set) [ App Nat ]
-  print beta
-  putStrLn "reduces to..."
-  print $ norm beta
-
+norm :: ValidContext a => Check a -> Check a
+norm t = reify $ evalCheck t $ diag (reflect Nothing)
