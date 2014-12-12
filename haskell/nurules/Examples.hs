@@ -5,9 +5,13 @@ module Examples where
 import Data.Void
 import Language
 import FancyDomain
+import Equality
 
 idType :: Check a
 idType = piAbs Set $ piAbs (var Nothing) $ var $ Just Nothing
+
+idTerm :: Check a
+idTerm = lamAbs $ lamAbs $ var Nothing
 
 plus :: Check a
 plus =
@@ -30,7 +34,16 @@ main = do
   print twoTwice
   putStrLn "reduces to..."
   print $ norm twoTwice
+
   print idNat
   putStrLn "reduces to..."
   print $ norm idNat
 
+  let llv :: Check Void
+      llv = lamAbs $ Emb $ Var Nothing
+      llvv :: Check Void
+      llvv = lamAbs $ lamAbs $ Emb $ Cut (Var $ Just Nothing) [ App (Emb $ Var Nothing) ]
+  print $ llv
+  putStrLn "equals?"
+  print $ llvv
+  print $ eqCheck llv llvv
