@@ -1,5 +1,6 @@
 {-# OPTIONS  -Wall         #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE RankNTypes    #-}
 
 module FancyDomain where
 
@@ -56,36 +57,51 @@ var = Emb . Var
 
 ----------------------------------------------------
 -- THE EVALUATION DOMAIN
+-- We opt for a well-scoped by construction approach which lets us
+-- avoid the back-and-forth motion bewteen de Bruijn levels / indices
+-- typical of name generation-based approaches.
+-- This is made possible by the typical Kripke structure of the BND
+-- construct taking into account all possible future extensions of
+-- the current scope.
 ----------------------------------------------------
 
-data Dom =
-    NF ActDom
-  | NE Int [ArgDom] -- This is a very crude approximation
+data Dom a =
+    NF (ActDom a)
+  | NE a [ArgDom a] -- This is a very crude approximation
                     -- It is convenient to have spines to implement cut
                     -- but we would like to be able to pattern-match on
                     -- the right hand side in order to implement nu-rules
                     -- easily
   | BT
+  deriving Functor
 
-data ArgDom =
-    APP Dom
-  | REC Dom Dom Dom
+data ArgDom a =
+    APP (Dom a)
+  | REC (Dom a) (Dom a) (Dom a)
+  deriving Functor
 
-data ActDom =
-    LAM (Dom -> Dom)
-  | SUC Dom
+data ActDom a =
+    BND (BndDom a) (forall b. (a -> b) -> Dom b -> Dom b)
+  | SUC (Dom a)
   | ZRO
   | NAT
   | SET
+  deriving Functor
+
+data BndDom a = LAM | PI (Dom a)
+  deriving Functor
 
 -- The evaluation functions
 
-evalBinder :: Binder a -> Check (Maybe a) -> (a -> Dom) -> Dom
-evalBinder Lam     t rho = NF $ LAM $ \ d -> evalCheck t (maybe d rho)
-evalBinder (Pi _)  t rho = NF $ LAM $ \ d -> evalCheck t (maybe d rho)
-evalBinder (Let u) t rho = evalCheck t (maybe (evalInfer u rho) rho)
+evalScope :: Check (Maybe a) -> (a -> Dom b) -> forall c. (b -> c) -> Dom c -> Dom c
+evalScope t rho wk d = evalCheck t $ maybe d $ fmap (fmap wk) rho
 
-evalCheck :: Check a -> (a -> Dom) -> Dom
+evalBinder :: Binder a -> Check (Maybe a) -> (a -> Dom b) -> Dom b
+evalBinder Lam     t rho = NF $ BND LAM                    $ evalScope t rho
+evalBinder (Pi s)  t rho = NF $ BND (PI $ evalCheck s rho) $ evalScope t rho
+evalBinder (Let u) t rho = evalCheck t $ maybe (evalInfer u rho) rho
+
+evalCheck :: Check a -> (a -> Dom b) -> Dom b
 evalCheck (Bnd bd t) rho = evalBinder bd t rho
 evalCheck Zro        _   = NF ZRO
 evalCheck (Suc n)    rho = NF $ SUC $ evalCheck n rho
@@ -93,72 +109,68 @@ evalCheck (Emb t)    rho = evalInfer t rho
 evalCheck Nat        _   = NF NAT
 evalCheck Set        _   = NF SET
 
-evalInfer :: Infer a -> (a -> Dom) -> Dom
+evalInfer :: Infer a -> (a -> Dom b) -> Dom b
 evalInfer (Var a)    rho = rho a
 evalInfer (Ann t _)  rho = evalCheck t rho
-evalInfer (Cut t sp) rho = cut (evalInfer t rho) $ fmap (\ el -> evalElim el rho) sp
+evalInfer (Cut t sp) rho = cut (evalInfer t rho) $ fmap (flip evalElim rho) sp
 
-evalElim :: Elim a -> (a -> Dom) -> ArgDom
+evalElim :: Elim a -> (a -> Dom b) -> ArgDom b
 evalElim (App t)      rho = APP $ evalCheck t rho
 evalElim (Rec ty z s) rho = REC (evalCheck ty rho) (evalCheck z rho) (evalCheck s rho)
 
-cut :: Dom -> [ArgDom] -> Dom
+cut :: Dom a -> [ArgDom a] -> Dom a
 cut d         []                = d
 cut BT        _                 = BT
 cut (NE a sp) args              = NE a $ sp ++ args
 cut d         (APP u      : tl) = cut (app d u) tl
 cut d         (REC ty z s : tl) = cut (rec ty z s d) tl
 
-app :: Dom -> Dom -> Dom
-app (NF (LAM d)) u = d u
-app (NE a sp)    u = NE a $ sp ++ [APP u]
-app _            _ = BT
+app :: Dom a -> Dom a -> Dom a
+app (NF (BND _ d)) u = d id u
+app (NE a sp)      u = NE a $ sp ++ [APP u]
+app _              _ = BT
 
-rec :: Dom -> Dom -> Dom -> Dom -> Dom
+rec :: Dom a -> Dom a -> Dom a -> Dom a -> Dom a
 rec _  z _ (NF ZRO)     = z
 rec ty z s (NF (SUC d)) = s `app` d `app` rec ty z s d
 rec ty z s (NE a sp)    = NE a $ sp ++ [REC ty z s]
 rec _  _ _ _            = BT
 
 
-
 ----------------------------------------------------
 -- THE REIFICATION PROCESS
--- We turn de Bruijn levels into type-level de Bruijn indices
--- thanks to a Name Index (ni) mapping already used levels to
--- the corresponding index and a Name Supply (ns) providing us
--- fresh names
 ----------------------------------------------------
 
-reflect :: Int -> Dom
-reflect ns = NE ns []
+reflect :: a -> Dom a
+reflect a = NE a []
 
-reify :: Dom -> (Int -> a) -> (Int -> Check a)
-reify (NF d)    ni ns = reifyAct d ni ns
-reify (NE a sp) ni ns = Emb $ Cut (Var $ ni a) $ fmap (\ arg -> reifyArg arg ni ns) sp
+reify :: Dom a -> Check a
+reify (NF d)    = reifyAct d
+reify (NE a sp) = Emb $ Cut (Var a) $ fmap reifyArg sp
 
-extend :: (Int -> a) -> Int -> (Int -> Maybe a)
-extend ni ns m = if ns == m then Nothing else Just (ni m)
+reifyAct :: ActDom a -> Check a
+reifyAct (BND LAM    d) = lamAbs          $ reify $ d Just $ reflect Nothing
+reifyAct (BND (PI s) d) = piAbs (reify s) $ reify $ d Just $ reflect Nothing
+reifyAct (SUC d)        = Suc $ reify d
+reifyAct ZRO            = Zro
+reifyAct NAT            = Nat
+reifyAct SET            = Set
 
-reifyAct :: ActDom -> (Int -> a) -> (Int -> Check a)
-reifyAct (LAM d) ni ns = lamAbs $ reify (d $ reflect ns) (extend ni ns) $ ns + 1
-reifyAct (SUC d) ni ns = Suc $ reify d ni ns
-reifyAct ZRO     _  _ = Zro
-reifyAct NAT     _  _ = Nat
-reifyAct SET     _  _ = Set
+reifyArg :: ArgDom a -> Elim a
+reifyArg (APP t)      = App $ reify t
+reifyArg (REC ty z s) = Rec (reify ty) (reify z) (reify s)
 
-reifyArg :: ArgDom -> (Int -> a) -> (Int -> Elim a)
-reifyArg (APP t)      ni ns = App $ reify t ni ns
-reifyArg (REC ty z s) ni ns = Rec (reify ty ni ns) (reify z ni ns) (reify s ni ns)
-
-instance Show Dom where
-  show d = show $ reify d (const ()) 0
+instance Show a => Show (Dom a) where
+  show d = show $ reify d
 
 norm :: Check Void -> Check Void
-norm t = reify (evalCheck t absurd) undefined 0
+norm t = reify $ evalCheck t absurd
 
 
 -- examples!
+
+idType :: Check a
+idType = piAbs Set $ piAbs (var Nothing) $ var $ Just Nothing
 
 plus :: Check a
 plus =
@@ -167,13 +179,18 @@ plus =
     Emb $ Cut (Var $ Just Nothing) $
     [ Rec (piAbs Nat Nat) (var Nothing) (lamAbs $ lamAbs $ Suc $ var Nothing) ]
 
-four :: Check Void
+four :: Check a
 four = Emb $ Cut (Ann plus (piAbs Nat $ piAbs Nat $ Nat)) $ [ App two , App two ]
   where two = Suc $ Suc Zro
 
 main :: IO ()
 main = do
-  print four
+  print $ (four :: Check Void)
   putStrLn "reduces to..."
   print $ norm four
+  let beta :: Check Void
+      beta = Emb $ Cut (Ann idType Set) [ App Nat ]
+  print beta
+  putStrLn "reduces to..."
+  print $ norm beta
 
