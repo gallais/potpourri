@@ -117,5 +117,9 @@ reifyArg (REC ty z s) = NF.Rec (reify ty) (reify z) (reify s)
 instance Show a => Show (Dom a) where
   show d = show $ reify d
 
-norm :: ValidContext a => TM.Check a -> NF.Nf a
-norm t = reify $ evalCheck t $ diag (reflect Nothing)
+
+normInfer :: ValidContext a => TM.Infer a -> NF.Nf a
+normInfer t = reify $ evalInfer t $ diag (reflect Nothing)
+
+normCheck :: ValidContext a => TM.Check a -> NF.Nf a
+normCheck t = reify $ evalCheck t $ diag (reflect Nothing)

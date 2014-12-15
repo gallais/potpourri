@@ -50,3 +50,7 @@ letAbs ty te = Bnd (Let (Ann te ty))
 
 var :: a -> Check a
 var = Emb . Var
+
+appInfer :: Infer a -> Elim a -> Infer a
+appInfer (Cut a sp) el = Cut a $ sp ++ [el]
+appInfer t          el = Cut t $ [el]
