@@ -14,24 +14,24 @@ data Nf a =
   | Emb (Ne a)
   | Nat
   | Set
-  deriving (Show, Functor)
+  deriving Functor
 
 data Ne a =
     Var a
   | Cut a (Spine a)
-  deriving (Show, Functor)
+  deriving Functor
 
 type Spine a = [Elim a]
 
 data Elim a =
     App (Nf a)
   | Rec (Type a) (Nf a) (Nf a)
-  deriving (Show, Functor)
+  deriving Functor
 
 data Binder a =
     Lam
   | Pi  (Type a)
-  deriving (Show, Functor)
+  deriving Functor
 
 piAbs :: Type a -> Type (Maybe a) -> Type a
 piAbs a = Bnd (Pi a)
@@ -63,3 +63,6 @@ eraseElim (Rec ty z s) = TM.Rec (eraseNf ty) (eraseNf z) (eraseNf s)
 eraseBinder :: Binder a -> TM.Binder a
 eraseBinder (Pi s) = TM.Pi $ eraseNf s
 eraseBinder Lam    = TM.Lam
+
+instance Show (Nf a) where
+  show = show . eraseNf
