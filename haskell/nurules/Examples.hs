@@ -87,3 +87,7 @@ main = do
           , TypeCheck (Nat                      , eight)
           , Eval      eight
           ]
+-- printing open terms:
+  print $ (Emb $ Cut (Ann plus (piAbs Nat $ piAbs Nat $ Nat))
+                 [ App (Suc $ Suc $ Suc $ var Nothing), App four ]
+          :: Check (Maybe Void))

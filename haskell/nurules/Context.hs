@@ -27,3 +27,8 @@ diag emb = go witness
     go :: forall b. Context b -> b -> f b
     go None     = absurd
     go (Bind c) = maybe emb $ fmap Just . go c
+
+freshNames :: Context a -> [String] -> ([String], a -> String)
+freshNames None     xs       = (xs, absurd)
+freshNames (Bind c) (x : xs) = (ns, maybe x vars)
+  where (ns, vars) = freshNames c xs

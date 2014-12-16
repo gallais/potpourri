@@ -3,6 +3,8 @@
 
 module Language where
 
+import Context
+
 ----------------------------------------------------
 -- THE LANGUAGE
 -- We divide the language between checkable terms and inferrable
@@ -75,7 +77,7 @@ ppInfer ns vars (Ann t ty) = '(' : ppCheck ns vars t ++ " : " ++ ppCheck ns vars
 
 ppBinder :: String -> [String] -> (a -> String) -> Binder a -> String
 ppBinder n ns vars (Pi s)  = '(' : n ++ " : " ++ ppCheck ns vars s ++ ") ->"
-ppBinder n ns vars Lam     = '\\' : n ++ "."
+ppBinder n _  _    Lam     = '\\' : n ++ "."
 ppBinder n ns vars (Let s) = "let " ++ n ++ " = " ++ ppInfer ns vars s ++ " in\n"
 
 ppElims :: [String] -> (a -> String) -> String -> Spine a -> String
@@ -85,5 +87,7 @@ ppElim :: [String] -> (a -> String) -> String -> Elim a -> String
 ppElim ns vars t (App u)     = '(' : t ++ ") $ " ++ ppCheck ns vars u
 ppElim ns vars t (Rec p z s) = "Rec[ " ++ ppCheck ns vars z ++ ", " ++ ppCheck ns vars s ++ " ] " ++ t
 
-instance Show (Check a) where
-  show = ppCheck (fmap (:[]) ['a'..'z']) undefined
+instance ValidContext a => Show (Check a) where
+  show t =
+    let (ns, vars) = freshNames witness $ fmap (:[]) ['a'..'z'] in
+    ppCheck ns vars t

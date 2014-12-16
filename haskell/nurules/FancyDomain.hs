@@ -114,7 +114,7 @@ reifyArg :: ArgDom a -> NF.Elim a
 reifyArg (APP t)      = NF.App $ reify t
 reifyArg (REC ty z s) = NF.Rec (reify ty) (reify z) (reify s)
 
-instance Show a => Show (Dom a) where
+instance (ValidContext a, Show a) => Show (Dom a) where
   show d = show $ reify d
 
 

@@ -3,6 +3,7 @@
 
 module NormalForms where
 
+import Context
 import qualified Language as TM
 
 type Type a = Nf a
@@ -64,5 +65,5 @@ eraseBinder :: Binder a -> TM.Binder a
 eraseBinder (Pi s) = TM.Pi $ eraseNf s
 eraseBinder Lam    = TM.Lam
 
-instance Show (Nf a) where
+instance ValidContext a => Show (Nf a) where
   show = show . eraseNf
