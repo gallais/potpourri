@@ -128,11 +128,25 @@ fact n = [fmap] toNat $ ⟦ `app `fact (`Nat n) ⟧ []
   where
     `fact =
       `rec $
-        let fact = `var $ Fin.zero
-            n    = `var $ Fin.suc $ Fin.zero
+        let fact = `var Fin.zero
+            n    = `var $ Fin.suc Fin.zero
         in `ifte (`Op n `= (`Nat 0))
                  (`Nat 1)
                  (`Op n `* (`app fact (`Op n `- (`Nat 1))))
+
+ack : ℕ → ℕ → Outcome ∞ ℕ
+ack m n = [fmap] toNat $ ⟦ `app (`app `ack (`Nat m)) (`Nat n) ⟧ []
+  where
+    `ack =
+      `rec $ `rec $
+        let ack = `var $ Fin.suc $ Fin.suc $ Fin.zero
+            m   = `var $ Fin.suc $ Fin.suc $ Fin.suc $ Fin.zero
+            n   = `var $ Fin.suc Fin.zero
+        in `ifte (`Op m `= (`Nat 0))
+                 (`Op n `+ (`Nat 1))
+                 (`ifte (`Op n `= (`Nat 0))
+                        (`app (`app ack (`Op m `- (`Nat 1))) (`Nat 1))
+                        (`app (`app ack (`Op m `- (`Nat 1))) (`app (`app ack m) (`Op n `- (`Nat 1)))))
 
 open import Data.Maybe
 
@@ -141,3 +155,6 @@ open import Data.Maybe
 
 `24 : Maybe (Result ℕ)
 `24 = run[Delay] 5 $ fact 4
+
+`5 : Maybe (Result ℕ)
+`5 = run[Delay] 25 $ ack 3 0
