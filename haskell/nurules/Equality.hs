@@ -2,6 +2,9 @@
 
 module Equality where
 
+import Data.Foldable as Fold
+import Data.Sequence as Seq
+
 import Context
 import NormalForms
 import qualified Language    as TM
@@ -9,8 +12,8 @@ import qualified FancyDomain as FD
 
 
 etaLam :: Ne a -> Nf a
-etaLam (Var a)    = Bnd Lam $ Emb $ Cut (Just a) [ App (Emb $ Var Nothing) ]
-etaLam (Cut a sp) = Bnd Lam $ Emb $ Cut (Just a) $ fmap (fmap Just) sp ++ [ App (Emb $ Var Nothing) ]
+etaLam (Var a)    = Bnd Lam $ Emb $ Cut (Just a) $ singleton $ App (Emb $ Var Nothing)
+etaLam (Cut a sp) = Bnd Lam $ Emb $ Cut (Just a) $ fmap (fmap Just) sp |> App (Emb $ Var Nothing)
 
 eqEta :: Eq a => Nf a -> Ne a -> Bool
 eqEta t@(Bnd Lam _) u = eqNf t $ etaLam u
@@ -36,7 +39,9 @@ eqNe (Cut a sp) (Cut b sq) = a == b && eqSpine sp sq
 eqNe _          _          = False
 
 eqSpine :: Eq a => Spine a -> Spine a -> Bool
-eqSpine sp sq = and $ zipWith eqElim sp sq
+eqSpine sp sq =
+  Seq.length sp == Seq.length sq
+  && Fold.and (Seq.zipWith eqElim sp sq)
 
 eqElim :: Eq a => Elim a -> Elim a -> Bool
 eqElim (App t)     (App u)     = eqNf t u

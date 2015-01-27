@@ -2,8 +2,9 @@
 
 module Examples where
 
+import Data.Sequence as Seq (fromList)
 import Data.Void
-import Data.List
+import Data.List as List
 import Language
 import TypeCheck
 import FancyDomain
@@ -18,18 +19,18 @@ plus :: Check a
 plus =
   lamAbs {- m -} $
   lamAbs {- n -} $
-    Emb $ Cut (Var $ Just Nothing) $
+    Emb $ Cut (Var $ Just Nothing) $ fromList
     [ Rec (lamAbs Nat) (var Nothing) (lamAbs $ lamAbs $ Suc $ var Nothing) ]
 
 four :: Check a
-four = Emb $ Cut (Ann plus (piAbs Nat $ piAbs Nat $ Nat)) $ [ App two , App two ]
+four = Emb $ Cut (Ann plus (piAbs Nat $ piAbs Nat $ Nat)) $ fromList [ App two , App two ]
   where two = Suc $ Suc Zro
 
 eight :: Check a
 eight =
   Bnd (Let $ Ann plus $ piAbs Nat $ piAbs Nat Nat) $
   Bnd (Let $ Ann four Nat) $
-  Emb $ Cut (Var $ Just Nothing) [ App (var Nothing) , App (var Nothing) ]
+  Emb $ Cut (Var $ Just Nothing) $ fromList [ App (var Nothing) , App (var Nothing) ]
 
 data Example =
     TypeCheck (Type Void, Check Void)
@@ -88,6 +89,6 @@ main = do
           , Eval      eight
           ]
 -- printing open terms:
-  print $ (Emb $ Cut (Ann plus (piAbs Nat $ piAbs Nat $ Nat))
+  print $ (Emb $ Cut (Ann plus (piAbs Nat $ piAbs Nat $ Nat)) $ fromList
                  [ App (Suc $ Suc $ Suc $ var Nothing), App four ]
           :: Check (Maybe Void))

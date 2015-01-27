@@ -3,6 +3,8 @@
 
 module Language where
 
+import Data.Foldable as Fold
+import Data.Sequence
 import Context
 
 ----------------------------------------------------
@@ -28,7 +30,7 @@ data Infer a =
   | Ann (Check a) (Type a)
   deriving (Show, Functor)
 
-type Spine a = [Elim a]
+type Spine a = Seq (Elim a)
 
 data Elim a =
     App (Check a)
@@ -54,8 +56,8 @@ var :: a -> Check a
 var = Emb . Var
 
 appInfer :: Infer a -> Elim a -> Infer a
-appInfer (Cut a sp) el = Cut a $ sp ++ [el]
-appInfer t          el = Cut t $ [el]
+appInfer (Cut a sp) el = Cut a $ sp |> el
+appInfer t          el = Cut t $ singleton el
 
 ppCheck :: [String] -> (a -> String) -> Check a -> String
 ppCheck (n : ns) vars (Bnd bd t) = ppBinder n ns vars bd ++ ' ' : ppCheck ns (maybe n vars) t
@@ -81,11 +83,11 @@ ppBinder n _  _    Lam     = '\\' : n ++ "."
 ppBinder n ns vars (Let s) = "let " ++ n ++ " = " ++ ppInfer ns vars s ++ " in\n"
 
 ppElims :: [String] -> (a -> String) -> String -> Spine a -> String
-ppElims ns vars = foldl (ppElim ns vars)
+ppElims ns vars = Fold.foldl (ppElim ns vars)
 
 ppElim :: [String] -> (a -> String) -> String -> Elim a -> String
 ppElim ns vars t (App u)     = '(' : t ++ ") $ " ++ ppCheck ns vars u
-ppElim ns vars t (Rec p z s) = "Rec[ " ++ ppCheck ns vars z ++ ", " ++ ppCheck ns vars s ++ " ] " ++ t
+ppElim ns vars t (Rec _ z s) = "Rec[ " ++ ppCheck ns vars z ++ ", " ++ ppCheck ns vars s ++ " ] " ++ t
 
 instance ValidContext a => Show (Check a) where
   show t =

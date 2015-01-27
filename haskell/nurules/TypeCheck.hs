@@ -1,5 +1,8 @@
 module TypeCheck where
 
+import Data.Foldable as Fold
+import Data.Sequence as Seq
+
 import Context
 import Language
 import NormalForms (eraseNf)
@@ -7,7 +10,6 @@ import FancyDomain
 import Equality
 
 import Control.Monad
-
 
 substCheck :: (a -> Infer b) -> Check a -> Check b
 substCheck _   Set        = Set
@@ -30,7 +32,6 @@ substBinder :: (a -> Infer b) -> Binder a -> Binder b
 substBinder _   Lam     = Lam
 substBinder ctx (Pi s)  = Pi $ substCheck ctx s
 substBinder ctx (Let s) = Let $ substInfer ctx s
-
 
 (#~) :: Functor f => (a -> f b) -> f b -> (Maybe a -> f b)
 ctx #~ ty = maybe ty ctx
@@ -61,20 +62,22 @@ infer ctx (Cut t sp) = infer ctx t >>= \ ty -> elims ctx ty t sp
 infer ctx (Ann t ty) = check ctx ty t >> return ty
 
 elims :: (Eq a, ValidContext a) => (a -> Type a) -> Type a -> Infer a -> Spine a -> Maybe (Type a)
-elims ctx ty t = fmap fst . foldl (\ m el -> m >>= elim ctx el) (Just (eraseNf (normCheck ty), t))
+elims ctx ty t = fmap fst . Fold.foldl (\ m el -> m >>= elim ctx el) (Just (eraseNf (normCheck ty), t))
 
 elim :: (Eq a, ValidContext a) => (a -> Type a) -> Elim a -> (Type a, Infer a) -> Maybe (Type a, Infer a)
 elim ctx el@(App u)     (Bnd (Pi s) t, te) =
   check ctx s u >> return (substCheck (Var #~ Ann u s) t, appInfer te el)
 elim ctx el@(Rec p z s) (Nat, te)          =
   let piNatSet = Bnd (Pi Nat) Set
-      indBase  = eraseNf $ normCheck $ Emb $ Cut (Ann p piNatSet) [ App Zro ]
+      indBase  = eraseNf $ normCheck $ Emb $ Cut (Ann p piNatSet) $ singleton $ App Zro
       indHypo  = eraseNf $ normCheck $
-                   Bnd (Pi Nat) $ Bnd (Pi $ Emb $ Cut (Ann (fmap Just p) piNatSet) [ App $ var Nothing ])
-                                $ Emb $ Cut (Ann (fmap (Just . Just) p) piNatSet) [ App $ Suc $ var Nothing ]
+                   Bnd (Pi Nat) $ Bnd (Pi $ Emb $ Cut (Ann (fmap Just p) piNatSet)
+                                                      $ singleton $ App $ var Nothing)
+                                $ Emb $ Cut (Ann (fmap (Just . Just) p) piNatSet)
+                                            $ singleton $ App $ Suc $ var Nothing
   in check ctx piNatSet p >>
      check ctx indBase z  >>
      check ctx indHypo s  >>
-     return (eraseNf (normInfer (Cut (Ann p piNatSet) [ App (Emb te) ]))
+     return (eraseNf (normInfer (Cut (Ann p piNatSet) $ singleton $ App (Emb te)))
             , appInfer te el)
 elim _ _ _ = Nothing

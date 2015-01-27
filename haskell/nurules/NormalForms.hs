@@ -3,6 +3,8 @@
 
 module NormalForms where
 
+import Data.Sequence
+
 import Context
 import qualified Language as TM
 
@@ -15,24 +17,24 @@ data Nf a =
   | Emb (Ne a)
   | Nat
   | Set
-  deriving Functor
+  deriving (Eq, Functor)
 
 data Ne a =
     Var a
   | Cut a (Spine a)
-  deriving Functor
+  deriving (Eq, Functor)
 
-type Spine a = [Elim a]
+type Spine a = Seq (Elim a)
 
 data Elim a =
     App (Nf a)
   | Rec (Type a) (Nf a) (Nf a)
-  deriving Functor
+  deriving (Eq, Functor)
 
 data Binder a =
     Lam
   | Pi  (Type a)
-  deriving Functor
+  deriving (Eq, Functor)
 
 piAbs :: Type a -> Type (Maybe a) -> Type a
 piAbs a = Bnd (Pi a)

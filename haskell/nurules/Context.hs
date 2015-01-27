@@ -11,6 +11,11 @@ data Context a where
   None :: Context Void
   Bind :: Context a -> Context (Maybe a)
 
+isEmpty :: Context a -> Bool
+isEmpty None = True
+isEmpty _    = False
+
+
 class ValidContext a where
   witness :: Context a
 

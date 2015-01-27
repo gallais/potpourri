@@ -4,6 +4,8 @@
 
 module FancyDomain where
 
+import Data.Sequence as Seq
+
 import Context
 import qualified Language    as TM
 import qualified NormalForms as NF
@@ -20,11 +22,7 @@ import qualified NormalForms as NF
 
 data Dom a =
     NF (ActDom a)
-  | NE a [ArgDom a] -- This is a very crude approximation
-                    -- It is convenient to have spines to implement cut
-                    -- but we would like to be able to pattern-match on
-                    -- the right hand side in order to implement nu-rules
-                    -- easily
+  | NE a (Seq (ArgDom a))
   | BT
   deriving Functor
 
@@ -71,22 +69,24 @@ evalElim :: TM.Elim a -> (a -> Dom b) -> ArgDom b
 evalElim (TM.App t)      rho = APP $ evalCheck t rho
 evalElim (TM.Rec ty z s) rho = REC (evalCheck ty rho) (evalCheck z rho) (evalCheck s rho)
 
-cut :: Dom a -> [ArgDom a] -> Dom a
-cut d         []                = d
-cut BT        _                 = BT
-cut (NE a sp) args              = NE a $ sp ++ args
-cut d         (APP u      : tl) = cut (app d u) tl
-cut d         (REC ty z s : tl) = cut (rec ty z s d) tl
+cut :: Dom a -> Seq (ArgDom a) -> Dom a
+cut BT        _    = BT
+cut (NE a sp) args = NE a $ sp >< args
+cut d         args =
+  case viewl args of
+    EmptyL             -> d
+    (APP u :< tl)      -> cut (app d u) tl
+    (REC ty z s :< tl) -> cut (rec ty z s d) tl
 
 app :: Dom a -> Dom a -> Dom a
 app (NF (BND _ d)) u = d id u
-app (NE a sp)      u = NE a $ sp ++ [APP u]
+app (NE a sp)      u = NE a $ sp |> APP u
 app _              _ = BT
 
 rec :: Dom a -> Dom a -> Dom a -> Dom a -> Dom a
 rec _  z _ (NF ZRO)     = z
 rec ty z s (NF (SUC d)) = s `app` d `app` rec ty z s d
-rec ty z s (NE a sp)    = NE a $ sp ++ [REC ty z s]
+rec ty z s (NE a sp)    = NE a $ sp |> REC ty z s
 rec _  _ _ _            = BT
 
 
@@ -95,12 +95,13 @@ rec _  _ _ _            = BT
 ----------------------------------------------------
 
 reflect :: a -> Dom a
-reflect a = NE a []
+reflect a = NE a empty
 
 reify :: Dom a -> NF.Nf a
-reify (NF d)    = reifyAct d
-reify (NE a []) = NF.Emb $ NF.Var a
-reify (NE a sp) = NF.Emb $ NF.Cut a $ fmap reifyArg sp
+reify (NF d) = reifyAct d
+reify (NE a sp)
+  | Seq.null sp = NF.Emb $ NF.Var a
+  | otherwise   = NF.Emb $ NF.Cut a $ fmap reifyArg sp
 
 reifyAct :: ActDom a -> NF.Nf a
 reifyAct (BND LAM    d) = NF.lamAbs          $ reify $ d Just $ reflect Nothing
