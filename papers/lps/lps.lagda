@@ -1,8 +1,7 @@
-\documentclass[preprint]{sigplanconf}
-%\documentclass{article}
+
+\documentclass[a4paper,english]{lipics}
 \usepackage{amsthm, amsmath}
 \usepackage{mathpartir}
-\usepackage[english]{babel}
 \usepackage[references]{agda}
 \usepackage{hyperref}
 
@@ -15,15 +14,26 @@
 \setmathfont{XITS Math}
 
 \input{commands.tex}
+\usepackage{microtype}
 
+% Author macros::begin %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \title{Certified Proof Search for Intuitionistic Linear Logic}
 
-\authorinfo{}{}{}
+\author[1]{Guillaume Allais}
+\author[1]{Conor McBride}
+\affil[1]{University of Strathclyde\\
+  Glasgow, Scotland\\
+  \texttt{\{guillaume.allais, conor.mcbride\}@strath.ac.uk}}
+
+\authorrunning{G. Allais and C. McBride}
+\Copyright{Guillaume Allais, Conor McBride}
+
+\subjclass{F.4.1 Mathematical Logic}
+
+\keywords{Agda, Proof Search, Linear Logic, Certified programming}
+% Author macros::end %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
-\input{header.tex}
-
-
 \maketitle
 
 \begin{abstract}
@@ -38,7 +48,7 @@ Linear Logic (ILL onwards) and the tool we use to construct
 the search procedure is Agda (but any reasonable type theory
 equipped with inductive families would do). The example is
 simple but already powerful enough to derive a solver for
-equations over a commutative monoid from it.
+equations over a commutative monoid from a restriction of it.
 \end{abstract}
 
 \section{Introduction}
@@ -48,13 +58,13 @@ inductive families~\cite{dybjer1994inductive} is expressive
 enough that one can implement \emph{certified} proof search
 algorithms which are not merely oracles outputting a one bit
 answer but full-blown automated provers producing derivations
-which are statically known to be correct~\cite{boutin1997using}.
+which are statically known to be correct~\cite{boutin1997using,pollack1995extensibility}.
 It is only natural to delve into the literature to try and find
 decidability proofs which, through the Curry-Howard correspondence,
 could make good candidates for mechanisation (see e.g. Pierre
 Crégut's work on Presburger arithmetic~\cite{cregut2004procedure}).
 Reality is however not as welcoming as one would hope: most of
-these proofs have not been formulated with formalisation in mind
+these proofs have not been formulated with mechanisation in mind
 and would require a huge effort to be ported \emph{as is} in your
 favourite theorem prover.
 
@@ -86,8 +96,10 @@ Danielsson's previous work~\cite{danielsson2012bag}.
 
 Our whole development is parametrised by a type of atomic
 proposition \AB{Pr} on which we do not put any constraint
-except for it being equipped with a decidable equality
-\AF{\_≟\_}.
+except that equality of its inhabitants should be decidable.
+We name \AF{\_≟\_} the function of type (\AB{p} \AB{q} \hasType{}
+\AB{Pr}) → \AD{Dec} (\AB{p} \AD{≡} \AB{q}) witnessing this
+property.
 
 The calculus we are considering is a fragment of Intuitionistic
 Linear Logic composed of \textit{atomic} types (lifting \AB{Pr}),
@@ -152,10 +164,9 @@ However these rules are far from algorithmic: the logician needs to
 of the current context to pick when introducing a tensor. This makes
 this calculus really ill-designed for her to perform a proof search
 in a sensible manner.
-
 So, rather than sticking to the original presentation and trying
 to work around the inconvenience of dealing with rules which are
-not algorithmic, and intrinsically extensional notions such as the
+not algorithmic and intrinsically extensional notions such as the
 one of multisets, it is possible to generalise the calculus in order
 to have a more palatable formal treatment.
 
@@ -166,9 +177,8 @@ is rather to use parts of some of the assumptions in a context to
 discharge a first subgoal; collect the leftovers and invest them
 into trying to discharge another subproblem. Only in the end should
 the leftovers be down to nothing.
-
 This observation leads to the definition of two new notions: first,
-the calculus is generalised to one incorporating the notion of
+the calculus is generalised to one internalising the notion of
 leftovers; second, the contexts are made resource-aware meaning
 that they keep the same structure whilst tracking whether (parts
 of) an assumption has been used already. Proof search becomes
@@ -182,11 +192,10 @@ into the implementation details of such concepts.
 
 \subsection{Example\label{sec:example}}
 
-In the following paragraphs, we are going to study how one would describe
-the process of running a proof search algorithm for our fragment of ILL.
-The intermediate data structures, despite looking similar to usual ILL
-sequents, are not quite valid proof trees as we purposefully ignore left
-rules. We write
+Let us study how one would describe the process of running a proof search
+algorithm for our fragment of ILL. The intermediate data structures,
+despite looking similar to usual ILL sequents, are not quite valid proof
+trees as we purposefully ignore left rules. We write
 \begin{mathpar}
 \text{Δ} \Rightarrow{}
 \inferrule{π}{\text{\AB{Γ} \entails{} \AB{σ}}}
@@ -194,12 +203,12 @@ rules. We write
 to mean that the current proof search state is \AB{Δ} and we managed to
 build a pseudo-derivation \AB{π} of type \AB{Γ} \entails{} \AB{σ}. \AB{π}
 and \AB{Γ} may be replaced by question marks when we haven't yet reached
-a point where we have a proof.
+a point where we have a found proof and thus instatiated them.
 
 In order to materialise the idea that some resources in \AB{Δ} are available
 whereas others have already been consumed, we are going to mark with a box
 \fba{ } (the parts of) the assumptions which are currently available. During
-the proof search, the state \AB{Δ} will kept its structure but we will update
+the proof search, the state \AB{Δ} will keep its structure but we will update
 destructively its resource annotations. For instance, consuming \AB{σ} out of
 \AB{Δ} = \fba{(\AB{σ} \with{} \AB{τ})} \tensor{} \AB{υ} will turn \AB{Δ} into
 (\AB{σ} \with{} \fba{\AB{τ}}) \tensor{} \AB{υ}.
@@ -323,7 +332,7 @@ with leftovers \AB{Δ}, then the axiom rule translates to:
 The introduction rule for tensor in the system with leftovers does
 not involve partitioning a multiset (a list in our implementation)
 anymore: one starts by discharging the first subgoal, collects
-the leftover from this computation, and then feeds them to the
+the leftovers from this computation, and then feeds them to the
 procedure now working on the second subgoal.
 \begin{mathpar}
 \inferrule{
@@ -335,7 +344,7 @@ This is a left-skewed presentation but could just as well be a
 right-skewed one. We also discuss (in \autoref{sec:parallel}) the
 opportunity for parallelisation of the proof search a symmetric
 version could offer as well as the additional costs it would
-generate.
+entail.
 
 The with type constructor on the other hand expects both
 subgoals to be proven using the same resources. We formalise
@@ -343,7 +352,7 @@ this as the fact that both sides are proved using the input
 context and that both leftovers are then synchronised (for a
 sensible, yet to be defined, definition of synchronisation).
 Obviously, not all leftovers will be synchronisable: checking
-whether they are may reject proof candidates which are non
+whether they are may reject proof candidates which are not
 compatible.
 \begin{mathpar}
 \inferrule{
@@ -474,16 +483,16 @@ created when synchronising two output contexts by using a with
 introduction rule as in the following example:
 \begin{mathpar}
 \inferrule{
-  \inferrule{ }{\text{\AB{σ} \with{} \AB{τ}
+  \inferrule{ }{\fba{\text{\AB{σ} \with{} \AB{τ}}
                 \entails{} \AB{τ} \coentails{}
-                \AB{σ} \with{} \fba{\AB{τ}}}}{ax}
-  \and
-  \inferrule{ }{\text{\AB{σ} \with{} \AB{τ}
-                \entails{} \AB{σ} \coentails{}
                 \fba{\AB{σ}} \with{} \AB{τ}}}{ax}
-}{\text{\AB{σ} \with{} \AB{τ}
+  \and
+  \inferrule{ }{\text{\fba{\AB{σ} \with{} \AB{τ}}
+                \entails{} \AB{σ} \coentails{}
+                \AB{σ} \with{} \fba{\AB{τ}}}}{ax}
+}{\text{\fba{\AB{σ} \with{} \AB{τ}}
         \entails{} \AB{τ} \with{} \AB{σ} \coentails{}
-        \fba{\AB{σ} \with{} \AB{τ}}}}{\with{}^r}
+        \AB{σ} \with{} \AB{τ}}}{\with{}^r}
 \end{mathpar}
 The \AD{Usage} of a type \AB{σ} is directly based on the idea
 of a cover; it describes two different situations: either the
@@ -1080,8 +1089,7 @@ type \AD{Usages} \AB{γ}) is a \AD{Usages} \AB{γ} such that \AB{Δ}
 on \AD{Usage}s described in \autoref{fig:usagediffs}. This inductive
 datatype, itself based on a definition of cover differences, distinguishes
 three cases: if the input and the output are equal then the difference
-is a mint assumption (which the careful reader will remember is erased
-down to nothing), if the input was a mint assumption then the difference
+is a mint assumption, if the input was a mint assumption then the difference
 is precisely the output \AD{Usage} and, finally, we may also be simply
 lifting the notion of \AD{Cover} difference when both the input and the
 output are dented.
@@ -1212,7 +1220,7 @@ lemmas to combine the induction hypothesis.
 \begin{corollary}[Soundness of the Proof Search]
 If the proof search shows that \AF{inj} \AB{γ} \entails{} \AB{σ}
 \coentails{} \AB{Δ} holds for some \AB{Δ} and \AB{Δ} is a
-complete usage then \AB{γ} \entails{} \AB{σ}.
+full usage then \AB{γ} \entails{} \AB{σ}.
 \end{corollary}
 
 The soundness result relating the new calculus to the original
@@ -1304,8 +1312,8 @@ there is therefore no potential proof:
 all the ways in which one may use the sub-assumptions. Whenever a
 sub-assumption is already partially used (in other words: a \AD{Cover})
 we use the induction hypothesis delivered by the function \AF{\_∈?]\_[}
-itself; if it is mint then we can fall back to the previous lemma. In
-each case, we then map lemmas applying the appropriate rules recording
+itself; if it is mint then we can fall back to using the previous lemma.
+In each case, we then map lemmas applying the appropriate rules recording
 the choices made.
 
 \underline{With Cases} Covers for with are a bit special: either
@@ -1431,8 +1439,8 @@ enough to allow for quick experiments whilst covering enough
 ground to articulate founding principles. Now, the theory of
 ILL with just atomic propositions and tensor products is
 precisely the one of bag equivalence: a goal will be provable
-if and only if the multiset of its atomic propositions is the
-same one as the context's one.
+if and only if the multiset of its atomic propositions is
+precisely the context's one.
 
 Naturally, one may want to write a solver for Bag Equivalence
 based on the one for ILL. But it is actually possible to solve
@@ -1550,7 +1558,7 @@ the model are equal then we know how to do the same for two
 expressions: we simply normalise both of them, test the normal
 forms for equality and transport the result back thanks to the
 soundness result. But equality for elements of the model is not
-complex to test: two terms are equal if their first components
+complex to test: they are equal if their first components
 are and their second ones are the same multisets. This is where
 our solver for ILL steps in: if we limit the context to atoms
 only and the goal to being one big tensor of atomic formulas
@@ -1618,7 +1626,7 @@ goal is the last piece of boilerplate we need. Fortunately, it is very
 easy to deliver:
 
 \begin{proposition}[Injection functions] From a list of atomic
-propositions \AB{xs}, one can produce a context \injs{} AB{xs} such
+propositions \AB{xs}, one can produce a context \injs{} \AB{xs} such
 that there is a proof \AB{Γ} of \AD{isAtoms} (\injs{} \AB{xs}) and
 \AF{fromAtoms} \AB{Γ} is equal to \AB{xs}.
 
@@ -1780,11 +1788,11 @@ datatypes retaining the important hidden \emph{structure}
 of the problem. These constructions led to the definition of
 Intuitionistic Linear Logic With Leftovers, a more general
 calculus enjoying a notion of weakening but, at the same time,
-sound and complete with respect to ILL. Provability of ILL being
-decidable is then a simple corollary of it being decidable for
-ILLWL. Finally, a side effect of this formalization effort is the
-definition of helpful tactics targetting commutative monoids
-and, in particular, bag equivalence of lists.
+sound and complete with respect to ILL. Provability of formulas
+in ILL being decidable is then a simple corollary of it being
+decidable for ILLWL. Finally, a side effect of this formalization
+effort is the definition of helpful tactics targetting commutative
+monoids and, in particular, bag equivalence of lists.
 
 
 This development has evident connections with Andreoli's vastly
@@ -1866,28 +1874,27 @@ stage because they do not fit together.
 \subsection{Connection to Typechecking}
 
 A problem orthogonal to proof search but that could benefit
-from the same technique is the one of typechecking: provided
-a term and a type, we would like to know whether the term
-inhabits the type. 
+from the techniques and datastructures presented here is the
+one of typechecking. In the coeffect calculus introduced by
+Petricek, Orchard and Mycroft~\cite{petricek2014coeffects},
+extra information is attached to the variables present in the
+context. Their approach allows for writing derivations in
+Bounded Linear Logic or building a program with an attached
+dataflow analysis. However their deduction rules, when read
+bottom-up, are suffering from some of the issues we highlighted
+in this paper's introduction (having to guess how to partition
+a context for instance). This may be tractable for Hindley-Milner-like
+type systems enjoying type inference but we are interested in
+more powerful type theories.
 
-In the coeffect calculus introduced by Petricek, Orchard and
-Mycroft~\cite{petricek2014coeffects}, extra information is
-attached to the variables present in the context. Their approach
-allows for writing derivations in Bounded Linear Logic or building
-a program with an attached dataflow analysis. However their
-deduction rules, when read bottom-up, are suffering from some of
-the issues we highlighted in this paper's introduction (having to
-guess how to partition a context for instance). This may be
-tractable for Hindley-Milner-like type systems enjoying type
-inference but we are interested in more powerful type theories.
-
-We believe that moving from their presentation to one with input
-and output contexts as well as keeping more structured contexts
-would give rise to a range of calculi whose judgements are algorithmic
-in nature thus making them more amenable to (bidirectional) typechecking.
-This would allow the programmer to write terms rather than logical
-derivations and, provided a top-level type annotation, get the
-machine to do all the heavy-lifting.
+We believe that moving from their presentation to one with
+input and output contexts as well as keeping more structured
+contexts would give rise to a range of calculi whose judgements
+are algorithmic in nature thus making them more amenable to
+(bidirectional) typechecking. Our notion of variable annotation
+also allows for slightly more subtle invariants being tracked:
+the annotation's structure may depend on the structure of the
+variable's type.
 
 \section*{Special Thanks}
 
@@ -1899,7 +1906,7 @@ representation of consumption annotations thus making the lump of
 nested predicate definitions more accessible to the first time
 reader.
 
-\bibliographystyle{alpha}
+\bibliographystyle{plain}
 \bibliography{main}
 
 \end{document}
