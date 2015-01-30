@@ -484,7 +484,7 @@ created when synchronising two output contexts by using a with
 introduction rule as in the following example:
 \begin{mathpar}
 \inferrule{
-  \inferrule{ }{\fba{\text{\AB{σ} \with{} \AB{τ}}
+  \inferrule{ }{\text{\fba{\AB{σ} \with{} \AB{τ}}
                 \entails{} \AB{τ} \coentails{}
                 \fba{\AB{σ}} \with{} \AB{τ}}}{ax}
   \and
