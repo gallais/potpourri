@@ -34,6 +34,10 @@
 % Author macros::end %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
+\setlength{\abovedisplayskip}{5pt}
+\setlength{\belowdisplayskip}{5pt}
+\setlength{\abovedisplayshortskip}{5pt}
+\setlength{\belowdisplayshortskip}{5pt}
 \maketitle
 
 \begin{abstract}
@@ -322,9 +326,9 @@ If we assume that we already have in our possession a similar relation
 consuming a resource \AIC{κ} \AB{k}\footnote{In this presentation,
 we limit the axiom rule to atomic formulas only but it is not an
 issue: it is a well-known fact that an axiom rule for any formula
-is admissible by a simple induction on the formula's structure.} from
-a context \AB{Γ} with leftovers \AB{Δ}, then the axiom rule translates
-to:
+is admissible by a simple induction on the formula's structure.}
+from a context \AB{Γ} with leftovers \AB{Δ}, then the axiom rule
+translates to:
 \begin{mathpar}
 \inferrule{\text{\AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ}}
 }{\text{\AB{Γ} \entails{} \AIC{κ} \AB{k} \coentails{} \AB{Δ}}
@@ -433,42 +437,13 @@ in \autoref{fig:derivation}.
 
 Let us make this all more formal. We start by defining
 \AD{Cover}s: given a type \AB{σ}, a cover \AB{S} is a
-formal object describing precisely which (non-empty) set of
+formal object describing precisely which \emph{non-empty} set of
 parts of \AB{σ} has been consumed already. The set of covers
 of a type \AB{σ} is represented by an inductive family \AD{Cover}
 \AB{σ} listing all the different ways in which \AB{σ} may be
-partially used. The introduction rules, which are listed
-in \autoref{fig:cover}, can be justified in the following
-manner:
-\begin{figure*}
-\begin{mathpar}
-\inferrule{
-}{\text{\AIC{κ} \AB{k} \hasType{} \AD{Cover} \AIC{κ} \AB{k}}}
-\and
-\inferrule{
-  \text{\AB{S} \hasType{} \AD{Cover} \AB{σ}}
-  \and \text{\AB{T} \hasType{} \AD{Cover} \AB{τ}}
-}{\text{\AB{S} \tensor{} \AB{T} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
-\and
-\inferrule{\text{\AB{S} \hasType{} \AD{Cover} \AB{σ}}
-}{\text{\AB{S} \tensor \free{τ} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
-\and
-\inferrule{\text{\AB{T} \hasType{} \AD{Cover} \AB{τ}}
-}{\text{\free{σ}\tensor{} \AB{T} \hasType{} \AD{Cover} \AB{σ} \tensor{} \AB{τ}}}
-\end{mathpar}
-\begin{mathpar}
-\inferrule{ }{\text{\AB{σ} \with{} \AB{τ} \hasType{} \AD{Cover} \AB{σ} \with{} \AB{τ}}}
-\and
-\inferrule{\text{S \hasType{} \AD{Cover} \AB{σ}}
-}{\text{\AB{S} \with\free{τ} \hasType{} \AD{Cover} \AB{σ} \with{} \AB{τ}}}
-\and
-\inferrule{\text{T \hasType{} \AD{Cover} \AB{τ}}
-}{\text{\free{σ}\with{} \AB{T} \hasType{} \AD{Cover} \AB{σ} \with{} \AB{τ}}}
-\end{mathpar}
-\caption{The \AD{Cover} datatype\label{fig:cover}}
-\end{figure*}
-The cover for an atomic proposition can only be one thing:
-the atom itself;
+partially used. The introduction rules can be justified in
+the following manner. The cover for an atomic proposition can
+only be one thing: the atom itself;
 
 In the case of a tensor, both subparts can be partially used
 (cf. \AB{S} \tensor{} \AB{T}) or it may be the case that only
@@ -524,17 +499,18 @@ ambiguities.
 }{   \text{\AB{Γ} \mysnoc{} \AB{S} \hasType{} \AD{Usages} \AB{γ} \mysnoc{} \AB{σ}}}
 \end{mathpar}
 
-\paragraph{Erasures} From an \AD{Usage}(\AD{s}), one can always
-define an erasure function building a context listing the hypotheses
-marked as used. We write \erasure{\_} for such functions and define
-them by induction on the structure of the \AD{Usage}(\AD{s}).
+\paragraph{Erasures and injections} From an \AD{Usage}(\AD{s}), one
+can always define a function erasure (\erasure{\_}) listing the atoms
+marked as used. Conversely, from a context \AB{γ} the injection function
+(\AF{inj}) will build the \AD{Usages} \AB{γ} corresponding to a completely
+mint context.
 
 \AgdaHide{
 \begin{code}
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality using (_≡_)
 
-module lps (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
+module lps-short (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
 
 open import Data.Product as Product hiding (map)
 open import Function
@@ -585,10 +561,6 @@ pattern _&_ a b = a `& b
 
 \end{code}}
 
-\paragraph{Injection} We call \AD{inj} the function taking a
-context \AB{γ} as argument and describing the \AD{Usages} \AB{γ}
-corresponding to a completely mint context.
-
 \subsection{Being Synchronised, Formally}
 
 Now that \AD{Usages} have been introduced, we can give a formal
@@ -636,8 +608,7 @@ constructors leaving one side untouched are disallowed.}:
 }
 \end{mathpar}
 But it may also be the case that only one of them is using only one
-side of the \with{} whilst the other one is a full cover
-(see \autoref{fig:fullcov} for an example of such a case):
+side of the \with{} whilst the other one is a full cover:
 \begin{mathpar}
 \inferrule{\text{\isUsed{\AB{σ}}{\AB{S}}}
 }{\text{\AB{σ} \with{} \AB{τ} \eqsync{} \AB{S} \with\free{\AB{τ}}
@@ -649,53 +620,6 @@ side of the \with{} whilst the other one is a full cover
                               \synced{} \AB{σ} \with{} \AB{τ}}
 }
 \end{mathpar}
-\begin{figure*}
-\begin{mathpar}
-\inferrule*[Right=\with{}$^r$]{
-  \inferrule*[Right=\textit{ax}]{
-    }{\text{\fba{\AB{σ} \with{} \AB{τ}}
-            \entails{} \AB{σ}
-            \coentails{} \AB{σ} \with{} \fba{\AB{τ}}}
-    }
-  \and
-  \inferrule*[Right=\with{}$^r$]{
-    \inferrule*[Right=\textit{ax}]{
-      }{\text{\fba{\AB{σ} \with{} \AB{τ}}
-              \entails{} \AB{σ}
-              \coentails{} \AB{σ} \with{} \fba{\AB{τ}}}
-      }
-    \and
-    \inferrule*[Right=\textit{ax}]{
-      }{\text{\fba{\AB{σ} \with{} \AB{τ}}
-              \entails{} \AB{τ}
-              \coentails{} \fba{\AB{σ}} \with{} \AB{τ}}
-      }
-    \and
-    \inferrule*{
-       \text{\isUsed{\AB{σ}} \AB{σ}}
-       \and \text{\isUsed{\AB{τ}} \AB{τ}}
-      }{\text{\AB{σ} \with{} \AB{τ}
-              \eqsync{} \AB{σ} \with{} \fba{\AB{τ}}
-              \synced{} \fba{\AB{σ}} \with{} \AB{τ}}
-      }
-    }{\text{\fba{\AB{σ} \with{} \AB{τ}}
-            \entails{} \AB{σ} \with{} \AB{τ}
-            \coentails{} \AB{σ} \with{} \AB{τ}}
-    }
-  \and
-  \inferrule*{\text{\isUsed{\AB{σ}} \AB{σ}}
-    }{\text{\AB{σ} \with{} \AB{τ}
-            \eqsync{} \AB{σ} \with{} \fba{\AB{τ}}
-            \synced{} \AB{σ} \with{} \AB{τ}}
-    }
-}{\text{\fba{\AB{σ} \with{} \AB{τ}}
-        \entails{} \AB{σ} \with{} (\AB{σ} \with{} \AB{τ})
-        \coentails{} \AB{σ} \with{} \AB{τ}}
-}
-\end{mathpar}
-\caption{A derivation with a synchronisation combining a
-        left cover of a with together with a full one.\label{fig:fullcov}}
-\end{figure*}
 
 \subsection{Resource-Aware Primitives}
 
@@ -911,31 +835,12 @@ prove their innocuousness when it comes to derivability.
 We call \AB{h}-\AD{Usage} extension of type \AB{σ} (written \uext{\AB{h}}{\AB{σ}})
 the description of a structure containing exactly one hole denoted \hole{}
 into which, using \_\fillU{}\_, one may plug an \AD{Usage} \AB{h} in order
-to get an \AD{Usage} \AB{σ}. We give side by side the constructors for the
-inductive type \uext{\_}{\_} and the corresponding case for \_\fillU{}\_.
-The most basic constructor says that we may have nothing but a hole:
-
-\begin{mathpar}
-\inferrule{
-  }{\text{\hole{} \hasType{} \uext{\AB{h}}{\AB{h}}}
-  }
-\and \inferrule{}{\text{\AB{H} \fillU{} \hole{} = \AB{H}}}
-\end{mathpar}
-
-Alternatively, one may either have a hole on the left or right
+to get an \AD{Usage} \AB{σ}. For instance, one may have a hole on the right
 hand side of a tensor product (where \_\AF{⊗U}\_ is the intuitive
 lifting of tensor to \AD{Usage} unpacking both sides and outputting
 the appropriate annotation):
 
 \begin{mathpar}
-\inferrule{
-  \text{\AB{L} \hasType{} \uext{\AB{h}}{\AB{σ}}}
-  \and \text{\AB{R} \hasType{} \AD{Usage} \AB{τ}}
-  }{\text{\hole{\AB{L}} \tensor{} \AB{R} \hasType{} \uext{\AB{h}}{\AB{σ} \tensor{} \AB{τ}}}
-  }
-\and \inferrule{}{\text{\AB{H} \fillU{} \hole{\AB{L}} \tensor{} \AB{R} =
-                  (\AB{H} \fillU{} \AB{L}) \AF{⊗U} \AB{R}}}
-\and
 \inferrule{
   \text{\AB{L} \hasType{} \AD{Usage} \AB{σ}}
   \and \text{\AB{R} \hasType{} \uext{\AB{h}}{\AB{τ}}}
@@ -943,26 +848,6 @@ the appropriate annotation):
   }
 \and \inferrule{}{\text{\AB{H} \fillU{} \AB{L} \tensor\hole{\AB{R}} =
                         \AB{L} \AF{⊗U} (\AB{H} \fillU{} \AB{R})}}
-\end{mathpar}
-
-Or one may have a hole on either side of a with constructor as long
-as the other side is kept mint (\_\AF{\&U[}\_\AF{]} and \AF{[}\_\AF{]\&U}\_
-are, once more, operators lifting the \AD{Cover} constructors to \AD{Usage}):
-
-\begin{mathpar}
-\inferrule{
-  \text{\AB{L} \hasType{} \uext{\AB{h}}{\AB{σ}}}
-  }{\text{\hole{\AB{L}} \with\free{\AB{τ}} \hasType{} \uext{\AB{h}}{\AB{σ} \with{} \AB{τ}}}
-  }
-\and \inferrule{}{\text{\AB{H} \fillU{} \hole{\AB{L}}  \with\free{\AB{τ}} =
-                  (\AB{H} \fillU{} \AB{L}) \AF{\&U[} \AB{τ} \AF{]}}}
-\and
-\inferrule{
-  \text{\AB{R} \hasType{} \uext{\AB{h}}{\AB{τ}}}
-    }{\text{\free{\AB{σ}}\with\hole{\AB{R}} \hasType{} \uext{\AB{h}}{\AB{σ} \tensor{} \AB{τ}}}
-  }
-\and \inferrule{}{\text{\AB{H} \fillU{} \free{\AB{σ}}\with\hole{\AB{R}} =
-                        \AF{[} \AB{σ} \AF{]\&U} (\AB{H} \fillU{} \AB{R})}}
 \end{mathpar}
 
 \subsubsection{\AD{Usages} extensions}
@@ -973,7 +858,9 @@ modification of the individual elements which are embedded in the larger
 context using a \AD{Usage} extension. We list below the three OPE
 constructors together with the corresponding cases of \_\fillUs{}\_
 describing how to transport a \AD{Usages} along an extension.
-One can embed the empty context into any other context:
+One can embed the empty context into any other context, extend the head
+\AD{Usage} using the tools defined in the previous subsection, or simply
+throw in an entirely new \AD{Usage}:
 
 \begin{mathpar}
 \inferrule{\text{\AB{Δ} \hasType{} \AD{Usages} \AD{δ}}
@@ -981,10 +868,6 @@ One can embed the empty context into any other context:
   }
 \and \inferrule{}{\text{\AIC{ε} \fillUs{} \AIC{ε} \AB{Δ} = \AB{Δ}}}
 \end{mathpar}
-
-Or one may extend the head \AD{Usage} using the tools defined in the
-previous subsection:
-
 \begin{mathpar}
 \inferrule{
     \text{\AB{hs} \hasType{} \usext{\AB{γ}}{\AB{δ}}}
@@ -994,9 +877,6 @@ previous subsection:
 \and \inferrule{}{\text{\AB{Γ} \mysnoc{} \AB{S} \fillUs{} \AB{hs} \mysnoc{} \AB{h} =
                    (\AB{Γ} \fillUs{} \AB{hs}) \mysnoc{} (\AB{S} \fillU{} \AB{h}})}
 \end{mathpar}
-
-Finally, one may simply throw in an entirely new \AD{Usage}:
-
 \begin{mathpar}
 \inferrule{
     \text{\AB{hs} \hasType{} \usext{\AB{γ}}{\AB{δ}}}
@@ -1087,30 +967,12 @@ A \AD{Usages} difference \AB{E} between \AB{Γ} and \AB{Δ} (two elements of
 type \AD{Usages} \AB{γ}) is a \AD{Usages} \AB{γ} such that \AB{Δ}
 \eqsync{} \AB{Γ} \AD{─} \AB{E} holds where the three place relation
 \_\eqsync{}\_\AD{─}\_ is defined as the pointwise lifting of a relation
-on \AD{Usage}s described in \autoref{fig:usagediffs}. This inductive
-datatype, itself based on a definition of cover differences, distinguishes
-three cases: if the input and the output are equal then the difference
-is a mint assumption, if the input was a mint assumption then the difference
-is precisely the output \AD{Usage} and, finally, we may also be simply
-lifting the notion of \AD{Cover} difference when both the input and the
-output are dented.
-\begin{figure*}[h]
-\begin{mathpar}
-
-\inferrule{
-  }{\text{\AB{S} \eqsync{} \AB{S} \diff{} \free{\AB{σ}}}
-  }
-\and
-\inferrule{
-  }{\text{\AB{S} \eqsync{} \free{\AB{σ}} \diff{} \AB{S}}
-  }
-\and
-\inferrule{\text{\AB{S} \eqsync{} \AB{S₁} \diff{} \AB{S₂}}
-  }{\text{\dented{\AB{S}} \eqsync{} \dented{\AB{S₁}} \diff{} \dented{\AB{S₂}}}
-}
-\end{mathpar}
-\caption{\AD{Usage} differences\label{fig:usagediffs}}
-\end{figure*}
+on \AD{Usage}s. This inductive datatype, itself based on a definition of
+cover differences, distinguishes three cases: if the input and the output
+are equal then the difference is a mint assumption, if the input was a
+mint assumption then the difference is precisely the output \AD{Usage}
+and, finally, we may also be simply lifting the notion of \AD{Cover}
+difference when both the input and the output are dented.
 
 Cover differences (\_\eqsync{}\_\diff{}\_) are defined by an
 inductive type described (minus the expected structural laws which we
@@ -1264,85 +1126,9 @@ away~\cite{wadler1990deforestation, gill1993short} in the case where
 we are indeed only interested in the satisfiability of the problem and
 they turn out to be useless.
 
-\subsection{Consuming an Atomic Proposition}
-
 The proof search procedures are rather simple to implement (they
 straightforwardly follow the specifications we have spelled out
-earlier) and their definitions are succinct. Let us study them.
-
-
-\begin{lemma}Given a type \AB{σ} and an atomic proposition \AB{k},
-we can manufacture a list of pairs consisting of a \AD{Cover} \AB{σ}
-we will call \AB{S} and a proof that \freebelongs{\AB{σ}} \AB{k}
-\cobelongs{} \AB{S}.
-\end{lemma}
-\begin{proof}We write \AF{\_∈?[\_]} for the function describing the
-different ways in which one can consume an atomic proposition from a
-mint assumption. This function, working in the list monad, is defined
-by structural induction on its second (explicit) argument: the mint
-assumption's type.
-
-\underline{Atomic Case} If the mint assumption is just an atomic
-proposition then it may be used if and only if it is the same
-proposition. Luckily this is decidable; in the case where propositions
-are indeed equal, we return the corresponding consumption whilst we
-simply output the empty list otherwise.
-
-\underline{Tensor \& With Case} Both the tensor and with case amount
-to picking a side. Both are equally valid so we just concatenate the
-lists of potential proofs after having mapped the appropriate lemmas
-inserting the constructors recording the choices made over the results
-obtained by induction hypothesis.
-\end{proof}
-
-The case where the assumption is not mint is just marginally more
-complicated as there are more cases to consider:
-
-\begin{lemma}Given a cover \AB{S} and an atomic proposition \AB{k},
-we can list the ways in which one may extract and consume \AB{k}.
-\end{lemma}
-\begin{proof}We write \AF{\_∈?]\_[} for the function describing the
-different ways in which one can consume an assumption from an already
-existing cover. This function, working in the list monad, is defined
-by structural induction on its second (explicit) argument: the cover.
-
-\underline{Atomic Case} The atomic proposition has already been used,
-there is therefore no potential proof:
-
-\underline{Tensor Cases} The tensor cases all amount to collecting
-all the ways in which one may use the sub-assumptions. Whenever a
-sub-assumption is already partially used (in other words: a \AD{Cover})
-we use the induction hypothesis delivered by the function \AF{\_∈?]\_[}
-itself; if it is mint then we can fall back to using the previous lemma.
-In each case, we then map lemmas applying the appropriate rules recording
-the choices made.
-
-\underline{With Cases} Covers for with are a bit special: either
-they are stating that an assumption has been fully used (meaning
-that there is no way we can extract the atomic proposition \AB{k}
-out of it) or a side has already been picked and we can only
-explore one sub-assumption. As for the other cases, we need to
-map auxiliary lemmas.
-\end{proof}
-
-Now that we know how to list the ways in which one can extract and
-consume an atomic proposition from a mint assumption or an already
-existing cover, it is trivial to define the corresponding process
-for an \AD{Usage}.
-
-\begin{corollary}Given an \AB{S} of type \AD{Usage} \AB{σ} and an atomic
-proposition \AB{k}, one can produce a list of pairs consisting of a
-\AD{Usage} \AB{σ} we will call \AB{T} and a proof that
-\AB{S} \belongs{} \AB{k} \cobelongs{} \AB{T}.
-\end{corollary}
-\begin{proof}
-It amounts to calling the appropriate function to do the job and
-apply a lemma to transport the result.
-\end{proof}
-
-This leads us to the theorem describing how to implement proof
-search for the \_\belongs{}\_\cobelongs{}\_ relation used in
-the axiom rule.
+earlier) and their definitions are succinct.
 
 \begin{theorem}Given a \AB{Γ} of type \AD{Usages} \AB{γ} and an atomic
 proposition \AB{k}, one can produce a list of pairs consisting of a
@@ -1350,47 +1136,17 @@ proposition \AB{k}, one can produce a list of pairs consisting of a
 \AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ}.
 \end{theorem}
 \begin{proof}
-We simply call the function \AF{\_∈?\_} described in the previous corollary
-to each one of the assumptions in the context and collect all of the possible
-solutions:
+It amounts to calling on each element of the context the appropriate
+auxiliary search procedures describing how to extract an atomic
+proposition from respectively a mint or a dented assumption and
+apply a lemma to transport the resulting proofs.
 \end{proof}
-
-\subsection{Producing Derivations}
-
-Assuming the following lemma stating that we can test for being synchronisable,
-we have all the pieces necessary to write a proof search procedure listing
-all the ways in which a context may entail a goal.
-
-\begin{lemma}Given \AB{Δ₁} and \AB{Δ₂} two \AD{Usages} \AB{γ}, it is possible
-to test whether they are synchronisable and, if so, return a \AD{Usages} \AB{γ}
-which we will call \AB{Δ} together with a proof that \AB{Δ} \eqsync{} \AB{Δ₁}
-\synced{} \AB{Δ₂}. We call \AF{\_⊙?\_} this function.
-\end{lemma}
 
 \begin{theorem}[Proof Search] Given an \AB{S} of type \AD{Usage} \AB{σ}
 and a type \AB{τ}, it is possible to produce a list of pairs consisting
 of a \AD{Usage} \AB{σ} we will call \AB{T} and a proof that
 \AB{S} \entails{} \AB{τ} \coentails{} \AB{T}.
 \end{theorem}
-\begin{proof} We write \AF{\_⊢?\_} for this function. It is defined by
-structural induction on its second (explicit) argument: the goal's type.
-We work, the whole time, in the list monad.
-
-\underline{Atomic Case} Trying to prove an atomic proposition amounts to
-lifting the various possibilities provided to us by \AF{\_∈?\_} thanks to
-the axiom rule \AIC{ax}.
-
-\underline{Tensor Case} After collecting the leftovers for each potential
-proof of the first subgoal, we try to produce a proof of the second one.
-If both of these phases were successful, we can then combine them with the
-appropriate tree constructor \AIC{⊗ʳ}.
-
-\underline{With Case} Here we produce two independent sets of potential
-proofs and then check which subset of their cartesian product gives rise
-to valid proofs. To do so, we call \AF{\_⊙?\_} on the returned \AD{Usages}
-to make sure that they are synchronisable and, based on the result, either
-combine them using \AF{whenSome} or fail by returning the empty list.
-\end{proof}
 
 \subsection{From Proof Search to a Decision Procedure}
 
@@ -1432,16 +1188,10 @@ and \autoref{sec:completeness} respectively.
 
 \section{Applications: building Tactics\label{sec:application}}
 
-A first, experimental, version of the procedure described in
-the previous sections was purposefully limited to handling
-atomic propositions and tensor product. One could argue that
-this fragment is akin to Hutton's razor~\cite{hutton98}: small
-enough to allow for quick experiments whilst covering enough
-ground to articulate founding principles. Now, the theory of
-ILL with just atomic propositions and tensor products is
-exactly the one of bag equivalence: a goal will be provable
-if and only if the multiset of its atomic propositions is
-precisely the context's one.
+The theory of ILL with just atomic propositions and tensor products
+is exactly the one of bag equivalence: a goal will be provable if
+and only if the multiset of its atomic propositions is precisely
+the context's one.
 
 Naturally, one may want to write a solver for Bag Equivalence
 based on the one for ILL. But it is actually possible to solve
@@ -1450,21 +1200,26 @@ Agda's standard library comes with a solver for equations on a
 semiring but it's not always the case that one has such a rich
 structure to take advantage of.
 
-\subsection{Equations on a Commutative Monoid}
+Given an abstract syntax tree representing an expression over
+a monoid \AB{M} composed of constants and variables, it is
+possible to produce a semantically equivalent pair of a constant
+and a multiset of variables. Testing equality of expressions is
+now reduced to testing equality of these normal forms. And it is
+easy to do so: they are equal if their first components are and
+their second ones are the same multisets. This is where our solver
+for ILL steps in: if we limit the context to atoms only and the
+goal to being one big tensor of atomic formulas then we prove
+precisely multiset equality. We call \AF{proveMonEq} the prover
+we derive from these observations.
 
-This whole section is parametrised by \AB{Mon} a commutative
-monoid (as defined in the file \file{Algebra} of Agda's standard
-library) whose carrier \AR{Carrier} \AB{Mon} is assumed to be
-such that equality of its elements is decidable (\AB{\_≟\_} will
-be the name of the corresponding function). Alternatively, we may
-write \AB{M.name} to mean the \AB{name} defined by the commutative
-monoid \AB{Mon} (e.g. \AB{M.Carrier} will refer to the previously
-mentionned set \AR{Carrier} \AB{Mon}).
-
-We start by defining a grammar for expressions with a finite number of
-variable whose carrier is a commutative monoid: a term may either be a
-variable (of which there are a finite amount \AB{n}), an element of the
-carrier set or the combination of two terms.
+Now, the standard library already contains a proof that (\AD{ℕ}, \AN{0},
+\AF{\_+\_}) is a commutative monoid so we can use this fact to have a look
+at an example. In the following code snippet, \AF{LHS}, \AF{RHS} and
+\AF{CTX} are respectively reified\footnote{All these reification
+are currently done by hand but could be automated. These issues
+have been thoroughly dealt with by Van Der Walt and Swierstra~\cite{van2012reflection,van2013engineering}.}
+versions of the left and right hand sides of the equation and a
+valuation mapping variables language to their names in Agda.
 
 \AgdaHide{
 \begin{code}
@@ -1487,19 +1242,11 @@ module TacticsAbMonPaper
 
   infixl 6 _`∙_
 
-\end{code}}
-\begin{code}
   data Expr (n : ℕ) : Set where
     `v    : (k : Fin n)         → Expr n
     `c    : (el : Carrier Mon)  → Expr n
     _`∙_  : (t u : Expr n)      → Expr n
-\end{code}
 
-Assuming the existence of a valuation assigning a value of the carrier
-set to each one of the variables, a simple semantics can be given to
-these expressions:
-
-\begin{code}
   Valuation : ℕ → Set
   Valuation n = Vec M.Carrier n
 
@@ -1507,20 +1254,9 @@ these expressions:
   ⟦ `v k    ⟧^E ρ = lookup k ρ
   ⟦ `c el   ⟧^E ρ = el
   ⟦ t `∙ u  ⟧^E ρ = ⟦ t ⟧^E ρ M.∙ ⟦ u ⟧^E ρ
-\end{code}
 
-Now, we can normalise these terms down to vastly simpler structures:
-every \AD{Expr} \AB{n} is equivalent to a pair of an element of the
-carrier set (in which we have accumulated the constant values stored
-in the tree) together with the list of variables present in the term.
-We start by defining this \AF{Model} together with its semantics:
-
-\AgdaHide{
-\begin{code}
   open import Prelude as Prelude hiding (ℕ ; _×_ ; Fin ; _$_ ; flip ; lookup)
-\end{code}}
 
-\begin{code}
   Model : (n : ℕ) → Set
   Model n = M.Carrier × List (Fin n)
 
@@ -1529,14 +1265,7 @@ We start by defining this \AF{Model} together with its semantics:
 
   ⟦_⟧^M : {n : ℕ} (t : Model n) (ρ : Valuation n) → M.Carrier
   ⟦ el , ks ⟧^M ρ = el M.∙ ⟦ ks ⟧^Ms ρ
-\end{code}
 
-We then provide a normalisation function turning a \AD{Expr} \AB{n}
-into such a pair. The variable and constant cases are trivial whilst
-the \AIC{\_`∙\_} is handled by an auxiliary definition combining the
-induction hypotheses:
-
-\begin{code}
   _∙∙_ : {n : ℕ} → Model n → Model n → Model n
   (e , ks) ∙∙ (f , ls) = e M.∙ f , ks Prelude.++ ls
 
@@ -1544,134 +1273,7 @@ induction hypotheses:
   norm (`v k)    = M.ε  , k ∷ Prelude.[]
   norm (`c el)   = el   , Prelude.[]
   norm (t `∙ u)  = norm t ∙∙ norm u
-\end{code}
 
-This normalization step is proved semantics preserving with respect to
-the commutative's monoid notion of equality by the following lemma:
-
-\begin{lemma}[Normalisation Soundness]\label{lem:normsnd}Given \AB{t}
-an \AD{Expr} \AB{n}, for any \AB{ρ} a \AF{Valuation} \AB{n}, we have:
-\semT{\AB{t}} \AB{ρ} \AD{M.≈} \semM{\AF{norm} \AB{t}} \AB{ρ}.
-\end{lemma}
-
-This means that if we know how to check whether two elements of
-the model are equal then we know how to do the same for two
-expressions: we simply normalise both of them, test the normal
-forms for equality and transport the result back thanks to the
-soundness result. But equality for elements of the model is not
-complex to test: they are equal if their first components
-are and their second ones are the same multisets. This is where
-our solver for ILL steps in: if we limit the context to atoms
-only and the goal to being one big tensor of atomic formulas
-then we prove precisely multiset equality. Let us start by
-defining this subset of ILL we are interested in. We introduce
-two predicates on types \AD{isAtoms} saying that contexts are
-made out of atomic formulas and \AD{isProduct} restricting goal
-types to big products of atomic propositions:
-
-\begin{mathpar}
-\inferrule{
-  }{\text{\AIC{κ} \AB{k} \hasType{} \AD{isProduct} \AIC{κ} \AB{k}}
-  }
-\and
-\inferrule{
-  \text{\AB{S} \hasType{} \AD{isProduct} \AB{σ}}
-  \and \text{\AB{T} \hasType{} \AD{isProduct} \AB{τ}}
-  }{\text{\AB{S} \tensor{} \AB{T} \hasType{} \AD{isProduct} \AB{σ} \tensor{} \AB{τ}}
-  }
-\end{mathpar}
-
-For each one of these predicates, we define the corresponding erasure
-function (\AF{fromAtoms} and \AF{fromProduct} respectively) listing
-the hypotheses mentioned in the derivation. We can then formulate the
-following soundness theorem:
-
-\begin{lemma}Given three contexts \AB{γ}, \AB{δ} and \AB{e} composed
-only of atoms (we call \AB{Γ}, \AB{Δ} and \AB{E} the respective proofs
-that \AD{isAtoms} holds for them) and a proof that \AB{γ} is obtained
-by merging \AB{δ} and \AB{e} together, we can demonstrate that for all
-\AB{ρ} a \AD{Valuation} \AB{n}:
-
-\semMM{\AF{fromAtoms} \AB{Γ}} \AB{ρ}
-\AD{M.≈} \semMM{\AF{fromAtoms} \AB{Δ}} \AB{ρ} \AD{M.∙} \semMM{\AF{fromAtoms} \AB{E}} \AB{ρ}
-\end{lemma}
-\begin{proof}The proof is by induction on the structure of the proof
-that \AB{γ} is obtained by merging \AB{δ} and \AB{e} together.
-\end{proof}
-
-This auxiliary lemma is what allows us to prove the main soundness
-theorem which will allow to derive a solver for commutative monoids
-from the one we already have:
-
-\begin{theorem}From a context \AB{γ} and a goal \AB{σ} such that
-\AB{Γ} and \AB{S} are respectively proofs that \AD{isAtoms} \AB{γ}
-and \AD{isProduct} \AB{σ} hold true, and from a given proof that
-\AB{γ} \entails{} \AB{σ} we can derive that for any (\AB{ρ}
-\hasType{} \AF{Valuation} \AB{n}), \semMM{\AF{fromAtoms} \AB{Γ}} \AB{ρ}
-\AF{M.≈} \semMM{\AF{fromProduct} \AB{S}} \AB{ρ}.
-\end{theorem}
-\begin{proof}The proof is by induction on the derivation of type
-\AB{γ} \entails{} \AB{σ}. The hypothesis that assumptions are
-atomic discards all cases where a left rule might have been applied
-whilst the one saying that the goal is a big product helps us discard
-the with introduction case.
-
-The two cases left are therefore the variable one (trivial) and the
-tensor introduction one which is dealt with by combining the induction
-hypotheses generated by the subderivations using the previous lemma.
-\end{proof}
-
-The existence of injection function taken a list of atomic proposition
-as an input, delivering an appropriately atomic context or product
-goal is the last piece of boilerplate we need. Fortunately, it is very
-easy to deliver:
-
-\begin{proposition}[Injection functions] From a list of atomic
-propositions \AB{xs}, one can produce a context \injs{} \AB{xs} such
-that there is a proof \AB{Γ} of \AD{isAtoms} (\injs{} \AB{xs}) and
-\AF{fromAtoms} \AB{Γ} is equal to \AB{xs}.
-
-Similarly, from a non-empty list \AB{x} \AIC{∷} \AB{xs}, one
-can produce a type \inj{} \AB{x} \AB{xs} such that there is a
-proof \AB{S} of \AD{isProduct} (\inj{} \AB{x} \AB{xs}) and
-\AF{fromProduct} \AB{S} is equal to \AB{x} \AIC{∷} \AB{xs}.
-\end{proposition}
-\begin{proof}
-In the first case, we simply map the atomic constructor over
-the list of propositions. In the second one, we create a big
-right-nested tensor product.
-\end{proof}
-
-We can now combine all of these elements to prove:
-
-\begin{corollary}Given \AB{t} and \AB{u} two \AD{Expr} \AB{n}
-and \AB{ρ} a \AF{Valuation} \AB{n}, one can leverage the ILL
-solver to (perhaps) produce a derivation proving that
-\semT{\AB{t}} \AB{ρ} \AF{M.≈} \semT{\AB{u}} \AB{ρ}
-\end{corollary}
-\begin{proof}
-We know from \autoref{lem:normsnd} that we can reduce that problem to
-the equivalent \semT{\AF{norm} \AB{t}} \AB{ρ} \AF{M.≈} \semT{\AF{norm} \AB{u}} \AB{ρ}
-so we start by normalizing both sides to (\AB{e} \AD{,} \AB{ks}) on
-one hand and (\AB{f} \AD{,} \AB{ls}) on the other. These two
-normal forms are then equal if the two constants \AB{e} and \AB{f}
-are themselves equal (which, by assumption, we know how to decide)
-and the two lists of variables \AB{ks} and \AB{ls} are equal up to
-permutation which is the case if we are able to produce an ILL
-derivation \injs{} \AB{ks} \entails{} \inj{} \AB{ls} as per the
-combination of the soundness result and the injection functions'
-properties.
-\end{proof}
-
-Now, the standard library already contains a proof that (\AD{ℕ}, \AN{0},
-\AF{\_+\_}) is a commutative monoid so we can use this fact (named \AM{ℕ+}
-here) to have a look at an example. In the following code snippet, \AF{LHS},
-\AF{RHS} and \AF{CTX} are respectively reified versions of the left and
-right hand sides of the equation, as well as the \AF{Valuation} \AN{2}
-mapping variables in the \AD{Expr} language to their names in Agda.
-
-\AgdaHide{
-\begin{code}
 module ExamplesTactics where
 
   open import Algebra.Structures
@@ -1696,14 +1298,16 @@ module ExamplesTactics where
 \begin{code}
   2+x+y+1 : (x y : Nat.ℕ) → 2 + (x + y + 1) ≡ y + 3 + x
   2+x+y+1 x y = proveMonEq LHS RHS CTX
+\end{code}
+\AgdaHide{
+\begin{code}
     where  open ℕ+
            `x   = `v (Fin.# 0)
            `y   = `v (Fin.# 1)
            LHS  = `c 2 `∙ ((`x `∙ `y) `∙ `c 1)
            RHS  = (`y `∙ `c 3) `∙ `x
            CTX  = x Vec.∷ y Vec.∷ Vec.[]
-\end{code}
-
+\end{code}}
 
 The normalization step reduced proving this equation to proving
 that the pair (\AN{3}, \lmulti{}\AB{x}, \AB{y}\rmulti{}) is equal
@@ -1711,38 +1315,9 @@ to the pair (\AN{3}, \lmulti{}\AB{y}, \AB{x}\rmulti{}). Equality
 of the first components is trivial whilst the multiset equality
 one is proven true by our solver.
 
-
-\subsection{Proving Bag Equivalence}
-
-We claimed that proving equations for a commutative monoid was
-more general than mere bag equivalence. It is now time to make
-such a statement formal: using Danielsson's rather consequent
-library for reasoning about Bag Equivalence~\cite{danielsson2012bag},
-we can build a tactics for proving bag equivalences of expressions
-involving finite lists (and list variables) by simply leveraging
-the solver defined in the previous subsection. Assuming that we
-have a base \AP{Set} named \AB{Pr} equipped with a decidable equality
-\AB{\_≟\_}, here is how to proceed:
-
-\begin{lemma}\AD{List} \AB{Pr} equipped with the binary operation
-\AF{\_++\_} is a commutative monoid for the equivalence relation
-\AF{\_≈-bag\_}.
-\end{lemma}
-
-We therefore have a solver for this theory. Now, it would be a
-grave mistake to translate constants using the \AIC{`c} constructor
-of the solver: results would be accumulated using concatenation and
-compared for \emph{syntactic equality} rather than up to permutation.
-This means that, for instance, \AN{1} \AIC{∷} \AN{2} \AIC{∷} \AB{xs}
-and \AN{2} \AIC{∷} \AN{1} \AIC{∷} \AB{xs} would be declared distinct
-because their normal forms would be, respectively, the pair
-\AN{1} \AIC{∷} \AN{2} \AIC{∷} \AIC{[]}, \AB{xs} \AIC{∷} \AIC{[]} on
-one hand and \AN{2} \AIC{∷} \AN{1} \AIC{∷} \AIC{[]}, \AB{xs} \AIC{∷}
-\AIC{[]} on the other one. Quite embarrassing indeed.
-
-Instead we ought to treat the expressions as massive joins of lists
-of singletons (seen as variables) and list variables. And this works
-perfectly well as demonstrated by the following example:
+A solver for bag equivalence can be derived by observing that for
+all \AB{A}, (\AD{List} \AB{A}, \AF{\_++\_}, \AIC{[]}) is a commutative
+monoid for the equivalence relation \AF{\_≈-bag\_}.
 
 \AgdaHide{
 \begin{code}
@@ -1751,9 +1326,7 @@ perfectly well as demonstrated by the following example:
 
   sgl : ℕ → Pr.List ℕ
   sgl x = x Pr.∷ Pr.[]
-\end{code}}
 
-\begin{code}
   example : (xs ys : Pr.List Nat.ℕ) → 
     1 Pr.∷ 2 Pr.∷ xs Pr.++ 1 Pr.∷ ys ≈-bag  ys Pr.++ 2 Pr.∷ xs Pr.++ 1 Pr.∷ 1 Pr.∷ Pr.[]
   example xs ys = proveMonEq LHS RHS CTX
@@ -1765,17 +1338,7 @@ perfectly well as demonstrated by the following example:
           LHS  = ((`1 `∙ `2) `∙ `xs) `∙ `1 `∙ `ys
           RHS  = `ys `∙ (`2 `∙ `xs) `∙ `1 `∙ `1
           CTX  = sgl 1 Vec.∷ sgl 2 Vec.∷ xs Vec.∷ ys Vec.∷ Vec.[]
-\end{code}
-
-Once more, \AF{LHS}, \AF{RHS} and \AF{CTX} are the respective
-reifications of the left and right hand sides of the equation
-as well as the one of the context. All these reification are
-done by hand. Having a nice interface for these solvers would
-involve a little bit of engineering work such as writing a
-(partial) function turning elements of the \AD{Term} type
-describing quoted Agda term into the corresponding \AD{Expr}.
-All of these issues have been thoroughly dealt with by Van Der
-Walt and Swierstra~\cite{van2012reflection,van2013engineering}.
+\end{code}}
 
 \section{Conclusion, Related and Future Work\label{sec:related}}
 
@@ -1901,7 +1464,6 @@ variable's type.
 
 This paper was typeset thanks to Stevan Andjelkovic's work to make
 compilation from literate agda to \LaTeX{} possible.
-
 Ben Kavanagh was instrumental in pushing us to introduce a visual
 representation of consumption annotations thus making the lump of
 nested predicate definitions more accessible to the first time

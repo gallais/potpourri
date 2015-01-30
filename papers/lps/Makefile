@@ -2,7 +2,7 @@ all:
 	./build.sh lps
 
 short:
-	./build.sh lpsShort
+	./build.sh lps-short
 
 clean:
 	rm -rf latex/
