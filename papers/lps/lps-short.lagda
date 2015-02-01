@@ -34,10 +34,6 @@
 % Author macros::end %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
-\setlength{\abovedisplayskip}{5pt}
-\setlength{\belowdisplayskip}{5pt}
-\setlength{\abovedisplayshortskip}{5pt}
-\setlength{\belowdisplayshortskip}{5pt}
 \maketitle
 
 \begin{abstract}
@@ -86,12 +82,12 @@ description of the proof search mechanism formal; and \autoref{sec:contexts}
 introduces resource-aware contexts therefore giving us a powerful
 language to target with our proof search algorithm implemented
 in \autoref{sec:proofsearch}. The soundness and completeness
-results proved respectively in \autoref{sec:soundness} and
-\autoref{sec:completeness} are what let us recover a proof of
+results, proved respectively in \autoref{sec:soundness} and
+\autoref{sec:completeness}, are what let us recover a proof of
 the decidability of the ILL fragment considered from the one of
 the more general system. Finally, \autoref{sec:application}
 presents an application of this proof search procedure to
-automatically discharge equations over a commutative monoid.
+discharge automatically equations over a commutative monoid.
 This solver is then further specialised to proving that two
 lists are bag equivalent thus integrating really well with
 Danielsson's previous work~\cite{danielsson2012bag}.
@@ -115,15 +111,15 @@ $$
                                    ~|~ \AD{ty} \with{} \AD{ty}}
 $$
 
-The calculus' sequents (\AB{Γ} \entails{} \AB{σ}) are composed of
-a multiset of types (\AB{Γ}) describing the resources available in
-the context and a type (\AB{σ}) corresponding to the proposition
+Sequents (\AB{Γ} \entails{} \AB{σ}) comprise
+a multiset of types (\AB{Γ}), the context of available resources,
+and a type (\AB{σ}) corresponding to the proposition to be proven.
 one is trying to prove. Each type constructor comes with both
 introduction and elimination rules (also known as, respectively,
 right and left rules because of the side of the sequent they affect)
-described in \autoref{fig:ILLRules}. Multisets are intrinsically
-extensional hence the lack of a permutation rule one may be used to
-seeing in various list-based presentations.
+described in \autoref{fig:ILLRules}. Multisets are inherently
+extensional, hence the lack of the permutation rule familiar from
+list-based presentations.
 \begin{figure*}[h]
 \begin{mathpar}
 \inferrule{ }{\text{\lmulti{} \AB{σ} \rmulti{} \entails{} \AB{σ}}}{ax}
@@ -207,20 +203,20 @@ trees as we purposefully ignore left rules. We write
 to mean that the current proof search state is \AB{Δ} and we managed to
 build a pseudo-derivation \AB{π} of type \AB{Γ} \entails{} \AB{σ}. \AB{π}
 and \AB{Γ} may be replaced by question marks when we haven't yet reached
-a point where we have a found proof and thus instatiated them.
+a point where we have found a proof and thus instantiated them.
 
-In order to materialise the idea that some resources in \AB{Δ} are available
+To materialise the idea that some resources in \AB{Δ} are available
 whereas others have already been consumed, we are going to mark with a box
 \fba{ } (the parts of) the assumptions which are currently available. During
 the proof search, the state \AB{Δ} will keep its structure but we will update
-destructively its resource annotations. For instance, consuming \AB{σ} out of
+its resource annotations. For instance, consuming \AB{σ} out of
 \AB{Δ} = \fba{(\AB{σ} \with{} \AB{τ})} \tensor{} \AB{υ} will turn \AB{Δ} into
 (\AB{σ} \with{} \fba{\AB{τ}}) \tensor{} \AB{υ}.
 
-Let us now go ahead and observe how one looks for a proof of the following
+Let us now observe how one looks for a proof of the following
 formula (where \AB{σ} and \AB{τ} are assumed to be atomic):
 (\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ} \entails{} \AB{τ} \tensor{} \AB{σ}.
-The proof search problem we are facing is therefore:
+The problem we are facing is thus:
 \begin{mathpar}
 \text{\fba{(\AB{σ} \tensor{} \AB{τ}) \with{} \AB{σ}}}
 \Rightarrow
@@ -229,9 +225,9 @@ The proof search problem we are facing is therefore:
   }
 \end{mathpar}
 The goal's head symbol is a \tensor{}; as we have no interest in guessing
-whether to apply left rules─if at all necessary─, or how to partition the
-current context, we are simply going to start by looking for a proof of
-its left subcomponent using the full context. Given that \AB{τ} is an atomic
+whether or not to apply left rules or how to partition the
+current context, we simply start by looking for a proof of
+its left subformula using the full context. Given that \AB{τ} is an atomic
 formula, the only way for us to discharge this goal is to use an assumption
 available in the context. Fortunately, there is a \AB{τ} in the context;
 we are therefore able to produce a derivation where \AB{τ} has now been
@@ -251,14 +247,14 @@ axiom rule and destructively updating the context:
 }{ \text{\AB{τ} \entails{} \AB{τ}}
 }{ax}
 \end{mathpar}
-Now that we are done with the left subgoal, we can deal with
+The left subgoal done, we can tackle
 the right one using the leftovers (\fba{\AB{σ}} \tensor{} \AB{τ})
-\with{} \fba{\AB{σ}}. We are once more facing an atomic formula
-which we can only discharge by using an assumption. This time there
-are two candidates in the context except that one of them is inaccessible:
+\with{} \fba{\AB{σ}}. Again we face an atomic formula
+which we can discharge only via an assumption. This time there
+are two candidates in the context except that one is inaccessible:
 solving the previous goal has had the side-effect of picking one
-side of the \with{} thus rejecting the other entirely. In other
-words: a left rule has been applied implicitly! The only meaningful
+side of the \with{}, rejecting the other entirely. That is,
+a left rule has been applied implicitly! The only meaningful
 step in the proof search is therefore:
 \begin{mathpar}
 \text{(\fba{\AB{σ}} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}}}
@@ -275,10 +271,10 @@ step in the proof search is therefore:
 }{ax}
 \end{mathpar}
 We can then come back to our \tensor{}-headed goal and combine these
-two derivations by using a right introduction rule for \tensor{}.
-(\AB{σ} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}} being a fully used
-context (\fba{\AB{σ}} is inaccessible), we can conclude that our
-search has ended successfully:
+two derivations with the right-rule for \tensor{}. As
+(\AB{σ} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}} is a fully used
+context (\fba{\AB{σ}} is inaccessible), our
+search succeeds:
 \begin{mathpar}
 \text{(\AB{σ} \tensor{} \AB{τ}) \with{} \fba{\AB{σ}}}
 \Rightarrow
@@ -321,7 +317,7 @@ internalised. When we write down the sequent \AB{Γ} \entails{}
 we can prove \AB{σ} with leftovers \AB{Δ}. Let us see what a
 linear calculus would look like in this setting.
 
-If we assume that we already have in our possession a similar relation
+Assuming we already have a similar relation
 \AB{Γ} \belongs{} \AB{k} \cobelongs{} \AB{Δ} describing the act of
 consuming a resource \AIC{κ} \AB{k}\footnote{In this presentation,
 we limit the axiom rule to atomic formulas only but it is not an
@@ -334,7 +330,7 @@ translates to:
 }{\text{\AB{Γ} \entails{} \AIC{κ} \AB{k} \coentails{} \AB{Δ}}
 }{ax}
 \end{mathpar}
-The introduction rule for tensor in the system with leftovers does
+The introduction rule for \tensor{} in the system with leftovers does
 not involve partitioning a multiset (a list in our implementation)
 anymore: one starts by discharging the first subgoal, collects
 the leftovers from this computation, and then feeds them to the
@@ -351,9 +347,9 @@ opportunity for parallelisation of the proof search a symmetric
 version could offer as well as the additional costs it would
 entail.
 
-The with type constructor on the other hand expects both
-subgoals to be proven using the same resources. We formalise
-this as the fact that both sides are proved using the input
+The \with{} type constructor on the other hand expects both
+subgoals to be proven using the same resources. Formally,
+both sides are proved using the input
 context and that both leftovers are then synchronised (for a
 sensible, yet to be defined, definition of synchronisation).
 Obviously, not all leftovers will be synchronisable: checking
@@ -472,13 +468,14 @@ introduction rule as in the following example:
 \end{mathpar}
 The \AD{Usage} of a type \AB{σ} is directly based on the idea
 of a cover; it describes two different situations: either the
-assumption has not been touched yet or it has been (partially)
-used. Hence \AD{Usage} is the following datatype with two infix
+assumption has not been touched yet (it is \emph{mint})
+or it has been (partially) used (it is \emph{dented}).
+Hence \AD{Usage} is the following datatype with two infix
 constructors\footnote{The way the brackets are used is meant to
 convey the idea that \AIC{[} \AB{σ} \AIC{]} is in mint condition
 whilst \AIC{]} \AB{S} \AIC{[} is dented. The box describing an
-hypothesis in mint conditions is naturally mimicking the \fba{ }
-we have written earlier on.}:
+hypothesis in mint condition is naturally mimicking the \fba{ }
+we have been using earlier on.}:
 \begin{mathpar}
 \inferrule{
 }{\text{\AIC{[} \AB{σ} \AIC{]} \hasType{} \AD{Usage} \AB{σ}}
@@ -499,10 +496,10 @@ ambiguities.
 }{   \text{\AB{Γ} \mysnoc{} \AB{S} \hasType{} \AD{Usages} \AB{γ} \mysnoc{} \AB{σ}}}
 \end{mathpar}
 
-\paragraph{Erasures and injections} From an \AD{Usage}(\AD{s}), one
-can always define a function erasure (\erasure{\_}) listing the atoms
-marked as used. Conversely, from a context \AB{γ} the injection function
-(\AF{inj}) will build the \AD{Usages} \AB{γ} corresponding to a completely
+\paragraph*{Erasures and injections} From \AD{Usage}(\AD{s}), one
+can always define a function erasure (\erasure{\_}) listing the formulas
+marked as used. Conversely, from a context \AB{γ} the injection
+(\AF{inj}) will build the \AD{Usages} \AB{γ} corresponding to a
 mint context.
 
 \AgdaHide{
@@ -623,9 +620,8 @@ side of the \with{} whilst the other one is a full cover:
 
 \subsection{Resource-Aware Primitives}
 
-Now that \AD{Usages} are properly defined, we can give a precise
-type to our three place relations evoked before:
-
+Now that \AD{Usages} and synchronization are properly defined,
+we can make our earlier ternary relations precise.
 \begin{mathpar}
 \inferrule{\text{\AB{Γ} \hasType{} \AD{Usages} \AB{γ}}
       \and \text{\AB{k} \hasType{} \AD{ℕ}}
@@ -666,7 +662,7 @@ on two inductive types respectively describing what it means for a
 resource to be consumed out of a mint assumption or out of an existing
 cover.
 
-\subsubsection{Consumption from a Mint Assumption}
+\subsubsection{Consumption from a `Mint' Assumption}
 
 We write \freebelongs{\AB{σ}} \AB{k} \cobelongs{} \AB{S} to mean that
 by starting with a completely mint assumption of type \AB{σ}, we
@@ -680,10 +676,10 @@ and end up with a total cover:
 }
 \end{mathpar}
 
-In the case of with and tensor, one can decide to dig either in the left
-or the right hand side of the assumption to find the right resource. This
-gives rise to four similarly built rules; we will only give one example:
-going left on a tensor:
+In the case of \with{} and \tensor{}, one can decide to dig either left
+or right into the assumption to find the right resource. This
+gives rise to four similar rules; we show only one example:
+left into \tensor{}:
 \begin{mathpar}
 \inferrule{\text{\freebelongs{\AB{σ}} \AB{k} \cobelongs{} \AB{S}}
 }{\text{\freebelongs{\AB{σ} \tensor{} \AB{τ}} \AB{k}
@@ -697,7 +693,7 @@ When we have an existing cover, the situation is slightly more
 complicated. First, we can dig into an already partially used
 sub-assumption using what we could call structural rules. All
 of these are pretty similar so we will only present the one
-harvesting the content on the left of a with type constructor:
+harvesting the content on the left of \with{}:
 \begin{mathpar}
 \inferrule{\text{S \belongs{} \AB{k} \cobelongs{} \AB{S′}}
 }{\text{S \with\free{\AB{τ}} \belongs{} \AB{k} \cobelongs{} \AB{S′} \with\free{\AB{τ}}}
@@ -719,7 +715,7 @@ we hinted at when observing the execution of the search procedure
 in \autoref{sec:example}. We call this alternative formulation of
 the fragment of ILL we have decided to study \textbf{ILLWL} which
 stands for \textbf{I}ntuitionistic \textbf{L}inear \textbf{L}ogic
-\textbf{W}ith \textbf{L}eftovers. It will only be useful if it is
+\textbf{Wi}th \textbf{L}eftovers. It will only be useful if it is
 equivalent to ILL. The following two sections are dedicated to
 proving that the formulation is both sound (all the derivations in
 the generalised calculus give rise to corresponding ones in ILL)
@@ -741,8 +737,8 @@ talk about working in a larger context.
 
 \subsection{A Notion of Weakening for ILLWL}
 
-One of the particularities of Linear Logic is precisely that there is no
-notion of weakening allowing to discard resources without using them. In
+A particular feature of Linear Logic is precisely that there is no
+notion of weakening allowing you to discard resources without using them. In
 the calculus with leftovers however, it is perfectly sensible to talk
 about resources which are not impacted by the proof process: they are
 merely passed around and returned untouched at the end of the computation.
@@ -887,8 +883,8 @@ throw in an entirely new \AD{Usage}:
                    (\AB{Γ} \fillUs{} \AB{hs}) \mysnoc{} \AB{S}}}
 \end{mathpar}
 
-Now that this machinery is defined, we can easily state and prove the
-following simple weakening lemmma:
+This machinery defined, we can easily state and prove the
+following simple weakening lemma:
 
 \begin{lemma}[Weakening for ILLWL]
 Given \AB{Γ} and \AB{Δ} two \AD{Usages} \AB{γ} and a goal \AB{σ}
@@ -947,9 +943,9 @@ derivability in ILLWL negatively.
 \end{proof}
 
 This is overall a reasonably simple proof but it had to be expected:
-ILL is a more explicit system listing precisely when every single
-left rule is applied whereas ILLWL is more on the elliptic side.
-Let us now deal with soudness:
+ILL is more explicit, listing each
+left-rule application whereas ILLWL is more elliptic.
+Let us now turn to soudness.
 
 \section{Soundness\label{sec:soundness}}
 
@@ -1017,11 +1013,11 @@ let the reader infer) in \autoref{fig:coverdiffs}.
 \subsection{Soundness Proof}
 
 The proof of soundness is split into auxiliary lemmas which are
-used to combine the induction hypothesis. These lemmas, where the
+used to combine the induction hypotheses. These lemmas, where the
 bulk of the work is done, are maybe the places where the precise
 role played by the constraints enforced in the generalised calculus
 come to light. We state them here and skip the relatively tedious
-proofs. The interested reader can find them in the \file{Search/Calculus}
+proofs. The interested reader can inspect the \file{Search/Calculus}
 file.
 
 \begin{lemma}[Introduction of with]
@@ -1040,7 +1036,7 @@ then we can generate \AB{E}, an \AD{Usages} \AB{γ}, such that
     \erasure{\AB{E}} \entails{} \AB{σ},
 and \erasure{\AB{E}} \entails{} \AB{τ}.
 \end{lemma}
-\begin{proof}The proof is by induction over the structure of the
+\begin{proof}By structural induction on the
 derivation stating that \AB{Δ₁} and \AB{Δ₂} are synchronised.
 \end{proof}
 
@@ -1112,7 +1108,7 @@ a modified context and then threads these leftovers to tackle the second
 one. And, last but not least, the rule for with looks very much like a
 map-reduce diagram: we start by generating two subcomputations which can
 be run in parallel and later on merge their results by checking whether
-the output contexts can be said to be synchronised (and this partiality
+the output contexts can be said to be synchronised (and this failure
 will be dealt with using the maybe monad).
 
 Now, the presence of these effects is a major reason why it is important
@@ -1120,7 +1116,7 @@ to have the elegant intermediate structures we can generate inhabitants
 of. Even if we are only interested in the satisfiability of a given
 problem, having material artefacts at our disposal allows us to state
 and prove properties of these functions easily rather than having to
-suffer from boolean blindness: "A Boolean is a bit uninformative"~\cite{mcbride2005epigram}.
+suffer from boolean blindness: ``A Boolean is a bit uninformative''~\cite{mcbride2005epigram}.
 And we know that we may be able to optimise them
 away~\cite{wadler1990deforestation, gill1993short} in the case where
 we are indeed only interested in the satisfiability of the problem and
@@ -1255,7 +1251,7 @@ module TacticsAbMonPaper
   ⟦ `c el   ⟧^E ρ = el
   ⟦ t `∙ u  ⟧^E ρ = ⟦ t ⟧^E ρ M.∙ ⟦ u ⟧^E ρ
 
-  open import Prelude as Prelude hiding (ℕ ; _×_ ; Fin ; _$_ ; flip ; lookup)
+  open import Prelude as Prelude hiding (_×_ ; Fin ; _$_ ; flip ; lookup)
 
   Model : (n : ℕ) → Set
   Model n = M.Carrier × List (Fin n)
@@ -1410,8 +1406,8 @@ able to make this specific assumption temporarily unavailable when
 proving its premise. Indeed, it would otherwise be possible to use its
 own body to discharge the premise thus leading to a strange fixpoint
 making e.g. \AB{σ} \lolli{} (\AB{σ} \tensor{} \AB{σ}) \entails{} \AB{σ}
-provable. We have explored various options but a well-structured
-solution has yet to be found.
+provable. We have explored various options but still have to come up
+with a well-structured solution.
 
 \subsection{Search Parallelisation\label{sec:parallel}}
 
