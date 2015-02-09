@@ -67,7 +67,7 @@ main =
   IO.run $
   ♯ getArgs >>= λ args →
   ♯ (case args of λ
-     { []       → return (lift tt)
+     { []       → ♯ IO.putStrLn "Usage: aGdaREP filename" >> ♯ return (lift tt)
      ; (hd ∷ _) →
        ♯ IO.readFiniteFile hd >>= λ content →
        ♯ (IO.mapM′ (maybe putStrLn (return tt))
