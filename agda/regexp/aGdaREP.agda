@@ -1,9 +1,14 @@
 module regexp.aGdaREP where
 
+open import Level
+open import Coinduction
+open import Data.Unit
+open import Data.Bool
 open import Data.Product
 open import Data.Char   as Chr
 open import Data.String as Str
 open import Data.List   as List
+open import Data.Maybe  as Maybe
 
 open import Function
 open import lib.Nullary
@@ -15,10 +20,10 @@ open S
 lit : (str : String) → RegExp
 lit = List.foldr (_∙_ ∘ RE.[_]) ε ∘ Str.toList
 
-grep : RegExp → List String → List String
-grep e = foldr cons []
+grep : RegExp → String → Maybe String
+grep e str = dec (substring e (Str.toList str)) (just ∘′ grab) (const nothing)
   where
-    grab : {str : List Char} → Substring e str → String
+    grab : Substring e (Str.toList str) → String
     grab (ss , ts , us , _ , _) =
         Str.fromList $ ss List.++ Str.toList "\x1B[1m \x1B[31m"
                           List.++ ts
@@ -26,21 +31,47 @@ grep e = foldr cons []
                           List.++ us
                             
 
-    cons : String → List String → List String
-    cons str = dec (substring e (Str.toList str)) (_∷_ ∘ grab) (const id)
-
 coloUr : RegExp
 coloUr = lit "colo" ∙ (lit "u" ⁇) ∙ lit "r"
 
-open import IO as IO
-open import Data.Colist as Colist
+open import IO           as IO
+import IO.Primitive      as Prim
+open import Data.Colist  as Colist
+
+breakOn : {A : Set} (P? : A → Bool) (xs : List A) → List (List A)
+breakOn {A} P? = uncurry _∷_ ∘ foldr step ([] , [])
+  where
+    step : A → (List A × List (List A)) → (List A × List (List A))
+    step a (xs , xss) = if (P? a) then [] , xs ∷ xss else a ∷ xs , xss
+
+lines : String → List String
+lines = List.map Str.fromList ∘ breakOn isNewLine ∘ Str.toList
+  where
+    isNewLine : Char → Bool
+    isNewLine y = dec (y Chr.≟ '\n') (const true) (const false)
+
+module myPrimIO where
+
+  {-# IMPORT System.Environment #-}
+
+  postulate
+    getArgs     : Prim.IO (List String)
+
+  {-# COMPILED getArgs        System.Environment.getArgs               #-}
+
+getArgs : IO (List String)
+getArgs = lift myPrimIO.getArgs
 
 main : _
 main =
-  IO.run $ IO.mapM putStrLn $ Colist.fromList
-  $ grep coloUr
-  $ "green is a nice colour, isn't it?"
-  ∷ "I prefer orange myself"
-  ∷ "Orange the fruit or orange the color?"
-  ∷ []
-    
+  IO.run $
+  ♯ getArgs >>= λ args →
+  ♯ (case args of λ
+     { []       → return (lift tt)
+     ; (hd ∷ _) →
+       ♯ IO.readFiniteFile hd >>= λ content →
+       ♯ (IO.mapM′ (maybe putStrLn (return tt))
+         $ Colist.fromList
+         $ List.map (grep coloUr)
+         $ lines content)
+  })
