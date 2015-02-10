@@ -32,11 +32,14 @@ module regexp.SmartCons
 
   _`∙_ : (e₁ e₂ : RegExp) → RegExp
   ∅  `∙ e₂ = ∅
+  ε  `∙ e₂ = e₂
   e₁ `∙ ∅  = ∅
+  e₁ `∙ ε  = e₁
   e₁ `∙ e₂ = e₁ ∙ e₂
 
   _`⋆ : RegExp → RegExp
   ∅ `⋆ = ε
+  ε `⋆ = ε
   e `⋆ = e ⋆
 
   -- proof that they are semantics preserving
@@ -95,46 +98,44 @@ module regexp.SmartCons
   `∣-complete (e₁ ⋆) (e₂ ∙ e₃) pr = pr
   `∣-complete (e₁ ⋆) (e₂ ⋆) pr = pr
 
+  open import Algebra
+  module LM = Monoid (List.monoid Alphabet)
+
   `∙-complete : (e₁ e₂ : RegExp) {xs : List Alphabet} →
                 xs ∈ e₁ ∙ e₂ → xs ∈ e₁ `∙ e₂
   `∙-complete ∅ e (() ∙ pr ⇚ eq)
   `∙-complete ε ∅ (pr ∙ () ⇚ eq)
-  `∙-complete ε ε pr = pr
-  `∙-complete ε ─ pr = pr
-  `∙-complete ε [ a ] pr = pr
-  `∙-complete ε (e₂ ∣ e₃) pr = pr
-  `∙-complete ε (e₂ ∙ e₃) pr = pr
-  `∙-complete ε (e₂ ⋆) pr = pr
+  `∙-complete ε e₂ (ε ∙ pr ⇚ refl) = pr
   `∙-complete ─ ∅ (pr ∙ () ⇚ eq)
-  `∙-complete ─ ε pr = pr
+  `∙-complete ─ ε (_∙_⇚_ {xs} pr ε refl) rewrite proj₂ LM.identity xs = pr
   `∙-complete ─ ─ pr = pr
   `∙-complete ─ [ a ] pr = pr
   `∙-complete ─ (e₂ ∣ e₃) pr = pr
   `∙-complete ─ (e₂ ∙ e₃) pr = pr
   `∙-complete ─ (e₂ ⋆) pr = pr
   `∙-complete [ a ] ∅ (pr ∙ () ⇚ eq)
-  `∙-complete [ a ] ε pr = pr
+  `∙-complete [ a ] ε (_∙_⇚_ {xs} pr ε refl) rewrite proj₂ LM.identity xs = pr
   `∙-complete [ a ] ─ pr = pr
   `∙-complete [ a ] [ a₁ ] pr = pr
   `∙-complete [ a ] (e₂ ∣ e₃) pr = pr
   `∙-complete [ a ] (e₂ ∙ e₃) pr = pr
   `∙-complete [ a ] (e₂ ⋆) pr = pr
   `∙-complete (e₁ ∣ e₂) ∅ (pr ∙ () ⇚ eq)
-  `∙-complete (e₁ ∣ e₂) ε pr = pr
+  `∙-complete (e₁ ∣ e₂) ε (_∙_⇚_ {xs} pr ε refl) rewrite proj₂ LM.identity xs = pr
   `∙-complete (e₁ ∣ e₂) ─ pr = pr
   `∙-complete (e₁ ∣ e₂) [ a ] pr = pr
   `∙-complete (e₁ ∣ e₂) (e₃ ∣ e₄) pr = pr
   `∙-complete (e₁ ∣ e₂) (e₃ ∙ e₄) pr = pr
   `∙-complete (e₁ ∣ e₂) (e₃ ⋆) pr = pr
   `∙-complete (e₁ ∙ e₂) ∅ (pr ∙ () ⇚ eq)
-  `∙-complete (e₁ ∙ e₂) ε pr = pr
+  `∙-complete (e₁ ∙ e₂) ε (_∙_⇚_ {xs} pr ε refl) rewrite proj₂ LM.identity xs = pr
   `∙-complete (e₁ ∙ e₂) ─ pr = pr
   `∙-complete (e₁ ∙ e₂) [ a ] pr = pr
   `∙-complete (e₁ ∙ e₂) (e₃ ∣ e₄) pr = pr
   `∙-complete (e₁ ∙ e₂) (e₃ ∙ e₄) pr = pr
   `∙-complete (e₁ ∙ e₂) (e₃ ⋆) pr = pr
   `∙-complete (e₁ ⋆) ∅ (pr ∙ () ⇚ eq)
-  `∙-complete (e₁ ⋆) ε pr = pr
+  `∙-complete (e₁ ⋆) ε (_∙_⇚_ {xs} pr ε refl) rewrite proj₂ LM.identity xs = pr
   `∙-complete (e₁ ⋆) ─ pr = pr
   `∙-complete (e₁ ⋆) [ a ] pr = pr
   `∙-complete (e₁ ⋆) (e₂ ∣ e₃) pr = pr
@@ -145,7 +146,8 @@ module regexp.SmartCons
                 xs ∈ e ⋆ → xs ∈ e `⋆
   `⋆-complete ∅ (pr ∣₁ ._ ⋆) = pr
   `⋆-complete ∅ (._ ∣₂ (() ∙ _ ⇚ _) ⋆)
-  `⋆-complete ε pr = pr
+  `⋆-complete ε (.ε ∣₂ (ε ∙ pr ⇚ refl) ⋆) = `⋆-complete ε pr
+  `⋆-complete ε (pr ∣₁ ._ ⋆) = pr
   `⋆-complete ─ pr = pr
   `⋆-complete [ a ] pr = pr
   `⋆-complete (e ∣ e₁) pr = pr
@@ -204,42 +206,37 @@ module regexp.SmartCons
              xs ∈ e₁ `∙ e₂ → xs ∈ e₁ ∙ e₂
   `∙-sound ∅ e ()
   `∙-sound ε ∅ ()
-  `∙-sound ε ε pr = pr
-  `∙-sound ε ─ pr = pr
-  `∙-sound ε [ a ] pr = pr
-  `∙-sound ε (e₂ ∣ e₃) pr = pr
-  `∙-sound ε (e₂ ∙ e₃) pr = pr
-  `∙-sound ε (e₂ ⋆) pr = pr
+  `∙-sound ε e pr = ε ∙ pr ⇚ refl
   `∙-sound ─ ∅ ()
-  `∙-sound ─ ε pr = pr
+  `∙-sound ─ ε pr = pr ∙ ε ⇚ (sym $ proj₂ LM.identity _)
   `∙-sound ─ ─ pr = pr
   `∙-sound ─ [ a ] pr = pr
   `∙-sound ─ (e₂ ∣ e₃) pr = pr
   `∙-sound ─ (e₂ ∙ e₃) pr = pr
   `∙-sound ─ (e₂ ⋆) pr = pr
   `∙-sound [ a ] ∅ ()
-  `∙-sound [ a ] ε pr = pr
+  `∙-sound [ a ] ε pr = pr ∙ ε ⇚ (sym $ proj₂ LM.identity _)
   `∙-sound [ a ] ─ pr = pr
   `∙-sound [ a ] [ a₁ ] pr = pr
   `∙-sound [ a ] (e₂ ∣ e₃) pr = pr
   `∙-sound [ a ] (e₂ ∙ e₃) pr = pr
   `∙-sound [ a ] (e₂ ⋆) pr = pr
   `∙-sound (e₁ ∣ e₂) ∅ ()
-  `∙-sound (e₁ ∣ e₂) ε pr = pr
+  `∙-sound (e₁ ∣ e₂) ε pr = pr ∙ ε ⇚ (sym $ proj₂ LM.identity _)
   `∙-sound (e₁ ∣ e₂) ─ pr = pr
   `∙-sound (e₁ ∣ e₂) [ a ] pr = pr
   `∙-sound (e₁ ∣ e₂) (e₃ ∣ e₄) pr = pr
   `∙-sound (e₁ ∣ e₂) (e₃ ∙ e₄) pr = pr
   `∙-sound (e₁ ∣ e₂) (e₃ ⋆) pr = pr
   `∙-sound (e₁ ∙ e₂) ∅ ()
-  `∙-sound (e₁ ∙ e₂) ε pr = pr
+  `∙-sound (e₁ ∙ e₂) ε pr = pr ∙ ε ⇚ (sym $ proj₂ LM.identity _)
   `∙-sound (e₁ ∙ e₂) ─ pr = pr
   `∙-sound (e₁ ∙ e₂) [ a ] pr = pr
   `∙-sound (e₁ ∙ e₂) (e₃ ∣ e₄) pr = pr
   `∙-sound (e₁ ∙ e₂) (e₃ ∙ e₄) pr = pr
   `∙-sound (e₁ ∙ e₂) (e₃ ⋆) pr = pr
   `∙-sound (e₁ ⋆) ∅ pr = (ε ∣₁ _ ⋆) ∙ pr ⇚ refl
-  `∙-sound (e₁ ⋆) ε pr = pr
+  `∙-sound (e₁ ⋆) ε pr = pr ∙ ε ⇚ (sym $ proj₂ LM.identity _)
   `∙-sound (e₁ ⋆) ─ pr = pr
   `∙-sound (e₁ ⋆) [ a ] pr = pr
   `∙-sound (e₁ ⋆) (e₂ ∣ e₃) pr = pr
@@ -249,7 +246,7 @@ module regexp.SmartCons
   `⋆-sound : (e : RegExp) {xs : List Alphabet} →
              xs ∈ e `⋆ → xs ∈ e ⋆
   `⋆-sound ∅ pr = pr ∣₁ _ ⋆
-  `⋆-sound ε pr = pr
+  `⋆-sound ε pr = pr ∣₁ _ ⋆
   `⋆-sound ─ pr = pr
   `⋆-sound [ a ] pr = pr
   `⋆-sound (e ∣ e₁) pr = pr

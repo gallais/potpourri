@@ -5,34 +5,62 @@ open import Coinduction
 open import Data.Unit
 open import Data.Bool
 open import Data.Product
+open import Data.Sum
 open import Data.Char   as Chr
 open import Data.String as Str
 open import Data.List   as List
 open import Data.Maybe  as Maybe
 
 open import Function
+open import Relation.Nullary
 open import lib.Nullary
 
 import regexp.Search
 module S = regexp.Search Char Chr._≟_
 open S
 
-lit : (str : String) → RegExp
-lit = List.foldr (_∙_ ∘ RE.[_]) ε ∘ Str.toList
+{-
+    ∅   : RegExp
+    ε   : RegExp
+    ─   : RegExp
+    [_] : (a : Alphabet) → RegExp
+    _⋆  : (e : RegExp) → RegExp
+-}
 
-grep : RegExp → String → Maybe String
-grep e str = dec (substring e (Str.toList str)) (just ∘′ grab) (const nothing)
+data Error : Set where
+  TooManyClosingParentheses   : Error
+  NotEnoughClosingParentheses : Error
+
+parse : List (RegExp → RegExp) → List Char → RegExp ⊎ Error
+parse []           _                = inj₂ TooManyClosingParentheses
+parse (e ∷ [])     []               = inj₁ $ e ε
+parse _            []               = inj₂ NotEnoughClosingParentheses
+parse (e ∷ es)     ('\\' ∷ x ∷ xs)  = parse ((λ f → e RE.[ x ] `∙ f) ∷ es) xs
+parse es           ('(' ∷ xs)       = parse (id ∷ es) xs
+parse (e ∷ es)     ('|' ∷ xs)       = parse ((λ f → e ε ∣ f) ∷ es) xs
+parse (e ∷ [])     (')' ∷ xs)       = inj₂ TooManyClosingParentheses
+parse (e ∷ f ∷ es) (')' ∷ '?' ∷ xs) = parse ((λ g → f (e ε ⁇ `∙ g)) ∷ es) xs
+parse (e ∷ f ∷ es) (')' ∷ '*' ∷ xs) = parse ((λ g → f (e ε `⋆ `∙ g)) ∷ es) xs
+parse (e ∷ f ∷ es) (')' ∷ xs)       = parse ((λ g → f (e ε `∙ g)) ∷ es) xs
+parse (e ∷ es)     ('.' ∷ '?' ∷ xs) = parse ((λ f → e (─ ⁇ `∙ f)) ∷ es) xs
+parse (e ∷ es)     ('.' ∷ '*' ∷ xs) = parse ((λ f → e (─ `⋆ `∙ f)) ∷ es) xs
+parse (e ∷ es)     ('.' ∷ xs)       = parse ((λ f → e (─ `∙ f)) ∷ es) xs
+parse (e ∷ es)     (a   ∷ '?' ∷ xs) = parse ((λ f → e (RE.[ a ] ⁇ `∙ f)) ∷ es) xs
+parse (e ∷ es)     (a   ∷ '*' ∷ xs) = parse ((λ f → e (RE.[ a ] `⋆ `∙ f)) ∷ es) xs
+parse (e ∷ es)     (a   ∷ xs)       = parse ((λ f → e (RE.[ a ] `∙ f)) ∷ es) xs
+
+parseRegExp : String → RegExp ⊎ Error
+parseRegExp = parse (id ∷ []) ∘ Str.toList
+
+select : RegExp → String → Maybe String
+select e str = dec (substring e (Str.toList str)) (just ∘′ grab) (const nothing)
   where
     grab : Substring e (Str.toList str) → String
     grab (ss , ts , us , _ , _) =
-        Str.fromList $ ss List.++ Str.toList "\x1B[1m \x1B[31m"
+        Str.fromList $ ss List.++ Str.toList "\x1B[1m\x1B[31m"
                           List.++ ts
                           List.++ Str.toList "\x1B[0m"
                           List.++ us
-                            
-
-coloUr : RegExp
-coloUr = lit "colo" ∙ (lit "u" ⁇) ∙ lit "r"
 
 open import IO           as IO
 import IO.Primitive      as Prim
@@ -62,16 +90,25 @@ module myPrimIO where
 getArgs : IO (List String)
 getArgs = lift myPrimIO.getArgs
 
+usage : IO (Lift ⊤)
+usage = ♯ IO.putStrLn "Usage: aGdaREP regexp filename" >> ♯ return (lift tt)
+
+FilePath : Set
+FilePath = String
+
+grep : RegExp → FilePath → IO (Lift ⊤)
+grep reg fp = 
+  ♯ IO.readFiniteFile fp >>= λ content →
+  ♯ (IO.mapM′ (maybe putStrLn (return tt))
+    $ Colist.fromList
+    $ List.map (select reg)
+    $ lines content)
+
 main : _
 main =
   IO.run $
   ♯ getArgs >>= λ args →
   ♯ (case args of λ
-     { []       → ♯ IO.putStrLn "Usage: aGdaREP filename" >> ♯ return (lift tt)
-     ; (hd ∷ _) →
-       ♯ IO.readFiniteFile hd >>= λ content →
-       ♯ (IO.mapM′ (maybe putStrLn (return tt))
-         $ Colist.fromList
-         $ List.map (grep coloUr)
-         $ lines content)
-  })
+     { (reg ∷ fp ∷ _) → [ flip grep fp , const $ return (lift tt) ]′ (parseRegExp reg)
+     ; _              → usage
+     })

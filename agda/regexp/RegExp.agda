@@ -36,6 +36,7 @@ module regexp.RegExp (Alphabet : Set)
   e + = e ∙ e ⋆
 
   _⁇ : (e : RegExp) → RegExp
+  ∅ ⁇ = ε
   e ⁇ = ε ∣ e
 
   -- semantics in terms of words (lists of letters
