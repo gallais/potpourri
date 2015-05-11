@@ -25,6 +25,8 @@ module lps.Linearity (Pr : Set) where
     -- despite the fact that S is a cover with only available atoms
     private
       module DummyCover where
+
+        infixl 40 _`⊗_ _`&_ [_]`⊗_ _`⊗[_] _`&[_] [_]`&_
         data Cover : ty → Set where
           `κ     : (k : Pr) → Cover $ `κ k
           _`⊗_   : {a b : ty} (A : Cover a) (B : Cover b) → Cover $ a `⊗ b
@@ -38,7 +40,7 @@ module lps.Linearity (Pr : Set) where
       open DummyCover public hiding (module Cover)
 
     module Cover where
-
+      infixl 40 _`⊗_ _`&_ _`&[_] [_]`&_
       data isUsed : {σ : ty} (S : Cover σ) → Set where
         `κ     : (k : Pr) → isUsed $ `κ k
         _`⊗_   : {a b : ty} {A : Cover a} {B : Cover b}
@@ -123,6 +125,7 @@ module lps.Linearity (Pr : Set) where
     private
        module DummyUsage where
 
+         infix 4 [_] ]_[
          data Usage : ty → Set where
            [_] : (a : ty) → Usage a
            ]_[ : {a : ty} (A : Cover a) → Usage a
@@ -131,6 +134,7 @@ module lps.Linearity (Pr : Set) where
 
     module Usage where
 
+      infix 4 ]_[
       data isUsed {σ : ty} : (S : Usage σ) → Set where
         ]_[ : {A : Cover σ} (prA : Cover.isUsed A) → isUsed ] A [
       
@@ -168,6 +172,7 @@ module lps.Linearity (Pr : Set) where
     ｢_｣ : {γ : Con ty} (Γ : Usage γ) → Con ty
     ｢_｣ = Pointwise.induction _ (λ prP ih → ih Context.++ Type.Usage.｢ prP ｣ ) ε
 
+    infixl 20 _∙_
     data isUsed : {γ : Con ty} (Γ : Usage γ) → Set where
       ε   : isUsed ε
       _∙_ : ∀ {γ σ} {Γ : Usage γ} {S : Type.Usage σ} (prΓ : isUsed Γ)

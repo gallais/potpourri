@@ -29,7 +29,8 @@ module lps.Search.Calculus (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) whe
     open Action.Context Pr
     module BTC = BelongsTo.Context Pr _≟_
 
-    infix 1 _⊢_⊣_
+    infix 3 _⊢_⊣_
+    infixl 40 _`⊗ʳ_ _`&ʳ_by_
     data _⊢_⊣_ {γ : Con ty} (Γ : Usage γ) : (σ : ty) (Δ : Usage γ) → Set where
       `κ       : ∀ {Γ′ k} (pr : Γ BTC.∋ k ∈ Γ′) → Γ ⊢ `κ k ⊣ Γ′
       _`⊗ʳ_    : ∀ {σ τ Δ E} (s : Γ ⊢ σ ⊣ Δ) (t : Δ ⊢ τ ⊣ E) → Γ ⊢ σ `⊗ τ ⊣ E
@@ -42,14 +43,15 @@ module lps.Search.Calculus (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) whe
          Σ[ Γ′ ∈ Usage γ ] Γ ⊢ `κ k ⊣ Γ′
     ⊢κ k (Δ , pr) = Δ , `κ pr
 
+    infix 5 _⊢⊣?_
     _⊢⊣?_ : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Con (Σ[ Γ′ ∈ Usage γ ] Γ ⊢ σ ⊣ Γ′)
     Γ ⊢⊣? `κ k   = map (⊢κ k) $ k BTC.∈? Γ
     Γ ⊢⊣? σ `⊗ τ = Γ ⊢⊣? σ >>= uncurry $ λ Δ prσ →
-                  Δ ⊢⊣? τ >>= uncurry $ λ E prτ →
-                  return $ E , prσ `⊗ʳ prτ
+                   Δ ⊢⊣? τ >>= uncurry $ λ E prτ →
+                   return $ E , prσ `⊗ʳ prτ
     Γ ⊢⊣? σ `& τ = Γ ⊢⊣? σ >>= uncurry $ λ Δ₁ prσ →
-                  Γ ⊢⊣? τ >>= uncurry $ λ Δ₂ prτ →
-                  maybe (uncurry $ λ Δ pr → return $ Δ , prσ `&ʳ prτ by pr) ε (Δ₁ ⊙? Δ₂)
+                   Γ ⊢⊣? τ >>= uncurry $ λ Δ₂ prτ →
+                   maybe (uncurry $ λ Δ pr → return $ Δ , prσ `&ʳ prτ by pr) ε (Δ₁ ⊙? Δ₂)
 
     ⊢⊣?-complete : ∀ {γ : Con ty} {Γ : Usage γ} (σ : ty) {Δ : Usage γ} (pr : Γ ⊢ σ ⊣ Δ) →
                   Σ[ pr ∈ Γ ⊢ σ ⊣ Δ ] (Δ , pr) BT.∈ Γ ⊢⊣? σ
@@ -65,6 +67,7 @@ module lps.Search.Calculus (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) whe
           (λ tm → (Δ , tm₁ `&ʳ tm₂ by C) BT.∈ maybe (uncurry $ λ Δ pr → return $ Δ , tm₁ `&ʳ tm₂ by pr) ε tm)
           (Eq.sym eq) BT.zro))
 
+    infix 5 _⊢?_
     _⊢?_ : ∀ {γ : Con ty} (Γ : Usage γ) (σ : ty) → Con (Σ[ Γ′ ∈ Usage γ ] isUsed Γ′ × (Γ ⊢ σ ⊣ Γ′))
     Γ ⊢? σ = Γ ⊢⊣? σ >>= uncurry $ λ Γ′ tm → dec (isUsed? Γ′) (λ U → return $ Γ′ , U , tm) (const ε)
 

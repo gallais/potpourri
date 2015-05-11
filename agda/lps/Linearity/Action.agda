@@ -30,7 +30,8 @@ module lps.Linearity.Action (Pr : Set) where
       -- on the sort of output contexts we can consider identical (see the
       -- right rule for `& to have a feeling of why we need this sort of
       -- thing)
-      infix 4 _≡_⊙_
+      infix 4 _≡_⊙_ 
+      infixl 40 _`⊗_ _`&_ [_]`⊗_ _`⊗[_] _`&[_] [_]`&_
       data _≡_⊙_ : {σ : ty} (S S₁ S₂ : Cover σ) → Set where
         sym      : {a : ty} {A B C : Cover a} (pr : A ≡ B ⊙ C) → A ≡ C ⊙ B
         `κ       : (k : Pr) → `κ k ≡ `κ k ⊙ `κ k
@@ -167,6 +168,7 @@ module lps.Linearity.Action (Pr : Set) where
       open Linearity.Type.Usage Pr
 
       infix 4 _≡_⊙_
+      infix 4 [_] ]_[
       data _≡_⊙_ : {σ : ty} (S S₁ S₂ : Usage σ) → Set where
         [_] : (σ : ty) → [ σ ] ≡ [ σ ] ⊙ [ σ ]
         ]_[ : {σ : ty} {A A₁ A₂ : Cover σ} (prA : A Cover.≡ A₁ ⊙ A₂) →
@@ -200,6 +202,7 @@ module lps.Linearity.Action (Pr : Set) where
     open Pointwise
 
     infix 4 _≡_⊙_
+    infixl 20 _∙_
     data _≡_⊙_ : {γ : Con ty} (E Δ₁ Δ₂ : Usage γ) → Set where
       ε   : ε ≡ ε ⊙ ε
       _∙_ : ∀ {γ σ} {Γ Δ₁ Δ₂ : Usage γ} {S S₁ S₂ : Type.Usage σ} →
@@ -211,7 +214,7 @@ module lps.Linearity.Action (Pr : Set) where
     ⊙-refl (Γ ∙ S) = ⊙-refl Γ ∙ Type.Usage.⊙-refl S
 
     open Maybe
-    infix 5 _⊙?_
+    infix 6 _⊙?_
     _⊙?_ : {γ : Con ty} (Δ₁ Δ₂ : Usage γ) → Maybe (Σ[ E ∈ Usage γ ] E ≡ Δ₁ ⊙ Δ₂)
     ε       ⊙? ε       = return $ ε , ε
     Δ₁ ∙ S₁ ⊙? Δ₂ ∙ S₂ =

@@ -19,7 +19,8 @@ module lps.Linearity.Consumption (Pr : Set) where
 
       open Linearity.Type Pr
 
-      infix 4 _≡_─_
+      infix 3 _≡_─_
+      infixl 40 _`⊗_ [_]`⊗_ _`⊗[_] _`&[_] [_]`&_ _`⊗ˡ_ _`⊗ʳ_ [_]`⊗_ _`⊗[_] [_]`⊗ˡ_ _`⊗ʳ[_] [_]`⊗ˡʳ_ _`⊗ˡʳ[_]
       data _≡_─_ : {σ : ty} (S S₁ S₂ : Cover σ) → Set where
         -- structural rules
         _`⊗_     : {σ : ty} {S S₁ S₂ : Cover σ} (prσ : S ≡ S₁ ─ S₂)
@@ -69,6 +70,8 @@ module lps.Linearity.Consumption (Pr : Set) where
 
       open Linearity.Type Pr
 
+      infix 4 _≡_─_ 
+      infix 4 ]_[
       data _≡_─_ {σ : ty} : (S S₁ S₂ : Usage σ) → Set where
         `idˡ : {S : Usage σ} → S ≡ S ─ [ σ ]
         `idʳ : {S : Usage σ} → S ≡ [ σ ] ─ S
@@ -93,6 +96,7 @@ module lps.Linearity.Consumption (Pr : Set) where
     open Linearity Pr
 
     infix 4 _≡_─_
+    infixl 20 _∙_
     data _≡_─_ : {γ : Con ty} (E Δ₁ Δ₂ : LC.Usage γ) → Set where
       ε   : ε ≡ ε ─ ε
       _∙_ : ∀ {γ σ} {Γ Δ E : LC.Usage γ} {S T U : Type.Usage σ} →

@@ -75,6 +75,7 @@ module Maybe where
   appMap  = map
   doMap   = map
 
+  infixr 0 bind
   syntax appMap f ma         = f <$> ma
   syntax bind ma f           = ma >>= f
   syntax doBind ma (λ x → f) = x ← ma , f

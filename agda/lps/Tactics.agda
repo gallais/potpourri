@@ -45,6 +45,7 @@ module TacticsBasics (Pr : Set) where
   data isAtom : (σ : ty) → Set where
     `κ : (p : Pr) → isAtom $ `κ p
 
+  infixl 40 _`⊗_
   data isProduct : (σ : ty) → Set where
     `κ   : (p : Pr) → isProduct $ `κ p
     _`⊗_ : {σ τ : ty} (S : isProduct σ) (T : isProduct τ) → isProduct $ σ `⊗ τ
@@ -192,7 +193,7 @@ module TacticsAbMon
     sound⋈ : {γ δ e : Con ty} (Γ : isAtoms γ) (Δ : isAtoms δ) (E : isAtoms e)
              (mg : γ Interleaving.≡ δ ⋈ e) → ⟦ fromAtoms Γ ⟧s ρ M.≈ ⟦ fromAtoms Δ ⟧s ρ M.∙ ⟦ fromAtoms E ⟧s ρ
     sound⋈ ε ε ε Il.ε = M.sym $ M.identityˡ M.ε
-    sound⋈ (Γ ∙ `κ p) Δ (E ∙ `κ .p) (mg Il.∙ʳ .(`κ p)) =
+    sound⋈ (Γ PCon.∙ (`κ p)) Δ (E PCon.∙ (`κ .p)) (mg Il.∙ʳ .(`κ p)) =
       begin
         ⟦ p ∷ fromAtoms Γ ⟧s ρ                                         ≈⟨ M.∙-cong M.refl $ sound⋈ Γ Δ E mg ⟩
         Vec.lookup p ρ M.∙ (⟦ fromAtoms Δ ⟧s ρ M.∙ ⟦ fromAtoms E ⟧s ρ) ≈⟨ M.sym $ M.assoc _ _ _ ⟩
@@ -200,7 +201,7 @@ module TacticsAbMon
         ⟦ fromAtoms Δ ⟧s ρ M.∙ Vec.lookup p ρ M.∙ ⟦ fromAtoms E ⟧s ρ   ≈⟨ M.assoc _ _ _ ⟩
         ⟦ fromAtoms Δ ⟧s ρ M.∙ ⟦ p ∷ fromAtoms E ⟧s ρ
       ∎ 
-    sound⋈ (Γ ∙ `κ p) (Δ ∙ `κ .p) E (mg Il.∙ˡ .(`κ p)) =
+    sound⋈ (Γ PCon.∙ `κ p) (Δ PCon.∙ `κ .p) E (mg Il.∙ˡ .(`κ p)) =
       begin
         ⟦ p ∷ fromAtoms Γ ⟧s ρ                                         ≈⟨ M.∙-cong M.refl $ sound⋈ Γ Δ E mg ⟩
         Vec.lookup p ρ M.∙ (⟦ fromAtoms Δ ⟧s ρ M.∙ ⟦ fromAtoms E ⟧s ρ) ≈⟨ M.sym $ M.assoc _ _ _ ⟩
@@ -209,7 +210,7 @@ module TacticsAbMon
 
     sound : {γ : Con ty} {σ : ty} (Γ : isAtoms γ) (S : isProduct σ) →
             γ ⊢ σ → ⟦ fromAtoms Γ ⟧s ρ M.≈  ⟦ fromProduct S ⟧s ρ
-    sound (ε ∙ `κ p) (`κ .p) `v = M.refl
+    sound (ε PCon.∙ `κ p) (`κ .p) `v = M.refl
     sound Γ (S `⊗ T) (s `⊗ʳ t by mg) =
       let (Δ , E) = isAtoms-merge⁻¹ Γ mg
           ih₁     = sound Δ S s
@@ -315,49 +316,3 @@ module BagEq (Pr : Set) (_≟_ : (x y : Pr) → RN.Dec (x RBEq.≡ y)) where
   ... | RN.no ¬p | _         = RN.no (¬p Prelude.∘ proj₁ Prelude.∘ ∷-inj)
 
   open TacticsAbMon Mon _≟s_ public
-
-
-module Examples where
-
-  open import Algebra.Structures
-  open import Data.Nat as Nat
-  open import Data.Nat.Properties
-  module AbSR = IsCommutativeSemiring isCommutativeSemiring
-
-  open import Data.Fin as Fin hiding (_+_)
-  open import Data.Vec as Vec
-  module ℕ+ = TacticsAbMon (record
-                        { Carrier = ℕ
-                        ; _≈_ = RBEq._≡_
-                        ; _∙_ = _+_
-                        ; ε   = 0
-                        ; isCommutativeMonoid = AbSR.+-isCommutativeMonoid
-                        }) Nat._≟_
-  import Prelude as Pr
-
-  2+x+y+1 : (x y : Nat.ℕ) → 2 + (x + y + 1) RBEq.≡ x + 3 + y
-  2+x+y+1 x y =
-     let open ℕ+
-         `x  = `v Fin.zero
-         `y  = `v (Fin.suc Fin.zero)
-         LHS = `c 2 `∙ ((`x `∙ `y) `∙ `c 1)
-         RHS = (`x `∙ `c 3) `∙ `y
-     in proveMonEq LHS RHS (x Vec.∷ y Vec.∷ Vec.[])
-
-  module BE = BagEq Nat.ℕ Nat._≟_
-
-  sgl : ℕ → Pr.List ℕ
-  sgl x = x Pr.∷ Pr.[]
-
-  1∷2∷3∷3′ : let open Pr in
-             (xs : List Nat.ℕ) →
-             1 ∷ 2 ∷ 3 ∷ xs Pr.++ 3 ∷ [] ≈-bag 3 ∷ 2 ∷ xs Pr.++ 3 ∷ 1 ∷ []
-  1∷2∷3∷3′ xs = BE.proveMonEq LHS RHS CTX
-    where open BE
-          `1  = `v Fin.zero
-          `2  = `v Pr.$ Fin.suc Fin.zero
-          `3  = `v Pr.$ Fin.suc Pr.$ Fin.suc Fin.zero
-          `xs = `v Pr.$ Fin.suc Pr.$ Fin.suc Pr.$ Fin.suc Fin.zero
-          LHS = (`1 `∙ `2 `∙ `3 `∙ `xs) `∙ `3 
-          RHS = (`3 `∙ `2 `∙ `xs) `∙ (`3 `∙ `1)
-          CTX = sgl 1 Vec.∷ sgl 2 Vec.∷ sgl 3 Vec.∷ xs Vec.∷ Vec.[]

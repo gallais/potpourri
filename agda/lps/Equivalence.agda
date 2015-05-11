@@ -41,6 +41,7 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   open Action.Type.Cover Pr
   open Consumption Pr
 
+  infixl 40 _⊗U_
   _⊗U_ : {σ τ : ty} (S : LT.Usage σ) (T : LT.Usage τ) → LT.Usage $ σ `⊗ τ 
   [ σ ] ⊗U [ τ ] = [ σ `⊗ τ ]
   [ σ ] ⊗U ] T [ = ] [ σ ]`⊗ T [
@@ -51,14 +52,18 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
                (prS : LTU.isUsed S) (prT : LTU.isUsed T) → LTU.isUsed $ S ⊗U T
   ] prS [ isUsed⊗U ] prT [ = ] prS `⊗ prT [
 
+  infixl 40 _&U[_]
   _&U[_] : {σ : ty} (S : LT.Usage σ) (τ : ty) → LT.Usage $ σ `& τ
   [ σ ] &U[ τ ] = [ σ `& τ ]
   ] S [ &U[ τ ] = ] S `&[ τ ] [
 
+  infixl 40 [_]&U_
   [_]&U_ : (σ : ty) {τ : ty} (T : LT.Usage τ) → LT.Usage $ σ `& τ 
   [ σ ]&U [ τ ] = [ σ `& τ ]
   [ σ ]&U ] T [ = ] [ σ ]`& T [
 
+  infix 3 ⟨_⟩Usage_
+  infixl 40 ⟨_⟩`⊗_ ⟨_⟩`&[_] _`⊗⟨_⟩ [_]`&⟨_⟩
   data ⟨_⟩Usage_ (h : ty) : (σ : ty) → Set where
     ⟨⟩       : ⟨ h ⟩Usage h
     ⟨_⟩`⊗_   : {σ τ : ty} (L : ⟨ h ⟩Usage σ) (R : LT.Usage τ) → ⟨ h ⟩Usage σ `⊗ τ
@@ -66,6 +71,7 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
     _`⊗⟨_⟩   : {σ τ : ty} (L : LT.Usage σ) (R : ⟨ h ⟩Usage τ) → ⟨ h ⟩Usage σ `⊗ τ
     [_]`&⟨_⟩ : (σ : ty) {τ : ty} (R : ⟨ h ⟩Usage τ) → ⟨ h ⟩Usage σ `& τ
 
+  infix 5 _>>U_
   _>>U_ : {h σ : ty} (H : LT.Usage h) (S : ⟨ h ⟩Usage σ) → LT.Usage σ
   H >>U ⟨⟩           = H
   H >>U ⟨ S ⟩`⊗ R    = (H >>U S) ⊗U R
@@ -74,16 +80,19 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   H >>U [ σ ]`&⟨ S ⟩ = [ σ ]&U (H >>U S)
 
   infix 3 ⟨_⟩Usages_
+  infixl 20 _∙_
   data ⟨_⟩Usages_ : (γ δ : Con ty) → Set where
     ε    : {δ : Con ty} (Δ : LC.Usage δ) → ⟨ ε ⟩Usages δ
     _∙_  : {δ γ : Con ty} (Γ : ⟨ γ ⟩Usages δ) {h σ : ty} (S : ⟨ h ⟩Usage σ) → ⟨ γ ∙ h ⟩Usages δ ∙ σ
     _∙′_ : {δ γ : Con ty} (Γ : ⟨ γ ⟩Usages δ) {σ : ty} (S : LT.Usage σ) → ⟨ γ ⟩Usages δ ∙ σ
 
+  infix 5 _>>Us_
   _>>Us_ : {γ δ : Con ty} (Γ : LC.Usage γ) (Δ : ⟨ γ ⟩Usages δ) → LC.Usage δ
   Γ       >>Us ε Δ      = Δ
   (Γ ∙ H) >>Us (Δ ∙ S)  = (Γ >>Us Δ) ∙ (H >>U S)
   Γ       >>Us (Δ ∙′ S) = (Γ >>Us Δ) ∙ S
 
+  infixl 5 _⊗⊙_
   _⊗⊙_ : {a b : ty} {A A₁ A₂ : LT.Usage a} {B B₁ B₂ : LT.Usage b}
          (sca : A LAT.Usage.≡ A₁ ⊙ A₂) (scb : B LAT.Usage.≡ B₁ ⊙ B₂) →
          A ⊗U B LAT.Usage.≡ A₁ ⊗U B₁ ⊙ A₂ ⊗U B₂
@@ -92,6 +101,7 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   ] prS [ ⊗⊙ [ τ ]   = ] [ prS ]`⊗ τ [
   ] prS [ ⊗⊙ ] prT [ = ] prS `⊗ prT [
 
+  infix 3 _&⊙[_]
   _&⊙[_] : {a : ty} {A A₁ A₂ : LT.Usage a} (sca : A LAT.Usage.≡ A₁ ⊙ A₂) (b : ty) →
            A &U[ b ] LAT.Usage.≡ A₁ &U[ b ] ⊙ A₂ &U[ b ]
   [ σ ]   &⊙[ τ ] = [ σ `& τ ]
@@ -102,19 +112,21 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   [ σ ]&⊙ [ τ ]   = [ σ `& τ ]
   [ σ ]&⊙ ] prT [ = ] [ σ ]`& prT [
 
+  infix 3 ⟨_⟩⊙C_
   ⟨_⟩⊙C_ : {h σ : ty} (H : ⟨ h ⟩Usage σ) {S S₁ S₂ : LT.Usage h} (sc : S LAT.Usage.≡ S₁ ⊙ S₂) →
            S >>U H LAT.Usage.≡ S₁ >>U H ⊙ S₂ >>U H
   ⟨ ⟨⟩           ⟩⊙C sc = sc
-  ⟨ ⟨ H ⟩`⊗ R    ⟩⊙C sc = ⟨ H ⟩⊙C sc ⊗⊙ LAT.Usage.⊙-refl R
+  ⟨ ⟨ H ⟩`⊗ R    ⟩⊙C sc = (⟨ H ⟩⊙C sc) ⊗⊙ LAT.Usage.⊙-refl R
   ⟨ ⟨ H ⟩`&[ τ ] ⟩⊙C sc = (⟨ H ⟩⊙C sc) &⊙[ τ ]
-  ⟨ L `⊗⟨ H ⟩    ⟩⊙C sc = LAT.Usage.⊙-refl L ⊗⊙ ⟨ H ⟩⊙C sc
-  ⟨ [ σ ]`&⟨ H ⟩ ⟩⊙C sc = [ σ ]&⊙ ⟨ H ⟩⊙C sc
+  ⟨ L `⊗⟨ H ⟩    ⟩⊙C sc = LAT.Usage.⊙-refl L ⊗⊙ (⟨ H ⟩⊙C sc)
+  ⟨ [ σ ]`&⟨ H ⟩ ⟩⊙C sc = [ σ ]&⊙ (⟨ H ⟩⊙C sc)
 
+  infix 3 ⟨_⟩⊙Con_
   ⟨_⟩⊙Con_ : {γ δ : Con ty} (Δ : ⟨ γ ⟩Usages δ) {Γ Γ₁ Γ₂ : LC.Usage γ} (sc : Γ LAC.≡ Γ₁ ⊙ Γ₂) →
              Γ >>Us Δ LAC.≡ Γ₁ >>Us Δ ⊙ Γ₂ >>Us Δ 
-  ⟨ Δ ∙′ S ⟩⊙Con sc        = ⟨ Δ ⟩⊙Con sc ∙ LAT.Usage.⊙-refl S
+  ⟨ Δ ∙′ S ⟩⊙Con sc        = (⟨ Δ ⟩⊙Con sc) ∙ LAT.Usage.⊙-refl S
   ⟨ ε Δ    ⟩⊙Con ε         = LAC.⊙-refl Δ
-  ⟨ Δ ∙ S  ⟩⊙Con (sc ∙ pr) = ⟨ Δ ⟩⊙Con sc ∙ ⟨ S ⟩⊙C pr
+  ⟨ Δ ∙ S  ⟩⊙Con (sc ∙ pr) = (⟨ Δ ⟩⊙Con sc) ∙ (⟨ S ⟩⊙C pr)
 
   open BT.Type.Cover.FromDented
   open BT.Type.Cover.FromFree
@@ -132,6 +144,7 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   [ prS ] ∈U&[ τ ] = [ prS `&ˡ τ ]
   ] prS [ ∈U&[ τ ] = ] prS `&ˡ τ [
 
+  infixl 40 _⊗∈U_ 
   _⊗∈U_ : {k : Pr} {σ : ty} (S : LT.Usage σ) {τ : ty} {T₁ T₂ : LT.Usage τ} (var : T₁ BTTU.∋ k ∈ T₂) →
           S ⊗U T₁ BTTU.∋ k ∈ S ⊗U T₂
   [ σ ] ⊗∈U [ var ] = [ σ `⊗ʳ var ]
@@ -139,18 +152,20 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   ] S [ ⊗∈U [ var ] = ] S `⊗ʳ[ var ] [
   ] S [ ⊗∈U ] var [ = ] S `⊗ʳ var [
 
+  infixl 40 [_]&∈U_
   [_]&∈U_ : {k : Pr} (σ : ty) {τ : ty} {T₁ T₂ : LT.Usage τ} (var : T₁ BTTU.∋ k ∈ T₂) →
           [ σ ]&U T₁ BTTU.∋ k ∈ [ σ ]&U T₂
   [ σ ]&∈U [ var ] = [ σ `&ʳ var ]
   [ σ ]&∈U ] var [ = ] σ `&ʳ var [
 
+  infix 3 ⟨_⟩∈U_
   ⟨_⟩∈U_ : {k : Pr} {h σ : ty} (S : ⟨ h ⟩Usage σ) {H₁ H₂ : LT.Usage h} (var : H₁ BTTU.∋ k ∈ H₂) →
            H₁ >>U S BTTU.∋ k ∈ H₂ >>U S
   ⟨ ⟨⟩           ⟩∈U var = var
   ⟨ ⟨ S ⟩`⊗ R    ⟩∈U var = (⟨ S ⟩∈U var) ∈U⊗ R
   ⟨ ⟨ S ⟩`&[ τ ] ⟩∈U var = (⟨ S ⟩∈U var) ∈U&[ τ ]
-  ⟨ L `⊗⟨ S ⟩    ⟩∈U var = L ⊗∈U ⟨ S ⟩∈U var
-  ⟨ [ σ ]`&⟨ S ⟩ ⟩∈U var = [ σ ]&∈U ⟨ S ⟩∈U var
+  ⟨ L `⊗⟨ S ⟩    ⟩∈U var = L ⊗∈U (⟨ S ⟩∈U var)
+  ⟨ [ σ ]`&⟨ S ⟩ ⟩∈U var = [ σ ]&∈U (⟨ S ⟩∈U var)
 
   ⟨_⟩∈_ : {k : Pr} {γ δ : Con ty} (Δ : ⟨ γ ⟩Usages δ) {Γ₁ Γ₂ : LC.Usage γ} (var : Γ₁ BTC.∋ k ∈ Γ₂) →
            Γ₁ >>Us Δ BTC.∋ k ∈ Γ₂ >>Us Δ
@@ -159,11 +174,12 @@ module lps.Equivalence (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) where
   ⟨ Δ ∙ S  ⟩∈ zro var = zro (⟨ S ⟩∈U var)
   ⟨ Δ ∙ S  ⟩∈ suc var = suc (⟨ Δ ⟩∈ var)
 
+  infix 5 ⟨_⟩⊢_
   ⟨_⟩⊢_ : {τ : ty} {γ δ : Con ty} (Δ : ⟨ γ ⟩Usages δ) {Γ₁ Γ₂ : LC.Usage γ} (tm : Γ₁ ⊢ τ ⊣ Γ₂) →
            Γ₁ >>Us Δ ⊢ τ ⊣ Γ₂ >>Us Δ
   ⟨ Δ ⟩⊢ `κ var              = `κ (⟨ Δ ⟩∈ var)
   ⟨ Δ ⟩⊢ (tm₁ `⊗ʳ tm₂)       = (⟨ Δ ⟩⊢ tm₁) `⊗ʳ (⟨ Δ ⟩⊢ tm₂)
-  ⟨ Δ ⟩⊢ (tm₁ `&ʳ tm₂ by pr) = (⟨ Δ ⟩⊢ tm₁) `&ʳ ⟨ Δ ⟩⊢ tm₂ by ⟨ Δ ⟩⊙Con pr
+  ⟨ Δ ⟩⊢ (tm₁ `&ʳ tm₂ by pr) = (⟨ Δ ⟩⊢ tm₁) `&ʳ (⟨ Δ ⟩⊢ tm₂) by (⟨ Δ ⟩⊙Con pr)
 
   axiom : (σ : ty) → Σ[ S ∈ Cover σ ] LTC.isUsed S × (inj[ ε ∙ σ ] ⊢ σ ⊣ ε ∙ ] S [)
   axiom (`κ k)   = `κ k , `κ k , `κ (zro [ `κ ])

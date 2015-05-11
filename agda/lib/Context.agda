@@ -48,6 +48,7 @@ module Context where
     return : {A : Set} (a : A) → Con A
     return a = ε ∙ a
 
+    infixr 0 subst
     subst : {A B : Set} (Γ : Con A) (f : A → Con B) → Con B
     subst Γ f = foldl (_++_ ∘ f) ε Γ
     syntax subst ma f = ma >>= f
@@ -69,6 +70,7 @@ module Context where
 
   module Pointwise where
 
+    infixl 20 _∙_
     data PCon {ℓ} {A : Set} (P : A → Set ℓ) : (γ : Con A) → Set ℓ where
       ε   : PCon P ε
       _∙_ : ∀ {γ σ} (Γ : PCon P γ) (S : P σ) → PCon P $ γ ∙ σ
@@ -107,6 +109,7 @@ module Inclusion where
 
   open Context
 
+  infixl 20 _∙_ ↑_
   data _⊆_ {A : Set} : Con A → Con A → Set where
     ■   : ε ⊆ ε
     ↑_  : ∀ {Γ : Con A} {Δ : Con A} {σ} (inc : Γ ⊆ Δ) → Γ ⊆ (Δ ∙ σ)
@@ -122,6 +125,7 @@ module Inclusion where
 
     syntax refl Γ = same Γ
 
+    infixl 5 _++_
     _++_ : ∀ {A : Set} {Γ Δ Ε : Con A} → Γ ⊆ Δ → Δ ⊆ Ε → Γ ⊆ Ε
     ■       ++ pr₂      = pr₂
     pr₁ ∙ σ ++ ↑ pr₂    = ↑_ $ pr₁ ∙ σ ++ pr₂
@@ -192,6 +196,7 @@ module BelongsTo where
     zro : {Γ : Con A} → σ ∈ Γ ∙ σ
     suc : {Γ : Con A} {τ : A} (pr : σ ∈ Γ) → σ ∈ Γ ∙ τ
 
+  infix 30 have_actUpon_at_
   have_actUpon_at_ : ∀ {A : Set} (f : A → Con A) → ∀ {σ : A} Γ (pr : σ ∈ Γ) → Con A
   have f actUpon Γ ∙ σ at zro    = Γ Context.++ f σ
   have f actUpon Γ ∙ τ at suc pr = have f actUpon Γ at pr ∙ τ
@@ -318,8 +323,8 @@ module Interleaving where
   open Context
   open BelongsTo
 
-  infix 5 _≡_⋈_
-  infixl 5 _∙ˡ_ _∙ʳ_
+  infix 3 _≡_⋈_
+  infixl 20 _∙ˡ_ _∙ʳ_
   data _≡_⋈_ {A : Set} : (Γ Δ Ε : Con A) → Set where
     ε    : ε ≡ ε ⋈ ε
     _∙ʳ_ : ∀ {Γ Δ E} (pr : Γ ≡ Δ ⋈ E) σ → Γ ∙ σ ≡ Δ ⋈ E ∙ σ
@@ -365,19 +370,19 @@ module Interleaving where
     reflʳ : ∀ {A} {Γ : Con A} → Γ ≡ ε ⋈ Γ
     reflʳ {A} {Γ} = sym reflˡ
 
-    infixl 5 _++_ _ˡ++ʳ_
+    infixl 5 _++_ _ˡ++_ _++ˡ_ _ʳ++_ _++ʳ_ _ˡ++ʳ_ _ʳ++ˡ_
     _++_ : {A : Set} {Γ₁ Γ₂ Δ₁ Δ₂ E₁ E₂ : Con A}
            (pr₁ : Γ₁ ≡ Δ₁ ⋈ E₁) (pr₂ : Γ₂ ≡ Δ₂ ⋈ E₂) →
            let open Context.Context in Γ₁ ++ Γ₂ ≡ Δ₁ ++ Δ₂ ⋈ E₁ ++ E₂
-    pr₁ ++ ε          = pr₁
-    pr₁ ++ (pr₂ ∙ʳ σ) = pr₁ ++ pr₂ ∙ʳ σ
-    pr₁ ++ (pr₂ ∙ˡ σ) = pr₁ ++ pr₂ ∙ˡ σ
+    pr₁ ++ ε        = pr₁
+    pr₁ ++ pr₂ ∙ʳ σ = (pr₁ ++ pr₂) ∙ʳ σ
+    pr₁ ++ pr₂ ∙ˡ σ = (pr₁ ++ pr₂) ∙ˡ σ
 
     _ˡ++_ : {A : Set} (Γ : Con A) {Δ Δ₁ Δ₂ : Con A} (pr : Δ ≡ Δ₁ ⋈ Δ₂) →
           Γ Context.++ Δ ≡ Γ Context.++ Δ₁ ⋈ Δ₂
     Γ ˡ++ ε         = reflˡ
-    Γ ˡ++ (pr ∙ʳ σ) = Γ ˡ++ pr ∙ʳ σ
-    Γ ˡ++ (pr ∙ˡ σ) = Γ ˡ++ pr ∙ˡ σ
+    Γ ˡ++ (pr ∙ʳ σ) = (Γ ˡ++ pr) ∙ʳ σ
+    Γ ˡ++ (pr ∙ˡ σ) = (Γ ˡ++ pr) ∙ˡ σ
 
     _ʳ++_ : {A : Set} (Γ : Con A) {Δ Δ₁ Δ₂ : Con A} (pr : Δ ≡ Δ₁ ⋈ Δ₂) →
           Γ Context.++ Δ ≡ Δ₁ ⋈ Γ Context.++ Δ₂
@@ -393,7 +398,7 @@ module Interleaving where
 
     _ˡ++ʳ_ : {A : Set} (Γ Δ : Con A) → Γ Context.++ Δ ≡ Γ ⋈ Δ
     Γ ˡ++ʳ ε     = reflˡ
-    Γ ˡ++ʳ Δ ∙ σ = Γ ˡ++ʳ Δ ∙ʳ σ
+    Γ ˡ++ʳ Δ ∙ σ = (Γ ˡ++ʳ Δ) ∙ʳ σ
 
     _ʳ++ˡ_ : {A : Set} (Γ Δ : Con A) → Γ Context.++ Δ ≡ Δ ⋈ Γ
     Γ ʳ++ˡ Δ = sym $ Γ ˡ++ʳ Δ

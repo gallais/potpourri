@@ -36,6 +36,7 @@ module lps.IMLL (Pr : Set) where
     where split = ε ∙ τ
 
   infix 3 _⊢_
+  infixl 40 _`&ˡ₁_ _`&ˡ₂_ _`⊗ˡ_ _`⊗ʳ_by_ _`&ʳ_
   data _⊢_ : (Γ : Con ty) (σ : ty) → Set where
     `v       : ∀ {τ} → ε ∙ τ ⊢ τ
     _`⊗ˡ_    : ∀ {Γ σ τ₁ τ₂} (pr : τ₁ `⊗ τ₂ ∈ Γ) (s : split-⊗ pr ⊢ σ) → Γ ⊢ σ

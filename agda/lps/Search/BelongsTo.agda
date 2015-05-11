@@ -30,6 +30,7 @@ module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) wh
       module FromFree where
 
         infix 4 _∈[_]▸_
+        infixl 40 _`&ˡ_ _`⊗ˡ_ _`⊗ʳ_ _`&ʳ_
         data _∈[_]▸_ (k : Pr) : (σ : ty) (S : Cover σ) → Set where
           `κ    : k ∈[ `κ k ]▸ `κ k
           _`&ˡ_ : {σ : ty} {S : Cover σ} (prS : k ∈[ σ ]▸ S) (τ : ty) →
@@ -87,6 +88,7 @@ module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) wh
 
         open IMLL Pr
         open Linearity.LTC Pr
+        infix 3 ⟦_⟧
         ⟦_⟧ : {σ : ty} {k : Pr} {T : Cover σ} (pr : [ σ ]∋ k ∈ T) → ｢ T ｣ ⊢ `κ k
         ⟦ `κ       ⟧ = `v
         ⟦ pr `&ˡ τ ⟧ = ⟦ pr ⟧
@@ -99,6 +101,7 @@ module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) wh
         open FromFree hiding (⟦_⟧)
 
         infix 4 _∈_▸_
+        infixl 40 _`⊗ˡ_ _`⊗ʳ_ _`&ˡ_ _`&ʳ_ [_]`⊗_ _`⊗[_] [_]`⊗ˡ_ _`⊗ʳ[_]
         data _∈_▸_ (k : Pr) : {σ : ty} (S : Cover σ) (T : Cover σ) → Set where
           _`⊗ˡ_   : {σ : ty} {S S′ : Cover σ} (s : k ∈ S ▸ S′)
                     {τ : ty} (T : Cover τ) → k ∈ S `⊗ T ▸ S′ `⊗ T
@@ -222,6 +225,7 @@ module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) wh
               Σ[ ST ∈ Cover $ σ `& τ ] [ σ ]`& T₂ ≡ [ σ ]`& T₁ ─ ST × ｢ ST ｣ ⊢ `κ k
         ⟦&ʳ⟧ σ (T , diff , tm) = [ σ ]`& T , [ σ ]`& diff , tm
 
+        infix 3 ⟦_⟧
         ⟦_⟧ : {σ : ty} {S : Cover σ} {k : Pr} {T : Cover σ} (pr : S ∋ k ∈ T) →
               Σ[ E ∈ Cover σ ] T ≡ S ─ E × ｢ E ｣ ⊢ `κ k
         ⟦ pr `⊗ˡ T     ⟧ = ⟦⊗ˡ⟧ _ _ ⟦ pr ⟧
@@ -239,13 +243,14 @@ module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) wh
       open Linearity.Type Pr
 
       infix 4 _∈_▸_
+      infix 4 [_] ]_[
       data _∈_▸_ (k : Pr) : {σ : ty} (S : Usage σ) (T : Usage σ) → Set where
         [_] : {σ : ty} {S : Cover σ} (prS : FromFree.[ σ ]∋ k ∈ S) →
               k ∈ [ σ ] ▸ ] S [
         ]_[ : {σ : ty} {S S′ : Cover σ} (prS : S FromDented.∋ k ∈ S′) →
               k ∈ ] S [ ▸ ] S′ [
 
-      infix 4 _∋_∈_
+      infix 3 _∋_∈_
       _∋_∈_ : {σ : ty} (S : Usage σ) (k : Pr) (T : Usage σ) → Set
       σ ∋ k ∈ τ = k ∈ σ ▸ τ
 
@@ -318,7 +323,7 @@ module lps.Search.BelongsTo (Pr : Set) (_≟_ : (x y : Pr) → Dec (x ≡ y)) wh
            Σ[ Γ′ ∈ Usage $ γ ∙ σ ] Γ ∙ S ∋ k ∈ Γ′
     ∈suc S (Γ′ , prΓ) = Γ′ ∙ S , suc prΓ
 
-
+    infix 5 _∈?_
     _∈?_ : (k : Pr) {γ : Con ty} (Γ : Usage γ) → Con (Σ[ Γ′ ∈ Usage γ ] Γ ∋ k ∈ Γ′)
     k ∈? ε       = ε
     k ∈? (Γ ∙ S) = map (∈suc S) (k ∈? Γ) ++ map (∈zro Γ) (k Type.Usage.∈? S)
