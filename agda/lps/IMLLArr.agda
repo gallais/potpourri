@@ -99,6 +99,46 @@ data _∋s_s∈_ : {γ : Con ty} (Γ : Usages γ) (k : ℕ)
   suc : {γ : Con ty} {a : ty} {k : ℕ} {Γ Δ : Usages γ} {A : Usage a} →
         Γ ∋s k s∈ Δ → Γ ∙ A ∋s k s∈ Δ ∙ A
 
+infix 4 ]_[≡]_[⊙]_[
+data ]_[≡]_[⊙]_[ : {σ : ty} (S S₁ S₂ : Cover σ) → Set where
+  sym      : {a : ty} {A B C : Cover a} (pr : ] A [≡] B [⊙] C [) → ] A [≡] C [⊙] B [
+  `κ       : (k : ℕ) → ] `κ k [≡] `κ k [⊙] `κ k [
+  _`⊗_     : {a b : ty} {A A₁ A₂ : Cover a} {B B₁ B₂ : Cover b} →
+             (prA : ] A [≡] A₁ [⊙] A₂ [) (prB : ] B [≡] B₁ [⊙] B₂ [) → 
+             ] A `⊗ B [≡] A₁ `⊗ B₁ [⊙] A₂ `⊗ B₂ [
+  [_]`⊗_   : {a : ty} {A A₁ A₂ : Cover a} (prA : ] A [≡] A₁ [⊙] A₂ [) (b : ty) →
+             ] A `⊗[ b ] [≡] A₁ `⊗[ b ] [⊙] A₂ `⊗[ b ] [
+  _`⊗[_]   : (a : ty) {b : ty} {B B₁ B₂ : Cover b} (prB : ] B [≡] B₁ [⊙] B₂ [) →
+             ] [ a ]`⊗ B [≡] [ a ]`⊗ B₁ [⊙] [ a ]`⊗ B₂ [
+  _`&_     : (a b : ty) → ] a `& b [≡] a `& b [⊙] a `& b [
+  ]_[`&]_[ : {a b : ty} {A : Cover a} {B : Cover b}
+             (prA : ]isUsed[ A) (prB : ]isUsed[ B) →
+             ] a `& b [≡] A `&[ b ] [⊙] [ a ]`& B [
+  ]_[`&    : {a b : ty} {B : Cover b} (prB : ]isUsed[ B) →
+             ] a `& b [≡] [ a ]`& B [⊙] a `& b [
+  _`&]_[   : {a b : ty} {A : Cover a} (prA : ]isUsed[ A) →
+             ] a `& b [≡] A `&[ b ] [⊙] a `& b [
+  _`&[_]   : {a : ty} {A A₁ A₂ : Cover a} (prA : ] A [≡] A₁ [⊙] A₂ [) (b : ty) →
+             ] A `&[ b ] [≡] A₁ `&[ b ] [⊙] A₂ `&[ b ] [
+  [_]`&_   : (a : ty) {b : ty} {B B₁ B₂ : Cover b} (prB : ] B [≡] B₁ [⊙] B₂ [) →
+             ] [ a ]`& B [≡] [ a ]`& B₁ [⊙] [ a ]`& B₂ [
+  [_]`⊸_   : (a : ty) {b : ty} {B B₁ B₂ : Cover b} (prB : ] B [≡] B₁ [⊙] B₂ [) →
+             ] [ a ]`⊸ B [≡] [ a ]`⊸ B₁ [⊙] [ a ]`⊸ B₂ [
+  _`⊸_     : (a b : ty) → ] a `⊸ b [≡] a `⊸ b [⊙] a `⊸ b [
+
+infix 4 _≡_⊙_
+infixl 20 _∙_
+data _≡_⊙_ : {σ : ty} (S S₁ S₂ : Usage σ) → Set where
+  [_] : (σ : ty) → [ σ ] ≡ [ σ ] ⊙ [ σ ]
+  ]_[ : {σ : ty} {S S₁ S₂ : Cover σ} (pr : ] S [≡] S₁ [⊙] S₂ [) → ] S [ ≡ ] S₁ [ ⊙ ] S₂ [
+
+infix 4 _s≡s_⊙_
+data _s≡s_⊙_ : {γ : Con ty} (Γ Γ₁ Γ₂ : Usages γ) → Set where
+  ε   : ε s≡s ε ⊙ ε 
+  _∙_ : {γ : Con ty} {Γ Γ₁ Γ₂ : Usages γ} (prΓ : Γ s≡s Γ₁ ⊙ Γ₂)
+        {σ : ty} {S S₁ S₂ : Usage σ} (prS : S ≡ S₁ ⊙ S₂) →
+        Γ ∙ S s≡s Γ₁ ∙ S₁ ⊙ Γ₂ ∙ S₂
+
 infix 4 ]_[cut_]_[
 data ]_[cut_]_[ : {σ : ty} (S : Cover σ) (τ : ty) (T : Cover σ) → Set where
   -- actually performing a cut
@@ -136,7 +176,9 @@ data _⊢_⊣_ {γ : Con ty} (Γ : Usages γ) : (σ : ty) (Δ : Usages γ) → S
             {τ : ty} {E : Usages γ} (t : Δ ⊢ τ ⊣ E) → Γ ⊢ σ `⊗ τ ⊣ E
   _`&_by_ : {σ : ty} {Δ₁ : Usages γ} (s : Γ ⊢ σ ⊣ Δ₁)
             {τ : ty} {Δ₂ : Usages γ} (t : Γ ⊢ τ ⊣ Δ₂)
-            {Δ : Usages γ} (pr : {!!})  → Γ ⊢ σ `& τ ⊣ Δ
+            {Δ : Usages γ} (pr : Δ s≡s Δ₁ ⊙ Δ₂)  → Γ ⊢ σ `& τ ⊣ Δ
+  -- technically we'll always ever use cuts before closing the body
+  -- of a lambda. this can be further refactored in the future.
   _thencut_by_ : {σ : ty} {Δ : Usages γ} (s : Γ ⊢ σ ⊣ Δ)
                  {χ : ty} {E : Usages γ} (pr : cuts χ Δ E)
                  {F : Usages γ} (c : E ⊢ χ ⊣ F) → Γ ⊢ σ ⊣ F
@@ -180,3 +222,25 @@ S =
         varB  thencut pathA₁ by
         varA₁ thencut pathA₂ by
         varA₂
+
+apply : 
+  let A = `κ 0
+      B = `κ 1
+      C = `κ 2
+  in ε ⊢ ((A `⊸ B) `& (A `⊸ C)) `⊸ A `⊸ (B `& C) ⊣ ε
+apply =
+  let A      = `κ 0
+      B      = `κ 1
+      C      = `κ 2
+  in `λ ] (A `⊸ B) `& (A `⊸ C) [ >
+     `λ ] `κ zero              [ >
+     let varB   = `κ (suc (zro [ (A `⊸ `κ 1) `&[ A `⊸ C ] ]))
+         varC   = `κ (suc (zro [ [ A `⊸ B ]`& A `⊸ `κ 2 ]))
+         pathAB = suc (zro ] (A `⊸ `κ 1) `&[ _ ] [)
+         pathAC = suc (zro ] [ _ ]`& A `⊸ `κ 2 [)
+         varAB  = `κ (zro [ `κ 0 ])
+         varAC  = `κ (zro [ `κ 0 ])
+         used   = ] ] A `⊸ B [`&] A `⊸ C [ [
+     in (varB thencut pathAB by varAB)
+     `& (varC thencut pathAC by varAC)
+     by ε ∙ used ∙ ] `κ 0 [
