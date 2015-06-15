@@ -15,6 +15,7 @@
 \setmainfont[Ligatures=TeX]{XITS}
 \setmathfont{XITS Math}
 
+%\renewcommand{\baselinestretch}{1.5} 
 \include{commands}
 
 \title{Glueing Terms to Models: \\ Variations on Normalization by Evaluation}
@@ -26,7 +27,7 @@
 Normalization by Evaluation is a technique leveraging the computational
 power of a host language in order to normalize expressions of a deeply
 embedded one. The process is based on a model construction associating
-to each context \AB{Γ} and type \AB{σ}, a set of values \model{}. Two
+to each context \AB{Γ} and type \AB{σ}, a type of values \model{}. Two
 procedures are then defined: the first one (\AF{eval}) produces elements
 of \model{} provided a well-typed term of the corresponding \AB{Γ} \AD{⊢}
 \AB{σ} type and an interpretation for the variables in \AB{Γ} whilst
@@ -35,13 +36,17 @@ forms \AB{Γ} \AD{⊢^{nf}} \AB{σ} from elements of the model \model{}.
 Normalization is achieved by composing the two procedures.
 
 The traditional typed model construction leads to a normalization procedure
-producing β-normal η-long terms whereas evaluation strategies implemented
+producing β-normal η-long terms. However evaluation strategies implemented
 in actual proof systems tend to avoid applying η-rules as much as possible:
-quite unsurprisingly, when typechecking large developments expanding the
+quite unsurprisingly, when typechecking complex developments expanding the
 proof terms is a really bad idea. In these systems, normal forms are neither
 η-long nor η-short: the η-rule is actually never considered except when
 comparing two terms for equality, one of which is neutral whilst the other
-is constructor-headed.
+is constructor-headed. Instead of declaring them to be distinct, the algorithm
+will perform one step of η-expansion on the neutral term and keep comparing
+their subterms structurally. The conversion test will only fail when confronted
+with two neutral terms which have distinct head variables or two normal forms
+with distinct head constructors.
 
 This decision to lazily apply the η-rule can be pushed further: one may
 forgo using the ξ-rule and simply perform weak-head normalization, pursuing
@@ -63,13 +68,13 @@ alternative equational theories.
 as a running example, then recall the usual model construction and show
 how to exploit it to implement a normalization function for the equational
 theory given by the βξη rules. The main contribution of the article consists
-of us building alternative models retaining more and more syntactical
+of us building alternative models retaining more and more syntactic
 information about the source term which gave rise to the model's element
 thus allowing us to decide weaker equational theories corresponding to the
 βξ rules first and to β alone finally.
 
 
-  \paragraph{Notations} In all of our constructions, we carefully highlight the
+\paragraph{Notations} In all of our constructions, we carefully highlight the
 fact that similar definitions are introduced by using the same names suffixed
 with a superscript listing the set of rules handled by this construction. These
 similarities mainly reflect the fact that any model of the lambda calculus will
@@ -92,6 +97,14 @@ _$′_ = _$_
 
 \section{The calculus}
 
+We are going to illustrate these constructions using a simply-typed calculus
+with Bool and Unit as base type. In order to be able to build terms which are
+well-scoped and well-typed by construction, we need a notion of contexts
+(represented as snoc lists of types) and positions in them (represented as
+strongly-typed de Bruijn indices~\cite{de1972lambda}). Finally, we can define
+a notion of context inclusion and prove that it induces a notion of weakening
+on de Bruijn indices as well as proof terms.
+
 \begin{code}
 infix 10 _`→_
 data ty : Set where
@@ -104,35 +117,47 @@ data Con : Set where
   ε    : Con
   _∙_  : (Γ : Con) (σ : ty) → Con
 
-infix 5 _[_]_
-_[_]_ : (Δ : Con) (R : (Δ : Con) (σ : ty) → Set) (Γ : Con) → Set
-Δ [ R ] ε      = ⊤
-Δ [ R ] Γ ∙ σ  = Δ [ R ] Γ × R Δ σ
-
-infixr 5 _<$>_
-_<$>_ :  {R S : (Δ : Con) (σ : ty) → Set}
-         (f : {Δ : Con} {σ : ty} (r : R Δ σ) → S Δ σ)
-         {Γ Δ : Con} → Δ [ R ] Γ → Δ [ S ] Γ
-_<$>_ f {ε      } ρ       = ρ
-_<$>_ f {Γ ∙ σ  } (ρ , r) = f <$> ρ , f r
-
-infix 1 _∈_
+infix 5 _∈_
 data _∈_ (σ : ty) : (Γ : Con) → Set where
   here!  : {Γ : Con} → σ ∈ Γ ∙ σ
   there  : {Γ : Con} {τ : ty} (pr : σ ∈ Γ) → σ ∈ Γ ∙ τ
 
-_‼_ :  {Δ : Con} {R : (Δ : Con) (σ : ty) → Set} {Γ : Con}
-       (ρ : Δ [ R ] Γ) {σ : ty} (v : σ ∈ Γ) → R Δ σ
-(_ , r) ‼ here!    = r
-(ρ , _) ‼ there v  = ρ ‼ v
+infix 5 _⊢_
+infixl 5 _`$_ 
+data _⊢_ (Γ : Con) : (σ : ty) → Set where
+  `var   : {σ : ty} (v : σ ∈ Γ) → Γ ⊢ σ
+  _`$_   : {σ τ : ty} (t : Γ ⊢ σ `→ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
+  `λ     : {σ τ : ty} (t : Γ ∙ σ ⊢ τ) → Γ ⊢ σ `→ τ
+  `⟨⟩    : Γ ⊢ `Unit
+  `tt    : Γ ⊢ `Bool
+  `ff    : Γ ⊢ `Bool
+  `ifte  : {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) → Γ ⊢ σ
 
-infix 1 _⊆_
-
+infix 5 _⊆_
 data _⊆_ : (Γ Δ : Con) → Set where
   base  : ε ⊆ ε
   pop!  : {Γ Δ : Con} {σ : ty} (pr : Γ ⊆ Δ) → Γ ∙ σ ⊆ Δ ∙ σ
   step  : {Γ Δ : Con} {σ : ty} (pr : Γ ⊆ Δ) → Γ ⊆ Δ ∙ σ 
 
+wk^∈ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (pr : σ ∈ Γ) → σ ∈ Δ
+wk^∈ base        ()
+wk^∈ (pop! inc)  here!       = here!
+wk^∈ (pop! inc)  (there pr)  = there $′ wk^∈ inc pr
+wk^∈ (step inc)  pr          = there $′ wk^∈ inc pr
+
+wk^⊢ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢ σ) → Δ ⊢ σ
+wk^⊢ inc (`var v)       = `var $′ wk^∈ inc v
+wk^⊢ inc (t `$ u)       = wk^⊢ inc t `$ wk^⊢ inc u
+wk^⊢ inc (`λ t)         = `λ $′ wk^⊢ (pop! inc) t
+wk^⊢ inc `⟨⟩            = `⟨⟩
+wk^⊢ inc `tt            = `tt
+wk^⊢ inc `ff            = `ff
+wk^⊢ inc (`ifte b l r)  = `ifte (wk^⊢ inc b) (wk^⊢ inc l) (wk^⊢ inc r)
+\end{code}
+
+\subsection{The Preoder of Context Inclusions}
+
+\begin{code}
 refl : {Γ : Con} → Γ ⊆ Γ
 refl {ε}      = base
 refl {Γ ∙ σ}  = pop! refl
@@ -142,6 +167,40 @@ trans inc₁         base         = inc₁
 trans (pop! inc₁)  (pop! inc₂)  = pop! $ trans inc₁ inc₂
 trans (step inc₁)  (pop! inc₂)  = step $ trans inc₁ inc₂
 trans inc₁         (step inc₂)  = step $ trans inc₁ inc₂
+\end{code}
+
+\section{A Notion of Environments}
+
+Environments are defined as the pointwise lifting of a relation \AB{R}
+between contexts and types to a relation between two contexts. We can
+naturally define a notion of lookup retrieving the proof corresponding
+to a specific de Bruijn index.
+
+\begin{code}
+infix 5 _[_]_
+_[_]_ : (Δ : Con) (R : (Δ : Con) (σ : ty) → Set) (Γ : Con) → Set
+Δ [ R ] ε      = ⊤
+Δ [ R ] Γ ∙ σ  = Δ [ R ] Γ × R Δ σ
+
+
+_‼_ :  {Δ : Con} {R : (Δ : Con) (σ : ty) → Set} {Γ : Con}
+       (ρ : Δ [ R ] Γ) {σ : ty} (v : σ ∈ Γ) → R Δ σ
+(_ , r) ‼ here!    = r
+(ρ , _) ‼ there v  = ρ ‼ v
+\end{code}
+
+This definition allows for the mechanical lifting of properties on \AB{R}
+to properties on environments defined by \AB{R}. We only introduce the ones
+we will need subsequently: entailment, weakening and reflexivity. This
+notions having been made formal, we can now start studying various models.
+
+\begin{code}
+infixr 5 _<$>_
+_<$>_ :  {R S : (Δ : Con) (σ : ty) → Set}
+         (f : {Δ : Con} {σ : ty} (r : R Δ σ) → S Δ σ)
+         {Γ Δ : Con} → Δ [ R ] Γ → Δ [ S ] Γ
+_<$>_ f {ε      } ρ       = ρ
+_<$>_ f {Γ ∙ σ  } (ρ , r) = f <$> ρ , f r
 
 wk[_] : {Δ : Con} {R : (Δ : Con) (σ : ty) → Set}
         (wk : {Θ : Con} (inc : Δ ⊆ Θ) {σ : ty} → R Δ σ → R Θ σ)
@@ -156,38 +215,65 @@ refl[_,_]_ :  {R : (Δ : Con) (σ : ty) → Set}
               (Γ : Con) → Γ [ R ] Γ
 refl[ var , wk ] ε        = tt
 refl[ var , wk ] (Γ ∙ σ)  = wk[ wk ] (step refl) (refl[ var , wk ] Γ) , var here!
+\end{code}
 
-wk^∈ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (pr : σ ∈ Γ) → σ ∈ Δ
-wk^∈ base        ()
-wk^∈ (pop! inc)  here!       = here!
-wk^∈ (pop! inc)  (there pr)  = there $′ wk^∈ inc pr
-wk^∈ (step inc)  pr          = there $′ wk^∈ inc pr
+\begin{code}
+pure : {Δ : Con} {R : (Δ : Con) (σ : ty) → Set}
+       {Γ : Con} (f : (σ : ty) (pr : σ ∈ Γ) → R Δ σ) → Δ [ R ] Γ
+pure {Γ = ε}     f = tt
+pure {Γ = Γ ∙ σ} f = pure (λ σ → f σ ∘ there) , f σ here!
 
-infix 5 _⊢_
-infixl 10 _`$_ 
-data _⊢_ (Γ : Con) : (σ : ty) → Set where
-  `var   : {σ : ty} (v : σ ∈ Γ) → Γ ⊢ σ
-  _`$_   : {σ τ : ty} (t : Γ ⊢ σ `→ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
-  `λ     : {σ τ : ty} (t : Γ ∙ σ ⊢ τ) → Γ ⊢ σ `→ τ
-  `⟨⟩    : Γ ⊢ `Unit
-  `tt    : Γ ⊢ `Bool
-  `ff    : Γ ⊢ `Bool
-  `ifte  : {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) → Γ ⊢ σ
+infix 5 _⊆′_
+_⊆′_ : (Γ Δ : Con) → Set
+_⊆′_ = flip _[ flip _∈_ ]_
 
-wk^⊢ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢ σ) → Δ ⊢ σ
-wk^⊢ inc (`var v)       = `var $′ wk^∈ inc v
-wk^⊢ inc (t `$ u)       = wk^⊢ inc t `$ wk^⊢ inc u
-wk^⊢ inc (`λ t)         = `λ $′ wk^⊢ (pop! inc) t
-wk^⊢ inc `⟨⟩            = `⟨⟩
-wk^⊢ inc `tt            = `tt
-wk^⊢ inc `ff            = `ff
-wk^⊢ inc (`ifte b l r)  = `ifte (wk^⊢ inc b) (wk^⊢ inc l) (wk^⊢ inc r)
+wk′^∈ : {Δ Γ : Con} (inc : Γ ⊆′ Δ) {σ : ty} (pr : σ ∈ Γ) → σ ∈ Δ
+wk′^∈ inc pr = inc ‼ pr
 
+wk′[_] : {Δ : Con} {R : (Δ : Con) (σ : ty) → Set}
+        (wk : {Θ : Con} (inc : Δ ⊆′ Θ) {σ : ty} → R Δ σ → R Θ σ)
+        {Γ : Con} {Θ : Con} (inc : Δ ⊆′ Θ) (ρ : Δ [ R ] Γ) →  Θ [ R ] Γ
+wk′[ wk ] {ε}     inc ρ       = ρ
+wk′[ wk ] {Γ ∙ σ} inc (ρ , r) = wk′[ wk ] inc ρ , wk inc r
+
+refl′ : {Γ : Con} → Γ ⊆′ Γ
+refl′ = pure (λ _ → id)
+
+trans′ : {Γ Δ Θ : Con} → Γ ⊆′ Δ → Δ ⊆′ Θ → Γ ⊆′ Θ
+trans′ inc₁ inc₂ = wk′[ wk′^∈ ] inc₂ inc₁
+
+step′ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆′ Δ) → Γ ⊆′ Δ ∙ σ
+step′ inc = trans′ inc $ pure (λ _ → there)
+
+pop′ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆′ Δ) → Γ ∙ σ ⊆′ Δ ∙ σ
+pop′ inc = wk′[ wk′^∈  ] (pure (λ _ → there)) inc , here!
+
+wk′^⊢ : {Δ Γ : Con} (inc : Γ ⊆′ Δ) {σ : ty} (ne : Γ ⊢ σ) → Δ ⊢ σ
+wk′^⊢ inc (`var v)       = `var $′ wk′^∈ inc v
+wk′^⊢ inc (t `$ u)       = wk′^⊢ inc t `$ wk′^⊢ inc u
+wk′^⊢ inc (`λ t)         = `λ $′ wk′^⊢ (pop′ inc) t
+wk′^⊢ inc `⟨⟩            = `⟨⟩
+wk′^⊢ inc `tt            = `tt
+wk′^⊢ inc `ff            = `ff
+wk′^⊢ inc (`ifte b l r)  = `ifte (wk′^⊢ inc b) (wk′^⊢ inc l) (wk′^⊢ inc r)
+\end{code}
+
+\section{Parallel Substitution}
+
+Parallel substitution can already be seen as a model
+construction\todo{mention weakening}:
+given a term \AB{t} of type \AB{Γ} \AD{⊢} \AB{σ} and a substitution
+\AB{ρ} assigning to each variable of type \AB{σ} in \AB{t} a whole
+term of type \AB{Δ} \AD{⊢} \AB{σ}, one can construct a new term of
+type \AB{Δ} \AD{⊢} \AB{σ} by keeping \AB{t}'s structure and replacing
+its variables by the corresponding terms.
+
+\begin{code}
 var‿0 : {Γ : Con} {σ : ty} → Γ ∙ σ ⊢ σ
 var‿0 = `var here!
 
-infix 5 ⟦_⟧
-⟦_⟧ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
+infix 10 ⟦_⟧_
+⟦_⟧_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
 ⟦ `var v       ⟧ ρ = ρ ‼ v
 ⟦ t `$ u       ⟧ ρ = ⟦ t ⟧ ρ `$ ⟦ u ⟧ ρ
 ⟦ `λ t         ⟧ ρ = `λ $′ ⟦ t ⟧ (wk[ wk^⊢ ] (step refl) ρ , var‿0)
@@ -281,6 +367,12 @@ wk^whnf inc (`λ b)      = `λ $′ wk^⊢ (pop! inc) b
 
 \section{Normalization by Evaluation for βξη}
 
+In this section we recall the usual model construction and the corresponding
+normalization function. The definition of the model enforces that η-expansion
+is applied eagerly: all inhabitants of \AB{Γ} \AF{⊨^βξη} \AIC{`Unit} are indeed
+equal and all elements of \AB{Γ} \AF{⊨^βξη} \AB{σ} \AIC{`→} \AB{τ} are functions
+in Agda meaning that their reifications will only ever be \AIC{`λ}-headed.
+
 \begin{code}
 infix 5 _⊨^βξη_
 _⊨^βξη_ : (Γ : Con) (σ : ty) → Set
@@ -292,7 +384,18 @@ wk^βξη : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (T : Γ ⊨^βξη σ) →
 wk^βξη inc {`Unit   } T = T
 wk^βξη inc {`Bool   } T = wk^nf inc T
 wk^βξη inc {σ `→ τ  } T = λ inc′ → T $′ trans inc inc′
+\end{code}
 
+In order to have a clean definition of the evaluation function \AF{⟦\_⟧^βξη\_},
+we factor out the semantic notion of application and conditional branching.
+Application is straightforward thanks to the fact that semantic functions are
+Agda functions. Conditional Branching on the other hand is a bit more subtle:
+because the boolean value may be a neutral term, we are forced to define the
+reflection and reification mechanisms first to be able to reflect the stuck
+term into the model. The practical implication of this is that stuck \AIC{`ifte}
+will be effectively η-expanded.
+
+\begin{code}
 infixr 5 _$^βξη_
 _$^βξη_ : {Γ : Con} {σ τ : ty} (t : Γ ⊨^βξη σ `→ τ) (u : Γ ⊨^βξη σ) → Γ ⊨^βξη τ
 t $^βξη u = t refl u
@@ -316,7 +419,18 @@ ifte^βξη : {Γ : Con} {σ : ty} (b : Γ ⊨^βξη `Bool) (l r : Γ ⊨^βξ�
 ifte^βξη (`embed T)  l r = reflect^βξη _ $′ `ifte T (reify^βξη _ l) (reify^βξη _ r)
 ifte^βξη `tt         l r = l
 ifte^βξη `ff         l r = r
+\end{code}
 
+The evaluation function is then defined mostly by using the semantic
+counterparts of each constructor to combine the results obtained
+recursively. The \AIC{`λ} case is slightly more involved given that
+one needs to be able to handle any extension of the context which is
+possible by weakening the environment along the provided inclusion
+proof. Normalization is obtained by combining evaluation with reification,
+using the fact that we can build an initial environment by η-expanding all
+variables in scope.
+
+\begin{code}
 infix 10 ⟦_⟧^βξη_
 ⟦_⟧^βξη_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^βξη_ ] Γ) → Δ ⊨^βξη σ
 ⟦ `var v       ⟧^βξη ρ = ρ ‼ v
