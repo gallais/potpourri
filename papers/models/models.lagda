@@ -93,11 +93,13 @@ _$′_ = _$_
 \section{The calculus}
 
 \begin{code}
+infix 10 _`→_
 data ty : Set where
   `Unit  : ty
   `Bool  : ty
   _`→_   : (σ τ : ty) → ty
 
+infixl 10 _∙_
 data Con : Set where
   ε    : Con
   _∙_  : (Γ : Con) (σ : ty) → Con
@@ -107,6 +109,7 @@ _[_]_ : (Δ : Con) (R : (Δ : Con) (σ : ty) → Set) (Γ : Con) → Set
 Δ [ R ] ε      = ⊤
 Δ [ R ] Γ ∙ σ  = Δ [ R ] Γ × R Δ σ
 
+infixr 5 _<$>_
 _<$>_ :  {R S : (Δ : Con) (σ : ty) → Set}
          (f : {Δ : Con} {σ : ty} (r : R Δ σ) → S Δ σ)
          {Γ Δ : Con} → Δ [ R ] Γ → Δ [ S ] Γ
@@ -146,7 +149,7 @@ wk[_] : {Δ : Con} {R : (Δ : Con) (σ : ty) → Set}
 wk[ wk ] {ε}     inc ρ       = ρ
 wk[ wk ] {Γ ∙ σ} inc (ρ , r) = wk[ wk ] inc ρ , wk inc r
 
-
+infix 5 refl[_,_]_
 refl[_,_]_ :  {R : (Δ : Con) (σ : ty) → Set}
               (var : {Δ : Con} {σ : ty} (pr : σ ∈ Δ) → R Δ σ)
               (wk : {Δ Θ : Con} (inc : Δ ⊆ Θ) {σ : ty} → R Δ σ → R Θ σ)
@@ -161,6 +164,7 @@ wk^∈ (pop! inc)  (there pr)  = there $′ wk^∈ inc pr
 wk^∈ (step inc)  pr          = there $′ wk^∈ inc pr
 
 infix 5 _⊢_
+infixl 10 _`$_ 
 data _⊢_ (Γ : Con) : (σ : ty) → Set where
   `var   : {σ : ty} (v : σ ∈ Γ) → Γ ⊢ σ
   _`$_   : {σ τ : ty} (t : Γ ⊢ σ `→ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
@@ -182,7 +186,8 @@ wk^⊢ inc (`ifte b l r)  = `ifte (wk^⊢ inc b) (wk^⊢ inc l) (wk^⊢ inc r)
 var‿0 : {Γ : Con} {σ : ty} → Γ ∙ σ ⊢ σ
 var‿0 = `var here!
 
-⟦_⟧_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
+infix 5 ⟦_⟧
+⟦_⟧ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
 ⟦ `var v       ⟧ ρ = ρ ‼ v
 ⟦ t `$ u       ⟧ ρ = ⟦ t ⟧ ρ `$ ⟦ u ⟧ ρ
 ⟦ `λ t         ⟧ ρ = `λ $′ ⟦ t ⟧ (wk[ wk^⊢ ] (step refl) ρ , var‿0)
@@ -288,6 +293,7 @@ wk^βξη inc {`Unit   } T = T
 wk^βξη inc {`Bool   } T = wk^nf inc T
 wk^βξη inc {σ `→ τ  } T = λ inc′ → T $′ trans inc inc′
 
+infixr 5 _$^βξη_
 _$^βξη_ : {Γ : Con} {σ τ : ty} (t : Γ ⊨^βξη σ `→ τ) (u : Γ ⊨^βξη σ) → Γ ⊨^βξη τ
 t $^βξη u = t refl u
 
@@ -311,6 +317,7 @@ ifte^βξη (`embed T)  l r = reflect^βξη _ $′ `ifte T (reify^βξη _ l) (
 ifte^βξη `tt         l r = l
 ifte^βξη `ff         l r = r
 
+infix 10 ⟦_⟧^βξη_
 ⟦_⟧^βξη_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^βξη_ ] Γ) → Δ ⊨^βξη σ
 ⟦ `var v       ⟧^βξη ρ = ρ ‼ v
 ⟦ t `$ u       ⟧^βξη ρ = ⟦ t ⟧^βξη ρ $^βξη ⟦ u ⟧^βξη ρ
@@ -371,6 +378,7 @@ mutual
   reify^βξ σ (inj₁ ne)  = `embed ne
   reify^βξ σ (inj₂ T)   = reify^βξ⋆ σ T
 
+infixr 5 _$^βξ_
 _$^βξ_ : {Γ : Con} {σ τ : ty} (t : Γ ⊨^βξ σ `→ τ) (u : Γ ⊨^βξ σ) → Γ ⊨^βξ τ
 inj₁ ne  $^βξ u = inj₁ $ ne `$ reify^βξ _ u
 inj₂ F   $^βξ u = F refl u
@@ -379,6 +387,7 @@ ifte^βξ : {Γ : Con} {σ : ty} (b : Γ ⊨^βξ `Bool) (l r : Γ ⊨^βξ σ) 
 ifte^βξ (inj₁ ne) l r = inj₁ $ `ifte ne (reify^βξ _ l) (reify^βξ _ r)
 ifte^βξ (inj₂ T)  l r = if T then l else r
 
+infix 10 ⟦_⟧^βξ_
 ⟦_⟧^βξ_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^βξ_ ] Γ) → Δ ⊨^βξ σ
 ⟦ `var v       ⟧^βξ ρ = ρ ‼ v
 ⟦ t `$ u       ⟧^βξ ρ = ⟦ t ⟧^βξ ρ $^βξ ⟦ u ⟧^βξ ρ
@@ -456,6 +465,7 @@ mutual
   reify^β σ (t , inj₁ ne) = `embed ne
   reify^β σ (t , inj₂ T)  = reify^β⋆ σ T
 
+infixr 5 _$^β_
 _$^β_ : {Γ : Con} {σ τ : ty} (t : Γ ⊨^β σ `→ τ) (u : Γ ⊨^β σ) → Γ ⊨^β τ
 (t , inj₁ ne)  $^β (u , U) = t `$ u , inj₁ (ne `$ u)
 (t , inj₂ T)   $^β (u , U) = t `$ u , proj₂ (T refl (u , U))
@@ -464,6 +474,7 @@ ifte^β : {Γ : Con} {σ : ty} (b : Γ ⊨^β `Bool) (l r : Γ ⊨^β σ) → Γ
 ifte^β (b , inj₁ ne)  (l , L) (r , R) = `ifte b l r , inj₁ (`ifte ne l r)
 ifte^β (b , inj₂ B)   (l , L) (r , R) = `ifte b l r , (if B then L else R)
 
+infix 10 ⟦_⟧^β_
 ⟦_⟧^β_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^β_ ] Γ) → Δ ⊨^β σ
 ⟦ `var v       ⟧^β ρ = ρ ‼ v
 ⟦ t `$ u       ⟧^β ρ = ⟦ t ⟧^β ρ $^β ⟦ u ⟧^β ρ
