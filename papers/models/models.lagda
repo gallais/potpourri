@@ -84,6 +84,7 @@ be applicative in nature. For more details, see e.g. \cite{mitchell1996foundatio
 \begin{code}
 module models where
 
+open import Level
 open import Data.Unit
 open import Data.Bool
 open import Data.Sum
@@ -132,41 +133,6 @@ data _⊢_ (Γ : Con) : (σ : ty) → Set where
   `tt    : Γ ⊢ `Bool
   `ff    : Γ ⊢ `Bool
   `ifte  : {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) → Γ ⊢ σ
-
-infix 5 _⊆_
-data _⊆_ : (Γ Δ : Con) → Set where
-  base  : ε ⊆ ε
-  pop!  : {Γ Δ : Con} {σ : ty} (pr : Γ ⊆ Δ) → Γ ∙ σ ⊆ Δ ∙ σ
-  step  : {Γ Δ : Con} {σ : ty} (pr : Γ ⊆ Δ) → Γ ⊆ Δ ∙ σ 
-
-wk^∈ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (pr : σ ∈ Γ) → σ ∈ Δ
-wk^∈ base        ()
-wk^∈ (pop! inc)  here!       = here!
-wk^∈ (pop! inc)  (there pr)  = there $′ wk^∈ inc pr
-wk^∈ (step inc)  pr          = there $′ wk^∈ inc pr
-
-wk^⊢ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢ σ) → Δ ⊢ σ
-wk^⊢ inc (`var v)       = `var $′ wk^∈ inc v
-wk^⊢ inc (t `$ u)       = wk^⊢ inc t `$ wk^⊢ inc u
-wk^⊢ inc (`λ t)         = `λ $′ wk^⊢ (pop! inc) t
-wk^⊢ inc `⟨⟩            = `⟨⟩
-wk^⊢ inc `tt            = `tt
-wk^⊢ inc `ff            = `ff
-wk^⊢ inc (`ifte b l r)  = `ifte (wk^⊢ inc b) (wk^⊢ inc l) (wk^⊢ inc r)
-\end{code}
-
-\subsection{The Preoder of Context Inclusions}
-
-\begin{code}
-refl : {Γ : Con} → Γ ⊆ Γ
-refl {ε}      = base
-refl {Γ ∙ σ}  = pop! refl
-
-trans : {Γ Δ Θ : Con} → Γ ⊆ Δ → Δ ⊆ Θ → Γ ⊆ Θ
-trans inc₁         base         = inc₁
-trans (pop! inc₁)  (pop! inc₂)  = pop! $ trans inc₁ inc₂
-trans (step inc₁)  (pop! inc₂)  = step $ trans inc₁ inc₂
-trans inc₁         (step inc₂)  = step $ trans inc₁ inc₂
 \end{code}
 
 \section{A Notion of Environments}
@@ -178,16 +144,54 @@ to a specific de Bruijn index.
 
 \begin{code}
 infix 5 _[_]_
-_[_]_ : (Δ : Con) (R : (Δ : Con) (σ : ty) → Set) (Γ : Con) → Set
-Δ [ R ] ε      = ⊤
+_[_]_ : {ℓ : Level} (Δ : Con) (R : (Δ : Con) (σ : ty) → Set ℓ) (Γ : Con) → Set ℓ
+Δ [ R ] ε      = Lift ⊤
 Δ [ R ] Γ ∙ σ  = Δ [ R ] Γ × R Δ σ
 
+pure : {Δ : Con} {R : (Δ : Con) (σ : ty) → Set}
+       {Γ : Con} (f : (σ : ty) (pr : σ ∈ Γ) → R Δ σ) → Δ [ R ] Γ
+pure {Γ = ε}     f = lift tt
+pure {Γ = Γ ∙ σ} f = pure (λ σ → f σ ∘ there) , f σ here!
 
-_‼_ :  {Δ : Con} {R : (Δ : Con) (σ : ty) → Set} {Γ : Con}
-       (ρ : Δ [ R ] Γ) {σ : ty} (v : σ ∈ Γ) → R Δ σ
+infix 5 _‼_
+_‼_ :  {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ} {Γ : Con} {σ : ty}
+       (ρ : Δ [ R ] Γ) (v : σ ∈ Γ) → R Δ σ
 (_ , r) ‼ here!    = r
 (ρ , _) ‼ there v  = ρ ‼ v
 \end{code}
+
+\subsection{The Preoder of Context Inclusions}
+
+\begin{code}
+infix 5 _⊆_
+_⊇_ : (Δ Γ : Con) → Set
+_⊇_ = _[ flip _∈_ ]_
+
+_⊆_ : (Γ Δ : Con) → Set
+_⊆_ = flip _⊇_
+
+wk^∈ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (pr : σ ∈ Γ) → σ ∈ Δ
+wk^∈ = _‼_
+
+wk[_] : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ}
+        (wk : {Θ : Con} {σ : ty} (inc : Δ ⊆ Θ) → R Δ σ → R Θ σ)
+        {Γ Θ : Con} (inc : Δ ⊆ Θ) (ρ : Δ [ R ] Γ) →  Θ [ R ] Γ
+wk[ wk ] {ε}     inc ρ       = ρ
+wk[ wk ] {Γ ∙ σ} inc (ρ , r) = wk[ wk ] inc ρ , wk inc r
+
+refl : {Γ : Con} → Γ ⊆ Γ
+refl = pure (λ _ → id)
+
+trans : {Γ Δ Θ : Con} → Γ ⊆ Δ → Δ ⊆ Θ → Γ ⊆ Θ
+trans inc₁ inc₂ = wk[ wk^∈ ] inc₂ inc₁
+
+pop! : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → Γ ∙ σ ⊆ Δ ∙ σ
+pop! inc = wk[ wk^∈  ] (pure (λ _ → there)) inc , here!
+
+step : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → Γ ⊆ Δ ∙ σ
+step inc = trans inc $ pure (λ _ → there)
+\end{code}
+
 
 This definition allows for the mechanical lifting of properties on \AB{R}
 to properties on environments defined by \AB{R}. We only introduce the ones
@@ -202,60 +206,59 @@ _<$>_ :  {R S : (Δ : Con) (σ : ty) → Set}
 _<$>_ f {ε      } ρ       = ρ
 _<$>_ f {Γ ∙ σ  } (ρ , r) = f <$> ρ , f r
 
-wk[_] : {Δ : Con} {R : (Δ : Con) (σ : ty) → Set}
-        (wk : {Θ : Con} (inc : Δ ⊆ Θ) {σ : ty} → R Δ σ → R Θ σ)
-        {Γ : Con} {Θ : Con} (inc : Δ ⊆ Θ) (ρ : Δ [ R ] Γ) →  Θ [ R ] Γ
-wk[ wk ] {ε}     inc ρ       = ρ
-wk[ wk ] {Γ ∙ σ} inc (ρ , r) = wk[ wk ] inc ρ , wk inc r
-
 infix 5 refl[_,_]_
 refl[_,_]_ :  {R : (Δ : Con) (σ : ty) → Set}
               (var : {Δ : Con} {σ : ty} (pr : σ ∈ Δ) → R Δ σ)
-              (wk : {Δ Θ : Con} (inc : Δ ⊆ Θ) {σ : ty} → R Δ σ → R Θ σ)
+              (wk : {Δ Θ : Con} {σ : ty} (inc : Δ ⊆ Θ) → R Δ σ → R Θ σ)
               (Γ : Con) → Γ [ R ] Γ
-refl[ var , wk ] ε        = tt
+refl[ var , wk ] ε        = lift tt
 refl[ var , wk ] (Γ ∙ σ)  = wk[ wk ] (step refl) (refl[ var , wk ] Γ) , var here!
 \end{code}
 
 \begin{code}
-pure : {Δ : Con} {R : (Δ : Con) (σ : ty) → Set}
-       {Γ : Con} (f : (σ : ty) (pr : σ ∈ Γ) → R Δ σ) → Δ [ R ] Γ
-pure {Γ = ε}     f = tt
-pure {Γ = Γ ∙ σ} f = pure (λ σ → f σ ∘ there) , f σ here!
 
-infix 5 _⊆′_
-_⊆′_ : (Γ Δ : Con) → Set
-_⊆′_ = flip _[ flip _∈_ ]_
+record Semantics (ℓᴱ ℓᴹ : Level) : Set (suc (ℓᴱ ⊔ ℓᴹ)) where
+  infixl 5 _⟦$⟧_
+  field
+    E       : (Δ : Con) (σ : ty) → Set ℓᴱ
+    M       : (Δ : Con) (σ : ty) → Set ℓᴹ
+    wk      : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : E Γ σ) → E Δ σ
+    ⟦var⟧   : {Γ : Con} {σ : ty} → E Γ σ → M Γ σ
+    _⟦$⟧_   : {Γ : Con} {σ τ : ty} → M Γ (σ `→ τ) → M Γ σ → M Γ τ
+    ⟦λ⟧     : {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : E Δ σ) → M Δ τ) → M Γ (σ `→ τ)
+    ⟦⟨⟩⟧    : {Γ : Con} → M Γ `Unit
+    ⟦tt⟧    : {Γ : Con} → M Γ `Bool
+    ⟦ff⟧    : {Γ : Con} → M Γ `Bool
+    ⟦ifte⟧  : {Γ : Con} {σ : ty} (b : M Γ `Bool) (l r : M Γ σ) → M Γ σ
 
-wk′^∈ : {Δ Γ : Con} (inc : Γ ⊆′ Δ) {σ : ty} (pr : σ ∈ Γ) → σ ∈ Δ
-wk′^∈ inc pr = inc ‼ pr
+infix 10 _⊨⟦_⟧_
+_⊨⟦_⟧_ : {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) (open Semantics Sem) →
+         {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ E ] Γ) → M Δ σ
+Sem ⊨⟦ `var v       ⟧ ρ = let open Semantics Sem in ⟦var⟧ $ ρ ‼ v
+Sem ⊨⟦ t `$ u       ⟧ ρ = let open Semantics Sem in Sem ⊨⟦ t ⟧ ρ ⟦$⟧ Sem ⊨⟦ u ⟧ ρ
+Sem ⊨⟦ `λ t         ⟧ ρ = let open Semantics Sem in ⟦λ⟧ λ inc u → Sem ⊨⟦ t ⟧ (wk[ wk ] inc ρ , u)
+Sem ⊨⟦ `⟨⟩          ⟧ ρ = let open Semantics Sem in ⟦⟨⟩⟧
+Sem ⊨⟦ `tt          ⟧ ρ = let open Semantics Sem in ⟦tt⟧
+Sem ⊨⟦ `ff          ⟧ ρ = let open Semantics Sem in ⟦ff⟧
+Sem ⊨⟦ `ifte b l r  ⟧ ρ = let open Semantics Sem in ⟦ifte⟧ (Sem ⊨⟦ b ⟧ ρ) (Sem ⊨⟦ l ⟧ ρ) (Sem ⊨⟦ r ⟧ ρ)
 
-wk′[_] : {Δ : Con} {R : (Δ : Con) (σ : ty) → Set}
-        (wk : {Θ : Con} (inc : Δ ⊆′ Θ) {σ : ty} → R Δ σ → R Θ σ)
-        {Γ : Con} {Θ : Con} (inc : Δ ⊆′ Θ) (ρ : Δ [ R ] Γ) →  Θ [ R ] Γ
-wk′[ wk ] {ε}     inc ρ       = ρ
-wk′[ wk ] {Γ ∙ σ} inc (ρ , r) = wk′[ wk ] inc ρ , wk inc r
+Renaming : Semantics zero zero
+Renaming =
+  record  { E       = flip _∈_
+          ; M       = _⊢_
+          ; wk      = wk^∈
+          ; ⟦var⟧   = `var
+          ; _⟦$⟧_   = _`$_
+          ; ⟦λ⟧     = λ t → `λ (t (step refl) here!)
+          ; ⟦⟨⟩⟧    = `⟨⟩
+          ; ⟦tt⟧    = `tt
+          ; ⟦ff⟧    = `ff
+          ; ⟦ifte⟧  = `ifte
+          }
 
-refl′ : {Γ : Con} → Γ ⊆′ Γ
-refl′ = pure (λ _ → id)
+wk^⊢ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (t : Γ ⊢ σ) → Δ ⊢ σ
+wk^⊢ = flip $ Renaming ⊨⟦_⟧_
 
-trans′ : {Γ Δ Θ : Con} → Γ ⊆′ Δ → Δ ⊆′ Θ → Γ ⊆′ Θ
-trans′ inc₁ inc₂ = wk′[ wk′^∈ ] inc₂ inc₁
-
-step′ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆′ Δ) → Γ ⊆′ Δ ∙ σ
-step′ inc = trans′ inc $ pure (λ _ → there)
-
-pop′ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆′ Δ) → Γ ∙ σ ⊆′ Δ ∙ σ
-pop′ inc = wk′[ wk′^∈  ] (pure (λ _ → there)) inc , here!
-
-wk′^⊢ : {Δ Γ : Con} (inc : Γ ⊆′ Δ) {σ : ty} (ne : Γ ⊢ σ) → Δ ⊢ σ
-wk′^⊢ inc (`var v)       = `var $′ wk′^∈ inc v
-wk′^⊢ inc (t `$ u)       = wk′^⊢ inc t `$ wk′^⊢ inc u
-wk′^⊢ inc (`λ t)         = `λ $′ wk′^⊢ (pop′ inc) t
-wk′^⊢ inc `⟨⟩            = `⟨⟩
-wk′^⊢ inc `tt            = `tt
-wk′^⊢ inc `ff            = `ff
-wk′^⊢ inc (`ifte b l r)  = `ifte (wk′^⊢ inc b) (wk′^⊢ inc l) (wk′^⊢ inc r)
 \end{code}
 
 \section{Parallel Substitution}
@@ -272,15 +275,23 @@ its variables by the corresponding terms.
 var‿0 : {Γ : Con} {σ : ty} → Γ ∙ σ ⊢ σ
 var‿0 = `var here!
 
+Substitution : Semantics zero zero
+Substitution =
+  record  { E       = _⊢_
+          ; M       = _⊢_
+          ; wk      = wk^⊢ 
+          ; ⟦var⟧   = id
+          ; _⟦$⟧_   = _`$_
+          ; ⟦λ⟧     = λ t → `λ (t (step refl) var‿0)
+          ; ⟦⟨⟩⟧    = `⟨⟩
+          ; ⟦tt⟧    = `tt
+          ; ⟦ff⟧    = `ff
+          ; ⟦ifte⟧  = `ifte
+          }
+
 infix 10 ⟦_⟧_
 ⟦_⟧_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
-⟦ `var v       ⟧ ρ = ρ ‼ v
-⟦ t `$ u       ⟧ ρ = ⟦ t ⟧ ρ `$ ⟦ u ⟧ ρ
-⟦ `λ t         ⟧ ρ = `λ $′ ⟦ t ⟧ (wk[ wk^⊢ ] (step refl) ρ , var‿0)
-⟦ `⟨⟩          ⟧ ρ = `⟨⟩
-⟦ `tt          ⟧ ρ = `tt
-⟦ `ff          ⟧ ρ = `ff
-⟦ `ifte b l r  ⟧ ρ = `ifte (⟦ b ⟧ ρ) (⟦ l ⟧ ρ) (⟦ r ⟧ ρ)
+⟦_⟧_ = Substitution ⊨⟦_⟧_
 
 _⟨_/var₀⟩ : {Γ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
 t ⟨ u /var₀⟩ = ⟦ t ⟧ (refl[ `var , wk^⊢ ] _ , u)
@@ -380,10 +391,10 @@ _⊨^βξη_ : (Γ : Con) (σ : ty) → Set
 Γ ⊨^βξη `Bool   = Γ ⊢^nf `Bool
 Γ ⊨^βξη σ `→ τ  = {Δ : Con} (inc : Γ ⊆ Δ) (u : Δ ⊨^βξη σ) → Δ ⊨^βξη τ
 
-wk^βξη : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (T : Γ ⊨^βξη σ) → Δ ⊨^βξη σ
-wk^βξη inc {`Unit   } T = T
-wk^βξη inc {`Bool   } T = wk^nf inc T
-wk^βξη inc {σ `→ τ  } T = λ inc′ → T $′ trans inc inc′
+wk^βξη : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (T : Γ ⊨^βξη σ) → Δ ⊨^βξη σ
+wk^βξη {σ = `Unit   } inc T = T
+wk^βξη {σ = `Bool   } inc T = wk^nf inc T
+wk^βξη {σ = σ `→ τ  } inc T = λ inc′ → T $′ trans inc inc′
 \end{code}
 
 In order to have a clean definition of the evaluation function \AF{⟦\_⟧^βξη\_},
@@ -431,15 +442,23 @@ using the fact that we can build an initial environment by η-expanding all
 variables in scope.
 
 \begin{code}
+Normalize^βξη : Semantics zero zero
+Normalize^βξη =
+  record  { E       = _⊨^βξη_
+          ; M       = _⊨^βξη_
+          ; wk      = wk^βξη
+          ; ⟦var⟧   = id
+          ; _⟦$⟧_   = _$^βξη_
+          ; ⟦λ⟧     = id
+          ; ⟦⟨⟩⟧    = tt
+          ; ⟦tt⟧    = `tt
+          ; ⟦ff⟧    = `ff
+          ; ⟦ifte⟧  = ifte^βξη
+          }
+
 infix 10 ⟦_⟧^βξη_
 ⟦_⟧^βξη_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^βξη_ ] Γ) → Δ ⊨^βξη σ
-⟦ `var v       ⟧^βξη ρ = ρ ‼ v
-⟦ t `$ u       ⟧^βξη ρ = ⟦ t ⟧^βξη ρ $^βξη ⟦ u ⟧^βξη ρ
-⟦ `λ t         ⟧^βξη ρ = λ inc u → ⟦ t ⟧^βξη (wk[ wk^βξη ] inc ρ , u)
-⟦ `⟨⟩          ⟧^βξη ρ = tt
-⟦ `tt          ⟧^βξη ρ = `tt
-⟦ `ff          ⟧^βξη ρ = `ff
-⟦ `ifte b l r  ⟧^βξη ρ = ifte^βξη (⟦ b ⟧^βξη ρ) (⟦ l ⟧^βξη ρ) (⟦ r ⟧^βξη ρ)
+⟦_⟧^βξη_ = Normalize^βξη ⊨⟦_⟧_
 
 diag^βξη : (Γ : Con) → Γ [ _⊨^βξη_ ] Γ
 diag^βξη Γ = refl[ reflect^βξη _ ∘ `var , wk^βξη ] Γ
@@ -471,7 +490,7 @@ wk^βξ⋆ inc {`Unit   } T = T
 wk^βξ⋆ inc {`Bool   } T = T
 wk^βξ⋆ inc {σ `→ τ  } T = λ inc′ → T $′ trans inc inc′
 
-wk^βξ : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (T : Γ ⊨^βξ σ) → Δ ⊨^βξ σ
+wk^βξ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (T : Γ ⊨^βξ σ) → Δ ⊨^βξ σ
 wk^βξ inc (inj₁ ne) = inj₁ $ wk^ne inc ne
 wk^βξ inc (inj₂ T)  = inj₂ $ wk^βξ⋆ inc T
 
@@ -501,15 +520,24 @@ ifte^βξ : {Γ : Con} {σ : ty} (b : Γ ⊨^βξ `Bool) (l r : Γ ⊨^βξ σ) 
 ifte^βξ (inj₁ ne) l r = inj₁ $ `ifte ne (reify^βξ _ l) (reify^βξ _ r)
 ifte^βξ (inj₂ T)  l r = if T then l else r
 
+
+Normalize^βξ : Semantics zero zero
+Normalize^βξ =
+  record  { E       = _⊨^βξ_
+          ; M       = _⊨^βξ_
+          ; wk      = wk^βξ
+          ; ⟦var⟧   = id
+          ; _⟦$⟧_   = _$^βξ_
+          ; ⟦λ⟧     = inj₂
+          ; ⟦⟨⟩⟧    = inj₂ tt
+          ; ⟦tt⟧    = inj₂ true
+          ; ⟦ff⟧    = inj₂ false
+          ; ⟦ifte⟧  = ifte^βξ
+          }
+
 infix 10 ⟦_⟧^βξ_
 ⟦_⟧^βξ_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^βξ_ ] Γ) → Δ ⊨^βξ σ
-⟦ `var v       ⟧^βξ ρ = ρ ‼ v
-⟦ t `$ u       ⟧^βξ ρ = ⟦ t ⟧^βξ ρ $^βξ ⟦ u ⟧^βξ ρ
-⟦ `λ t         ⟧^βξ ρ = inj₂ $ λ {_} inc u → ⟦ t ⟧^βξ (wk[ wk^βξ ] inc ρ , u)
-⟦ `⟨⟩          ⟧^βξ ρ = inj₂ $ tt
-⟦ `tt          ⟧^βξ ρ = inj₂ $ true
-⟦ `ff          ⟧^βξ ρ = inj₂ $ false
-⟦ `ifte b l r  ⟧^βξ ρ = ifte^βξ (⟦ b ⟧^βξ ρ) (⟦ l ⟧^βξ ρ) (⟦ r ⟧^βξ ρ)
+⟦_⟧^βξ_ = Normalize^βξ ⊨⟦_⟧_
 
 diag^βξ : (Γ : Con) → Γ [ _⊨^βξ_ ] Γ
 diag^βξ Γ = refl[ reflect^βξ _ ∘ `var , wk^βξ ] Γ
@@ -538,6 +566,7 @@ erase^whnf `tt         = `tt
 erase^whnf `ff         = `ff
 erase^whnf (`λ b)      = `λ b
 
+
 mutual
 
   infix 5 _⊨^β_ _⊨^β⋆_
@@ -555,7 +584,7 @@ wk^β⋆ inc {`Unit   } T = T
 wk^β⋆ inc {`Bool   } T = T
 wk^β⋆ inc {σ `→ τ  } T = λ inc′ → T $′ trans inc inc′
 
-wk^β : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (T : Γ ⊨^β σ) → Δ ⊨^β σ
+wk^β : {Δ Γ : Con}{σ : ty} (inc : Γ ⊆ Δ) (T : Γ ⊨^β σ) → Δ ⊨^β σ
 wk^β inc (t , inj₁ ne)  = wk^⊢ inc t , inj₁ (wk^whne inc ne)
 wk^β inc (t , inj₂ T)   = wk^⊢ inc t , inj₂ (wk^β⋆ inc T)
 
@@ -588,15 +617,24 @@ ifte^β : {Γ : Con} {σ : ty} (b : Γ ⊨^β `Bool) (l r : Γ ⊨^β σ) → Γ
 ifte^β (b , inj₁ ne)  (l , L) (r , R) = `ifte b l r , inj₁ (`ifte ne l r)
 ifte^β (b , inj₂ B)   (l , L) (r , R) = `ifte b l r , (if B then L else R)
 
+
+Normalize^β : Semantics zero zero
+Normalize^β =
+  record  { E       = _⊨^β_
+          ; M       = _⊨^β_
+          ; wk      = wk^β
+          ; ⟦var⟧   = id
+          ; _⟦$⟧_   = _$^β_
+          ; ⟦λ⟧     = λ t → `λ (source (t (step refl) var‿0^β)) , inj₂ t
+          ; ⟦⟨⟩⟧    = `⟨⟩ , inj₂ tt
+          ; ⟦tt⟧    = `tt , inj₂ true
+          ; ⟦ff⟧    = `ff , inj₂ false
+          ; ⟦ifte⟧  = ifte^β
+          }
+
 infix 10 ⟦_⟧^β_
 ⟦_⟧^β_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^β_ ] Γ) → Δ ⊨^β σ
-⟦ `var v       ⟧^β ρ = ρ ‼ v
-⟦ t `$ u       ⟧^β ρ = ⟦ t ⟧^β ρ $^β ⟦ u ⟧^β ρ
-⟦ `λ t         ⟧^β ρ = ⟦ `λ t ⟧ (source <$> ρ) , inj₂ (λ inc u → ⟦ t ⟧^β (wk[ wk^β ] inc ρ , u))
-⟦ `⟨⟩          ⟧^β ρ = `⟨⟩ , inj₂ tt
-⟦ `tt          ⟧^β ρ = `tt , inj₂ true
-⟦ `ff          ⟧^β ρ = `ff , inj₂ false
-⟦ `ifte b l r  ⟧^β ρ = ifte^β (⟦ b ⟧^β ρ) (⟦ l ⟧^β ρ) (⟦ r ⟧^β ρ)
+⟦_⟧^β_ = Normalize^β ⊨⟦_⟧_
 
 diag^β : (Γ : Con) → Γ [ _⊨^β_ ] Γ
 diag^β Γ = refl[ reflect^β _ ∘ `var , wk^β ] Γ
