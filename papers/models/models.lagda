@@ -164,20 +164,18 @@ _‼_ :  {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ} {Γ : C
 
 \begin{code}
 infix 5 _⊆_
-_⊇_ : (Δ Γ : Con) → Set
-_⊇_ = _[ flip _∈_ ]_
 
 _⊆_ : (Γ Δ : Con) → Set
-_⊆_ = flip _⊇_
-
-wk^∈ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (pr : σ ∈ Γ) → σ ∈ Δ
-wk^∈ = _‼_
+_⊆_ = flip _[ flip _∈_ ]_
 
 wk[_] : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ}
         (wk : {Θ : Con} {σ : ty} (inc : Δ ⊆ Θ) → R Δ σ → R Θ σ)
         {Γ Θ : Con} (inc : Δ ⊆ Θ) (ρ : Δ [ R ] Γ) →  Θ [ R ] Γ
 wk[ wk ] {ε}     inc ρ       = ρ
 wk[ wk ] {Γ ∙ σ} inc (ρ , r) = wk[ wk ] inc ρ , wk inc r
+
+wk^∈ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (pr : σ ∈ Γ) → σ ∈ Δ
+wk^∈ = _‼_
 
 refl : {Γ : Con} → Γ ⊆ Γ
 refl = pure (λ _ → id)
@@ -192,49 +190,58 @@ step : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → Γ ⊆ Δ ∙ σ
 step inc = trans inc $ pure (λ _ → there)
 \end{code}
 
+\section{Semantics and Generic Evaluation Function}
 
-This definition allows for the mechanical lifting of properties on \AB{R}
-to properties on environments defined by \AB{R}. We only introduce the ones
-we will need subsequently: entailment, weakening and reflexivity. This
-notions having been made formal, we can now start studying various models.
+In order to have the opportunity to focus on the model constructions
+rather than defining over and over again similar-looking evaluation
+functions, we introduce the notions of \AR{Semantics} and generically
+define an evaluation function parametrised over such semantics.
+We will see later on that this notion is generic enough to encompass
+a large body of traversals from simple renamings to the more complex
+evaluation into a model.
+
+A \AR{Semantics} packs two main concepts and the methods based on them
+necessary to construct an evaluation function. First, Environment values
+(\ARF{𝓔}) are defined; we require that there is a way to apply weakening
+to such elements (\ARF{wk}) as well as a way to create new ones from
+variables (\ARF{embed}). Then, the model (\ARF{𝓜}) is introduced together
+with the semantic counterparts of the language's constructors. Most of
+them have the type one would expect except for two interesting cases. The
+semantic counterpart of the variable constructor (\ARF{⟦var⟧}) is a
+function converting environment values into model ones. And the semantic
+λ-abstraction (\ARF{⟦λ⟧}) is an actual function which, in any extended
+context, takes an \emph{environment} value and delivers one in the model.
 
 \begin{code}
-infixr 5 _<$>_
-_<$>_ :  {R S : (Δ : Con) (σ : ty) → Set}
-         (f : {Δ : Con} {σ : ty} (r : R Δ σ) → S Δ σ)
-         {Γ Δ : Con} → Δ [ R ] Γ → Δ [ S ] Γ
-_<$>_ f {ε      } ρ       = ρ
-_<$>_ f {Γ ∙ σ  } (ρ , r) = f <$> ρ , f r
-
-infix 5 refl[_,_]_
-refl[_,_]_ :  {R : (Δ : Con) (σ : ty) → Set}
-              (var : {Δ : Con} {σ : ty} (pr : σ ∈ Δ) → R Δ σ)
-              (wk : {Δ Θ : Con} {σ : ty} (inc : Δ ⊆ Θ) → R Δ σ → R Θ σ)
-              (Γ : Con) → Γ [ R ] Γ
-refl[ var , wk ] ε        = lift tt
-refl[ var , wk ] (Γ ∙ σ)  = wk[ wk ] (step refl) (refl[ var , wk ] Γ) , var here!
-\end{code}
-
-\begin{code}
-
 record Semantics (ℓᴱ ℓᴹ : Level) : Set (suc (ℓᴱ ⊔ ℓᴹ)) where
   infixl 5 _⟦$⟧_
   field
-    E       : (Δ : Con) (σ : ty) → Set ℓᴱ
-    M       : (Δ : Con) (σ : ty) → Set ℓᴹ
-    embed   : {Δ : Con} {σ : ty} (pr : σ ∈ Δ) → E Δ σ
-    wk      : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : E Γ σ) → E Δ σ
-    ⟦var⟧   : {Γ : Con} {σ : ty} → E Γ σ → M Γ σ
-    _⟦$⟧_   : {Γ : Con} {σ τ : ty} → M Γ (σ `→ τ) → M Γ σ → M Γ τ
-    ⟦λ⟧     : {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : E Δ σ) → M Δ τ) → M Γ (σ `→ τ)
-    ⟦⟨⟩⟧    : {Γ : Con} → M Γ `Unit
-    ⟦tt⟧    : {Γ : Con} → M Γ `Bool
-    ⟦ff⟧    : {Γ : Con} → M Γ `Bool
-    ⟦ifte⟧  : {Γ : Con} {σ : ty} (b : M Γ `Bool) (l r : M Γ σ) → M Γ σ
+    -- environment values and corresponding methods
+    𝓔       : (Δ : Con) (σ : ty) → Set ℓᴱ
+    wk      : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : 𝓔 Γ σ) → 𝓔 Δ σ
+    embed   : {Γ : Con} {σ : ty} (pr : σ ∈ Γ) → 𝓔 Γ σ
+    -- model and semantic counterparts of the constructors
+    𝓜       : (Δ : Con) (σ : ty) → Set ℓᴹ
+    ⟦var⟧   : {Γ : Con} {σ : ty} → 𝓔 Γ σ → 𝓜 Γ σ
+    _⟦$⟧_   : {Γ : Con} {σ τ : ty} → 𝓜 Γ (σ `→ τ) → 𝓜 Γ σ → 𝓜 Γ τ
+    ⟦λ⟧     : {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : 𝓔 Δ σ) → 𝓜 Δ τ) → 𝓜 Γ (σ `→ τ)
+    ⟦⟨⟩⟧    : {Γ : Con} → 𝓜 Γ `Unit
+    ⟦tt⟧    : {Γ : Con} → 𝓜 Γ `Bool
+    ⟦ff⟧    : {Γ : Con} → 𝓜 Γ `Bool
+    ⟦ifte⟧  : {Γ : Con} {σ : ty} (b : 𝓜 Γ `Bool) (l r : 𝓜 Γ σ) → 𝓜 Γ σ
+\end{code}
 
+The evaluation function is defined by replacing each constructor with
+their semantic counterpart in order to combine the induction hypothesis
+given by the subterms. In the λ-abstraction case, the environment is
+weakened so that the returned value indeed resides in the extended context.
+Finally, one can build a diagonal environment by \ARF{embed}ding its
+variables.
+
+\begin{code}
 infix 10 _⊨⟦_⟧_ _⊨eval_
 _⊨⟦_⟧_ : {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) (open Semantics Sem) →
-         {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ E ] Γ) → M Δ σ
+         {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ 𝓔 ] Γ) → 𝓜 Δ σ
 Sem ⊨⟦ `var v       ⟧ ρ = let open Semantics Sem in ⟦var⟧ $ ρ ‼ v
 Sem ⊨⟦ t `$ u       ⟧ ρ = let open Semantics Sem in Sem ⊨⟦ t ⟧ ρ ⟦$⟧ Sem ⊨⟦ u ⟧ ρ
 Sem ⊨⟦ `λ t         ⟧ ρ = let open Semantics Sem in ⟦λ⟧ λ inc u → Sem ⊨⟦ t ⟧ (wk[ wk ] inc ρ , u)
@@ -244,13 +251,25 @@ Sem ⊨⟦ `ff          ⟧ ρ = let open Semantics Sem in ⟦ff⟧
 Sem ⊨⟦ `ifte b l r  ⟧ ρ = let open Semantics Sem in ⟦ifte⟧ (Sem ⊨⟦ b ⟧ ρ) (Sem ⊨⟦ l ⟧ ρ) (Sem ⊨⟦ r ⟧ ρ)
 
 _⊨eval_ : {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) (open Semantics Sem) →
-          {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → M Γ σ
+          {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → 𝓜 Γ σ
 Sem ⊨eval t = let open Semantics Sem in Sem ⊨⟦ t ⟧ pure (λ _ → embed)
+\end{code}
 
+\section{Renaming}
+
+Our first example of a semantics is the syntactic model: using variables
+as environment values and terms as elements of the model and constructors
+as their own semantic counterpart, we obtain a rather involved definition
+of the identity function as \AF{Renaming} \AF{⊨eval\_}. But this construction
+is not at all useless: indeed, the more general \AF{Renaming} \AF{⊨⟦\_⟧\_}
+turns out to be precisely the notion of weakening for terms we will need
+later on.
+
+\begin{code}
 Renaming : Semantics zero zero
 Renaming =
-  record  { E       = flip _∈_
-          ; M       = _⊢_
+  record  { 𝓔       = flip _∈_
+          ; 𝓜      = _⊢_
           ; embed   = id
           ; wk      = wk^∈
           ; ⟦var⟧   = `var
@@ -264,18 +283,16 @@ Renaming =
 
 wk^⊢ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (t : Γ ⊢ σ) → Δ ⊢ σ
 wk^⊢ = flip $ Renaming ⊨⟦_⟧_
-
 \end{code}
 
 \section{Parallel Substitution}
 
-Parallel substitution can already be seen as a model
-construction\todo{mention weakening}:
-given a term \AB{t} of type \AB{Γ} \AD{⊢} \AB{σ} and a substitution
-\AB{ρ} assigning to each variable of type \AB{σ} in \AB{t} a whole
-term of type \AB{Δ} \AD{⊢} \AB{σ}, one can construct a new term of
-type \AB{Δ} \AD{⊢} \AB{σ} by keeping \AB{t}'s structure and replacing
-its variables by the corresponding terms.
+Our second example of a semantics is another spin on the syntactic
+model: the environment values are now terms (but the diagonal
+environment will be only made up of variables) and so are the model's
+values. Once more the semantic function \AF{Substitution} \AF{⊨⟦\_⟧\_}
+is more interesting than the evaluation one: it is an implementation
+of parallel substitution.
 
 \begin{code}
 var‿0 : {Γ : Con} {σ : ty} → Γ ∙ σ ⊢ σ
@@ -283,8 +300,8 @@ var‿0 = `var here!
 
 Substitution : Semantics zero zero
 Substitution =
-  record  { E       = _⊢_
-          ; M       = _⊢_
+  record  { 𝓔       = _⊢_
+          ; 𝓜       = _⊢_
           ; embed   = `var
           ; wk      = wk^⊢ 
           ; ⟦var⟧   = id
@@ -301,7 +318,7 @@ infix 10 ⟦_⟧_
 ⟦_⟧_ = Substitution ⊨⟦_⟧_
 
 _⟨_/var₀⟩ : {Γ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
-t ⟨ u /var₀⟩ = ⟦ t ⟧ (refl[ `var , wk^⊢ ] _ , u)
+t ⟨ u /var₀⟩ = ⟦ t ⟧ (pure (λ _ → `var) , u)
 
 eta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) → Γ ⊢ σ `→ τ
 eta t = `λ (wk^⊢ (step refl) t `$ var‿0)
@@ -451,8 +468,8 @@ variables in scope.
 \begin{code}
 Normalize^βξη : Semantics zero zero
 Normalize^βξη =
-  record  { E       = _⊨^βξη_
-          ; M       = _⊨^βξη_
+  record  { 𝓔       = _⊨^βξη_
+          ; 𝓜       = _⊨^βξη_
           ; embed   = reflect^βξη _ ∘ `var
           ; wk      = wk^βξη
           ; ⟦var⟧   = id
@@ -525,8 +542,8 @@ ifte^βξ (inj₂ T)  l r = if T then l else r
 
 Normalize^βξ : Semantics zero zero
 Normalize^βξ =
-  record  { E       = _⊨^βξ_
-          ; M       = _⊨^βξ_
+  record  { 𝓔       = _⊨^βξ_
+          ; 𝓜       = _⊨^βξ_
           ; embed   = reflect^βξ _ ∘ `var
           ; wk      = wk^βξ
           ; ⟦var⟧   = id
@@ -617,8 +634,8 @@ ifte^β (b , inj₂ B)   (l , L) (r , R) = `ifte b l r , (if B then L else R)
 
 Normalize^β : Semantics zero zero
 Normalize^β =
-  record  { E       = _⊨^β_
-          ; M       = _⊨^β_
+  record  { 𝓔       = _⊨^β_
+          ; 𝓜       = _⊨^β_
           ; embed   = reflect^β _ ∘ `var
           ; wk      = wk^β
           ; ⟦var⟧   = id
