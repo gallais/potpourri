@@ -148,7 +148,7 @@ _[_]_ : {ℓ : Level} (Δ : Con) (R : (Δ : Con) (σ : ty) → Set ℓ) (Γ : Co
 Δ [ R ] ε      = Lift ⊤
 Δ [ R ] Γ ∙ σ  = Δ [ R ] Γ × R Δ σ
 
-pure : {Δ : Con} {R : (Δ : Con) (σ : ty) → Set}
+pure : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ}
        {Γ : Con} (f : (σ : ty) (pr : σ ∈ Γ) → R Δ σ) → Δ [ R ] Γ
 pure {Γ = ε}     f = lift tt
 pure {Γ = Γ ∙ σ} f = pure (λ σ → f σ ∘ there) , f σ here!
@@ -222,6 +222,7 @@ record Semantics (ℓᴱ ℓᴹ : Level) : Set (suc (ℓᴱ ⊔ ℓᴹ)) where
   field
     E       : (Δ : Con) (σ : ty) → Set ℓᴱ
     M       : (Δ : Con) (σ : ty) → Set ℓᴹ
+    embed   : {Δ : Con} {σ : ty} (pr : σ ∈ Δ) → E Δ σ
     wk      : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : E Γ σ) → E Δ σ
     ⟦var⟧   : {Γ : Con} {σ : ty} → E Γ σ → M Γ σ
     _⟦$⟧_   : {Γ : Con} {σ τ : ty} → M Γ (σ `→ τ) → M Γ σ → M Γ τ
@@ -231,7 +232,7 @@ record Semantics (ℓᴱ ℓᴹ : Level) : Set (suc (ℓᴱ ⊔ ℓᴹ)) where
     ⟦ff⟧    : {Γ : Con} → M Γ `Bool
     ⟦ifte⟧  : {Γ : Con} {σ : ty} (b : M Γ `Bool) (l r : M Γ σ) → M Γ σ
 
-infix 10 _⊨⟦_⟧_
+infix 10 _⊨⟦_⟧_ _⊨eval_
 _⊨⟦_⟧_ : {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) (open Semantics Sem) →
          {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ E ] Γ) → M Δ σ
 Sem ⊨⟦ `var v       ⟧ ρ = let open Semantics Sem in ⟦var⟧ $ ρ ‼ v
@@ -242,10 +243,15 @@ Sem ⊨⟦ `tt          ⟧ ρ = let open Semantics Sem in ⟦tt⟧
 Sem ⊨⟦ `ff          ⟧ ρ = let open Semantics Sem in ⟦ff⟧
 Sem ⊨⟦ `ifte b l r  ⟧ ρ = let open Semantics Sem in ⟦ifte⟧ (Sem ⊨⟦ b ⟧ ρ) (Sem ⊨⟦ l ⟧ ρ) (Sem ⊨⟦ r ⟧ ρ)
 
+_⊨eval_ : {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) (open Semantics Sem) →
+          {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → M Γ σ
+Sem ⊨eval t = let open Semantics Sem in Sem ⊨⟦ t ⟧ pure (λ _ → embed)
+
 Renaming : Semantics zero zero
 Renaming =
   record  { E       = flip _∈_
           ; M       = _⊢_
+          ; embed   = id
           ; wk      = wk^∈
           ; ⟦var⟧   = `var
           ; _⟦$⟧_   = _`$_
@@ -279,6 +285,7 @@ Substitution : Semantics zero zero
 Substitution =
   record  { E       = _⊢_
           ; M       = _⊢_
+          ; embed   = `var
           ; wk      = wk^⊢ 
           ; ⟦var⟧   = id
           ; _⟦$⟧_   = _`$_
@@ -446,6 +453,7 @@ Normalize^βξη : Semantics zero zero
 Normalize^βξη =
   record  { E       = _⊨^βξη_
           ; M       = _⊨^βξη_
+          ; embed   = reflect^βξη _ ∘ `var
           ; wk      = wk^βξη
           ; ⟦var⟧   = id
           ; _⟦$⟧_   = _$^βξη_
@@ -460,14 +468,8 @@ infix 10 ⟦_⟧^βξη_
 ⟦_⟧^βξη_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^βξη_ ] Γ) → Δ ⊨^βξη σ
 ⟦_⟧^βξη_ = Normalize^βξη ⊨⟦_⟧_
 
-diag^βξη : (Γ : Con) → Γ [ _⊨^βξη_ ] Γ
-diag^βξη Γ = refl[ reflect^βξη _ ∘ `var , wk^βξη ] Γ
-
-eval^βξη : (Γ : Con) {σ : ty} (t : Γ ⊢ σ) → Γ ⊨^βξη σ
-eval^βξη Γ t = ⟦ t ⟧^βξη diag^βξη Γ
-
-norm^βξη : (Γ : Con) (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^nf σ
-norm^βξη Γ σ t = reify^βξη σ $′ eval^βξη Γ t
+norm^βξη : {Γ : Con} (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^nf σ
+norm^βξη σ t = reify^βξη σ $′ Normalize^βξη ⊨eval t
 \end{code}
 
 \section{Normalization by Evaluation for βξ}
@@ -525,6 +527,7 @@ Normalize^βξ : Semantics zero zero
 Normalize^βξ =
   record  { E       = _⊨^βξ_
           ; M       = _⊨^βξ_
+          ; embed   = reflect^βξ _ ∘ `var
           ; wk      = wk^βξ
           ; ⟦var⟧   = id
           ; _⟦$⟧_   = _$^βξ_
@@ -539,14 +542,8 @@ infix 10 ⟦_⟧^βξ_
 ⟦_⟧^βξ_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^βξ_ ] Γ) → Δ ⊨^βξ σ
 ⟦_⟧^βξ_ = Normalize^βξ ⊨⟦_⟧_
 
-diag^βξ : (Γ : Con) → Γ [ _⊨^βξ_ ] Γ
-diag^βξ Γ = refl[ reflect^βξ _ ∘ `var , wk^βξ ] Γ
-
-eval^βξ : (Γ : Con) {σ : ty} (t : Γ ⊢ σ) → Γ ⊨^βξ σ
-eval^βξ Γ t = ⟦ t ⟧^βξ diag^βξ Γ
-
-norm^βξ : (Γ : Con) (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^nf σ
-norm^βξ Γ σ t = reify^βξ σ $′ eval^βξ Γ t
+norm^βξ : {Γ : Con} (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^nf σ
+norm^βξ σ t = reify^βξ σ $′ Normalize^βξ ⊨eval t
 \end{code}
 
 \section{Normalization by Evaluation for β}
@@ -622,6 +619,7 @@ Normalize^β : Semantics zero zero
 Normalize^β =
   record  { E       = _⊨^β_
           ; M       = _⊨^β_
+          ; embed   = reflect^β _ ∘ `var
           ; wk      = wk^β
           ; ⟦var⟧   = id
           ; _⟦$⟧_   = _$^β_
@@ -636,14 +634,8 @@ infix 10 ⟦_⟧^β_
 ⟦_⟧^β_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊨^β_ ] Γ) → Δ ⊨^β σ
 ⟦_⟧^β_ = Normalize^β ⊨⟦_⟧_
 
-diag^β : (Γ : Con) → Γ [ _⊨^β_ ] Γ
-diag^β Γ = refl[ reflect^β _ ∘ `var , wk^β ] Γ
-
-eval^β : (Γ : Con) {σ : ty} (t : Γ ⊢ σ) → Γ ⊨^β σ
-eval^β Γ t = ⟦ t ⟧^β diag^β Γ
-
-norm^β : (Γ : Con) (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^whnf σ
-norm^β Γ σ t = reify^β σ $′ eval^β Γ t
+norm^β : {Γ : Con} (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^whnf σ
+norm^β σ t = reify^β σ $′ Normalize^β ⊨eval t
 \end{code}
 
 \bibliographystyle{apalike}
