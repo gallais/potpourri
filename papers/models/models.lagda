@@ -217,11 +217,11 @@ record Semantics (ℓᴱ ℓᴹ : Level) : Set (suc (ℓᴱ ⊔ ℓᴹ)) where
   infixl 5 _⟦$⟧_
   field
     -- environment values and corresponding methods
-    𝓔       : (Δ : Con) (σ : ty) → Set ℓᴱ
+    𝓔      : (Δ : Con) (σ : ty) → Set ℓᴱ
     wk      : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : 𝓔 Γ σ) → 𝓔 Δ σ
     embed   : {Γ : Con} {σ : ty} (pr : σ ∈ Γ) → 𝓔 Γ σ
     -- model and semantic counterparts of the constructors
-    𝓜       : (Δ : Con) (σ : ty) → Set ℓᴹ
+    𝓜      : (Δ : Con) (σ : ty) → Set ℓᴹ
     ⟦var⟧   : {Γ : Con} {σ : ty} → 𝓔 Γ σ → 𝓜 Γ σ
     _⟦$⟧_   : {Γ : Con} {σ τ : ty} → 𝓜 Γ (σ `→ τ) → 𝓜 Γ σ → 𝓜 Γ τ
     ⟦λ⟧     : {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : 𝓔 Δ σ) → 𝓜 Δ τ) → 𝓜 Γ (σ `→ τ)
@@ -268,7 +268,7 @@ later on.
 \begin{code}
 Renaming : Semantics zero zero
 Renaming =
-  record  { 𝓔       = flip _∈_
+  record  { 𝓔      = flip _∈_
           ; 𝓜      = _⊢_
           ; embed   = id
           ; wk      = wk^∈
@@ -300,8 +300,8 @@ var‿0 = `var here!
 
 Substitution : Semantics zero zero
 Substitution =
-  record  { 𝓔       = _⊢_
-          ; 𝓜       = _⊢_
+  record  { 𝓔      = _⊢_
+          ; 𝓜      = _⊢_
           ; embed   = `var
           ; wk      = wk^⊢ 
           ; ⟦var⟧   = id
@@ -468,8 +468,8 @@ variables in scope.
 \begin{code}
 Normalize^βξη : Semantics zero zero
 Normalize^βξη =
-  record  { 𝓔       = _⊨^βξη_
-          ; 𝓜       = _⊨^βξη_
+  record  { 𝓔      = _⊨^βξη_
+          ; 𝓜      = _⊨^βξη_
           ; embed   = reflect^βξη _ ∘ `var
           ; wk      = wk^βξη
           ; ⟦var⟧   = id
@@ -542,8 +542,8 @@ ifte^βξ (inj₂ T)  l r = if T then l else r
 
 Normalize^βξ : Semantics zero zero
 Normalize^βξ =
-  record  { 𝓔       = _⊨^βξ_
-          ; 𝓜       = _⊨^βξ_
+  record  { 𝓔      = _⊨^βξ_
+          ; 𝓜      = _⊨^βξ_
           ; embed   = reflect^βξ _ ∘ `var
           ; wk      = wk^βξ
           ; ⟦var⟧   = id
@@ -634,8 +634,8 @@ ifte^β (b , inj₂ B)   (l , L) (r , R) = `ifte b l r , (if B then L else R)
 
 Normalize^β : Semantics zero zero
 Normalize^β =
-  record  { 𝓔       = _⊨^β_
-          ; 𝓜       = _⊨^β_
+  record  { 𝓔      = _⊨^β_
+          ; 𝓜      = _⊨^β_
           ; embed   = reflect^β _ ∘ `var
           ; wk      = wk^β
           ; ⟦var⟧   = id
