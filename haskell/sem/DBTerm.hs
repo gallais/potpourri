@@ -2,7 +2,7 @@
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE AllowAmbiguousTypes  #-}
+
 
 module DBTerm where
 
