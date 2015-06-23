@@ -7,13 +7,13 @@ module Context where
 
 import Data.Void
 
-class CContext a where
+class IsContext a where
   context :: Context a
 
-instance CContext Void where
+instance IsContext Void where
   context = SVoid
 
-instance CContext a => CContext (Maybe a) where
+instance IsContext a => IsContext (Maybe a) where
   context = SMaybe context
 
 data Context a where
