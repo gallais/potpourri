@@ -22,7 +22,6 @@
 \author{}
 
 \begin{document}
-
 \maketitle{}
 Normalization by Evaluation is a technique leveraging the computational
 power of a host language in order to normalize expressions of a deeply
@@ -87,8 +86,8 @@ module models where
 open import Level
 open import Data.Unit
 open import Data.Bool
-open import Data.Sum
-open import Data.Product
+open import Data.Sum hiding (map)
+open import Data.Product hiding (map)
 open import Function
 
 infixr 1 _$′_
@@ -107,7 +106,7 @@ a notion of context inclusion and prove that it induces a notion of weakening
 on de Bruijn indices as well as proof terms.
 
 \begin{code}
-infix 10 _`→_
+infixr 10 _`→_
 data ty : Set where
   `Unit  : ty
   `Bool  : ty
@@ -202,7 +201,7 @@ evaluation into a model.
 
 A \AR{Semantics} packs two main concepts and the methods based on them
 necessary to construct an evaluation function. First, Environment values
-(\ARF{𝓔}) are defined; we require that there is a way to apply weakening
+(\ARF{Env}) are defined; we require that there is a way to apply weakening
 to such elements (\ARF{wk}) as well as a way to create new ones from
 variables (\ARF{embed}). Then, the model (\ARF{𝓜}) is introduced together
 with the semantic counterparts of the language's constructors. Most of
@@ -217,18 +216,18 @@ record Semantics (ℓᴱ ℓᴹ : Level) : Set (suc (ℓᴱ ⊔ ℓᴹ)) where
   infixl 5 _⟦$⟧_
   field
     -- environment values and corresponding methods
-    𝓔      : (Δ : Con) (σ : ty) → Set ℓᴱ
-    wk      : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : 𝓔 Γ σ) → 𝓔 Δ σ
-    embed   : {Γ : Con} {σ : ty} (pr : σ ∈ Γ) → 𝓔 Γ σ
+    Env     : (Δ : Con) (σ : ty) → Set ℓᴱ
+    wk      : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : Env Γ σ) → Env Δ σ
+    embed   : {Γ : Con} {σ : ty} (pr : σ ∈ Γ) → Env Γ σ
     -- model and semantic counterparts of the constructors
-    𝓜      : (Δ : Con) (σ : ty) → Set ℓᴹ
-    ⟦var⟧   : {Γ : Con} {σ : ty} → 𝓔 Γ σ → 𝓜 Γ σ
-    _⟦$⟧_   : {Γ : Con} {σ τ : ty} → 𝓜 Γ (σ `→ τ) → 𝓜 Γ σ → 𝓜 Γ τ
-    ⟦λ⟧     : {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : 𝓔 Δ σ) → 𝓜 Δ τ) → 𝓜 Γ (σ `→ τ)
-    ⟦⟨⟩⟧    : {Γ : Con} → 𝓜 Γ `Unit
-    ⟦tt⟧    : {Γ : Con} → 𝓜 Γ `Bool
-    ⟦ff⟧    : {Γ : Con} → 𝓜 Γ `Bool
-    ⟦ifte⟧  : {Γ : Con} {σ : ty} (b : 𝓜 Γ `Bool) (l r : 𝓜 Γ σ) → 𝓜 Γ σ
+    Mod     : (Δ : Con) (σ : ty) → Set ℓᴹ
+    ⟦var⟧   : {Γ : Con} {σ : ty} → Env Γ σ → Mod Γ σ
+    _⟦$⟧_   : {Γ : Con} {σ τ : ty} → Mod Γ (σ `→ τ) → Mod Γ σ → Mod Γ τ
+    ⟦λ⟧     : {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : Env Δ σ) → Mod Δ τ) → Mod Γ (σ `→ τ)
+    ⟦⟨⟩⟧    : {Γ : Con} → Mod Γ `Unit
+    ⟦tt⟧    : {Γ : Con} → Mod Γ `Bool
+    ⟦ff⟧    : {Γ : Con} → Mod Γ `Bool
+    ⟦ifte⟧  : {Γ : Con} {σ : ty} (b : Mod Γ `Bool) (l r : Mod Γ σ) → Mod Γ σ
 \end{code}
 
 The evaluation function is defined by replacing each constructor with
@@ -241,7 +240,7 @@ variables.
 \begin{code}
 infix 10 _⊨⟦_⟧_ _⊨eval_
 _⊨⟦_⟧_ : {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) (open Semantics Sem) →
-         {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ 𝓔 ] Γ) → 𝓜 Δ σ
+         {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
 Sem ⊨⟦ `var v       ⟧ ρ = let open Semantics Sem in ⟦var⟧ $ ρ ‼ v
 Sem ⊨⟦ t `$ u       ⟧ ρ = let open Semantics Sem in Sem ⊨⟦ t ⟧ ρ ⟦$⟧ Sem ⊨⟦ u ⟧ ρ
 Sem ⊨⟦ `λ t         ⟧ ρ = let open Semantics Sem in ⟦λ⟧ λ inc u → Sem ⊨⟦ t ⟧ (wk[ wk ] inc ρ , u)
@@ -251,11 +250,11 @@ Sem ⊨⟦ `ff          ⟧ ρ = let open Semantics Sem in ⟦ff⟧
 Sem ⊨⟦ `ifte b l r  ⟧ ρ = let open Semantics Sem in ⟦ifte⟧ (Sem ⊨⟦ b ⟧ ρ) (Sem ⊨⟦ l ⟧ ρ) (Sem ⊨⟦ r ⟧ ρ)
 
 _⊨eval_ : {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) (open Semantics Sem) →
-          {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → 𝓜 Γ σ
+          {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → Mod Γ σ
 Sem ⊨eval t = let open Semantics Sem in Sem ⊨⟦ t ⟧ pure (λ _ → embed)
 \end{code}
 
-\section{Renaming}
+\section{Functoriality, also known as Renaming}
 
 Our first example of a semantics is the syntactic model: using variables
 as environment values and terms as elements of the model and constructors
@@ -268,8 +267,8 @@ later on.
 \begin{code}
 Renaming : Semantics zero zero
 Renaming =
-  record  { 𝓔      = flip _∈_
-          ; 𝓜      = _⊢_
+  record  { Env     = flip _∈_
+          ; Mod     = _⊢_
           ; embed   = id
           ; wk      = wk^∈
           ; ⟦var⟧   = `var
@@ -300,8 +299,8 @@ var‿0 = `var here!
 
 Substitution : Semantics zero zero
 Substitution =
-  record  { 𝓔      = _⊢_
-          ; 𝓜      = _⊢_
+  record  { Env     = _⊢_
+          ; Mod     = _⊢_
           ; embed   = `var
           ; wk      = wk^⊢ 
           ; ⟦var⟧   = id
@@ -324,7 +323,103 @@ eta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) → Γ ⊢ σ `→ τ
 eta t = `λ (wk^⊢ (step refl) t `$ var‿0)
 \end{code}
 
-\subsection{Recalling the three reduction rules}
+\section{Pretty printing}
+
+Before considering the various model constructions giving
+rise to normalisation functions deciding different theories,
+let us make a detour to a perhaps slightly more surprising
+example of a \AF{Semantics}: pretty printing.
+
+The distinction between the type of values in the environment
+and the ones in the model is once more instrumental in giving
+the procedure a type as precise as possible. Indeed, the
+environment carries \emph{names} for the variables currently in
+scope whilst the inhabitants of the model are \emph{computations}
+threading a stream of fresh names to be used every time a new
+variable is introduced by a \AIC{λ}-abstraction. If the values
+in the environment were allowed to be computations too, we would
+not root out all faulty implementations: the typechecker would
+for instance quite happily accept a program picking a new name
+every time a value is used.
+
+\AgdaHide{
+\begin{code}
+open import Data.Char using (Char)
+open import Data.String hiding (show)
+open import Data.Nat as ℕ using (ℕ ; _+_)
+open import Data.Nat.Show
+open import Data.List as List hiding (_++_ ; zipWith ; [_])
+open import Coinduction
+open import Data.Stream as Stream using (Stream ; head ; tail ; zipWith ; _∷_)
+open import Category.Monad
+open import Category.Monad.State
+open RawIMonadState (StateMonadState (Stream String)) hiding (zipWith)
+open import Relation.Binary.PropositionalEquality as PEq using (_≡_)
+\end{code}
+}
+
+\begin{code}
+
+PrettyPrinting : Semantics zero zero
+PrettyPrinting =
+  record  { Env     = λ _ _ → String
+          ; Mod     = λ _ _ → State (Stream String) String
+          ; embed   = show ∘ lengthVar
+          ; wk      = λ _ → id
+          ; ⟦var⟧   = return
+          ; _⟦$⟧_   = λ  mf mt →
+                         mf  >>= λ `f` →
+                         mt  >>= λ `t` →
+                         return $ `f` ++ "(" ++ `t` ++ ")"
+          ; ⟦λ⟧     = λ  {_} {σ} mb →
+                         get                         >>= λ names →
+                         let `x`   = head names
+                             rest  = tail names in
+                         put rest                    >>= λ _ →
+                         mb (step {σ = σ} refl) `x`  >>= λ `b` →
+                         return $ "λ" ++ `x` ++ ". " ++ `b`
+          ; ⟦⟨⟩⟧    = return "⟨⟩"
+          ; ⟦tt⟧    = return "tt"
+          ; ⟦ff⟧    = return "ff"
+          ; ⟦ifte⟧  = λ  mb ml mr →
+                         mb  >>= λ `b` →
+                         ml  >>= λ `l` →
+                         mr  >>= λ `r` →
+                         return $ "if" ++ `b` ++ "then" ++ `l` ++ "else" ++ `r`
+          }
+  where
+    lengthVar : {Γ : Con} {σ : ty} → σ ∈ Γ → ℕ
+    lengthVar here!       = 0
+    lengthVar (there pr)  = 1 + lengthVar pr
+
+flatten : {A : Set} → Stream (A × List A) → Stream A
+flatten ((a , as) ∷ aass) = go a as (♭ aass) where
+  go : {A : Set} → A → List A → Stream (A × List A) → Stream A
+  go a []        aass = a ∷ ♯ flatten aass
+  go a (b ∷ as)  aass = a ∷ ♯ go b as aass
+
+names : Stream String
+names = flatten $ zipWith cons letters $ "" ∷ ♯ Stream.map show (allNatsFrom 0)
+  where
+    cons : (Char × List Char) → String → (String × List String)
+    cons (c , cs) suffix = appendSuffix c , map appendSuffix cs where      
+      appendSuffix : Char → String
+      appendSuffix c  = fromList (c ∷ []) ++ suffix
+
+    letters = Stream.repeat $ 'a' , toList "bcdefghijklmnopqrstuvwxyz"
+
+    allNatsFrom : ℕ → Stream ℕ
+    allNatsFrom k = k ∷ ♯ allNatsFrom (1 + k)
+
+pretty$ : {a b : ty} →
+          let app : ε ⊢ (a `→ b) `→ a `→ b
+              app = `λ (`λ (`var (there here!) `$ `var here!))
+          in proj₁ (PrettyPrinting ⊨eval app $ names) ≡ "λa. λb. a(b)"
+pretty$ = PEq.refl
+
+\end{code}
+
+\section{Recalling the three reduction rules}
 
 \begin{mathpar}
 \inferrule{
@@ -468,8 +563,8 @@ variables in scope.
 \begin{code}
 Normalize^βξη : Semantics zero zero
 Normalize^βξη =
-  record  { 𝓔      = _⊨^βξη_
-          ; 𝓜      = _⊨^βξη_
+  record  { Env     = _⊨^βξη_
+          ; Mod     = _⊨^βξη_
           ; embed   = reflect^βξη _ ∘ `var
           ; wk      = wk^βξη
           ; ⟦var⟧   = id
@@ -542,8 +637,8 @@ ifte^βξ (inj₂ T)  l r = if T then l else r
 
 Normalize^βξ : Semantics zero zero
 Normalize^βξ =
-  record  { 𝓔      = _⊨^βξ_
-          ; 𝓜      = _⊨^βξ_
+  record  { Env     = _⊨^βξ_
+          ; Mod     = _⊨^βξ_
           ; embed   = reflect^βξ _ ∘ `var
           ; wk      = wk^βξ
           ; ⟦var⟧   = id
@@ -634,8 +729,8 @@ ifte^β (b , inj₂ B)   (l , L) (r , R) = `ifte b l r , (if B then L else R)
 
 Normalize^β : Semantics zero zero
 Normalize^β =
-  record  { 𝓔      = _⊨^β_
-          ; 𝓜      = _⊨^β_
+  record  { Env     = _⊨^β_
+          ; Mod     = _⊨^β_
           ; embed   = reflect^β _ ∘ `var
           ; wk      = wk^β
           ; ⟦var⟧   = id
