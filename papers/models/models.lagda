@@ -81,6 +81,7 @@ be applicative in nature. For more details, see e.g. \cite{mitchell1996foundatio
 
 \AgdaHide{
 \begin{code}
+{-# OPTIONS --no-eta #-}
 module models where
 
 open import Level
@@ -330,17 +331,17 @@ rise to normalisation functions deciding different theories,
 let us make a detour to a perhaps slightly more surprising
 example of a \AF{Semantics}: pretty printing.
 
-The distinction between the type of values in the environment
-and the ones in the model is once more instrumental in giving
-the procedure a type as precise as possible. Indeed, the
+The distinction between the type of values in the environment and
+the ones in the model is once more instrumental in giving the
+procedure a precise type guiding our implementation. Indeed, the
 environment carries \emph{names} for the variables currently in
 scope whilst the inhabitants of the model are \emph{computations}
-threading a stream of fresh names to be used every time a new
-variable is introduced by a \AIC{λ}-abstraction. If the values
-in the environment were allowed to be computations too, we would
-not root out all faulty implementations: the typechecker would
+threading a stream to be used as a source of fresh names every
+time a new variable is introduced by a \AIC{λ}-abstraction. If the
+values in the environment were allowed to be computations too, we
+would not root out all faulty implementations: the typechecker would
 for instance quite happily accept a program picking a new name
-every time a value is used.
+every time a variable appears in the term.
 
 \AgdaHide{
 \begin{code}
@@ -359,12 +360,11 @@ open import Relation.Binary.PropositionalEquality as PEq using (_≡_)
 }
 
 \begin{code}
-
 PrettyPrinting : Semantics zero zero
 PrettyPrinting =
   record  { Env     = λ _ _ → String
           ; Mod     = λ _ _ → State (Stream String) String
-          ; embed   = show ∘ lengthVar
+          ; embed   = show ∘ deBruijn
           ; wk      = λ _ → id
           ; ⟦var⟧   = return
           ; _⟦$⟧_   = λ  mf mt →
@@ -388,10 +388,19 @@ PrettyPrinting =
                          return $ "if" ++ `b` ++ "then" ++ `l` ++ "else" ++ `r`
           }
   where
-    lengthVar : {Γ : Con} {σ : ty} → σ ∈ Γ → ℕ
-    lengthVar here!       = 0
-    lengthVar (there pr)  = 1 + lengthVar pr
+    deBruijn : {Γ : Con} {σ : ty} → σ ∈ Γ → ℕ
+    deBruijn here!       = 0
+    deBruijn (there pr)  = 1 + deBruijn pr
+\end{code}
 
+Our definition of \ARF{embed} erases the membership proofs to
+recover the corresponding de Bruijn indices. This means that,
+using \AF{PrettyPrinting} \AF{⊨eval\_}, the free variables will
+be displayed as numbers whilst the bound ones will be given names.
+Now, we still need to provide a \AD{Stream} of fresh names to
+this computation in order to run it.
+
+\begin{code}
 flatten : {A : Set} → Stream (A × List A) → Stream A
 flatten ((a , as) ∷ aass) = go a as (♭ aass) where
   go : {A : Set} → A → List A → Stream (A × List A) → Stream A
@@ -410,14 +419,16 @@ names = flatten $ zipWith cons letters $ "" ∷ ♯ Stream.map show (allNatsFrom
 
     allNatsFrom : ℕ → Stream ℕ
     allNatsFrom k = k ∷ ♯ allNatsFrom (1 + k)
-
-pretty$ : {a b : ty} →
-          let app : ε ⊢ (a `→ b) `→ a `→ b
-              app = `λ (`λ (`var (there here!) `$ `var here!))
-          in proj₁ (PrettyPrinting ⊨eval app $ names) ≡ "λa. λb. a(b)"
-pretty$ = PEq.refl
-
 \end{code}
+
+\AgdaHide{
+\begin{code}
+pretty$ : {a b : ty} →
+  let  app  :  ε ⊢ (a `→ b) `→ a `→ b
+       app  =  `λ (`λ (`var (there here!) `$ `var here!))
+  in proj₁ (PrettyPrinting ⊨eval app $ names) ≡ "λa. λb. a(b)"
+pretty$ = PEq.refl
+\end{code}}
 
 \section{Recalling the three reduction rules}
 
