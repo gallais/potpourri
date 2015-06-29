@@ -9,96 +9,156 @@ open import Data.Product
 open import Function
 open import models
 
-record Properties {ℓᴱ ℓᴹ : Level} (sem : Semantics ℓᴱ ℓᴹ) (ℓʳ ℓᴿᴱ ℓᴿᴹ : Level) :
-       Set (suc (ℓʳ ⊔ ℓᴿᴱ ⊔ ℓᴿᴹ) ⊔ ℓᴱ ⊔ ℓᴹ) where
-  open Semantics sem
+record Properties
+       {ℓᴱᴬ ℓᴹᴬ : Level} (semA : Semantics ℓᴱᴬ ℓᴹᴬ)
+       {ℓᴱᴮ ℓᴹᴮ : Level} (semB : Semantics ℓᴱᴮ ℓᴹᴮ)
+       (ℓᴿᴱ ℓᴿᴹ : Level) :
+       Set (suc (ℓᴿᴱ ⊔ ℓᴿᴹ) ⊔ ℓᴱᴬ ⊔ ℓᴱᴮ ⊔ ℓᴹᴬ ⊔ ℓᴹᴮ) where
   infixl 5 _R⟦$⟧_
+  module SemA = Semantics semA
+  module SemB = Semantics semB
   field
-    -- reduction relation
-    Red    : {Γ : Con} {σ : ty} (t u : Γ ⊢ σ) → Set ℓʳ
     -- environment values
-    REnv   : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) (e : Env Γ σ) → Set ℓᴿᴱ
-    Rwk    : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) {t : Γ ⊢ σ} {e : Env Γ σ}
-             (r : REnv t e) → REnv (wk^⊢ inc t) (wk inc e)
-    Rembed : {Γ : Con} {σ : ty} (pr : σ ∈ Γ) → REnv (`var pr) (embed pr)
+    REnv    : (Γ : Con) (σ : ty) (eA : SemA.Env Γ σ) (eB : SemB.Env Γ σ) → Set ℓᴿᴱ
+    Rwk     : {Γ Δ : Con} {σ : ty} {eA : SemA.Env Γ σ} {eB : SemB.Env Γ σ} (inc : Γ ⊆ Δ)
+              (r : REnv Γ σ eA eB) → REnv Δ σ (SemA.wk inc eA) (SemB.wk inc eB)
+    Rembed  : {Γ : Con} {σ : ty} (pr : σ ∈ Γ) → REnv Γ σ (SemA.embed pr) (SemB.embed pr)
     -- model values
-    RMod   : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) (m : Mod Γ σ) → Set ℓᴿᴹ
-    R⟦var⟧ : {Γ : Con} {σ : ty} {t : Γ ⊢ σ} {e : Env Γ σ} (r : REnv t e) → RMod t (⟦var⟧ e)
-    _R⟦$⟧_ : {Γ : Con} {σ τ : ty} {f : Γ ⊢ σ `→ τ} {t : Γ ⊢ σ} {F : Mod Γ (σ `→ τ)} {T : Mod Γ σ}
-             (rfF : RMod f F) (rtT : RMod t T) → RMod (f `$ t) (F ⟦$⟧ T)
-    R⟦⟨⟩⟧  : {Γ : Con} → RMod {Γ} `⟨⟩ ⟦⟨⟩⟧
-    R⟦tt⟧  : {Γ : Con} → RMod {Γ} `tt ⟦tt⟧
-    R⟦ff⟧  : {Γ : Con} → RMod {Γ} `ff ⟦ff⟧
-    -- normalisation result
-    reify  : {Γ : Con} (σ : ty) (m : Mod Γ σ) → Γ ⊢ σ
-    norm   : {Γ : Con} {σ : ty} {t : Γ ⊢ σ} {m : Mod Γ σ} → RMod t m → Red t (reify σ m)
+    RMod    : (Γ : Con) (σ : ty) (mA : SemA.Mod Γ σ) (mB : SemB.Mod Γ σ) → Set ℓᴿᴹ
+    R⟦var⟧  : {Γ : Con} {σ : ty} {eA : SemA.Env Γ σ} {eB : SemB.Env Γ σ}
+              (r : REnv Γ σ eA eB) → RMod Γ σ (SemA.⟦var⟧ eA) (SemB.⟦var⟧ eB)
+    _R⟦$⟧_  : {Γ : Con} {σ τ : ty} {fA : SemA.Mod Γ (σ `→ τ)} {fB : SemB.Mod Γ (σ `→ τ)}
+              {tA : SemA.Mod Γ σ} {tB : SemB.Mod Γ σ}
+              (rf : RMod Γ (σ `→ τ) fA fB) (rt : RMod Γ σ tA tB) → RMod Γ τ (fA SemA.⟦$⟧ tA) (fB SemB.⟦$⟧ tB)
+    R⟦λ⟧    : {Γ : Con} {σ τ : ty}
+              {tA : {Δ : Con} (pr : Γ ⊆ Δ) (u : SemA.Env Δ σ) → SemA.Mod Δ τ}
+              {tB : {Δ : Con} (pr : Γ ⊆ Δ) (u : SemB.Env Δ σ) → SemB.Mod Δ τ} →
+              (t : {Δ : Con} (pr : Γ ⊆ Δ) {uA : SemA.Env Δ σ} {uB : SemB.Env Δ σ} (u : REnv Δ σ uA uB) →
+                   RMod Δ τ (tA pr uA) (tB pr uB)) →
+              RMod Γ (σ `→ τ) (SemA.⟦λ⟧ tA) (SemB.⟦λ⟧ tB)
+    R⟦⟨⟩⟧   : {Γ : Con} → RMod Γ `Unit SemA.⟦⟨⟩⟧ SemB.⟦⟨⟩⟧
+    R⟦tt⟧   : {Γ : Con} → RMod Γ `Bool SemA.⟦tt⟧ SemB.⟦tt⟧
+    R⟦ff⟧   : {Γ : Con} → RMod Γ `Bool SemA.⟦ff⟧ SemB.⟦ff⟧
+    R⟦ifte⟧ : {Γ : Con} {bA : SemA.Mod Γ `Bool} {bB : SemB.Mod Γ `Bool} (b : RMod Γ `Bool bA bB) →
+              {σ : ty} {lA : SemA.Mod Γ σ} {lB : SemB.Mod Γ σ} (l : RMod Γ σ lA lB) →
+              {rA : SemA.Mod Γ σ} {rB : SemB.Mod Γ σ} (r : RMod Γ σ rA rB) →
+              RMod Γ σ (SemA.⟦ifte⟧ bA lA rA) (SemB.⟦ifte⟧ bB lB rB)
 
 infix 5 _R[_]_
 _R[_]_ : {ℓᴬ ℓᴮ ℓᴿ : Level} {A : Con → ty → Set ℓᴬ} {B : Con → ty → Set ℓᴮ}
          {Δ Γ : Con} (as : Δ [ A ] Γ)
-         (R : {Γ : Con} {σ : ty} (a : A Γ σ) (b : B Γ σ) → Set ℓᴿ) →
+         (R : (Γ : Con) (σ : ty) (a : A Γ σ) (b : B Γ σ) → Set ℓᴿ) →
          (bs : Δ [ B ] Γ) → Set ℓᴿ
 _R[_]_ {Γ = ε}     as       R bs       = Lift ⊤
-_R[_]_ {Γ = Γ ∙ σ} (as , a) R (bs , b) = as R[ R ] bs × R a b
+_R[_]_ {Γ = Γ ∙ σ} (as , a) R (bs , b) = as R[ R ] bs × R _ σ a b
+
+wkR[_,_,_] :
+  {ℓᴬ ℓᴮ ℓᴿ : Level}
+  {A : Con → ty → Set ℓᴬ} (wkA : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (a : A Γ σ) → A Δ σ)
+  {B : Con → ty → Set ℓᴮ} (wkB : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (b : B Γ σ) → B Δ σ)
+  {R : (Γ : Con) (σ : ty) (a : A Γ σ) (b : B Γ σ) → Set ℓᴿ} →
+  (wkR : {Γ Δ : Con} {σ : ty} {a : A Γ σ} {b : B Γ σ} (inc : Γ ⊆ Δ) (r : R Γ σ a b) →
+         R Δ σ (wkA inc a) (wkB inc b)) →
+  {Γ Δ Θ : Con} (inc : Δ ⊆ Θ) {as : Δ [ A ] Γ} {bs : Δ [ B ] Γ}
+  (ρ : as R[ R ] bs) →  wk[ wkA ] inc as R[ R ] wk[ wkB ] inc bs
+wkR[ wkA , wkB , wkR ] {ε}     inc ρ       = lift tt
+wkR[ wkA , wkB , wkR ] {Γ ∙ σ} inc (ρ , r) = wkR[ wkA , wkB , wkR ] inc ρ , wkR inc r
 
 _R‼_ : {ℓᴬ ℓᴮ ℓᴿ : Level} {A : Con → ty → Set ℓᴬ} {B : Con → ty → Set ℓᴮ}
-       {R : {Γ : Con} {σ : ty} (a : A Γ σ) (b : B Γ σ) → Set ℓᴿ} →
+       {R : (Γ : Con) (σ : ty) (a : A Γ σ) (b : B Γ σ) → Set ℓᴿ} →
        {Γ Δ : Con} {as : Δ [ A ] Γ} {bs : Δ [ B ] Γ} →
-       (rs : as R[ R ] bs) {σ : ty} (pr : σ ∈ Γ) → R (as ‼ pr) (bs ‼ pr)
+       (rs : as R[ R ] bs) {σ : ty} (pr : σ ∈ Γ) → R Δ σ (as ‼ pr) (bs ‼ pr)
 (_  , r) R‼ here!    = r
 (rs , _) R‼ there pr = rs R‼ pr
 
-lemma : {ℓᴱ ℓᴹ ℓʳ ℓᴿᴱ ℓᴿᴹ : Level} (sem : Semantics ℓᴱ ℓᴹ) (prop : Properties sem ℓʳ ℓᴿᴱ ℓᴿᴹ) →
-        let open Semantics sem
-            open Properties prop in
-        {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρe : Δ [ _⊢_ ] Γ} {ρE : Δ [ Env ] Γ}
-        (ρR : ρe R[ REnv ] ρE) → RMod (Substitution ⊨⟦ t ⟧ ρe) (sem ⊨⟦ t ⟧ ρE)
-lemma sem prop (`var v)      ρR = let open Properties prop in R⟦var⟧ (ρR R‼ v)
-lemma sem prop (f `$ t)      ρR = let open Properties prop in lemma sem prop f ρR R⟦$⟧ lemma sem prop t ρR
-lemma sem prop (`λ t)        ρR = {!!}
-lemma sem prop `⟨⟩           ρR = let open Properties prop in R⟦⟨⟩⟧
-lemma sem prop `tt           ρR = let open Properties prop in R⟦tt⟧
-lemma sem prop `ff           ρR = let open Properties prop in R⟦ff⟧
-lemma sem prop (`ifte b l r) ρR = {!!}
-
-envi : 
-  {ℓᴱ ℓᴹ ℓʳ ℓᴿᴱ ℓᴿᴹ : Level} (sem : Semantics ℓᴱ ℓᴹ) (prop : Properties sem ℓʳ ℓᴿᴱ ℓᴿᴹ) →
-  let open Semantics sem
-      open Properties prop in
-  (Γ : Con) → pure {R = _⊢_} {Γ = Γ} (λ _ → `var) R[ REnv ] pure (λ _ → embed)
-envi sem prop Γ = go Γ (λ _ → `var) (λ _ → embed) (λ _ → Rembed)
-  where
-    open Properties prop
-    open Semantics sem
-
-    go : {Δ : Con} (Γ : Con) (f : (σ : ty) (pr : σ ∈ Γ) → Δ ⊢ σ) (g : (σ : ty) (pr : σ ∈ Γ) → Env Δ σ)
-         (r : (σ : ty) (pr : σ ∈ Γ) → REnv (f σ pr) (g σ pr)) →
-         pure {R = _⊢_} {Γ = Γ} f R[ REnv ] pure g
-    go ε       f g r = lift tt
-    go (Γ ∙ σ) f g r = go Γ (λ σ → f σ ∘ there) (λ σ → g σ ∘ there) (λ σ → r σ ∘ there) , r σ here!
-
-normalisation :
-  {ℓᴱ ℓᴹ ℓʳ ℓᴿᴱ ℓᴿᴹ : Level} (sem : Semantics ℓᴱ ℓᴹ) (prop : Properties sem ℓʳ ℓᴿᴱ ℓᴿᴹ) →
-  let open Semantics sem
-      open Properties prop in
-  {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → Red t (reify σ (sem ⊨eval t))
-normalisation sem prop t =
+lemma :
+  {ℓᴱᴬ ℓᴹᴬ : Level} (semA : Semantics ℓᴱᴬ ℓᴹᴬ)
+  {ℓᴱᴮ ℓᴹᴮ : Level} (semB : Semantics ℓᴱᴮ ℓᴹᴮ)
+  {ℓᴿᴱ ℓᴿᴹ : Level} (prop : Properties semA semB ℓᴿᴱ ℓᴿᴹ) →
   let open Properties prop
-      result = norm (lemma sem prop t (envi sem prop _))
-  in {!!}
-\end{code}
+  in {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ SemA.Env ] Γ} {ρB : Δ [ SemB.Env ] Γ}
+     (ρR : ρA R[ REnv ] ρB) → RMod Δ σ (semA ⊨⟦ t ⟧ ρA) (semB ⊨⟦ t ⟧ ρB)
+lemma semA semB prop = λ {Γ} → go {Γ} where
+  open Properties prop
+  go : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ SemA.Env ] Γ} {ρB : Δ [ SemB.Env ] Γ}
+       (ρR : ρA R[ REnv ] ρB) → RMod Δ σ (semA ⊨⟦ t ⟧ ρA) (semB ⊨⟦ t ⟧ ρB)
+  go (`var v)      ρR = R⟦var⟧ (ρR R‼ v)
+  go (f `$ t)      ρR = go f ρR R⟦$⟧ go t ρR
+  go (`λ t)        ρR = R⟦λ⟧ λ inc u → go t (wkR[ SemA.wk , SemB.wk , Rwk ] inc ρR , u) --
+  go `⟨⟩           ρR = R⟦⟨⟩⟧
+  go `tt           ρR = R⟦tt⟧
+  go `ff           ρR = R⟦ff⟧
+  go (`ifte b l r) ρR = R⟦ifte⟧ (go b ρR) (go l ρR) (go r ρR)
 
-  field
-    -- environment values and corresponding methods
-    Env     : (Δ : Con) (σ : ty) → Set ℓᴱ
-    wk      : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : Env Γ σ) → Env Δ σ
-    embed   : {Γ : Con} {σ : ty} (pr : σ ∈ Γ) → Env Γ σ
-    -- model and semantic counterparts of the constructors
-    Mod     : (Δ : Con) (σ : ty) → Set ℓᴹ
-    ⟦var⟧   : {Γ : Con} {σ : ty} → Env Γ σ → Mod Γ σ
-    _⟦$⟧_   : {Γ : Con} {σ τ : ty} → Mod Γ (σ `→ τ) → Mod Γ σ → Mod Γ τ
-    ⟦λ⟧     : {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : Env Δ σ) → Mod Δ τ) → Mod Γ (σ `→ τ)
-    ⟦⟨⟩⟧    : {Γ : Con} → Mod Γ `Unit
-    ⟦tt⟧    : {Γ : Con} → Mod Γ `Bool
-    ⟦ff⟧    : {Γ : Con} → Mod Γ `Bool
-    ⟦ifte⟧  : {Γ : Con} {σ : ty} (b : Mod Γ `Bool) (l r : Mod Γ σ) → Mod Γ σ
+
+open import Relation.Binary.PropositionalEquality
+            hiding ([_])
+            renaming (refl to trivial)
+
+RenamingSubstitution : Properties Renaming Substitution zero zero
+RenamingSubstitution =
+  record
+    { REnv    = λ _ _ pr t → `var pr ≡ t
+    ; Rwk     = λ {Γ} {Δ} {σ} {eA} inc eq → subst (λ t → `var (inc ‼ eA) ≡ Renaming ⊨⟦ t ⟧ inc) eq trivial
+    ; Rembed  = λ _ → trivial
+    ; RMod    = λ _ _ → _≡_
+    ; R⟦var⟧  = id
+    ; _R⟦$⟧_  = cong₂ _`$_
+    ; R⟦λ⟧    = λ t → cong `λ (t (step refl) trivial)
+    ; R⟦⟨⟩⟧   = trivial
+    ; R⟦tt⟧   = trivial
+    ; R⟦ff⟧   = trivial
+    ; R⟦ifte⟧ = λ eqb eql → cong₂ (uncurry `ifte) (cong₂ _,_ eqb eql)
+    }
+
+renSubst : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ flip _∈_ ] Γ} {ρB : Δ [ _⊢_ ] Γ}
+           (ρR : ρA R[ (λ _ _ v t → `var v ≡ t) ] ρB) →
+           Renaming ⊨⟦ t ⟧ ρA ≡ Substitution ⊨⟦ t ⟧ ρB
+renSubst = lemma Renaming Substitution RenamingSubstitution
+
+
+-- Another example:
+
+infix 5 _⊢_∋_⟶⋆_
+data _⊢_∋_⟶⋆_ (Γ : Con) : (σ : ty) (t : Γ ⊢ σ) (u : Γ ⊢^nf σ) → Set where
+  -- already nf
+  nf-`tt : Γ ⊢ `Bool ∋ `tt ⟶⋆ `tt
+  nf-`ff : Γ ⊢ `Bool ∋ `ff ⟶⋆ `ff
+  -- beta reduction
+  beta-`ifte₁ : {σ : ty} {b : Γ ⊢ `Bool} {l r : Γ ⊢ σ} {u : Γ ⊢^nf σ} →
+                Γ ⊢ `Bool ∋ b ⟶⋆ `tt → Γ ⊢ σ ∋ l ⟶⋆ u → Γ ⊢ σ ∋ `ifte b l r ⟶⋆ u
+  beta-`ifte₂ : {σ : ty} {b : Γ ⊢ `Bool} {l r : Γ ⊢ σ} {u : Γ ⊢^nf σ} →
+                Γ ⊢ `Bool ∋ b ⟶⋆ `ff → Γ ⊢ σ ∋ r ⟶⋆ u → Γ ⊢ σ ∋ `ifte b l r ⟶⋆ u
+  -- eta expansion
+  eta-`⟨⟩ : {t : Γ ⊢ `Unit} → Γ ⊢ `Unit ∋ t ⟶⋆ `⟨⟩
+  -- congruence
+  cong-`λ : {σ τ : ty} {t : Γ ∙ σ ⊢ τ} {u : Γ ∙ σ ⊢^nf τ}
+            (r : Γ ∙ σ ⊢ τ ∋ t ⟶⋆ u) → Γ ⊢ σ `→ τ ∋ `λ t ⟶⋆ `λ u
+
+SubstitutionNormalize^βξη : Properties Substitution Normalize^βξη zero zero
+SubstitutionNormalize^βξη =
+  record
+    { REnv    = λ Γ σ t v → Γ ⊢ σ ∋ t ⟶⋆ reify^βξη σ v
+    ; Rwk     = λ {Γ} {Δ} {σ} {eA} inc r → {!!}
+    ; Rembed  = {!!}
+    ; RMod    = λ Γ σ t v → Γ ⊢ σ ∋ t ⟶⋆ reify^βξη σ v
+    ; R⟦var⟧  = id
+    ; _R⟦$⟧_  = {!!}
+    ; R⟦λ⟧    = λ t → cong-`λ (t (step refl) {!!})
+    ; R⟦⟨⟩⟧   = eta-`⟨⟩
+    ; R⟦tt⟧   = nf-`tt
+    ; R⟦ff⟧   = nf-`ff
+    ; R⟦ifte⟧ =
+        λ {Γ} {bA} {bB} rb {σ} rl rr →
+        (case bB return (λ b → Γ ⊢ `Bool ∋ _ ⟶⋆ b → Γ ⊢ σ ∋ `ifte bA _ _ ⟶⋆ reify^βξη σ (ifte^βξη b _ _)) of λ
+          { `tt         r → beta-`ifte₁ r rl
+          ; `ff         r → beta-`ifte₂ r rr
+          ; (`embed ne) r → {!!} }) rb
+    }
+
+substNorm : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ _⊢_ ] Γ} {ρB : Δ [ _⊨^βξη_ ] Γ}
+            (ρR : ρA R[ (λ Γ σ t v → Γ ⊢ σ ∋ t ⟶⋆ reify^βξη σ v) ] ρB) →
+            Δ ⊢ σ ∋ Substitution ⊨⟦ t ⟧ ρA ⟶⋆ reify^βξη σ (Normalize^βξη ⊨⟦ t ⟧ ρB)
+substNorm = lemma Substitution Normalize^βξη SubstitutionNormalize^βξη 
+
+\end{code}
