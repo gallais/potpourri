@@ -239,20 +239,26 @@ Finally, one can build a diagonal environment by \ARF{embed}ding its
 variables.
 
 \begin{code}
-infix 10 _⊨⟦_⟧_ _⊨eval_
-_⊨⟦_⟧_ : {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) (open Semantics Sem) →
-         {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
-Sem ⊨⟦ `var v       ⟧ ρ = let open Semantics Sem in ⟦var⟧ $ ρ ‼ v
-Sem ⊨⟦ t `$ u       ⟧ ρ = let open Semantics Sem in Sem ⊨⟦ t ⟧ ρ ⟦$⟧ Sem ⊨⟦ u ⟧ ρ
-Sem ⊨⟦ `λ t         ⟧ ρ = let open Semantics Sem in ⟦λ⟧ λ inc u → Sem ⊨⟦ t ⟧ (wk[ wk ] inc ρ , u)
-Sem ⊨⟦ `⟨⟩          ⟧ ρ = let open Semantics Sem in ⟦⟨⟩⟧
-Sem ⊨⟦ `tt          ⟧ ρ = let open Semantics Sem in ⟦tt⟧
-Sem ⊨⟦ `ff          ⟧ ρ = let open Semantics Sem in ⟦ff⟧
-Sem ⊨⟦ `ifte b l r  ⟧ ρ = let open Semantics Sem in ⟦ifte⟧ (Sem ⊨⟦ b ⟧ ρ) (Sem ⊨⟦ l ⟧ ρ) (Sem ⊨⟦ r ⟧ ρ)
+module Eval {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) where
+  open Semantics Sem
 
-_⊨eval_ : {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) (open Semantics Sem) →
-          {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → Mod Γ σ
-Sem ⊨eval t = let open Semantics Sem in Sem ⊨⟦ t ⟧ pure (λ _ → embed)
+  infix 10 _⊨⟦_⟧_ _⊨eval_
+  eval : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
+  eval (`var v)      ρ = ⟦var⟧ $ ρ ‼ v
+  eval (t `$ u)      ρ = eval t ρ ⟦$⟧ eval u ρ
+  eval (`λ t)        ρ = ⟦λ⟧ λ inc u → eval t (wk[ wk ] inc ρ , u)
+  eval `⟨⟩           ρ = ⟦⟨⟩⟧
+  eval `tt           ρ = ⟦tt⟧
+  eval `ff           ρ = ⟦ff⟧
+  eval (`ifte b l r) ρ = ⟦ifte⟧ (eval b ρ) (eval l ρ) (eval r ρ)
+
+  _⊨⟦_⟧_ : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
+  _⊨⟦_⟧_ = eval
+
+  _⊨eval_ : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → Mod Γ σ
+  _⊨eval_ t = _⊨⟦_⟧_ t (pure (λ _ → embed))
+
+open Eval using (_⊨⟦_⟧_ ; _⊨eval_) public
 \end{code}
 
 \section{Functoriality, also known as Renaming}
