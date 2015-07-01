@@ -119,21 +119,46 @@ renSubst = lemma Renaming Substitution RenamingSubstitution
 
 -- Another example:
 
+mutual
+
+  erase-⊢^ne : {Γ : Con} {σ : ty} (t : Γ ⊢^ne σ) → Γ ⊢ σ
+  erase-⊢^ne (`var v)      = `var v
+  erase-⊢^ne (t `$ u)      = erase-⊢^ne t `$ erase-⊢^nf u
+  erase-⊢^ne (`ifte b l r) = `ifte (erase-⊢^ne b) (erase-⊢^nf l) (erase-⊢^nf r)
+
+  erase-⊢^nf : {Γ : Con} {σ : ty} (t : Γ ⊢^nf σ) → Γ ⊢ σ
+  erase-⊢^nf (`embed t) = erase-⊢^ne t
+  erase-⊢^nf `⟨⟩        = `⟨⟩
+  erase-⊢^nf `tt        = `tt
+  erase-⊢^nf `ff        = `ff
+  erase-⊢^nf (`λ t)     = `λ (erase-⊢^nf t)
+
 infix 5 _⊢_∋_⟶⋆_
 data _⊢_∋_⟶⋆_ (Γ : Con) : (σ : ty) (t : Γ ⊢ σ) (u : Γ ⊢^nf σ) → Set where
   -- already nf
   nf-`tt : Γ ⊢ `Bool ∋ `tt ⟶⋆ `tt
   nf-`ff : Γ ⊢ `Bool ∋ `ff ⟶⋆ `ff
   -- beta reduction
+  beta-`λ : {σ τ : ty} {f : Γ ⊢ σ `→ τ} {t : Γ ⊢ σ} {b : Γ ∙ σ ⊢^nf τ} {v : Γ ⊢^nf σ} {w : Γ ⊢^nf τ} →
+            Γ ⊢ σ `→ τ ∋ f ⟶⋆ `λ b → Γ ⊢ σ ∋ t ⟶⋆ v →
+            Γ ⊢ τ ∋ erase-⊢^nf b ⟨ erase-⊢^nf v /var‿0⟩ ⟶⋆ w →
+            Γ ⊢ τ ∋ f `$ t ⟶⋆ w
   beta-`ifte₁ : {σ : ty} {b : Γ ⊢ `Bool} {l r : Γ ⊢ σ} {u : Γ ⊢^nf σ} →
                 Γ ⊢ `Bool ∋ b ⟶⋆ `tt → Γ ⊢ σ ∋ l ⟶⋆ u → Γ ⊢ σ ∋ `ifte b l r ⟶⋆ u
   beta-`ifte₂ : {σ : ty} {b : Γ ⊢ `Bool} {l r : Γ ⊢ σ} {u : Γ ⊢^nf σ} →
                 Γ ⊢ `Bool ∋ b ⟶⋆ `ff → Γ ⊢ σ ∋ r ⟶⋆ u → Γ ⊢ σ ∋ `ifte b l r ⟶⋆ u
   -- eta expansion
   eta-`⟨⟩ : {t : Γ ⊢ `Unit} → Γ ⊢ `Unit ∋ t ⟶⋆ `⟨⟩
-  -- congruence
+  eta-`λ  : {σ τ : ty} {t : Γ ⊢ σ `→ τ} {b : Γ ∙ σ ⊢^nf τ} → Γ ∙ σ ⊢ τ ∋ wk^⊢ (step refl) t `$ var‿0 ⟶⋆ b →
+            Γ ⊢ σ `→ τ ∋ t ⟶⋆ `λ b
+-- congruence
   cong-`λ : {σ τ : ty} {t : Γ ∙ σ ⊢ τ} {u : Γ ∙ σ ⊢^nf τ}
             (r : Γ ∙ σ ⊢ τ ∋ t ⟶⋆ u) → Γ ⊢ σ `→ τ ∋ `λ t ⟶⋆ `λ u
+
+reifyReflect : {Γ : Con} (σ : ty) (t : Γ ⊢^ne σ) → Γ ⊢ σ ∋ erase-⊢^ne t ⟶⋆ reify^βξη σ (reflect^βξη σ t)
+reifyReflect `Unit    t = eta-`⟨⟩
+reifyReflect `Bool    t = {!!}
+reifyReflect (σ `→ τ) t = eta-`λ {!!}
 
 SubstitutionNormalize^βξη : Properties Substitution Normalize^βξη zero zero
 SubstitutionNormalize^βξη =
@@ -143,7 +168,7 @@ SubstitutionNormalize^βξη =
     ; Rembed  = {!!}
     ; RMod    = λ Γ σ t v → Γ ⊢ σ ∋ t ⟶⋆ reify^βξη σ v
     ; R⟦var⟧  = id
-    ; _R⟦$⟧_  = {!!}
+    ; _R⟦$⟧_  = λ rf rt → beta-`λ rf rt {!!}
     ; R⟦λ⟧    = λ t → cong-`λ (t (step refl) {!!})
     ; R⟦⟨⟩⟧   = eta-`⟨⟩
     ; R⟦tt⟧   = nf-`tt

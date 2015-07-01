@@ -1,28 +1,29 @@
-\documentclass{article}
-\usepackage{fullpage}
-\usepackage{amsthm, amsmath}
-\usepackage{mathpartir}
-\usepackage[english]{babel}
-\usepackage[references]{agda}
-\usepackage{hyperref}
-\usepackage{xargs}
-
-\usepackage{todonotes}
-\usepackage{float}
-\floatstyle{boxed}
-\restylefloat{figure}
-
-\setmainfont[Ligatures=TeX]{XITS}
-\setmathfont{XITS Math}
-
-%\renewcommand{\baselinestretch}{1.5} 
+%%%%% Pick one of the two
+\include{articleheader}
+%\include{sigplanheader}
+%%%%
 \include{commands}
 
-\title{Glueing Terms to Models: \\ Variations on Normalization by Evaluation}
-\author{}
-
 \begin{document}
+\title{Type-Preserving Semantics}
 \maketitle{}
+
+\begin{abstract}
+Building on McBride's presentation of a subtitution algorithm for
+the simply-typed lambda calculus implemented in terms of a single
+type-and-scope-preserving traversal instantiated twice to define
+renaming first and substitution later, we isolate a more general
+notion of \AF{Semantics}.
+
+Its careful distinction of environment and model values as well
+as its Kripke structure make it generic enough to derive renaming
+and substitution but also various variations on normalisation by
+evaluation as well as, perhaps more surprisingly, a pretty-printing
+function.
+\end{abstract}
+
+\section*{Introduction}
+
 Normalization by Evaluation is a technique leveraging the computational
 power of a host language in order to normalize expressions of a deeply
 embedded one. The process is based on a model construction associating
@@ -99,12 +100,10 @@ _$′_ = _$_
 \section{The calculus}
 
 We are going to illustrate these constructions using a simply-typed calculus
-with Bool and Unit as base type. In order to be able to build terms which are
+with \AIC{`Bool} and \AIC{`Unit} as base types. In order to be able to build terms which are
 well-scoped and well-typed by construction, we need a notion of contexts
 (represented as snoc lists of types) and positions in them (represented as
-strongly-typed de Bruijn indices~\cite{de1972lambda}). Finally, we can define
-a notion of context inclusion and prove that it induces a notion of weakening
-on de Bruijn indices as well as proof terms.
+strongly-typed de Bruijn indices~\cite{de1972lambda}).
 
 \begin{code}
 infixr 10 _`→_
@@ -137,22 +136,31 @@ data _⊢_ (Γ : Con) : (σ : ty) → Set where
 
 \section{A Notion of Environments}
 
-Environments are defined as the pointwise lifting of a relation \AB{R}
-between contexts and types to a relation between two contexts. We can
-naturally define a notion of lookup retrieving the proof corresponding
-to a specific de Bruijn index.
+All the semantics we are interested in defining evaluate a term
+written in the type-correct representation of the calculus defined
+above given an interpretation of its free variable. We call the
+collection of these interpretations for the variables in scope
+an (evaluation) environment. The content of environments may vary
+wildly between different instances (e.g. renaming environments
+contain variables whilst the normalisation by evaluation ones
+carry elements of the model) but their structure is generic.
+
+Formally, environments are defined as the pointwise lifting of a
+relation \AB{R} between contexts and types to a relation between
+two contexts.
 
 \begin{code}
 infix 5 _[_]_
 _[_]_ : {ℓ : Level} (Δ : Con) (R : (Δ : Con) (σ : ty) → Set ℓ) (Γ : Con) → Set ℓ
 Δ [ R ] ε      = Lift ⊤
 Δ [ R ] Γ ∙ σ  = Δ [ R ] Γ × R Δ σ
+\end{code}
 
-pure : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ}
-       {Γ : Con} (f : (σ : ty) (pr : σ ∈ Γ) → R Δ σ) → Δ [ R ] Γ
-pure {Γ = ε}     f = lift tt
-pure {Γ = Γ ∙ σ} f = pure (λ σ → f σ ∘ there) , f σ here!
+The most basic operations on environments one expects is the ability
+to lookup a proof of \AB{R} \AB{Δ} \AB{σ} given a variable \AB{σ} \AD{∈} \AB{Γ}
+and an environment \AB{Δ} \AF{[} \AB{R} \AF{]} \AB{Γ}.
 
+\begin{code}
 infix 5 _‼_
 _‼_ :  {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ} {Γ : Con} {σ : ty}
        (ρ : Δ [ R ] Γ) (v : σ ∈ Γ) → R Δ σ
@@ -160,23 +168,58 @@ _‼_ :  {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ} {Γ : C
 (ρ , _) ‼ there v  = ρ ‼ v
 \end{code}
 
+Later on, we will also need to know how to tabulate a function associating
+to each variable \AB{σ} \AD{∈} \AB{Γ} a proof that \AB{R} holds for some
+given context \AB{Δ}. The special use case of this \AF{pure} function is
+the generation of the diagonal environment \AB{Γ} \AF{[} \AB{R} \AF{]} \AB{Γ}
+for a given relation \AB{R} and context \AB{Γ} which is needed to kickstart
+the evaluation of a term.
+
+\begin{code}
+pure : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ}
+       {Γ : Con} (f : (σ : ty) (pr : σ ∈ Γ) → R Δ σ) → Δ [ R ] Γ
+pure {Γ = ε}      f = lift tt
+pure {Γ = Γ ∙ σ}  f = pure (λ σ → f σ ∘ there) , f σ here!
+\end{code}
+
 \subsection{The Preoder of Context Inclusions}
+
+One instance of environments one is accustomed to is the notion
+of context inclusion. A context inclusion \AB{Γ} \AF{⊆} \AB{Δ}
+is an environment pairing each variable of type \AB{σ} in \AB{Γ}
+to one of the same type in \AB{Δ}.
 
 \begin{code}
 infix 5 _⊆_
-
 _⊆_ : (Γ Δ : Con) → Set
 _⊆_ = flip _[ flip _∈_ ]_
+\end{code}
 
-wk[_] : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ}
-        (wk : {Θ : Con} {σ : ty} (inc : Δ ⊆ Θ) → R Δ σ → R Θ σ)
-        {Γ Θ : Con} (inc : Δ ⊆ Θ) (ρ : Δ [ R ] Γ) →  Θ [ R ] Γ
-wk[ wk ] {ε}     inc ρ       = ρ
-wk[ wk ] {Γ ∙ σ} inc (ρ , r) = wk[ wk ] inc ρ , wk inc r
+Context inclusions allow for the formulation of weakening principles
+explaining how to transport properties along inclusions: knowing that
+\AB{P} holds of \AB{Γ} and that \AB{Γ} \AF{⊆} \AB{Δ} lets us conclude
+that \AB{P} holds for \AB{Δ} too. The lookup function defined in the
+previous section corresponds to weakening for variables whilst we can
+show that if the relation \AB{R} can be weakened then so can the
+environments based on \AB{R}.
 
+\begin{code}
 wk^∈ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (pr : σ ∈ Γ) → σ ∈ Δ
 wk^∈ = _‼_
 
+wk[_] :  {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ}
+         (wk : {Θ : Con} {σ : ty} (inc : Δ ⊆ Θ) → R Δ σ → R Θ σ)
+         {Γ Θ : Con} (inc : Δ ⊆ Θ) (ρ : Δ [ R ] Γ) →  Θ [ R ] Γ
+wk[ wk ] {ε}      inc ρ        = ρ
+wk[ wk ] {Γ ∙ σ}  inc (ρ , r)  = wk[ wk ] inc ρ , wk inc r
+\end{code}
+
+These observations allow us to prove that context inclusions form
+a preorder which, in turn, lets us provide the user with the
+constructors Altenkirch, Hofmann and Streicher's ``Category of
+Weakenings"~\cite{altenkirch1995categorical} is based on.
+
+\begin{code}
 refl : {Γ : Con} → Γ ⊆ Γ
 refl = pure (λ _ → id)
 
@@ -192,36 +235,53 @@ step inc = trans inc $ pure (λ _ → there)
 
 \section{Semantics and Generic Evaluation Function}
 
-In order to have the opportunity to focus on the model constructions
-rather than defining over and over again similar-looking evaluation
-functions, we introduce the notions of \AR{Semantics} and generically
-define an evaluation function parametrised over such semantics.
-We will see later on that this notion is generic enough to encompass
-a large body of traversals from simple renamings to the more complex
-evaluation into a model.
+Because renaming, substitution, pretty-printing, and normalisation
+by evaluation all share the same structure, we can abstract away a
+notion of \AR{Semantics} encompassing all these constructions. This
+makes it possible to implement a generic traversal parametrised by
+such a \AR{Semantics} once and for all and gives us the opportunity
+to focus on the interesting model constructions instead.
 
-A \AR{Semantics} packs two main concepts and the methods based on them
-necessary to construct an evaluation function. First, Environment values
-(\ARF{Env}) are defined; we require that there is a way to apply weakening
-to such elements (\ARF{wk}) as well as a way to create new ones from
-variables (\ARF{embed}). Then, the model (\ARF{𝓜}) is introduced together
-with the semantic counterparts of the language's constructors. Most of
-them have the type one would expect except for two interesting cases. The
-semantic counterpart of the variable constructor (\ARF{⟦var⟧}) is a
-function converting environment values into model ones. And the semantic
-λ-abstraction (\ARF{⟦λ⟧}) is an actual function which, in any extended
-context, takes an \emph{environment} value and delivers one in the model.
+A \AR{Semantics} is indexed by two relations \AB{Env} and \AB{Mod}
+describing respectively the values in the environment and the ones
+in the model. It packs the properties of these relations necessary
+to define the evaluation function.
 
+Environment values need to come with a notion of weakening so that
+the traversal may introduce variables (when going under a binder)
+and keep the environment well-scoped. We also need to be able to
+manufacture values in the environment given a variable in scope
+in order to be able to craft a diagonal environment.
+
+The structure of the model is quite constrained: each constructor
+in the language needs a semantic counterpart. Most of them have a
+type which is a direct translation of the type of the corresponding
+constructor except for two interesting cases: \ARF{⟦var⟧} and \ARF{⟦λ⟧}.
+The variable case guarantees that one can turn a value from the
+environment into one in the model thus making it possible for the
+traversal, when hitting a variable, to lookup the corresponding
+value in the environment and return it. The semantic λ-abstraction
+is notable for two reasons: following Mitchell and Moggi~\cite{mitchell1991kripke},
+it has a Kripke structure thus allowing arbitrary extensions of the
+context; and instead of being a function in the host language taking
+values in the model as arguments, it takes environment values. This
+slight variation in the type of the semantic λ-abstraction is what
+makes it possible to go beyond the semantics such as substitution
+or normalization by evaluation where \AB{Env} and \AB{Mod} happen
+to coincide.
+
+%\begin{figure*}
 \begin{code}
-record Semantics (ℓᴱ ℓᴹ : Level) : Set (suc (ℓᴱ ⊔ ℓᴹ)) where
+record Semantics  {ℓ^E ℓ^M : Level}
+                  (Env  : (Γ : Con) (σ : ty) → Set ℓ^E)
+                  (Mod  : (Γ : Con) (σ : ty) → Set ℓ^M)
+                  : Set (ℓ^E ⊔ ℓ^M) where
   infixl 5 _⟦$⟧_
   field
     -- environment values and corresponding methods
-    Env     : (Δ : Con) (σ : ty) → Set ℓᴱ
     wk      : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : Env Γ σ) → Env Δ σ
     embed   : {Γ : Con} {σ : ty} (pr : σ ∈ Γ) → Env Γ σ
     -- model and semantic counterparts of the constructors
-    Mod     : (Δ : Con) (σ : ty) → Set ℓᴹ
     ⟦var⟧   : {Γ : Con} {σ : ty} → Env Γ σ → Mod Γ σ
     _⟦$⟧_   : {Γ : Con} {σ τ : ty} → Mod Γ (σ `→ τ) → Mod Γ σ → Mod Γ τ
     ⟦λ⟧     : {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : Env Δ σ) → Mod Δ τ) → Mod Γ (σ `→ τ)
@@ -230,27 +290,34 @@ record Semantics (ℓᴱ ℓᴹ : Level) : Set (suc (ℓᴱ ⊔ ℓᴹ)) where
     ⟦ff⟧    : {Γ : Con} → Mod Γ `Bool
     ⟦ifte⟧  : {Γ : Con} {σ : ty} (b : Mod Γ `Bool) (l r : Mod Γ σ) → Mod Γ σ
 \end{code}
+%\end{figure*}
 
-The evaluation function is defined by replacing each constructor with
-their semantic counterpart in order to combine the induction hypothesis
-given by the subterms. In the λ-abstraction case, the environment is
-weakened so that the returned value indeed resides in the extended context.
-Finally, one can build a diagonal environment by \ARF{embed}ding its
+The evaluation function is then defined by structural recursion on the
+term by replacing each constructor with their semantic counterpart in
+order to combine the induction hypotheses given by the subterms. In the
+λ-abstraction case, the type of \ARF{⟦λ⟧} guarantees that the argument
+can be stored in the environment which will have been weakened beforehand
+so that the returned value indeed resides in the extended context. Finally,
+one can build a diagonal environment for \AB{Γ} by \ARF{embed}ding its
 variables.
 
 \begin{code}
-module Eval {ℓᴱ ℓᴹ : Level} (Sem : Semantics ℓᴱ ℓᴹ) where
+module Eval
+       {ℓ^E ℓ^M : Level}
+       {Env : (Γ : Con) (σ : ty) → Set ℓ^E}
+       {Mod : (Γ : Con) (σ : ty) → Set ℓ^M}
+       (Sem : Semantics Env Mod) where
   open Semantics Sem
 
   infix 10 _⊨⟦_⟧_ _⊨eval_
   eval : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
-  eval (`var v)      ρ = ⟦var⟧ $ ρ ‼ v
-  eval (t `$ u)      ρ = eval t ρ ⟦$⟧ eval u ρ
-  eval (`λ t)        ρ = ⟦λ⟧ λ inc u → eval t (wk[ wk ] inc ρ , u)
-  eval `⟨⟩           ρ = ⟦⟨⟩⟧
-  eval `tt           ρ = ⟦tt⟧
-  eval `ff           ρ = ⟦ff⟧
-  eval (`ifte b l r) ρ = ⟦ifte⟧ (eval b ρ) (eval l ρ) (eval r ρ)
+  eval (`var v)       ρ = ⟦var⟧ $ ρ ‼ v
+  eval (t `$ u)       ρ = eval t ρ ⟦$⟧ eval u ρ
+  eval (`λ t)         ρ = ⟦λ⟧ λ inc u → eval t (wk[ wk ] inc ρ , u)
+  eval `⟨⟩            ρ = ⟦⟨⟩⟧
+  eval `tt            ρ = ⟦tt⟧
+  eval `ff            ρ = ⟦ff⟧
+  eval (`ifte b l r)  ρ = ⟦ifte⟧ (eval b ρ) (eval l ρ) (eval r ρ)
 
   _⊨⟦_⟧_ : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
   _⊨⟦_⟧_ = eval
@@ -268,15 +335,13 @@ as environment values and terms as elements of the model and constructors
 as their own semantic counterpart, we obtain a rather involved definition
 of the identity function as \AF{Renaming} \AF{⊨eval\_}. But this construction
 is not at all useless: indeed, the more general \AF{Renaming} \AF{⊨⟦\_⟧\_}
-turns out to be precisely the notion of weakening for terms we will need
-later on.
+function turns out to be precisely the notion of weakening for terms we will
+need later on.
 
 \begin{code}
-Renaming : Semantics zero zero
+Renaming : Semantics (flip _∈_) _⊢_
 Renaming =
-  record  { Env     = flip _∈_
-          ; Mod     = _⊢_
-          ; embed   = id
+  record  { embed   = id
           ; wk      = wk^∈
           ; ⟦var⟧   = `var
           ; _⟦$⟧_   = _`$_
@@ -295,7 +360,7 @@ wk^⊢ = flip $ Renaming ⊨⟦_⟧_
 
 Our second example of a semantics is another spin on the syntactic
 model: the environment values are now terms (but the diagonal
-environment will be only made up of variables) and so are the model's
+environment will be made up of variables only) and so are the model's
 values. Once more the semantic function \AF{Substitution} \AF{⊨⟦\_⟧\_}
 is more interesting than the evaluation one: it is an implementation
 of parallel substitution.
@@ -304,11 +369,9 @@ of parallel substitution.
 var‿0 : {Γ : Con} {σ : ty} → Γ ∙ σ ⊢ σ
 var‿0 = `var here!
 
-Substitution : Semantics zero zero
+Substitution : Semantics _⊢_ _⊢_
 Substitution =
-  record  { Env     = _⊢_
-          ; Mod     = _⊢_
-          ; embed   = `var
+  record  { embed   = `var
           ; wk      = wk^⊢ 
           ; ⟦var⟧   = id
           ; _⟦$⟧_   = _`$_
@@ -322,15 +385,10 @@ Substitution =
 infix 10 ⟦_⟧_
 ⟦_⟧_ : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
 ⟦_⟧_ = Substitution ⊨⟦_⟧_
-
-_⟨_/var₀⟩ : {Γ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
-t ⟨ u /var₀⟩ = ⟦ t ⟧ (pure (λ _ → `var) , u)
-
-eta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) → Γ ⊢ σ `→ τ
-eta t = `λ (wk^⊢ (step refl) t `$ var‿0)
 \end{code}
 
-\section{Pretty printing}
+
+\section{Pretty Printing}
 
 Before considering the various model constructions giving
 rise to normalisation functions deciding different theories,
@@ -360,17 +418,21 @@ open import Coinduction
 open import Data.Stream as Stream using (Stream ; head ; tail ; zipWith ; _∷_)
 open import Category.Monad
 open import Category.Monad.State
-open RawIMonadState (StateMonadState (Stream String)) hiding (zipWith)
+open RawIMonadState (StateMonadState (Stream String)) hiding (zipWith ; pure)
 open import Relation.Binary.PropositionalEquality as PEq using (_≡_)
 \end{code}
 }
 
 \begin{code}
-PrettyPrinting : Semantics zero zero
+Names : (Γ : Con) (σ : ty) → Set
+Names _ _ = String
+
+Printer : (Γ : Con) (σ : ty) → Set
+Printer _ _ = State (Stream String) String
+
+PrettyPrinting : Semantics Names Printer
 PrettyPrinting =
-  record  { Env     = λ _ _ → String
-          ; Mod     = λ _ _ → State (Stream String) String
-          ; embed   = show ∘ deBruijn
+  record  { embed   = show ∘ deBruijn
           ; wk      = λ _ → id
           ; ⟦var⟧   = return
           ; _⟦$⟧_   = λ  mf mt →
@@ -425,6 +487,9 @@ names = flatten $ zipWith cons letters $ "" ∷ ♯ Stream.map show (allNatsFrom
 
     allNatsFrom : ℕ → Stream ℕ
     allNatsFrom k = k ∷ ♯ allNatsFrom (1 + k)
+    
+prettyPrint : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → String
+prettyPrint t = proj₁ (PrettyPrinting ⊨eval t $ names)
 \end{code}
 
 \AgdaHide{
@@ -432,25 +497,48 @@ names = flatten $ zipWith cons letters $ "" ∷ ♯ Stream.map show (allNatsFrom
 pretty$ : {a b : ty} →
   let  app  :  ε ⊢ (a `→ b) `→ a `→ b
        app  =  `λ (`λ (`var (there here!) `$ `var here!))
-  in proj₁ (PrettyPrinting ⊨eval app $ names) ≡ "λa. λb. a(b)"
+  in prettyPrint app ≡ "λa. λb. a(b)"
 pretty$ = PEq.refl
 \end{code}}
 
-\section{Recalling the three reduction rules}
+\section{Recalling the four reduction rules}
 
-\begin{mathpar}
-\inferrule{
-  }{\text{(\AIC{`λ} \AB{t}) \AIC{`\$} \AB{u} ↝ \AB{t} \AF{⟨} \AB{u} \AF{/var₀⟩}}
-  }{β}
-\and
-\inferrule{\text{\AB{t} ↝ \AB{t′}}
-  }{\text{\AIC{`λ} \AB{t} ↝ \AIC{`λ} \AB{t′}}
-  }{ξ}
-\and
-\inferrule{
-  }{\text{\AB{t} ↝ \AF{eta} \AB{t}}
-  }{η}
-\end{mathpar}
+Using \AF{Substitution}, we can implement \AF{beta}-reduction in
+the usual manner.
+
+\begin{code}
+infixl 10 _⟨_/var₀⟩
+_⟨_/var₀⟩ : {Γ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
+t ⟨ u /var₀⟩ = ⟦ t ⟧ (pure (λ _ → `var) , u)
+
+beta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
+beta (`λ b)  u = b ⟨ u /var₀⟩              -- β-reduction
+beta t       u = t `$ u
+\end{code}
+
+\begin{code}
+iota : {Γ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) → Γ ⊢ σ
+iota `tt  l _ = l                          -- ι-reduction
+iota `ff  _ r = r                          -- ι-reduction
+iota b    l r = `ifte b l r
+
+eta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) → Γ ⊢ σ `→ τ
+eta t = `λ (wk^⊢ (step refl) t `$ var‿0)  -- η-expansion
+\end{code}
+
+%\begin{mathpar}
+%\inferrule{
+%  }{\text{(\AIC{`λ} \AB{t}) \AIC{`\$} \AB{u} ↝ \AB{t} \AF{⟨} \AB{u} \AF{/var₀⟩}}
+%  }{β}
+%\and
+%\inferrule{\text{\AB{t} ↝ \AB{t′}}
+%  }{\text{\AIC{`λ} \AB{t} ↝ \AIC{`λ} \AB{t′}}
+%  }{ξ}
+%\and
+%\inferrule{
+%  }{\text{\AB{t} ↝ \AF{eta} \AB{t}}
+%  }{η}
+%\end{mathpar}
 
 \section{(Weak) Normal Forms}
 
@@ -578,11 +666,9 @@ using the fact that we can build an initial environment by η-expanding all
 variables in scope.
 
 \begin{code}
-Normalize^βξη : Semantics zero zero
+Normalize^βξη : Semantics _⊨^βξη_ _⊨^βξη_
 Normalize^βξη =
-  record  { Env     = _⊨^βξη_
-          ; Mod     = _⊨^βξη_
-          ; embed   = reflect^βξη _ ∘ `var
+  record  { embed   = reflect^βξη _ ∘ `var
           ; wk      = wk^βξη
           ; ⟦var⟧   = id
           ; _⟦$⟧_   = _$^βξη_
@@ -652,11 +738,9 @@ ifte^βξ (inj₁ ne) l r = inj₁ $ `ifte ne (reify^βξ _ l) (reify^βξ _ r)
 ifte^βξ (inj₂ T)  l r = if T then l else r
 
 
-Normalize^βξ : Semantics zero zero
+Normalize^βξ : Semantics _⊨^βξ_ _⊨^βξ_
 Normalize^βξ =
-  record  { Env     = _⊨^βξ_
-          ; Mod     = _⊨^βξ_
-          ; embed   = reflect^βξ _ ∘ `var
+  record  { embed   = reflect^βξ _ ∘ `var
           ; wk      = wk^βξ
           ; ⟦var⟧   = id
           ; _⟦$⟧_   = _$^βξ_
@@ -744,11 +828,9 @@ ifte^β (b , inj₁ ne)  (l , L) (r , R) = `ifte b l r , inj₁ (`ifte ne l r)
 ifte^β (b , inj₂ B)   (l , L) (r , R) = `ifte b l r , (if B then L else R)
 
 
-Normalize^β : Semantics zero zero
+Normalize^β : Semantics _⊨^β_ _⊨^β_
 Normalize^β =
-  record  { Env     = _⊨^β_
-          ; Mod     = _⊨^β_
-          ; embed   = reflect^β _ ∘ `var
+  record  { embed   = reflect^β _ ∘ `var
           ; wk      = wk^β
           ; ⟦var⟧   = id
           ; _⟦$⟧_   = _$^β_
