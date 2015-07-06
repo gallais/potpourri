@@ -192,6 +192,10 @@ type family Value (g :: Con) (t :: Ty) where
 
 newtype Kripke g a b = Kripke { runKripke :: forall h. Included g h -> Value h a -> Value h b }
 
+weakValue :: forall d g a. STy a -> Included g d -> Value g a -> Value d a
+weakValue STyUnit       _   v = v
+weakValue STyBool       inc v = weakTe STyBool inc v
+weakValue (STyFunc _ _) inc v = Kripke $ \ inc' -> runKripke v (trans inc inc')
 
 reflect :: forall g a. STy a -> Term g a -> Value g a
 reflect STyUnit       _ = ()
@@ -213,9 +217,12 @@ reify (STyFunc sa sb) v = TeLam $ reify sb $ body sa v where
 -- We introduce PValue, a newtype which can be *P*artially applied.
 newtype PValue (g :: Con) (a :: Ty) = PValue { runPValue :: Value g a }
 
+weakPValue :: forall d g a. STy a -> Included g d -> PValue g a -> PValue d a
+weakPValue a inc = PValue . weakValue a inc . runPValue
+
 normalisation :: Semantics PValue PValue
 normalisation =
-  Semantics { weak  = undefined
+  Semantics { weak  = weakPValue
             , embed = \ sa v -> PValue $ reflect sa $ TeVar v
             , var   = \ _ -> id
             , app   = \ _ f t -> PValue $ runKripke (runPValue f) refl $ runPValue t
