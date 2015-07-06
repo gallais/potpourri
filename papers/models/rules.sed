@@ -11,3 +11,6 @@ s/₀/\_\{\\scriptscriptstyle\{\}0\}/g
 s/^\\begin{code}/\\begin\{code\}\n\\\\/g
 s/^\\end{code}/\\\\\\end\{code\}\n/g
 
+s/\\AgdaSymbol{\\{}.*\\AgdaSymbol{\\}}[^()]*\\AgdaSymbol{→} //g
+s/\\AgdaSymbol{\\{}[^()]*\\AgdaSymbol{\\}}//g
+s/\\AgdaSymbol{\\{}.*\\AgdaSymbol{\\}}//g
