@@ -1,6 +1,7 @@
-{-# OPTIONS  -Wall           #-}
+{-# OPTIONS  -Wall               #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE RecordWildCards     #-}
@@ -74,7 +75,7 @@ data Semantics (e :: Con -> Ty -> *) (m :: Con -> Ty -> *) =
             , unit  :: forall g. m g 'TyUnit
             , true  :: forall g. m g 'TyBool
             , false :: forall g. m g 'TyBool
-            , ifte  :: forall g a. m g 'TyBool -> m g a -> m g a -> m g a
+            , ifte  :: forall g a. STy a -> m g 'TyBool -> m g a -> m g a -> m g a
             }
 
 
@@ -90,7 +91,7 @@ semanticsTerm sem@Semantics{..} = go where
   go _             TeUnit         _   = unit
   go _             TeTrue         _   = true
   go _             TeFalse        _   = false
-  go a             (TeIfte b l r) env = ifte (go STyBool b env) (go a l env) (go a r env)
+  go a             (TeIfte b l r) env = ifte a (go STyBool b env) (go a l env) (go a r env)
 
 evalTerm :: forall e m g a. Semantics e m -> SCon g -> STy a -> Term g a -> m g a
 evalTerm sem@Semantics{..} g a t = semanticsTerm sem a t (env g) where
@@ -112,12 +113,15 @@ renaming =
             , unit  = TeUnit
             , true  = TeTrue
             , false = TeFalse
-            , ifte  = TeIfte
+            , ifte  = const TeIfte
             }
+
+weakTe :: STy a -> Included g d -> Term g a -> Term d a
+weakTe a inc t = semanticsTerm renaming a t inc
 
 substitution :: Semantics Term Term
 substitution =
-  Semantics { weak  = \ a inc t -> semanticsTerm renaming a t inc
+  Semantics { weak  = weakTe
             , embed = const TeVar
             , var   = const id
             , app   = TeApp
@@ -125,7 +129,7 @@ substitution =
             , unit  = TeUnit
             , true  = TeTrue
             , false = TeFalse
-            , ifte  = TeIfte
+            , ifte  = const TeIfte
             }
 
 ------------------------------------------------------------------------
@@ -152,7 +156,7 @@ prettyPrinting =
             , unit  = Constant2 $ return "()"
             , true  = Constant2 $ return "True"
             , false = Constant2 $ return "False"
-            , ifte  = \ mb ml mr ->
+            , ifte  = \ _ mb ml mr ->
                       Constant2 $ do
                         b <- runConstant2 mb
                         l <- runConstant2 ml
@@ -170,13 +174,61 @@ prettyPrint g a t = evalState (runConstant2 $ evalTerm prettyPrinting g a t) nam
         alpha    = ['a'..'z']
         alphaInt = concat $ fmap (\ i -> fmap (: show i) alpha) [(0 :: Integer)..]
 
---  Semantics { weak  = undefined
---            , embed = undefined
---            , var   = undefined
---            , app   = undefined
---            , lam   = undefined
---            , unit  = undefined
---            , true  = undefined
---            , false = undefined
---            , ifte  = undefined
---            }
+
+------------------------------------------------------------------------
+-- Normalization by Evaluation
+------------------------------------------------------------------------
+
+-- We now build a Kripke model for these terms by induction
+-- on the type.
+
+type family Value (g :: Con) (t :: Ty) where
+  Value g 'TyUnit       = ()
+  Value g 'TyBool       = Term g 'TyBool
+  -- And now... because polymorphic types are not allowed here
+  -- we use `Kripke`. However newtypes are erased during compilation
+  -- so the model definiton is indeed tagless in the end.
+  Value g ('TyFunc a b) = Kripke g a b
+
+newtype Kripke g a b = Kripke { runKripke :: forall h. Included g h -> Value h a -> Value h b }
+
+
+reflect :: forall g a. STy a -> Term g a -> Value g a
+reflect STyUnit       _ = ()
+reflect STyBool       t = t
+reflect (STyFunc a b) t = Kripke $ \ inc v -> reflect b $ TeApp a (weakTe (STyFunc a b) inc t) $ reify a v
+
+reify :: forall g a. STy a -> Value g a -> Term g a
+reify STyUnit         _ = TeUnit
+reify STyBool         v = v
+reify (STyFunc sa sb) v = TeLam $ reify sb $ body sa v where
+
+  var0 :: forall c. STy c -> Value ('Cons g c) c
+  var0 sc = reflect sc (TeVar Z :: Term ('Cons g c) c)
+
+  body :: forall c d. STy c -> Kripke g c d -> Value ('Cons g c) d
+  body sc f = runKripke f (top refl :: Included g ('Cons g c)) $ var0 sc
+
+-- Value, being a type family, cannot be partially applied.
+-- We introduce PValue, a newtype which can be *P*artially applied.
+newtype PValue (g :: Con) (a :: Ty) = PValue { runPValue :: Value g a }
+
+normalisation :: Semantics PValue PValue
+normalisation =
+  Semantics { weak  = undefined
+            , embed = \ sa v -> PValue $ reflect sa $ TeVar v
+            , var   = \ _ -> id
+            , app   = \ _ f t -> PValue $ runKripke (runPValue f) refl $ runPValue t
+            , lam   = \ t -> PValue $ Kripke $ \ inc -> runPValue . t inc . PValue
+            , unit  = PValue ()
+            , true  = PValue TeTrue
+            , false = PValue TeFalse
+            , ifte  = \ a b l r -> PValue $ ifte a (runPValue b) (runPValue l) (runPValue r)
+            } where
+  ifte :: STy a -> Value g 'TyBool -> Value g a -> Value g a -> Value g a
+  ifte _ TeTrue  l _ = l
+  ifte _ TeFalse _ r = r
+  ifte a b       l r = reflect a $ TeIfte (reify STyBool b) (reify a l) (reify a r)
+
+normalise :: SCon g -> STy a -> Term g a -> Term g a
+normalise sg sa t = reify sa $ runPValue $ evalTerm normalisation sg sa t
