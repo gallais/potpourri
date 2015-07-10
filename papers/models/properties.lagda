@@ -9,181 +9,196 @@ open import Data.Product
 open import Function
 open import models
 
-record Properties
-       {ℓᴱᴬ ℓᴹᴬ : Level} (semA : Semantics ℓᴱᴬ ℓᴹᴬ)
-       {ℓᴱᴮ ℓᴹᴮ : Level} (semB : Semantics ℓᴱᴮ ℓᴹᴮ)
-       (ℓᴿᴱ ℓᴿᴹ : Level) :
-       Set (suc (ℓᴿᴱ ⊔ ℓᴿᴹ) ⊔ ℓᴱᴬ ⊔ ℓᴱᴮ ⊔ ℓᴹᴬ ⊔ ℓᴹᴮ) where
-  infixl 5 _R⟦$⟧_
+record Relatable
+  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level}
+  {EnvA : (Γ : Con) (σ : ty) → Set ℓ^EA}
+  {ModA : (Γ : Con) (σ : ty) → Set ℓ^MA}
+  (semA : Semantics EnvA ModA)
+  {EnvB : (Γ : Con) (σ : ty) → Set ℓ^EB}
+  {ModB : (Γ : Con) (σ : ty) → Set ℓ^MB}
+  (semB : Semantics EnvB ModB)
+  {ℓ^RE ℓ^RM ℓ^REAB : Level}
+  (RelEnvAB : {Γ : Con} {σ : ty} (eA : EnvA Γ σ) (eB : EnvB Γ σ) → Set ℓ^REAB)
+  (RelEnv : {Δ Γ : Con} (eA : Δ [ EnvA ] Γ) (eB : Δ [ EnvB ] Γ) → Set ℓ^RE)
+  (RelMod : {Γ : Con} {σ : ty} (mA : ModA Γ σ) (mB : ModB Γ σ) → Set ℓ^RM)
+  : Set (ℓ^RE ⊔ ℓ^RM ⊔ ℓ^EA ⊔ ℓ^EB ⊔ ℓ^MA ⊔ ℓ^MB ⊔ ℓ^REAB) where
   module SemA = Semantics semA
   module SemB = Semantics semB
   field
-    -- environment values
-    REnv    : (Γ : Con) (σ : ty) (eA : SemA.Env Γ σ) (eB : SemB.Env Γ σ) → Set ℓᴿᴱ
-    Rwk     : {Γ Δ : Con} {σ : ty} {eA : SemA.Env Γ σ} {eB : SemB.Env Γ σ} (inc : Γ ⊆ Δ)
-              (r : REnv Γ σ eA eB) → REnv Δ σ (SemA.wk inc eA) (SemB.wk inc eB)
-    Rembed  : {Γ : Con} {σ : ty} (pr : σ ∈ Γ) → REnv Γ σ (SemA.embed pr) (SemB.embed pr)
-    -- model values
-    RMod    : (Γ : Con) (σ : ty) (mA : SemA.Mod Γ σ) (mB : SemB.Mod Γ σ) → Set ℓᴿᴹ
-    R⟦var⟧  : {Γ : Con} {σ : ty} {eA : SemA.Env Γ σ} {eB : SemB.Env Γ σ}
-              (r : REnv Γ σ eA eB) → RMod Γ σ (SemA.⟦var⟧ eA) (SemB.⟦var⟧ eB)
-    _R⟦$⟧_  : {Γ : Con} {σ τ : ty} {fA : SemA.Mod Γ (σ `→ τ)} {fB : SemB.Mod Γ (σ `→ τ)}
-              {tA : SemA.Mod Γ σ} {tB : SemB.Mod Γ σ}
-              (rf : RMod Γ (σ `→ τ) fA fB) (rt : RMod Γ σ tA tB) → RMod Γ τ (fA SemA.⟦$⟧ tA) (fB SemB.⟦$⟧ tB)
-    R⟦λ⟧    : {Γ : Con} {σ τ : ty}
-              {tA : {Δ : Con} (pr : Γ ⊆ Δ) (u : SemA.Env Δ σ) → SemA.Mod Δ τ}
-              {tB : {Δ : Con} (pr : Γ ⊆ Δ) (u : SemB.Env Δ σ) → SemB.Mod Δ τ} →
-              (t : {Δ : Con} (pr : Γ ⊆ Δ) {uA : SemA.Env Δ σ} {uB : SemB.Env Δ σ} (u : REnv Δ σ uA uB) →
-                   RMod Δ τ (tA pr uA) (tB pr uB)) →
-              RMod Γ (σ `→ τ) (SemA.⟦λ⟧ tA) (SemB.⟦λ⟧ tB)
-    R⟦⟨⟩⟧   : {Γ : Con} → RMod Γ `Unit SemA.⟦⟨⟩⟧ SemB.⟦⟨⟩⟧
-    R⟦tt⟧   : {Γ : Con} → RMod Γ `Bool SemA.⟦tt⟧ SemB.⟦tt⟧
-    R⟦ff⟧   : {Γ : Con} → RMod Γ `Bool SemA.⟦ff⟧ SemB.⟦ff⟧
-    R⟦ifte⟧ : {Γ : Con} {bA : SemA.Mod Γ `Bool} {bB : SemB.Mod Γ `Bool} (b : RMod Γ `Bool bA bB) →
-              {σ : ty} {lA : SemA.Mod Γ σ} {lB : SemB.Mod Γ σ} (l : RMod Γ σ lA lB) →
-              {rA : SemA.Mod Γ σ} {rB : SemB.Mod Γ σ} (r : RMod Γ σ rA rB) →
-              RMod Γ σ (SemA.⟦ifte⟧ bA lA rA) (SemB.⟦ifte⟧ bB lB rB)
+    RelEnv∙ : {Γ Δ : Con} {σ : ty} {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ}
+              {uA : EnvA Δ σ} {uB : EnvB Δ σ} (ρR : RelEnv ρA ρB) (uR : RelEnvAB uA uB) →
+               RelEnv ([ EnvA ] ρA `∙ uA) ([ EnvB ] ρB `∙ uB)
+    RelEnvWk : {Γ Δ Θ : Con} (inc : Δ ⊆ Θ)
+               {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
+               RelEnv (wk[ SemA.wk ] inc ρA) (wk[ SemB.wk ] inc ρB)
+    R⟦var⟧  : {Γ Δ : Con} {σ : ty} (v : σ ∈ Γ)
+              {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
+              RelMod (semA ⊨⟦ `var v ⟧ ρA) (semB ⊨⟦ `var v ⟧ ρB)
 
-infix 5 _R[_]_
-_R[_]_ : {ℓᴬ ℓᴮ ℓᴿ : Level} {A : Con → ty → Set ℓᴬ} {B : Con → ty → Set ℓᴮ}
-         {Δ Γ : Con} (as : Δ [ A ] Γ)
-         (R : (Γ : Con) (σ : ty) (a : A Γ σ) (b : B Γ σ) → Set ℓᴿ) →
-         (bs : Δ [ B ] Γ) → Set ℓᴿ
-_R[_]_ {Γ = ε}     as       R bs       = Lift ⊤
-_R[_]_ {Γ = Γ ∙ σ} (as , a) R (bs , b) = as R[ R ] bs × R _ σ a b
+    R⟦$⟧    : {Γ Δ : Con} {σ τ : ty} (f : Γ ⊢ σ `→ τ) (t : Γ ⊢ σ)
+              (ρA : Δ [ EnvA ] Γ) (ρB : Δ [ EnvB ] Γ)  (ρR : RelEnv ρA ρB) →
+              RelMod (semA ⊨⟦ f ⟧ ρA) (semB ⊨⟦ f ⟧ ρB) → 
+              RelMod (semA ⊨⟦ t ⟧ ρA) (semB ⊨⟦ t ⟧ ρB) →
+              RelMod (semA ⊨⟦ f `$ t ⟧ ρA) (semB ⊨⟦ f `$ t ⟧ ρB)
+    R⟦λ⟧    : {Γ Δ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ)
+              (ρA : Δ [ EnvA ] Γ) (ρB : Δ [ EnvB ] Γ) (ρR : RelEnv ρA ρB) →
+              (r : {Θ : Con} (inc : Δ ⊆ Θ) {uA : EnvA Θ σ} {uB : EnvB Θ σ} (uR : RelEnvAB uA uB) →
+                  RelMod (semA ⊨⟦ t ⟧ ([ EnvA ] wk[ SemA.wk ] inc ρA `∙ uA))
+                         (semB ⊨⟦ t ⟧ ([ EnvB ] wk[ SemB.wk ] inc ρB `∙ uB))) →
+              RelMod (semA ⊨⟦ `λ t ⟧ ρA) (semB ⊨⟦ `λ t ⟧ ρB)
+    R⟦⟨⟩⟧   : {Γ Δ : Con} (ρA : Δ [ EnvA ] Γ) (ρB : Δ [ EnvB ] Γ) (ρR : RelEnv ρA ρB) →
+              RelMod (semA ⊨⟦ `⟨⟩ ⟧ ρA) (semB ⊨⟦ `⟨⟩ ⟧ ρB)
+    R⟦tt⟧   : {Γ Δ : Con} (ρA : Δ [ EnvA ] Γ) (ρB : Δ [ EnvB ] Γ) (ρR : RelEnv ρA ρB) →
+              RelMod (semA ⊨⟦ `tt ⟧ ρA) (semB ⊨⟦ `tt ⟧ ρB)
+    R⟦ff⟧   : {Γ Δ : Con} (ρA : Δ [ EnvA ] Γ) (ρB : Δ [ EnvB ] Γ) (ρR : RelEnv ρA ρB) →
+            RelMod (semA ⊨⟦ `ff ⟧ ρA) (semB ⊨⟦ `ff ⟧ ρB)
+    R⟦ifte⟧ : {Γ Δ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ)
+            (ρA : Δ [ EnvA ] Γ) (ρB : Δ [ EnvB ] Γ) (ρR : RelEnv ρA ρB) →
+            RelMod (semA ⊨⟦ b ⟧ ρA) (semB ⊨⟦ b ⟧ ρB) → 
+            RelMod (semA ⊨⟦ l ⟧ ρA) (semB ⊨⟦ l ⟧ ρB) →
+            RelMod (semA ⊨⟦ r ⟧ ρA) (semB ⊨⟦ r ⟧ ρB) →
+            RelMod (semA ⊨⟦ `ifte b l r ⟧ ρA) (semB ⊨⟦ `ifte b l r ⟧ ρB)
 
-wkR[_,_,_] :
-  {ℓᴬ ℓᴮ ℓᴿ : Level}
-  {A : Con → ty → Set ℓᴬ} (wkA : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (a : A Γ σ) → A Δ σ)
-  {B : Con → ty → Set ℓᴮ} (wkB : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (b : B Γ σ) → B Δ σ)
-  {R : (Γ : Con) (σ : ty) (a : A Γ σ) (b : B Γ σ) → Set ℓᴿ} →
-  (wkR : {Γ Δ : Con} {σ : ty} {a : A Γ σ} {b : B Γ σ} (inc : Γ ⊆ Δ) (r : R Γ σ a b) →
-         R Δ σ (wkA inc a) (wkB inc b)) →
-  {Γ Δ Θ : Con} (inc : Δ ⊆ Θ) {as : Δ [ A ] Γ} {bs : Δ [ B ] Γ}
-  (ρ : as R[ R ] bs) →  wk[ wkA ] inc as R[ R ] wk[ wkB ] inc bs
-wkR[ wkA , wkB , wkR ] {ε}     inc ρ       = lift tt
-wkR[ wkA , wkB , wkR ] {Γ ∙ σ} inc (ρ , r) = wkR[ wkA , wkB , wkR ] inc ρ , wkR inc r
+module Related
+  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level}
+  {EnvA : (Γ : Con) (σ : ty) → Set ℓ^EA}
+  {ModA : (Γ : Con) (σ : ty) → Set ℓ^MA}
+  {semA : Semantics EnvA ModA}
+  {EnvB : (Γ : Con) (σ : ty) → Set ℓ^EB}
+  {ModB : (Γ : Con) (σ : ty) → Set ℓ^MB}
+  {semB : Semantics EnvB ModB}
+  {ℓ^RE ℓ^RM ℓ^REAB : Level}
+  {RelEnvAB : {Γ : Con} {σ : ty} (eA : EnvA Γ σ) (eB : EnvB Γ σ) → Set ℓ^REAB}
+  {RelEnv : {Δ Γ : Con} (eA : Δ [ EnvA ] Γ) (eB : Δ [ EnvB ] Γ) → Set ℓ^RE}
+  {RelMod : {Γ : Con} {σ : ty} (mA : ModA Γ σ) (mB : ModB Γ σ) → Set ℓ^RM}
+  (rel : Relatable semA semB RelEnvAB RelEnv RelMod)
+  where
+  open Relatable rel
 
-_R‼_ : {ℓᴬ ℓᴮ ℓᴿ : Level} {A : Con → ty → Set ℓᴬ} {B : Con → ty → Set ℓᴮ}
-       {R : (Γ : Con) (σ : ty) (a : A Γ σ) (b : B Γ σ) → Set ℓᴿ} →
-       {Γ Δ : Con} {as : Δ [ A ] Γ} {bs : Δ [ B ] Γ} →
-       (rs : as R[ R ] bs) {σ : ty} (pr : σ ∈ Γ) → R Δ σ (as ‼ pr) (bs ‼ pr)
-(_  , r) R‼ here!    = r
-(rs , _) R‼ there pr = rs R‼ pr
-
-lemma :
-  {ℓᴱᴬ ℓᴹᴬ : Level} (semA : Semantics ℓᴱᴬ ℓᴹᴬ)
-  {ℓᴱᴮ ℓᴹᴮ : Level} (semB : Semantics ℓᴱᴮ ℓᴹᴮ)
-  {ℓᴿᴱ ℓᴿᴹ : Level} (prop : Properties semA semB ℓᴿᴱ ℓᴿᴹ) →
-  let open Properties prop
-  in {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ SemA.Env ] Γ} {ρB : Δ [ SemB.Env ] Γ}
-     (ρR : ρA R[ REnv ] ρB) → RMod Δ σ (semA ⊨⟦ t ⟧ ρA) (semB ⊨⟦ t ⟧ ρB)
-lemma semA semB prop = λ {Γ} → go {Γ} where
-  open Properties prop
-  go : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ SemA.Env ] Γ} {ρB : Δ [ SemB.Env ] Γ}
-       (ρR : ρA R[ REnv ] ρB) → RMod Δ σ (semA ⊨⟦ t ⟧ ρA) (semB ⊨⟦ t ⟧ ρB)
-  go (`var v)      ρR = R⟦var⟧ (ρR R‼ v)
-  go (f `$ t)      ρR = go f ρR R⟦$⟧ go t ρR
-  go (`λ t)        ρR = R⟦λ⟧ λ inc u → go t (wkR[ SemA.wk , SemB.wk , Rwk ] inc ρR , u) --
-  go `⟨⟩           ρR = R⟦⟨⟩⟧
-  go `tt           ρR = R⟦tt⟧
-  go `ff           ρR = R⟦ff⟧
-  go (`ifte b l r) ρR = R⟦ifte⟧ (go b ρR) (go l ρR) (go r ρR)
+  related : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ}
+            (ρR : RelEnv ρA ρB) → RelMod (semA ⊨⟦ t ⟧ ρA) (semB ⊨⟦ t ⟧ ρB)
+  related (`var v)      ρR = R⟦var⟧ v ρR
+  related (f `$ t)      ρR = R⟦$⟧ f t _ _ ρR (related f ρR) (related t ρR)
+  related (`λ t)        ρR = R⟦λ⟧ t _ _ ρR $ λ inc uR → related t (RelEnv∙ (RelEnvWk inc ρR) uR)
+  related `⟨⟩           ρR = R⟦⟨⟩⟧ _ _ ρR
+  related `tt           ρR = R⟦tt⟧ _ _ ρR
+  related `ff           ρR = R⟦ff⟧ _ _ ρR
+  related (`ifte b l r) ρR = R⟦ifte⟧ b l r _ _ ρR (related b ρR) (related l ρR) (related r ρR)
 
 
 open import Relation.Binary.PropositionalEquality
-            hiding ([_])
+            as PEq
+            hiding ([_] ; trans)
             renaming (refl to trivial)
 
-RenamingSubstitution : Properties Renaming Substitution zero zero
-RenamingSubstitution =
+[_,_] : {Γ : Con} {τ : ty} {P : (σ : ty) (pr : σ ∈ Γ ∙ τ) → Set} →
+        (p0 : P τ here!) →
+        (pS : (σ : ty) (pr : σ ∈ Γ) → P σ (there pr)) →
+        (σ : ty) (pr : σ ∈ Γ ∙ τ) → P σ pr
+[ p0 , pS ] σ here!       = p0
+[ p0 , pS ] σ (there pr)  = pS σ pr
+
+RelatableRenamingSubstitution :
+  Relatable Renaming Substitution
+            (λ v t → `var v ≡ t)
+            (λ ρA ρB → (σ : ty) (pr : σ ∈ _) → `var (ρA σ pr) ≡ ρB σ pr)
+            _≡_
+RelatableRenamingSubstitution =
   record
-    { REnv    = λ _ _ pr t → `var pr ≡ t
-    ; Rwk     = λ {Γ} {Δ} {σ} {eA} inc eq → subst (λ t → `var (inc ‼ eA) ≡ Renaming ⊨⟦ t ⟧ inc) eq trivial
-    ; Rembed  = λ _ → trivial
-    ; RMod    = λ _ _ → _≡_
-    ; R⟦var⟧  = id
-    ; _R⟦$⟧_  = cong₂ _`$_
-    ; R⟦λ⟧    = λ t → cong `λ (t (step refl) trivial)
-    ; R⟦⟨⟩⟧   = trivial
-    ; R⟦tt⟧   = trivial
-    ; R⟦ff⟧   = trivial
-    ; R⟦ifte⟧ = λ eqb eql → cong₂ (uncurry `ifte) (cong₂ _,_ eqb eql)
+    { RelEnv∙   = λ ρR uR → [ uR , ρR ]
+    ; RelEnvWk  = λ inc ρR σ pr → cong (wk^⊢ inc) (ρR σ pr)
+    ; R⟦var⟧    = λ v ρR → ρR _ v
+    ; R⟦$⟧      = λ _ _ _ _ _ → cong₂ _`$_
+    ; R⟦λ⟧      = λ _ _ _ ρR r → cong `λ (r (step refl) trivial)
+    ; R⟦⟨⟩⟧     = λ _ _ _ → trivial
+    ; R⟦tt⟧     = λ _ _ _ → trivial
+    ; R⟦ff⟧     = λ _ _ _ → trivial
+    ; R⟦ifte⟧   = λ _ _ _ _ _ _ eqb eql → cong₂ (uncurry `ifte) (cong₂ _,_ eqb eql)
     }
 
-renSubst : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ flip _∈_ ] Γ} {ρB : Δ [ _⊢_ ] Γ}
-           (ρR : ρA R[ (λ _ _ v t → `var v ≡ t) ] ρB) →
-           Renaming ⊨⟦ t ⟧ ρA ≡ Substitution ⊨⟦ t ⟧ ρB
-renSubst = lemma Renaming Substitution RenamingSubstitution
 
+EQREL : (Γ : Con) (σ : ty) (T U : Γ ⊨^βιξη σ) → Set
+EQREL Γ `Unit     T U = ⊤
+EQREL Γ `Bool     T U = T ≡ U
+EQREL Γ (σ `→ τ)  T U = {Δ : Con} (inc : Γ ⊆ Δ) {V W : Δ ⊨^βιξη σ} (EQVW : EQREL Δ σ V W) →
+                        EQREL Δ τ (T inc V) (U inc W)
 
--- Another example:
+wk^EQREL : {Δ Γ : Con} (σ : ty) (inc : Γ ⊆ Δ) {T U : Γ ⊨^βιξη σ} →
+           EQREL Γ σ T U → EQREL Δ σ (wk^βιξη σ inc T) (wk^βιξη σ inc U)
+wk^EQREL `Unit     inc eq = tt
+wk^EQREL `Bool     inc eq = cong (wk^nf inc) eq
+wk^EQREL (σ `→ τ)  inc eq = λ inc′ eqVW → eq (trans inc inc′) eqVW
+
+symEQREL : {Γ : Con} (σ : ty) {S T : Γ ⊨^βιξη σ} →
+           EQREL Γ σ S T → EQREL Γ σ T S
+symEQREL `Unit     eq = tt
+symEQREL `Bool     eq = PEq.sym eq
+symEQREL (σ `→ τ)  eq = λ inc eqVW → symEQREL τ (eq inc (symEQREL σ eqVW))
 
 mutual
 
-  erase-⊢^ne : {Γ : Con} {σ : ty} (t : Γ ⊢^ne σ) → Γ ⊢ σ
-  erase-⊢^ne (`var v)      = `var v
-  erase-⊢^ne (t `$ u)      = erase-⊢^ne t `$ erase-⊢^nf u
-  erase-⊢^ne (`ifte b l r) = `ifte (erase-⊢^ne b) (erase-⊢^nf l) (erase-⊢^nf r)
+  transEQREL : {Γ : Con} (σ : ty) {S T U : Γ ⊨^βιξη σ} →
+               EQREL Γ σ S T → EQREL Γ σ T U → EQREL Γ σ S U
+  transEQREL `Unit     eq₁ eq₂ = tt
+  transEQREL `Bool     eq₁ eq₂ = PEq.trans eq₁ eq₂
+  transEQREL (σ `→ τ)  eq₁ eq₂ =
+    λ inc eqVW → transEQREL τ (eq₁ inc (reflEQREL σ eqVW)) (eq₂ inc eqVW)
 
-  erase-⊢^nf : {Γ : Con} {σ : ty} (t : Γ ⊢^nf σ) → Γ ⊢ σ
-  erase-⊢^nf (`embed t) = erase-⊢^ne t
-  erase-⊢^nf `⟨⟩        = `⟨⟩
-  erase-⊢^nf `tt        = `tt
-  erase-⊢^nf `ff        = `ff
-  erase-⊢^nf (`λ t)     = `λ (erase-⊢^nf t)
+  -- We are in PER so reflEQREL is not provable
+  -- but as soon as EQREL σ V W then EQREL σ V V
+  reflEQREL : {Γ : Con} (σ : ty) {S T : Γ ⊨^βιξη σ} →
+              EQREL Γ σ S T → EQREL Γ σ S S
+  reflEQREL σ eq = transEQREL σ eq (symEQREL σ eq)
 
-infix 5 _⊢_∋_⟶⋆_
-data _⊢_∋_⟶⋆_ (Γ : Con) : (σ : ty) (t : Γ ⊢ σ) (u : Γ ⊢^nf σ) → Set where
-  -- already nf
-  nf-`tt : Γ ⊢ `Bool ∋ `tt ⟶⋆ `tt
-  nf-`ff : Γ ⊢ `Bool ∋ `ff ⟶⋆ `ff
-  -- beta reduction
-  beta-`λ : {σ τ : ty} {f : Γ ⊢ σ `→ τ} {t : Γ ⊢ σ} {b : Γ ∙ σ ⊢^nf τ} {v : Γ ⊢^nf σ} {w : Γ ⊢^nf τ} →
-            Γ ⊢ σ `→ τ ∋ f ⟶⋆ `λ b → Γ ⊢ σ ∋ t ⟶⋆ v →
-            Γ ⊢ τ ∋ erase-⊢^nf b ⟨ erase-⊢^nf v /var‿0⟩ ⟶⋆ w →
-            Γ ⊢ τ ∋ f `$ t ⟶⋆ w
-  beta-`ifte₁ : {σ : ty} {b : Γ ⊢ `Bool} {l r : Γ ⊢ σ} {u : Γ ⊢^nf σ} →
-                Γ ⊢ `Bool ∋ b ⟶⋆ `tt → Γ ⊢ σ ∋ l ⟶⋆ u → Γ ⊢ σ ∋ `ifte b l r ⟶⋆ u
-  beta-`ifte₂ : {σ : ty} {b : Γ ⊢ `Bool} {l r : Γ ⊢ σ} {u : Γ ⊢^nf σ} →
-                Γ ⊢ `Bool ∋ b ⟶⋆ `ff → Γ ⊢ σ ∋ r ⟶⋆ u → Γ ⊢ σ ∋ `ifte b l r ⟶⋆ u
-  -- eta expansion
-  eta-`⟨⟩ : {t : Γ ⊢ `Unit} → Γ ⊢ `Unit ∋ t ⟶⋆ `⟨⟩
-  eta-`λ  : {σ τ : ty} {t : Γ ⊢ σ `→ τ} {b : Γ ∙ σ ⊢^nf τ} → Γ ∙ σ ⊢ τ ∋ wk^⊢ (step refl) t `$ var‿0 ⟶⋆ b →
-            Γ ⊢ σ `→ τ ∋ t ⟶⋆ `λ b
--- congruence
-  cong-`λ : {σ τ : ty} {t : Γ ∙ σ ⊢ τ} {u : Γ ∙ σ ⊢^nf τ}
-            (r : Γ ∙ σ ⊢ τ ∋ t ⟶⋆ u) → Γ ⊢ σ `→ τ ∋ `λ t ⟶⋆ `λ u
+mutual
 
-reifyReflect : {Γ : Con} (σ : ty) (t : Γ ⊢^ne σ) → Γ ⊢ σ ∋ erase-⊢^ne t ⟶⋆ reify^βξη σ (reflect^βξη σ t)
-reifyReflect `Unit    t = eta-`⟨⟩
-reifyReflect `Bool    t = {!!}
-reifyReflect (σ `→ τ) t = eta-`λ {!!}
+  reify^EQREL : {Γ : Con} (σ : ty) {T U : Γ ⊨^βιξη σ} (EQTU : EQREL Γ σ T U) → reify^βιξη σ T ≡ reify^βιξη σ U
+  reify^EQREL `Unit     EQTU = trivial
+  reify^EQREL `Bool     EQTU = EQTU
+  reify^EQREL (σ `→ τ)  EQTU = cong `λ $ reify^EQREL τ $ EQTU (step refl) $ reflect^EQREL σ trivial
 
-SubstitutionNormalize^βξη : Properties Substitution Normalize^βξη zero zero
-SubstitutionNormalize^βξη =
+  reflect^EQREL : {Γ : Con} (σ : ty) {t u : Γ ⊢^ne σ} (eq : t ≡ u) → EQREL Γ σ (reflect^βιξη σ t) (reflect^βιξη σ u)
+  reflect^EQREL `Unit     eq = tt
+  reflect^EQREL `Bool     eq = cong `embed eq
+  reflect^EQREL (σ `→ τ)  eq = λ inc rel → reflect^EQREL τ $ cong₂ _`$_ (cong (wk^ne inc) eq) (reify^EQREL σ rel)
+
+ifteRelNorm :
+      {Γ Δ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ)
+      (ρA ρB : Δ [ _⊨^βιξη_ ] Γ) →
+      ((σ₁ : ty) (pr : σ₁ ∈ Γ) → EQREL Δ σ₁ (ρA σ₁ pr) (ρB σ₁ pr)) →
+      Normalise^βιξη ⊨⟦ b ⟧ ρA ≡ Normalise^βιξη ⊨⟦ b ⟧ ρB →
+      EQREL Δ σ (Normalise^βιξη ⊨⟦ l ⟧ ρA) (Normalise^βιξη ⊨⟦ l ⟧ ρB) →
+      EQREL Δ σ (Normalise^βιξη ⊨⟦ r ⟧ ρA) (Normalise^βιξη ⊨⟦ r ⟧ ρB) →
+      EQREL Δ σ (Normalise^βιξη ⊨⟦ `ifte b l r ⟧ ρA)
+      (Normalise^βιξη ⊨⟦ `ifte b l r ⟧ ρB)
+ifteRelNorm b l r ρA ρB ρR eqb eql eqr
+  with Normalise^βιξη ⊨⟦ b ⟧ ρA
+     | Normalise^βιξη ⊨⟦ b ⟧ ρB
+ifteRelNorm b l r ρA ρB ρR trivial eql eqr | `embed t | `embed .t =
+  reflect^EQREL _ (cong₂ (uncurry `ifte) (cong₂ _,_ trivial (reify^EQREL _ eql)) (reify^EQREL _ eqr))
+ifteRelNorm b l r ρA ρB ρR () eql eqr | `embed t | `tt
+ifteRelNorm b l r ρA ρB ρR () eql eqr | `embed t | `ff
+ifteRelNorm b l r ρA ρB ρR () eql eqr | `tt | `embed t
+ifteRelNorm b l r ρA ρB ρR trivial eql eqr | `tt | `tt = eql
+ifteRelNorm b l r ρA ρB ρR () eql eqr | `tt | `ff
+ifteRelNorm b l r ρA ρB ρR () eql eqr | `ff | `embed t
+ifteRelNorm b l r ρA ρB ρR () eql eqr | `ff | `tt
+ifteRelNorm b l r ρA ρB ρR trivial eql eqr | `ff | `ff = eqr
+
+RelatableNormalise :
+  Relatable Normalise^βιξη Normalise^βιξη
+            (EQREL _ _) (λ ρA ρB → (σ : ty) (pr : σ ∈ _) → EQREL _ σ (ρA σ pr) (ρB σ pr)) (EQREL _ _)
+RelatableNormalise =
   record
-    { REnv    = λ Γ σ t v → Γ ⊢ σ ∋ t ⟶⋆ reify^βξη σ v
-    ; Rwk     = λ {Γ} {Δ} {σ} {eA} inc r → {!!}
-    ; Rembed  = {!!}
-    ; RMod    = λ Γ σ t v → Γ ⊢ σ ∋ t ⟶⋆ reify^βξη σ v
-    ; R⟦var⟧  = id
-    ; _R⟦$⟧_  = λ rf rt → beta-`λ rf rt {!!}
-    ; R⟦λ⟧    = λ t → cong-`λ (t (step refl) {!!})
-    ; R⟦⟨⟩⟧   = eta-`⟨⟩
-    ; R⟦tt⟧   = nf-`tt
-    ; R⟦ff⟧   = nf-`ff
-    ; R⟦ifte⟧ =
-        λ {Γ} {bA} {bB} rb {σ} rl rr →
-        (case bB return (λ b → Γ ⊢ `Bool ∋ _ ⟶⋆ b → Γ ⊢ σ ∋ `ifte bA _ _ ⟶⋆ reify^βξη σ (ifte^βξη b _ _)) of λ
-          { `tt         r → beta-`ifte₁ r rl
-          ; `ff         r → beta-`ifte₂ r rr
-          ; (`embed ne) r → {!!} }) rb
+    { RelEnv∙  = λ ρR uR → [ uR , ρR ]
+    ; RelEnvWk = λ inc ρR σ pr → wk^EQREL σ inc (ρR σ pr)
+    ; R⟦var⟧   = λ v ρR → ρR _ v
+    ; R⟦$⟧     = λ _ _ _ _ _ f → f refl
+    ; R⟦λ⟧     = λ _ _ _ _ r → r
+    ; R⟦⟨⟩⟧    = λ _ _ _ → tt
+    ; R⟦tt⟧    = λ _ _ _ → trivial
+    ; R⟦ff⟧    = λ _ _ _ → trivial
+    ; R⟦ifte⟧  = ifteRelNorm
     }
-
-substNorm : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ _⊢_ ] Γ} {ρB : Δ [ _⊨^βξη_ ] Γ}
-            (ρR : ρA R[ (λ Γ σ t v → Γ ⊢ σ ∋ t ⟶⋆ reify^βξη σ v) ] ρB) →
-            Δ ⊢ σ ∋ Substitution ⊨⟦ t ⟧ ρA ⟶⋆ reify^βξη σ (Normalize^βξη ⊨⟦ t ⟧ ρB)
-substNorm = lemma Substitution Normalize^βξη SubstitutionNormalize^βξη 
 
 \end{code}
