@@ -176,8 +176,106 @@ module SubstitutionSubstitutionFusion =
                                        (cong (syntactic syntacticRenaming ⊨⟦_⟧ inc) eq))
                   (λ _ → trivial)
 
-{-
+EQREL : (Γ : Con) (σ : ty) (T U : Γ ⊨^βιξη σ) → Set
+EQREL Γ `Unit     T U = ⊤
+EQREL Γ `Bool     T U = T ≡ U
+EQREL Γ (σ `→ τ)  T U = {Δ : Con} (inc : Γ ⊆ Δ) {V W : Δ ⊨^βιξη σ} (EQVW : EQREL Δ σ V W) →
+                        EQREL Δ τ (T inc V) (U inc W)
 
+wk^EQREL : {Δ Γ : Con} (σ : ty) (inc : Γ ⊆ Δ) {T U : Γ ⊨^βιξη σ} →
+           EQREL Γ σ T U → EQREL Δ σ (wk^βιξη σ inc T) (wk^βιξη σ inc U)
+wk^EQREL `Unit     inc eq = tt
+wk^EQREL `Bool     inc eq = cong (wk^nf inc) eq
+wk^EQREL (σ `→ τ)  inc eq = λ inc′ eqVW → eq (trans inc inc′) eqVW
+
+symEQREL : {Γ : Con} (σ : ty) {S T : Γ ⊨^βιξη σ} →
+           EQREL Γ σ S T → EQREL Γ σ T S
+symEQREL `Unit     eq = tt
+symEQREL `Bool     eq = PEq.sym eq
+symEQREL (σ `→ τ)  eq = λ inc eqVW → symEQREL τ (eq inc (symEQREL σ eqVW))
+
+transEQREL : {Γ : Con} (σ : ty) {S T U : Γ ⊨^βιξη σ} →
+             EQREL Γ σ S T → EQREL Γ σ T U → EQREL Γ σ S U
+transEQREL `Unit     eq₁ eq₂ = tt
+transEQREL `Bool     eq₁ eq₂ = PEq.trans eq₁ eq₂
+transEQREL (σ `→ τ)  eq₁ eq₂ =
+  -- We are in PER so reflEQREL is not provable
+  -- but as soon as EQREL σ V W then EQREL σ V V
+  λ inc eqVW → transEQREL τ (eq₁ inc eqVW) (eq₂ inc (transEQREL σ (symEQREL σ eqVW) eqVW))
+
+
+mutual
+
+  reify^EQREL : {Γ : Con} (σ : ty) {T U : Γ ⊨^βιξη σ} (EQTU : EQREL Γ σ T U) → reify^βιξη σ T ≡ reify^βιξη σ U
+  reify^EQREL `Unit     EQTU = trivial
+  reify^EQREL `Bool     EQTU = EQTU
+  reify^EQREL (σ `→ τ)  EQTU = cong `λ $ reify^EQREL τ $ EQTU (step refl) $ reflect^EQREL σ trivial
+
+  reflect^EQREL : {Γ : Con} (σ : ty) {t u : Γ ⊢^ne σ} (eq : t ≡ u) → EQREL Γ σ (reflect^βιξη σ t) (reflect^βιξη σ u)
+  reflect^EQREL `Unit     eq = tt
+  reflect^EQREL `Bool     eq = cong `embed eq
+  reflect^EQREL (σ `→ τ)  eq = λ inc rel → reflect^EQREL τ $ cong₂ _`$_ (cong (wk^ne inc) eq) (reify^EQREL σ rel)
+
+
+ifteRenNorm : {Γ Δ Θ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ)
+      (ρA : Δ [ flip _∈_ ] Γ) (ρB : Θ [ _⊨^βιξη_ ] Δ)
+      (ρC : Θ [ _⊨^βιξη_ ] Γ) →
+      ((σ₁ : ty) (pr : σ₁ ∈ Γ) →
+       EQREL Θ σ₁ (ρB σ₁ (ρA σ₁ pr)) (ρC σ₁ pr)) →
+      Normalise^βιξη ⊨⟦ id (Renaming ⊨⟦ b ⟧ ρA) ⟧ ρB ≡
+      Normalise^βιξη ⊨⟦ b ⟧ ρC →
+      EQREL Θ σ (Normalise^βιξη ⊨⟦ id (Renaming ⊨⟦ l ⟧ ρA) ⟧ ρB)
+      (Normalise^βιξη ⊨⟦ l ⟧ ρC) →
+      EQREL Θ σ (Normalise^βιξη ⊨⟦ id (Renaming ⊨⟦ r ⟧ ρA) ⟧ ρB)
+      (Normalise^βιξη ⊨⟦ r ⟧ ρC) →
+      EQREL Θ σ
+      (Normalise^βιξη ⊨⟦ id (Renaming ⊨⟦ `ifte b l r ⟧ ρA) ⟧ ρB)
+      (Normalise^βιξη ⊨⟦ `ifte b l r ⟧ ρC)
+ifteRenNorm b l r ρA ρB ρC ρR eqb eql eqr
+  with Normalise^βιξη ⊨⟦ id (Renaming ⊨⟦ b ⟧ ρA) ⟧ ρB | Normalise^βιξη ⊨⟦ b  ⟧ ρC
+ifteRenNorm b l r ρA ρB ρC ρR trivial eql eqr | `embed t | `embed .t =
+  reflect^EQREL _ (cong₂ (uncurry `ifte) (cong₂ _,_ trivial (reify^EQREL _ eql)) (reify^EQREL _ eqr))
+ifteRenNorm b l r ρA ρB ρC ρR eqb eql eqr | `tt | `tt = eql
+ifteRenNorm b l r ρA ρB ρC ρR eqb eql eqr | `ff | `ff = eqr
+ifteRenNorm b l r ρA ρB ρC ρR () eql eqr | `embed t | `tt
+ifteRenNorm b l r ρA ρB ρC ρR () eql eqr | `embed t | `ff
+ifteRenNorm b l r ρA ρB ρC ρR () eql eqr | `tt | `ff
+ifteRenNorm b l r ρA ρB ρC ρR () eql eqr | `tt | `embed t
+ifteRenNorm b l r ρA ρB ρC ρR () eql eqr | `ff | `embed t
+ifteRenNorm b l r ρA ρB ρC ρR () eql eqr | `ff | `tt
+
+module RenamingNormaliseFusion =
+  Fusion Renaming Normalise^βιξη Normalise^βιξη
+         (λ eA ρB eC → EQREL _ _ (ρB _ eA) eC)
+         (EQREL _ _)
+         id
+         (λ eA ρB eC uB eq → eq)
+         (λ _ _ _ inc eq → wk^EQREL _ inc eq)
+         (λ v ρA ρB ρC ρR → ρR _ v)
+         (λ f t ρA ρB ρC ρR eq → eq refl)
+         (λ t ρA ρB ρC ρR eq inc → eq inc _ _)
+         (λ {Γ} {Δ} {Θ} ρA ρB ρC ρR → tt)
+         (λ _ _ _ _ → trivial)
+         (λ _ _ _ _ → trivial)
+         ifteRenNorm
+
+module SubstitutionNormaliseFusion =
+  Fusion Substitution Normalise^βιξη Normalise^βιξη
+         (λ eA ρB eC → EQREL _ _ (Normalise^βιξη ⊨⟦ eA ⟧ ρB) eC)
+         (EQREL _ _)
+         id
+         (λ eA ρB eC uB eq → {!!})
+         (λ eA ρB eC inc eq → {!!})
+         (λ {Γ} {Δ} {Θ} {σ} v ρA ρB ρC ρR → ρR σ v)
+         (λ {Γ} {Δ} {Θ} {σ} {τ} f t ρA ρB ρC ρR z → z (λ σ₁ v → v))
+         (λ {Γ} {Δ} {Θ} {σ} {τ} t ρA ρB ρC ρR r {Δ₁} inc {V} {W} →
+              r inc V W)
+         (λ {Γ} {Δ} {Θ} ρA ρB ρC ρR → tt)
+         (λ _ _ _ _ → trivial)
+         (λ _ _ _ _ → trivial)
+         (λ b l r ρA ρB ρC ρR eqb eql eqr → {!!})
+
+{-
 mutual
 
   erase-⊢^ne : {Γ : Con} {σ : ty} (t : Γ ⊢^ne σ) → Γ ⊢ σ
@@ -198,18 +296,6 @@ EQREL Γ `Unit     T U = ⊤
 EQREL Γ `Bool     T U = T ≡ U
 EQREL Γ (σ `→ τ)  T U = {Δ : Con} (inc : Γ ⊆ Δ) {V W : Δ ⊨^βιξη σ} (EQVW : EQREL Δ σ V W) →
                         EQREL Δ τ (T inc V) (U inc W)
-
-mutual
-
-  reify^EQREL : {Γ : Con} (σ : ty) {T U : Γ ⊨^βιξη σ} (EQTU : EQREL Γ σ T U) → reify^βιξη σ T ≡ reify^βιξη σ U
-  reify^EQREL `Unit     EQTU = trivial
-  reify^EQREL `Bool     EQTU = EQTU
-  reify^EQREL (σ `→ τ)  EQTU = cong `λ $ reify^EQREL τ $ EQTU (step refl) $ reflect^EQREL σ trivial
-
-  reflect^EQREL : {Γ : Con} (σ : ty) {t u : Γ ⊢^ne σ} (eq : t ≡ u) → EQREL Γ σ (reflect^βιξη σ t) (reflect^βιξη σ u)
-  reflect^EQREL `Unit     eq = tt
-  reflect^EQREL `Bool     eq = cong `embed eq
-  reflect^EQREL (σ `→ τ)  eq = λ inc rel → reflect^EQREL τ $ cong₂ _`$_ (cong (wk^ne inc) eq) (reify^EQREL σ rel)
 
 
 -- we should be able to get this from instantiating another
