@@ -7,6 +7,10 @@ s/‿\([^\}]*\)/\_\\AgdaFontStyle\{\\scriptscriptstyle \1\}/g
 
 s/₀/\_\{\\scriptscriptstyle\{\}0\}/g
 
+# Operators
+s/>>=/\\mathbin\{>\\!\\!>\\mkern-6.7mu=\}/g
+s/++/+\\!+/g
+
 # Latex
 s/^\\begin{code}/\\begin\{code\}\n\\\\/g
 s/^\\end{code}/\\\\\\end\{code\}\n/g
