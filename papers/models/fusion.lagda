@@ -306,13 +306,13 @@ ifteSubstNorm b l r ρA ρB ρC ρR trivial eql eqr | `ff | `ff = eqr
 wk-refl : {Γ : Con} (σ : ty) {T U : Γ ⊨^βιξη σ} →
           EQREL Γ σ T U → EQREL Γ σ (wk^βιξη σ refl T) U
 wk-refl `Unit     eq = tt
-wk-refl `Bool     eq = {!!}
+wk-refl `Bool     eq = PEq.trans (wk^nf-refl _) eq
 wk-refl (σ `→ τ)  eq = eq
 
 wk^2 : {Θ Δ Γ : Con} (σ : ty) (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ Θ) {T U : Γ ⊨^βιξη σ} →
        EQREL Γ σ T U → EQREL Θ σ (wk^βιξη σ inc₂ $ wk^βιξη σ inc₁ T) (wk^βιξη σ (trans inc₁ inc₂) U)
 wk^2 `Unit     inc₁ inc₂ eq = tt
-wk^2 `Bool     inc₁ inc₂ eq = {!!}
+wk^2 `Bool     inc₁ inc₂ eq = PEq.trans (wk^nf-trans inc₁ inc₂ _) (PEq.cong (wk^nf (trans inc₁ inc₂)) eq)
 wk^2 (σ `→ τ)  inc₁ inc₂ eq = λ inc₃ → eq (trans inc₁ $ trans inc₂ inc₃)
  
 

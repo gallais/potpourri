@@ -91,12 +91,6 @@ open import Relation.Binary.PropositionalEquality
             hiding ([_] ; trans)
             renaming (refl to trivial)
 
-[_,_] : {Γ : Con} {τ : ty} {P : (σ : ty) (pr : σ ∈ Γ ∙ τ) → Set} →
-        (p0 : P τ here!) →
-        (pS : (σ : ty) (pr : σ ∈ Γ) → P σ (there pr)) →
-        (σ : ty) (pr : σ ∈ Γ ∙ τ) → P σ pr
-[ p0 , pS ] σ here!       = p0
-[ p0 , pS ] σ (there pr)  = pS σ pr
 
 RelatableRenamingSubstitution :
   Relatable Renaming Substitution

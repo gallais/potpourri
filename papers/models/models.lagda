@@ -78,7 +78,7 @@ open import Level
 open import Data.Empty
 open import Data.Unit
 open import Data.Bool
-open import Data.Sum hiding (map)
+open import Data.Sum hiding (map ; [_,_])
 open import Data.Product hiding (map)
 open import Function
 
@@ -690,6 +690,62 @@ wk^nf inc `⟨⟩         = `⟨⟩
 wk^nf inc `tt         = `tt
 wk^nf inc `ff         = `ff
 wk^nf inc (`λ nf)     = `λ $′ wk^nf (pop! inc) nf
+
+infix 5 [_,_]
+[_,_] : {Γ : Con} {τ : ty} {P : (σ : ty) (pr : σ ∈ Γ ∙ τ) → Set} →
+        (p0 : P τ here!) →
+        (pS : (σ : ty) (pr : σ ∈ Γ) → P σ (there pr)) →
+        (σ : ty) (pr : σ ∈ Γ ∙ τ) → P σ pr
+[ p0 , pS ] σ here!       = p0
+[ p0 , pS ] σ (there pr)  = pS σ pr
+
+mutual
+
+  wk^nf-refl′ : {Γ : Con} {σ : ty} {f : Γ ⊆ Γ} (prf : (σ : ty) (pr : σ ∈ Γ) → f σ pr ≡ pr) →
+                (t : Γ ⊢^nf σ) → wk^nf f t ≡ t
+  wk^nf-refl′ prf (`embed t)  = PEq.cong `embed $ wk^ne-refl′ prf t
+  wk^nf-refl′ prf `⟨⟩         = PEq.refl
+  wk^nf-refl′ prf `tt         = PEq.refl
+  wk^nf-refl′ prf `ff         = PEq.refl
+  wk^nf-refl′ prf (`λ t)      = PEq.cong `λ $ wk^nf-refl′ ([ PEq.refl , (λ σ → PEq.cong there ∘ prf σ) ]) t
+
+  wk^ne-refl′ : {Γ : Con} {σ : ty} {f : Γ ⊆ Γ} (prf : (σ : ty) (pr : σ ∈ Γ) → f σ pr ≡ pr) →
+                (t : Γ ⊢^ne σ) → wk^ne f t ≡ t
+  wk^ne-refl′ prf (`var v)       = PEq.cong `var $ prf _ v
+  wk^ne-refl′ prf (t `$ u)       = PEq.cong₂ _`$_ (wk^ne-refl′ prf t) (wk^nf-refl′ prf u)
+  wk^ne-refl′ prf (`ifte b l r)  = PEq.cong₂ (uncurry `ifte) (PEq.cong₂ _,_ (wk^ne-refl′ prf b) (wk^nf-refl′ prf l)) (wk^nf-refl′ prf r)
+
+mutual
+
+  wk^nf-trans′ : {Θ Δ Γ : Con} {σ : ty} {inc₁ : Γ ⊆ Δ} {inc₂ : Δ ⊆ Θ}
+                 {f : Γ ⊆ Θ} (prf : (σ : ty) (pr : σ ∈ Γ) → trans inc₁ inc₂ σ pr ≡ f σ pr)
+                 (t : Γ ⊢^nf σ) →  wk^nf inc₂ (wk^nf inc₁ t) ≡ wk^nf f t
+  wk^nf-trans′ prf (`embed t)  = PEq.cong `embed (wk^ne-trans′ prf t)
+  wk^nf-trans′ prf `⟨⟩         = PEq.refl
+  wk^nf-trans′ prf `tt         = PEq.refl
+  wk^nf-trans′ prf `ff         = PEq.refl
+  wk^nf-trans′ prf (`λ t)      = PEq.cong `λ $ wk^nf-trans′ ([ PEq.refl , (λ σ → PEq.cong there ∘ prf σ) ]) t
+  
+  wk^ne-trans′ : {Θ Δ Γ : Con} {σ : ty} {inc₁ : Γ ⊆ Δ} {inc₂ : Δ ⊆ Θ}
+                 {f : Γ ⊆ Θ} (prf : (σ : ty) (pr : σ ∈ Γ) → trans inc₁ inc₂ σ pr ≡ f σ pr)
+                 (t : Γ ⊢^ne σ) →  wk^ne inc₂ (wk^ne inc₁ t) ≡ wk^ne f t
+  wk^ne-trans′ prf (`var v)       = PEq.cong `var (prf _ v)
+  wk^ne-trans′ prf (t `$ u)       = PEq.cong₂ _`$_ (wk^ne-trans′ prf t) (wk^nf-trans′ prf u)
+  wk^ne-trans′ prf (`ifte b l r)  = PEq.cong₂ (uncurry `ifte) (PEq.cong₂ _,_ (wk^ne-trans′ prf b) (wk^nf-trans′ prf l)) (wk^nf-trans′ prf r)
+
+wk^nf-refl : {Γ : Con} {σ : ty} (t : Γ ⊢^nf σ) → wk^nf refl t ≡ t
+wk^nf-refl = wk^nf-refl′ (λ _ _ → PEq.refl)
+
+wk^ne-refl : {Γ : Con} {σ : ty} (t : Γ ⊢^ne σ) → wk^ne refl t ≡ t
+wk^ne-refl = wk^ne-refl′ (λ _ _ → PEq.refl)
+
+wk^nf-trans : {Θ Δ Γ : Con} {σ : ty} (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ Θ)
+               (t : Γ ⊢^nf σ) →  wk^nf inc₂ (wk^nf inc₁ t) ≡ wk^nf (trans inc₁ inc₂) t
+wk^nf-trans inc₁ inc₂ = wk^nf-trans′ (λ _ _ → PEq.refl)
+
+wk^ne-trans : {Θ Δ Γ : Con} {σ : ty} (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ Θ)
+               (t : Γ ⊢^ne σ) →  wk^ne inc₂ (wk^ne inc₁ t) ≡ wk^ne (trans inc₁ inc₂) t
+wk^ne-trans inc₁ inc₂ = wk^ne-trans′ (λ _ _ → PEq.refl)
 \end{code}}
 
 We now come to the definition of the model. It is such that we know that η-expansion
@@ -710,7 +766,7 @@ _⊨^βιξη_ : (Γ : Con) (σ : ty) → Set
 wk^βιξη : {Δ Γ : Con} (σ : ty) (inc : Γ ⊆ Δ) (T : Γ ⊨^βιξη σ) → Δ ⊨^βιξη σ
 wk^βιξη `Unit     inc T = T
 wk^βιξη `Bool     inc T = wk^nf inc T
-wk^βιξη (σ `→ τ)  inc T = λ inc′ → T $′ trans inc inc′
+wk^βιξη (σ `→ τ)  inc T = λ inc′ → T $′ trans inc inc′ 
 \end{code}
 
 The Kripke structure of the model makes it very simple to implement the
