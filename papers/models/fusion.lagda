@@ -8,7 +8,7 @@ open import Data.Product
 open import Function
 open import models
 open import Relation.Binary.On
-open import Relation.Binary.PropositionalEquality renaming (refl to trivial) using (_≡_ ; cong ; cong₂)
+open import Relation.Binary.PropositionalEquality as PEq renaming (refl to trivial) using (_≡_ ; cong ; cong₂)
 
 module Fusion
   {ℓ^EA ℓ^MA ℓ^EB ℓ^MB ℓ^EC ℓ^MC ℓ^RE ℓ^RM : Level}
@@ -95,7 +95,7 @@ module Fusion
   fusion (`var v)      ρA ρB ρC ρR = R⟦var⟧ v ρA ρB ρC ρR
   fusion (f `$ t)      ρA ρB ρC ρR = R⟦$⟧ f t ρA ρB ρC ρR (fusion f ρA ρB ρC ρR) (fusion t ρA ρB ρC ρR)
   fusion (`λ t)        ρA ρB ρC ρR = R⟦λ⟧ t ρA ρB ρC ρR $ λ inc uB uC uR →
-                                     fusion t _ _ ([ EnvC ] _ `∙ uC) (extend {!!} uR)
+                                     fusion t _ _ ([ EnvC ] _ `∙ uC) (extend (λ σ pr → Rwk2 (ρA σ pr) ρB (ρC σ pr) inc (ρR σ pr)) uR)
   fusion `⟨⟩           ρA ρB ρC ρR = R⟦⟨⟩⟧ ρA ρB ρC ρR
   fusion `tt           ρA ρB ρC ρR = R⟦tt⟧ ρA ρB ρC ρR
   fusion `ff           ρA ρB ρC ρR = R⟦ff⟧ ρA ρB ρC ρR
@@ -122,6 +122,10 @@ module SyntacticFusion
                  module SemC = Semantics (syntactic synC)
              in syntactic synB ⊨⟦ Semantics.⟦var⟧ (syntactic synA) eA ⟧ (wk[ SemB.wk ] inc ρB)
               ≡ SemC.⟦var⟧ (SemC.wk inc eC))
+  (⟦varembed⟧ : {Δ Γ : Con} {σ : ty} (ρB : Δ ∙ σ [ EnvB ] Γ) →
+              syntactic synB ⊨⟦ Syntactic.⟦var⟧ synA (Syntactic.embed synA σ here!) ⟧
+                        ([ EnvB ] ρB `∙ Syntactic.embed synB σ here!)
+              ≡ Syntactic.⟦var⟧ synC (Syntactic.embed synC σ here!))
   where
 
   module Instance = Fusion (syntactic synA) (syntactic synB) (syntactic synC)
@@ -130,9 +134,10 @@ module SyntacticFusion
                            _≡_ id Rwk Rwk2 (λ v _ _ _ r → r _ v) (λ _ _ _ _ _ _ → cong₂ _`$_)
                            (λ t _ _ _ ρR r → cong `λ (r (step refl) (Semantics.embed (syntactic synB) _ here!)
                                                     (Semantics.embed (syntactic synC) _ here!)
-                                                    {!!}))
+                                                    (⟦varembed⟧ _)))
                            (λ _ _ _ _ → trivial) (λ _ _ _ _ → trivial) (λ _ _ _ _ → trivial)
                            (λ _ _ _ _ _ _ _ eqb eql → cong₂ (uncurry `ifte) $ cong₂ _,_ eqb eql)
+  open Instance public
 
 syntacticRenaming : Syntactic (flip _∈_)
 syntacticRenaming = record { wk = wk^∈ ; embed = λ _ → id ; ⟦var⟧ = `var }
@@ -140,20 +145,38 @@ syntacticRenaming = record { wk = wk^∈ ; embed = λ _ → id ; ⟦var⟧ = `va
 syntacticSubstitution : Syntactic _⊢_
 syntacticSubstitution = record { wk = wk^⊢ ; embed = λ _ → `var ; ⟦var⟧ = id }
 
+`var-inj : {Γ : Con} {σ : ty} {pr₁ pr₂ : σ ∈ Γ} (eq : (Γ ⊢ σ ∋ `var pr₁) ≡ `var pr₂) → pr₁ ≡ pr₂
+`var-inj trivial = trivial
+
 module RenamingFusion =
   SyntacticFusion syntacticRenaming syntacticRenaming syntacticRenaming
-                  (λ _ _ _ _ → id) {!!}
+                  (λ _ _ _ _ → id)
+                  (λ eA ρB eC inc eq → cong (`var ∘ (inc _)) (`var-inj eq))
+                  (λ _ → trivial)
 
-{-
 module RenamingSubstitutionFusion =
   SyntacticFusion syntacticRenaming syntacticSubstitution syntacticSubstitution
-                  (λ ρB ρA σ pr → ρB σ $ ρA σ pr) (λ _ _ _ → trivial)
+                  (λ _ _ _ _ → id)
+                  (λ eA ρB eC inc eq → cong (syntactic syntacticRenaming ⊨⟦_⟧ inc) eq)
+                  (λ _ → trivial)
+
 module SubstitutionRenamingFusion =
   SyntacticFusion syntacticSubstitution syntacticRenaming syntacticSubstitution
-                  (λ ρB ρA σ pr → wk^⊢ ρB $ ρA σ pr) (λ _ _ _ → trivial)
-module SubstitutionFusion =
+                  (λ eA ρB eC uB eq → PEq.trans (RenamingFusion.fusion eA (step refl) ([ flip _∈_ ] ρB `∙ uB)
+                                      ρB (λ _ _ → trivial)) eq)
+                  (λ eA ρB eC inc eq → PEq.trans (PEq.sym (RenamingFusion.fusion eA ρB inc (λ σ pr → inc σ (ρB σ pr)) (λ _ _ → trivial))) (cong (syntactic syntacticRenaming ⊨⟦_⟧ inc) eq))
+                  (λ _ → trivial)
+
+module SubstitutionSubstitutionFusion =
   SyntacticFusion syntacticSubstitution syntacticSubstitution syntacticSubstitution
-                  (λ ρB ρA σ pr → Substitution ⊨⟦ ρA σ pr ⟧ ρB) (λ _ _ _ → trivial)
+                  (λ eA ρB eC uB eq → PEq.trans (RenamingSubstitutionFusion.fusion eA (step refl)
+                                                ([ _⊢_ ] ρB `∙ uB) ρB (λ _ _ → trivial)) eq)
+                  (λ eA ρB eC inc eq → PEq.trans
+                                       (PEq.sym (SubstitutionRenamingFusion.fusion eA ρB inc _ (λ _ _ → trivial)))
+                                       (cong (syntactic syntacticRenaming ⊨⟦_⟧ inc) eq))
+                  (λ _ → trivial)
+
+{-
 
 mutual
 
