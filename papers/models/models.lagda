@@ -1,8 +1,8 @@
-%%%%% Pick one of the two
+%%%%% Pick one of the three
 %\include{articleheader}
-\include{sigplanheader}
+%\include{sigplanheader}
+\include{lncsheader}
 %%%%
-\usepackage{todonotes}
 \usepackage{mathpartir}
 \include{commands}
 
@@ -126,7 +126,7 @@ data _∈_ (σ : ty) : (Γ : Con) → Set where
   there  : {Γ : Con} {τ : ty} (pr : σ ∈ Γ) → σ ∈ Γ ∙ τ
 
 infix 5 _⊢_
-infixl 5 _`$_ 
+infixl 5 _`$_
 data _⊢_ (Γ : Con) : (σ : ty) → Set where
   `var   : {σ : ty} (v : σ ∈ Γ) → Γ ⊢ σ
   _`$_   : {σ τ : ty} (t : Γ ⊢ σ `→ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
@@ -350,7 +350,7 @@ all constructs are kept as their own semantic counterpart.
 
 As observed by McBride, it is enough to provide three operations describing
 the properties of the values in the environment to get a full-blown
-\AR{Semantics}. This fact is witnessed by the \AF{syntactic} function. 
+\AR{Semantics}. This fact is witnessed by the \AF{syntactic} function.
 
 \begin{code}
 record Syntactic {ℓ : Level} (Env : (Γ : Con) (σ : ty) → Set ℓ) : Set ℓ where
@@ -423,7 +423,7 @@ substitution.
 syntacticSubstitution : Syntactic _⊢_
 syntacticSubstitution =
   record  { embed   = λ _ → `var
-          ; wk      = wk^⊢ 
+          ; wk      = wk^⊢
           ; ⟦var⟧   = id
           }
 
@@ -544,7 +544,7 @@ names : Stream String
 names = flatten $ zipWith cons letters $ "" ∷ ♯ Stream.map show (allNatsFrom 0)
   where
     cons : (Char × List Char) → String → (String × List String)
-    cons (c , cs) suffix = appendSuffix c , map appendSuffix cs where      
+    cons (c , cs) suffix = appendSuffix c , map appendSuffix cs where
       appendSuffix : Char → String
       appendSuffix c  = fromList (c ∷ []) ++ suffix
 
@@ -735,7 +735,7 @@ mutual
   wk^nf-trans′ prf `tt         = PEq.refl
   wk^nf-trans′ prf `ff         = PEq.refl
   wk^nf-trans′ prf (`λ t)      = PEq.cong `λ $ wk^nf-trans′ ([ PEq.refl , (λ σ → PEq.cong there ∘ prf σ) ]) t
-  
+
   wk^ne-trans′ : {Θ Δ Γ : Con} {σ : ty} {inc₁ : Γ ⊆ Δ} {inc₂ : Δ ⊆ Θ}
                  {f : Γ ⊆ Θ} (prf : (σ : ty) (pr : σ ∈ Γ) → trans inc₁ inc₂ σ pr ≡ f σ pr)
                  (t : Γ ⊢^ne σ) →  wk^ne inc₂ (wk^ne inc₁ t) ≡ wk^ne f t
@@ -776,7 +776,7 @@ _⊨^βιξη_ : (Γ : Con) (σ : ty) → Set
 wk^βιξη : {Δ Γ : Con} (σ : ty) (inc : Γ ⊆ Δ) (T : Γ ⊨^βιξη σ) → Δ ⊨^βιξη σ
 wk^βιξη `Unit     inc T = T
 wk^βιξη `Bool     inc T = wk^nf inc T
-wk^βιξη (σ `→ τ)  inc T = λ inc′ → T $′ trans inc inc′ 
+wk^βιξη (σ `→ τ)  inc T = λ inc′ → T $′ trans inc inc′
 \end{code}
 
 The Kripke structure of the model makes it very simple to implement the
@@ -1123,7 +1123,7 @@ Normalise^βι =
           ; ⟦ff⟧    = `ff , inj₂ false
           ; ⟦ifte⟧  = ifte^βι
           }
-          
+
 norm^βι : {Γ : Con} (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^whnf σ
 norm^βι σ t = reify^βι σ $′ Normalise^βι ⊨eval t
 \end{code}
@@ -1233,7 +1233,7 @@ about the evaluation of an application-headed term.
 
 \begin{code}
     R⟦$⟧      :  {Γ Δ : Con} {σ τ : ty} (f : Γ ⊢ σ `→ τ) (t : Γ ⊢ σ) {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                 RelMod (semA ⊨⟦ f ⟧ ρA) (semB ⊨⟦ f ⟧ ρB) → 
+                 RelMod (semA ⊨⟦ f ⟧ ρA) (semB ⊨⟦ f ⟧ ρB) →
                  RelMod (semA ⊨⟦ t ⟧ ρA) (semB ⊨⟦ t ⟧ ρB) →
                  RelMod (semA ⊨⟦ f `$ t ⟧ ρA) (semB ⊨⟦ f `$ t ⟧ ρB)
 \end{code}
@@ -1246,7 +1246,7 @@ about the evaluation of an application-headed term.
     R⟦ff⟧     :  {Γ Δ : Con} {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
                  RelMod (semA ⊨⟦ `ff ⟧ ρA) (semB ⊨⟦ `ff ⟧ ρB)
     R⟦ifte⟧   :  {Γ Δ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                 RelMod (semA ⊨⟦ b ⟧ ρA) (semB ⊨⟦ b ⟧ ρB) → 
+                 RelMod (semA ⊨⟦ b ⟧ ρA) (semB ⊨⟦ b ⟧ ρB) →
                  RelMod (semA ⊨⟦ l ⟧ ρA) (semB ⊨⟦ l ⟧ ρB) →
                  RelMod (semA ⊨⟦ r ⟧ ρA) (semB ⊨⟦ r ⟧ ρB) →
                  RelMod (semA ⊨⟦ `ifte b l r ⟧ ρA) (semB ⊨⟦ `ifte b l r ⟧ ρB)
@@ -1579,7 +1579,7 @@ fusion can happen on the compound expression.
             {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} →
              (ρR : RelEnv ρA ρB ρC) →
             RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ f ⟧ ρA) ⟧ ρB)
-                   (semC ⊨⟦ f ⟧ ρC) → 
+                   (semC ⊨⟦ f ⟧ ρC) →
             RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ t ⟧ ρA) ⟧ ρB) (semC ⊨⟦ t ⟧ ρC) →
             RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ f `$ t ⟧ ρA) ⟧ ρB) (semC ⊨⟦ f `$ t ⟧ ρC)
 
@@ -1595,7 +1595,7 @@ fusion can happen on the compound expression.
     R⟦ifte⟧ : {Γ Δ Θ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ)
             {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} →
              (ρR : RelEnv ρA ρB ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ b ⟧ ρA) ⟧ ρB) (semC ⊨⟦ b ⟧ ρC) → 
+            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ b ⟧ ρA) ⟧ ρB) (semC ⊨⟦ b ⟧ ρC) →
             RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ l ⟧ ρA) ⟧ ρB) (semC ⊨⟦ l ⟧ ρC) →
             RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ r ⟧ ρA) ⟧ ρB) (semC ⊨⟦ r ⟧ ρC) →
             RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ `ifte b l r ⟧ ρA) ⟧ ρB) (semC ⊨⟦ `ifte b l r ⟧ ρC)
@@ -1614,7 +1614,7 @@ module Fusion
   {ℓ^EA ℓ^MA ℓ^EB ℓ^MB ℓ^EC ℓ^MC ℓ^RE ℓ^REB ℓ^RM : Level} {EnvA : (Γ : Con) (σ : ty) → Set ℓ^EA} {EnvB : (Γ : Con) (σ : ty) → Set ℓ^EB} {EnvC : (Γ : Con) (σ : ty) → Set ℓ^EC} {ModA : (Γ : Con) (σ : ty) → Set ℓ^MA} {ModB : (Γ : Con) (σ : ty) → Set ℓ^MB} {ModC : (Γ : Con) (σ : ty) → Set ℓ^MC} {semA : Semantics EnvA ModA} {semB : Semantics EnvB ModB} {semC : Semantics EnvC ModC} {RelEnvBC : {Γ : Con} {σ : ty} (eB : EnvB Γ σ) (eC : EnvC Γ σ) → Set ℓ^REB} {RelEnv : {Θ Δ Γ : Con} (ρA : Δ [ EnvA ] Γ) (ρB : Θ [ EnvB ] Δ) (ρC : Θ [ EnvC ] Γ) → Set ℓ^RE} {RelMod : {Γ : Con} {σ : ty} (mB : ModB Γ σ) (mC : ModC Γ σ) → Set ℓ^RM} (fusable : Fusable semA semB semC RelEnvBC RelEnv RelMod)
   where
   open Fusable fusable
-  
+
   fusion :  {Γ Δ Θ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} (ρR : RelEnv ρA ρB ρC) →
             RelMod  (semB ⊨⟦ reifyA (semA ⊨⟦ t ⟧ ρA) ⟧ ρB)
                     (semC ⊨⟦ t ⟧ ρC)
@@ -1690,7 +1690,7 @@ the corresponding \AR{Semantics} where \AB{RelMod} is the propositional
 equality.
 
 \begin{code}
-syntacticFusable : 
+syntacticFusable :
   {ℓ^EA ℓ^EB ℓ^EC ℓ^RE ℓ^REBC : Level} {EnvA : (Γ : Con) (σ : ty) → Set ℓ^EA} {EnvB : (Γ : Con) (σ : ty) → Set ℓ^EB} {EnvC : (Γ : Con) (σ : ty) → Set ℓ^EC} {synA : Syntactic EnvA} {synB : Syntactic EnvB} {synC : Syntactic EnvC} {RelEnvBC : {Γ : Con} {σ : ty} (eB : EnvB Γ σ) (eC : EnvC Γ σ) → Set ℓ^REBC} {RelEnv : {Θ Δ Γ : Con} (ρA : Δ [ EnvA ] Γ) (ρB : Θ [ EnvB ] Δ) (ρC : Θ [ EnvC ] Γ) → Set ℓ^RE} (synF : SyntacticFusable synA synB synC RelEnvBC RelEnv) →
   Fusable  (syntactic synA) (syntactic synB) (syntactic synC)
            RelEnvBC RelEnv _≡_
@@ -1812,7 +1812,7 @@ SubstitutionFusable =
                          PEq.trans (PEq.sym (SubstRen.fusion (ρA σ pr) (λ _ _ → PEq.refl)))
                                    (PEq.cong (Renaming ⊨⟦_⟧ inc) (ρR σ pr))
          ; R⟦var⟧    = λ v ρR → ρR _ v
-         ; embedBC   = PEq.refl } 
+         ; embedBC   = PEq.refl }
 
 ifteRenNorm :
       {Γ Δ Θ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ)
@@ -1957,7 +1957,7 @@ SubstitutionNormaliseFusable =
   record
     { reifyA   = id
     ; RelEnv∙  = λ {_} {_} {_} {_} {ρA} {ρB} {ρC} ρR uR →
-                     [ reflEQREL _ uR , proj₁ ρR ] 
+                     [ reflEQREL _ uR , proj₁ ρR ]
                    , [ (λ {Θ} inc → wk^EQREL _ inc uR)
                      , (λ σ pr {Θ} inc →
                        transEQREL σ (RenNorm.fusion (ρA σ pr)
