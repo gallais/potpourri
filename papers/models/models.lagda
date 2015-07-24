@@ -2020,8 +2020,23 @@ SubstitutionNormaliseFusable =
 \end{code}}
 
 
-\section{Extensions and Future work}
+\section{Conclusion}
 
+We have explained how to make using an inductive family to only
+represent terms which are well-scoped and well-typed by construction
+more tractable by factoring out a common notion of \AR{Semantics}
+encompassing a wide range of type and scope preserving traversals.
+This approach crucially relies on the distinction we make between
+values in the environment and values in the model, the Kripke
+structure associated to binders and the fact that the semantic
+counterpart of these binders are supplied with \emph{environment}
+values.
+
+We then demonstrated that these traversals being defined using a
+common framework becomes a blessing when proving their properties.
+We can indeed prove them generically over all well-behaved \AR{Semantics}
+and instantiate the corresponding fundamental lemmas to the particular
+cases we are interested in.
 
 
 \bibliography{main}
