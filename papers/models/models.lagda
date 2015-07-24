@@ -7,7 +7,7 @@
 \include{commands}
 
 \begin{document}
-\title{Type-Preserving Semantics}
+\title{Type and Scope Preserving Semantics}
 \maketitle{}
 
 \begin{abstract}
@@ -26,6 +26,29 @@ function.
 
 \section*{Introduction}
 
+In order to implement an embedded Domain Specific Language, a developper
+can opt for either a shallow or a deep embedding. In the shallow approach,
+using the host language's own types and term constructs to describe the
+domain specific language's building blocks gives her access to all of the
+host's libraries. In the deep one, representing expressions directly as their
+abstract syntax tree allows her to inspect, optimise, and compile terms as
+she sees fit at the cost of having to reimplement notions such as renaming
+or substitution. This distinction can be further refined: when dealing with a
+deep embedding, she may use an inductive \emph{type} to described an untyped
+syntax, an inductive \emph{family} for a strongly-typed one or even follow
+Carette, Kiselyov, and Shan~\cite{carette2009finally} and rely on parametric
+polymorphism to guarantee the existence of an underlying term.
+
+In this article, we work with a strongly-typed deep embedding using inductive
+families thus guaranteeing both that the terms our users can write have to be
+well-typed but also well-scoped by definition. In previous work, McBride~\cite{mcbride2005type}
+and Benton, Hur, Kennedy and McBride~\cite{benton2012strongly} have shown how
+to alleviate the programmer's burden in this precise situation by defining
+both defining a traversal generic enough to instatiate it to first renaming
+and then substitution. We build on their insights and define an abstract notion
+of \AR{Semantics} encompassing these two operations as well as others Carette
+et al. could represent (e.g. measuring the size of a term) and even Normalisation
+by Evaluation~\cite{berger1991inverse}.
 
 
 \paragraph{Outline} We shall start by defining the simple calculus we will use
@@ -35,7 +58,9 @@ a generic notion of type and scope-preserving \AR{Semantics} which can be used
 to define a generic evaluation function. The rest of the paper is dedicated to
 showcasing the ground covered by these \AR{Semantics}: from \AR{Syntactic} ones
 corresponding to renaming and substitution to pretty-printing or some variations
-on Normalisation by Evaluation.
+on Normalisation by Evaluation. The definition of \AR{Semantics} being generic
+enough, we can prove theorems about them which may then be instantiated for
+various semantics.
 
 \paragraph{Notations} This article is a literate Agda file typeset using the
 \LaTeX{} backend with as little post-processing as possible: we simply hide
@@ -157,8 +182,7 @@ two contexts.
 infix 5 _[_]_
 \end{code}}
 \begin{code}
-_[_]_ :  {ℓ : Level} (Δ : Con) (R : (Δ : Con) (σ : ty) → Set ℓ)
-         (Γ : Con) → Set ℓ
+_[_]_ :  {ℓ : Level} (Δ : Con) (R : (Δ : Con) (σ : ty) → Set ℓ) (Γ : Con) → Set ℓ
 Δ [ R ] Γ = (σ : ty) (v : σ ∈ Γ) → R Δ σ
 \end{code}
 
@@ -176,8 +200,7 @@ provided a proof of the right type.
 `ε : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ} → Δ [ R ] ε
 `ε = λ _ ()
 
-[_]_`∙_ :  {ℓ : Level} {Γ Δ : Con} (R : (Δ : Con) (σ : ty) → Set ℓ) {σ : ty}
-           (ρ : Δ [ R ] Γ) (s : R Δ σ) → Δ [ R ] Γ ∙ σ
+[_]_`∙_ :  {ℓ : Level} {Γ Δ : Con} (R : (Δ : Con) (σ : ty) → Set ℓ) {σ : ty} (ρ : Δ [ R ] Γ) (s : R Δ σ) → Δ [ R ] Γ ∙ σ
 ([ R ] ρ `∙ s) _ here!       = s
 ([ R ] ρ `∙ s) σ (there pr)  = ρ σ pr
 \end{code}
@@ -671,9 +694,9 @@ having a slightly more precise type.
 \AgdaHide{
 \begin{code}
 infix 5 _⊢^ne_ _⊢^nf_
-mutual
 \end{code}}
 \begin{code}
+mutual
   data _⊢^ne_ (Γ : Con) (σ : ty) : Set where
     `var   : (v : σ ∈ Γ) → Γ ⊢^ne σ
     _`$_   : {τ : ty} (t : Γ ⊢^ne τ `→ σ) (u : Γ ⊢^nf τ) → Γ ⊢^ne σ
@@ -1934,7 +1957,12 @@ wk^2 (σ `→ τ)  inc₁ inc₂ eq = λ inc₃ → eq (trans inc₁ $ trans inc
 
 Finally, we use the framework to prove that to \AR{Normalise^{βιξη}} by
 Evaluation after a \AR{Substitution} amounts to normalising the original
-term where the substitution has been evaluated first.
+term where the substitution has been evaluated first. The constraints
+imposed on the environments might seem quite restrictive but they are
+actually similar to the Uniformity condition described by Coquand~\cite{coquand2002formalised}
+in her detailled account of Normalisation by Evaluation for a simply-typed
+λ-calculus with explicit substitutions.
+
 
 \begin{code}
 SubstitutionNormaliseFusable :
