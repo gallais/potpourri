@@ -26,47 +26,54 @@ function.
 
 \section*{Introduction}
 
-In order to implement an embedded Domain Specific Language, a developper
-can opt for either a shallow or a deep embedding. In the shallow approach,
-using the host language's own types and term constructs to describe the
-domain specific language's building blocks gives her access to all of the
-host's libraries. In the deep one, representing expressions directly as their
-abstract syntax tree allows her to inspect, optimise, and compile terms as
-she sees fit at the cost of having to reimplement notions such as renaming
-or substitution. This distinction can be further refined: when dealing with a
-deep embedding, she may use an inductive \emph{type} to described an untyped
-syntax, an inductive \emph{family} for a strongly-typed one or even follow
-Carette, Kiselyov, and Shan~\cite{carette2009finally} and rely on parametric
-polymorphism to guarantee the existence of an underlying term.
+In order to implement an embedded Domain Specific Language (eDSL), a developper
+can opt for either a shallow or a deep embedding. In the shallow approach, she
+will use the the host language's own types and term constructs to model the domain
+specific language's building blocks. This will allow her to rely on any and all
+of the host's libraries when writing programs in the eDSL. Should she decide
+to use a deep embedding, representing expressions directly as their abstract
+syntax tree will allow her to inspect, optimise, and compile terms as she sees
+fit at the cost of having to reimplement basic notions such as renaming or
+substitution. This distinction can be further refined: when dealing with a deep
+embedding, she may either prove type and scope safety on paper and use an inductive
+\emph{type} to describe an untyped syntax, follow Carette, Kiselyov, and
+Shan~\cite{carette2009finally} and rely on parametric polymorphism to guarantee
+the existence of an underlying type and scope safe term, or use an inductive
+\emph{family} to represent the term itself whilst enforcing these invariants
+in the type.
 
-In this article, we work with a strongly-typed deep embedding using inductive
-families thus guaranteeing both that the terms our users can write have to be
-well-typed but also well-scoped by definition. In previous work, McBride~\cite{mcbride2005type}
-and Benton, Hur, Kennedy and McBride~\cite{benton2012strongly} have shown how
-to alleviate the programmer's burden in this precise situation by defining
-both defining a traversal generic enough to instatiate it to first renaming
-and then substitution. We build on their insights and define an abstract notion
-of \AR{Semantics} encompassing these two operations as well as others Carette
-et al. could represent (e.g. measuring the size of a term) and even Normalisation
-by Evaluation~\cite{berger1991inverse}.
 
+In previous work, McBride~\cite{mcbride2005type} and Benton, Hur, Kennedy and
+McBride~\cite{benton2012strongly} have shown how to alleviate the programmer's
+burden when opting for the strongly-typed approach based on inductive families
+in Epigram~\cite{mcbride2004view} and Coq~\cite{Coq:manual} respectively. They
+start by defining a traversal generic enough to be instatiated to renaming first
+and then substitution. In Benton et al., reasoning about these definitions is
+however still mostly done by hand which leads to quite a bit of work e.g. the four
+lemmas showing that multiple renamings and / or substitutions can be fused together.
+
+We build on their insights and define an abstract notion of \AR{Semantics}
+encompassing these two operations as well as others Carette et al. could
+represent (e.g. measuring the size of a term) and even Normalisation by
+Evaluation~\cite{berger1991inverse}. By highlighting the common structure
+of all of these algorithms, we get the opportunity to not only implement
+them but also prove their properties generically.
 
 \paragraph{Outline} We shall start by defining the simple calculus we will use
 as a running example. We will then introduce a notion of environments which the
 preorder of context inclusions is an example of. This will lead us to defining
 a generic notion of type and scope-preserving \AR{Semantics} which can be used
-to define a generic evaluation function. The rest of the paper is dedicated to
-showcasing the ground covered by these \AR{Semantics}: from \AR{Syntactic} ones
-corresponding to renaming and substitution to pretty-printing or some variations
-on Normalisation by Evaluation. The definition of \AR{Semantics} being generic
-enough, we can prove theorems about them which may then be instantiated for
-various semantics.
+to define a generic evaluation function. We will then showcase the ground covered
+by these \AR{Semantics}: from \AR{Syntactic} ones corresponding to renaming and
+substitution to pretty-printing or some variations on Normalisation by Evaluation.
+Finally, we will demonstrate how, the definition of \AR{Semantics} being generic
+enough, we can prove theorems about these \AR{Semantics}.
 
 \paragraph{Notations} This article is a literate Agda file typeset using the
 \LaTeX{} backend with as little post-processing as possible: we simply hide
 telescopes of implicit arguments and properly display (super / sub)-scripts
 as well as special operators such as \AF{>>=} or \AF{++}. As such, a lot of
-notations have a meaning in Agda: \AIC{green} identifiers are constructors,
+the notations have a meaning in Agda: \AIC{green} identifiers are data constructors,
 \ARF{pink} names refer to record fields, and \AF{blue} is characteristic of
 defined symbols. Underscores have a special status: when defining mixfix
 identifiers~\cite{danielsson2011parsing}, they mark positions where arguments
@@ -80,9 +87,9 @@ it should be noted that the generic model constructions and the various example 
 \AR{Semantics} given can be fully replicated in Haskell using GADTs to describe both
 the terms themselves and the singletons~\cite{eisenberg2013dependently} providing the
 user with the runtime descriptions of their types or their contexts' shapes. The
-subtleties of working with dependent types in Haskell are outside the scope of this
-paper but we do provide a (commented) Haskell module containing all the translated
-definitions.
+subtleties of working with dependent types in Haskell~\cite{lindley2014hasochism}
+are outside the scope of this paper but we do provide a (commented) Haskell module
+containing all the translated definitions.
 
 This yields, to the best of our knowledge, the first tagless and typeful implementation
 of Normalisation by Evaluation in Haskell. Danvy, Keller and Puech have achieved
@@ -91,7 +98,7 @@ HOAS which frees them from having to deal with variable binding, contexts and us
 Kripke structures in the model construction. However we consider these to be primordial
 given that they can still guide the implementation of more complex type theories where,
 until now, being typeful is still out of reach but type-level guarantees about scope
-preservation still helps to root out a lot of bugs.
+preservation still help to root out a lot of bugs.
 
 
 \AgdaHide{
