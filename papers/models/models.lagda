@@ -11,63 +11,72 @@
 \maketitle{}
 
 \begin{abstract}
-Building on McBride's presentation of a subtitution algorithm for
-the simply-typed lambda calculus implemented in terms of a single
-type-and-scope-preserving traversal instantiated twice to define
-renaming first and substitution later, we isolate a more general
-notion of \AF{Semantics}.
+We introduce a notion of type and scope preserving semantics
+generalising McBride's approach to defining one traversal
+generic enough to be instantiated to substitution first and
+then renaming. Its careful distinction of environment and
+model values as well as its structure typical of a Kripke
+semantics make it capable of expressing renaming and substitution
+but also various variations on Normalisation by Evaluation as
+well as, perhaps more surprisingly, monadic computations such
+as a pretty-printing function.
 
-Its careful distinction of environment and model values as well
-as its Kripke structure make it generic enough to derive renaming
-and substitution but also various variations on normalisation by
-evaluation as well as, perhaps more surprisingly, a pretty-printing
-function.
+We then demonstrate that expressing these algorithms in a common
+framework yields immediate benefits: we can deploy some logical
+relations generically over these instances and obtain for instance
+the fusion lemmas for renaming, substitution and normalisation by
+evaluation as simple corollaries of the appropriate fundamental
+lemma.
 \end{abstract}
 
 \section*{Introduction}
 
-In order to implement an embedded Domain Specific Language (eDSL), a developper
+In order to implement an embedded Domain Specific Language (eDSL), a developer
 can opt for either a shallow or a deep embedding. In the shallow approach, she
-will use the the host language's own types and term constructs to model the domain
+will use the host language's own types and term constructs to model the domain
 specific language's building blocks. This will allow her to rely on any and all
 of the host's libraries when writing programs in the eDSL. Should she decide
 to use a deep embedding, representing expressions directly as their abstract
 syntax tree will allow her to inspect, optimise, and compile terms as she sees
-fit at the cost of having to reimplement basic notions such as renaming or
-substitution. This distinction can be further refined: when dealing with a deep
-embedding, she may either prove type and scope safety on paper and use an inductive
-\emph{type} to describe an untyped syntax, follow Carette, Kiselyov, and
-Shan~\cite{carette2009finally} and rely on parametric polymorphism to guarantee
-the existence of an underlying type and scope safe term, or use an inductive
-\emph{family} to represent the term itself whilst enforcing these invariants
-in the type.
-
+fit. This ability to inspect the tree comes at the cost of having to reimplement
+basic notions such as renaming or substitution with the risk of introducing
+bugs. Trying to get the compiler to detect these bugs leads to a further
+distinction between different kinds of deep embeddings: she may either prove type
+and scope safety on paper and use an inductive \emph{type} to describe an \emph{untyped}
+syntax, follow Carette, Kiselyov, and Shan~\cite{carette2009finally} and rely on
+parametric polymorphism to guarantee the existence of an underlying type and scope
+safe term, or use an inductive \emph{family} to represent the term itself whilst
+enforcing these invariants in the type.
 
 In previous work, McBride~\cite{mcbride2005type} and Benton, Hur, Kennedy and
 McBride~\cite{benton2012strongly} have shown how to alleviate the programmer's
 burden when opting for the strongly-typed approach based on inductive families
 in Epigram~\cite{mcbride2004view} and Coq~\cite{Coq:manual} respectively. They
-start by defining a traversal generic enough to be instatiated to renaming first
-and then substitution. In Benton et al., reasoning about these definitions is
-however still mostly done by hand which leads to quite a bit of work e.g. the four
-lemmas showing that multiple renamings and / or substitutions can be fused together.
+both start by defining a traversal generic enough to be instantiated to renaming
+first and then substitution. In Benton et al., the bulk of the work has to be
+repeated when defining Normalisation by Evaluation. Reasoning about these definitions
+is also still mostly done in an ad-hoc manner: Coq's tactics mechanism does help
+them to discharge the four fusion lemmas involving renaming and substitution.
+But the properties of the evaluation function are established using some more
+proof scripts and rely on function extensionality rather than the usual Partial
+Equivalence Relation.
 
 We build on their insights and define an abstract notion of \AR{Semantics}
-encompassing these two operations as well as others Carette et al. could
-represent (e.g. measuring the size of a term) and even Normalisation by
-Evaluation~\cite{berger1991inverse}. By highlighting the common structure
+encompassing these two important operations as well as others Carette et al.
+could represent (e.g. measuring the size of a term) and even Normalisation
+by Evaluation~\cite{berger1991inverse}. By highlighting the common structure
 of all of these algorithms, we get the opportunity to not only implement
 them but also prove their properties generically.
 
 \paragraph{Outline} We shall start by defining the simple calculus we will use
-as a running example. We will then introduce a notion of environments which the
-preorder of context inclusions is an example of. This will lead us to defining
-a generic notion of type and scope-preserving \AR{Semantics} which can be used
-to define a generic evaluation function. We will then showcase the ground covered
-by these \AR{Semantics}: from \AR{Syntactic} ones corresponding to renaming and
-substitution to pretty-printing or some variations on Normalisation by Evaluation.
-Finally, we will demonstrate how, the definition of \AR{Semantics} being generic
-enough, we can prove theorems about these \AR{Semantics}.
+as a running example. We will then introduce a notion of environments as well
+as one well-known instance: the preorder of context inclusions. This will lead
+us to defining a generic notion of type and scope-preserving \AR{Semantics} which
+can be used to define a generic evaluation function. We will then showcase the
+ground covered by these \AR{Semantics}: from the syntactic ones corresponding
+to renaming and substitution to pretty-printing or some variations on Normalisation
+by Evaluation. Finally, we will demonstrate how, the definition of \AR{Semantics}
+being generic enough, we can prove theorems about these evaluation functions.
 
 \paragraph{Notations} This article is a literate Agda file typeset using the
 \LaTeX{} backend with as little post-processing as possible: we simply hide
@@ -78,27 +87,28 @@ the notations have a meaning in Agda: \AIC{green} identifiers are data construct
 defined symbols. Underscores have a special status: when defining mixfix
 identifiers~\cite{danielsson2011parsing}, they mark positions where arguments
 may be inserted; our using the development version of Agda means that we have
-access to Haskell-style sections i.e. one may write \AF{Renaming} \AF{⊨⟦\_⟧\_}
+access to Haskell-style sections i.e. one may write \AF{\_+} \AN{5} for the partial
+application of \AF{\_+\_} corresponding to \AS{λ} x \AS{→} \AB{x} \AF{+} \AN{5}
+or, to mention something that will appear later on, \AF{Renaming} \AF{⊨⟦\_⟧\_}
 for the partial applications of \AF{\_⊨⟦\_⟧\_} to \AF{Renaming}.
 
-\paragraph{Formalisation} This whole development being done in Agda guarantees that
-all constructions are indeed well-typed, and all functions are total. Nonetheless,
-it should be noted that the generic model constructions and the various example of
-\AR{Semantics} given can be fully replicated in Haskell using GADTs to describe both
-the terms themselves and the singletons~\cite{eisenberg2013dependently} providing the
-user with the runtime descriptions of their types or their contexts' shapes. The
-subtleties of working with dependent types in Haskell~\cite{lindley2014hasochism}
-are outside the scope of this paper but we do provide a (commented) Haskell module
-containing all the translated definitions.
-
+\paragraph{Formalisation} This whole development has been checked by Agda~\cite{norell2009dependently}
+which guarantees that all constructions are indeed well-typed, and all functions are
+total. Nonetheless, it should be noted that the generic model constructions and the
+various example of \AR{Semantics} given can be fully replicated in Haskell using GADTs
+to describe both the terms themselves and the singletons~\cite{eisenberg2013dependently}
+providing the user with the runtime descriptions of their types or their contexts' shapes.
 This yields, to the best of our knowledge, the first tagless and typeful implementation
-of Normalisation by Evaluation in Haskell. Danvy, Keller and Puech have achieved
-a similar goal in OCaml~\cite{danvytagless} but their formalisation uses parametric
-HOAS which frees them from having to deal with variable binding, contexts and use
-Kripke structures in the model construction. However we consider these to be primordial
-given that they can still guide the implementation of more complex type theories where,
-until now, being typeful is still out of reach but type-level guarantees about scope
-preservation still help to root out a lot of bugs.
+of Normalisation by Evaluation in Haskell. The subtleties of working with dependent types
+in Haskell~\cite{lindley2014hasochism} are outside the scope of this paper but we do
+provide a (commented) Haskell module containing all the translated definitions.
+It should be noted that Danvy, Keller and Puech have achieved a similar goal in
+OCaml~\cite{danvytagless} but their formalisation uses Parametric Higher Order Abstract
+Syntax which frees them from having to deal with variable binding, contexts and use
+models à la Kripke where one may extend the context. However we consider these to be
+primordial given that they can still guide the implementation of more complex type
+theories where, until now, being typeful is still out of reach but type-level guarantees
+about scope preservation still help to root out a lot of bugs.
 
 
 \AgdaHide{
@@ -121,14 +131,9 @@ _$′_ = _$_
 
 \section{The Calculus}
 
-We are going to illustrate these constructions using a definition of the
-simply-typed λ-calculus which is well-scoped and well-typed by construction.
-This presentation due to Altenkirch and Reus~\cite{altenkirch1999monadic}
-relies heavily on Dybjer's inductive families~\cite{dybjer1991inductive}
-and is carried out in Agda~\cite{norell2009dependently}.
-
-We include \AIC{`Bool} and \AIC{`Unit} as base types as a minimal example of a
-sum type and a record type equipped with an η-rule.
+We are going to define and study various semantics for a simply-typed λ-calculus
+with \AIC{`Bool} and \AIC{`Unit} as base types as a minimal example of a sum type
+and a record type equipped with an η-rule.
 
 \AgdaHide{
 \begin{code}
@@ -141,28 +146,52 @@ data ty : Set where
   _`→_   : (σ τ : ty) → ty
 \end{code}
 
-In order to be able to build terms which are
-well-scoped and well-typed by construction, we need a notion of contexts
-(represented as snoc lists of types) and positions in them (represented as
-typed de Bruijn indices~\cite{de1972lambda}).
+In order to be able to talk about the type of the variables in scope, we
+need a notion of contexts. We choose to represent them as snoc lists of
+types; \AIC{ε} denotes the empty context and \AB{Γ} \AIC{∙} \AB{σ} the
+context \AB{Γ} extended with a fresh variable of type \AB{σ}. Variables
+are then positions in such a context represented as typed de Bruijn
+indices~\cite{de1972lambda}.
 
+\AgdaHide{
 \begin{code}
 infixl 10 _∙_
+infix 5 _∈_
+\end{code}}
+\begin{code}
 data Con : Set where
   ε    : Con
   _∙_  : (Γ : Con) (σ : ty) → Con
 
-infix 5 _∈_
 data _∈_ (σ : ty) : (Γ : Con) → Set where
-  here!  : {Γ : Con} → σ ∈ Γ ∙ σ
-  there  : {Γ : Con} {τ : ty} (pr : σ ∈ Γ) → σ ∈ Γ ∙ τ
+  here!  : {Γ : Con} → σ ∈ (Γ ∙ σ)
+  there  : {Γ : Con} {τ : ty} (pr : σ ∈ Γ) → σ ∈ (Γ ∙ τ)
+\end{code}
 
+The syntax for this λ-calculus is designed to guarantee that terms are
+well-scoped and well-typed by construction. This presentation due to
+Altenkirch and Reus~\cite{altenkirch1999monadic} relies heavily on
+Dybjer's inductive families~\cite{dybjer1991inductive}. Rather than
+having untyped pre-terms and a typing relation assigning a type to
+them, the rules are here enforced in the syntax: we can see for example
+that the \AIC{`var} constructor takes a typed de Bruijn index and
+constructs a term of the corresponding type; that application (\AIC{\_`\$\_})
+takes a function from \AB{σ} to \AB{τ}, an argument of type \AB{σ} living
+in the same scope \AB{Γ} and produces a term of type \AB{τ}; or that the
+body of a λ-abstraction (\AIC{`λ}) has its context extended with a fresh
+variable whose type corresponds to the domain of the function being defined.
+
+
+\AgdaHide{
+\begin{code}
 infix 5 _⊢_
 infixl 5 _`$_
+\end{code}}
+\begin{code}
 data _⊢_ (Γ : Con) : (σ : ty) → Set where
   `var   : {σ : ty} (v : σ ∈ Γ) → Γ ⊢ σ
-  _`$_   : {σ τ : ty} (t : Γ ⊢ σ `→ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
-  `λ     : {σ τ : ty} (t : Γ ∙ σ ⊢ τ) → Γ ⊢ σ `→ τ
+  _`$_   : {σ τ : ty} (t : Γ ⊢ (σ `→ τ)) (u : Γ ⊢ σ) → Γ ⊢ τ
+  `λ     : {σ τ : ty} (t : Γ ∙ σ ⊢ τ) → Γ ⊢ (σ `→ τ)
   `⟨⟩    : Γ ⊢ `Unit
   `tt    : Γ ⊢ `Bool
   `ff    : Γ ⊢ `Bool
@@ -173,7 +202,7 @@ data _⊢_ (Γ : Con) : (σ : ty) → Set where
 
 All the semantics we are interested in defining evaluate a term
 written in the type-correct representation of the calculus defined
-above given an interpretation of its free variable. We call the
+above given an interpretation of its free variables. We call the
 collection of these interpretations for the variables in scope
 an (evaluation) environment. The content of environments may vary
 wildly between different instances (e.g. renaming environments
@@ -198,10 +227,10 @@ _[_]_ :  {ℓ : Level} (Δ : Con) (R : (Δ : Con) (σ : ty) → Set ℓ) (Γ : C
 infixl 10 [_]_`∙_
 \end{code}}
 
-These environments can be built step by step by noticing that
-the environment corresponding to an empty context is trivial
-and that one may extend and already existing environment
-provided a proof of the right type.
+For a fixed context \AB{Δ} and relation \AB{R}, these environments can
+be built step by step by noticing that the environment corresponding to
+an empty context is trivial and that one may extend and already existing
+environment provided a proof of the right type.
 
 \begin{code}
 `ε : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ} → Δ [ R ] ε
@@ -270,7 +299,7 @@ Now that we are equipped with the notion of inclusion, we have all
 the pieces necessary to describe the Kripke structure of our models
 of the simply-typed λ-calculus.
 
-\section{Semantics and Generic Evaluation Function}
+\section{Semantics and Generic Evaluation Functions}
 
 Because renaming, substitution, pretty-printing, and normalisation
 by evaluation all share the same structure, we can abstract away a
@@ -307,7 +336,6 @@ makes it possible to go beyond the semantics such as substitution
 or normalisation by evaluation where \AB{Env} and \AB{Mod} happen
 to coincide.
 
-%\begin{figure*}
 \begin{code}
 record Semantics {ℓ^E ℓ^M : Level}
        (Env  : (Γ : Con) (σ : ty) → Set ℓ^E)
@@ -325,50 +353,62 @@ record Semantics {ℓ^E ℓ^M : Level}
     ⟦ff⟧    :  {Γ : Con} → Mod Γ `Bool
     ⟦ifte⟧  :  {Γ : Con} {σ : ty} (b : Mod Γ `Bool) (l r : Mod Γ σ) → Mod Γ σ
 \end{code}
-%\end{figure*}
 
-The evaluation function is then defined by structural recursion on the
-term. Each constructor is replaced by its semantic counterpart in order
-to combine the induction hypotheses its subterms give rise to. In the
-λ-abstraction case, the type of \ARF{⟦λ⟧} guarantees that the semantic
-argument can be stored in the environment which will have been weakened
-beforehand.
+The fundamental lemma of semantics is then proved in a module indexed by
+a \AF{Semantics}. It is defined by structural recursion on the term. Each
+constructor is replaced by its semantic counterpart in order to combine the
+induction hypotheses its subterms give rise to. In the λ-abstraction case,
+the type of \ARF{⟦λ⟧} guarantees that the semantic argument can be stored
+in the environment which will have been weakened beforehand.
 
 \begin{code}
 module Eval {ℓ^E ℓ^M : Level} {Env : (Γ : Con) (σ : ty) → Set ℓ^E} {Mod : (Γ : Con) (σ : ty) → Set ℓ^M} (Sem : Semantics Env Mod) where
   open Semantics Sem
-
-  infix 10 _⊨⟦_⟧_ _⊨eval_
-  eval : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
-  eval (`var v)       ρ = ⟦var⟧ $ ρ _ v
-  eval (t `$ u)       ρ = eval t ρ ⟦$⟧ eval u ρ
-  eval (`λ t)         ρ = ⟦λ⟧  λ inc u →
-                               eval t $ [ Env ] wk[ wk ] inc ρ `∙ u
-  eval `⟨⟩            ρ = ⟦⟨⟩⟧
-  eval `tt            ρ = ⟦tt⟧
-  eval `ff            ρ = ⟦ff⟧
-  eval (`ifte b l r)  ρ = ⟦ifte⟧ (eval b ρ) (eval l ρ) (eval r ρ)
-
-  _⊨⟦_⟧_ : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
-  _⊨⟦_⟧_ = eval
-\end{code}
-
-One can build a diagonal environment for \AB{Γ} by \ARF{embed}ding its
-variables. This gives us an \AF{\_⊨eval\_} function which will be used
-to evaluate open terms. In the case of pretty-printing, this corresponds
-to picking a naming scheme for free variables whilst in the usual model
-construction used to perform normalisation by evaluation, it corresponds
-to η-expanding the variables.
-
-\begin{code}
-  _⊨eval_ : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → Mod Γ σ
-  _⊨eval_ t = _⊨⟦_⟧_ t embed
-\end{code}
-
+\end{code}\vspace{-2em}%ugly but it works!
 \AgdaHide{
 \begin{code}
-open Eval using (_⊨⟦_⟧_ ; _⊨eval_) public
+  infix 10 _⊨⟦_⟧_ _⊨eval_
 \end{code}}
+\begin{code}
+  lemma : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
+  lemma (`var v)       ρ = ⟦var⟧ $ ρ _ v
+  lemma (t `$ u)       ρ = lemma t ρ ⟦$⟧ lemma u ρ
+  lemma (`λ t)         ρ = ⟦λ⟧  λ inc u → lemma t $ [ Env ] wk[ wk ] inc ρ `∙ u
+  lemma `⟨⟩            ρ = ⟦⟨⟩⟧
+  lemma `tt            ρ = ⟦tt⟧
+  lemma `ff            ρ = ⟦ff⟧
+  lemma (`ifte b l r)  ρ = ⟦ifte⟧ (lemma b ρ) (lemma l ρ) (lemma r ρ)
+\end{code}
+
+We introduce \AF{\_⊨⟦\_⟧\_} as an alternative name for the fundamental
+lemma and \AF{\_⊨eval\_} for the special case where we use \ARF{embed}
+to generate a diagonal environment of type \AB{Γ} \AF{[} \AB{Env} \AF{]}
+\AB{Γ}. Because we open the module \AM{Eval} without passing it a parameter
+of type \AF{Semantics}, the types of its elements are all λ-lifted to include
+an extra argument of such a type. This means that partial application of
+\AF{\_⊨⟦\_⟧\_} will correspond to the specialisation of the fundamental
+lemma to a given semantics. \AB{Sem} \AF{⊨⟦} \AB{t} \AF{⟧} \AB{ρ} is
+meant to convey the idea that the semantics \AB{Sem} is used to evaluate
+the term \AB{t} in the environment \AB{ρ}. Similarly, \AB{Sem} \AF{⊨eval}
+\AB{t} is meant to denote the evaluation of the term \AB{t} in the semantics
+\AB{Sem} (using a diagonal environment).
+
+\begin{code}
+  _⊨⟦_⟧_ : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
+  _⊨⟦_⟧_ = lemma
+
+  _⊨eval_ : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → Mod Γ σ
+  _⊨eval_ t = _⊨⟦_⟧_ t embed
+
+open Eval hiding (lemma) public
+\end{code}
+
+The diagonal environment generated using \ARF{embed} when defining the
+\AF{\_⊨eval\_} function lets us kickstart the evaluation of arbitrary
+\emph{open} terms. In the case of pretty-printing, this corresponds to
+picking a naming scheme for free variables whilst in the usual model
+construction used to perform normalisation by evaluation, it corresponds
+to η-expanding the variables.
 
 \section{Syntactic Semantics}
 
@@ -1158,7 +1198,8 @@ norm^βι : {Γ : Con} (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^whnf σ
 norm^βι σ t = reify^βι σ $′ Normalise^βι ⊨eval t
 \end{code}
 
-\section{Semantics Properties}
+\section{Proving Properties of Semantics}
+\label{properties}
 
 Thanks to the introduction of \AF{Semantics}, we have already saved
 quite a bit of work by not reimplementing the same traversals over
