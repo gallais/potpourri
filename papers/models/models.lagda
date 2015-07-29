@@ -137,7 +137,7 @@ and a record type equipped with an η-rule.
 
 \AgdaHide{
 \begin{code}
-infixr 10 _`→_
+infixr 20 _`→_
 \end{code}}
 \begin{code}
 data ty : Set where
@@ -236,14 +236,16 @@ environment provided a proof of the right type.
 `ε : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ} → Δ [ R ] ε
 `ε = λ _ ()
 
-[_]_`∙_ :  {ℓ : Level} {Γ Δ : Con} (R : (Δ : Con) (σ : ty) → Set ℓ) {σ : ty} (ρ : Δ [ R ] Γ) (s : R Δ σ) → Δ [ R ] Γ ∙ σ
+[_]_`∙_ :  {ℓ : Level} {Γ Δ : Con} (R : (Δ : Con) (σ : ty) → Set ℓ) {σ : ty} (ρ : Δ [ R ] Γ) (s : R Δ σ) → Δ [ R ] (Γ ∙ σ)
 ([ R ] ρ `∙ s) _ here!       = s
 ([ R ] ρ `∙ s) σ (there pr)  = ρ σ pr
 \end{code}
 
 \subsection{The Preoder of Context Inclusions}
+\label{preorder}
 
-One instance of environments one is accustomed to is the notion
+One instance of environments which will play a predominant role
+in this paper and the reader may be accustomed to is the notion
 of context inclusion. A context inclusion \AB{Γ} \AF{⊆} \AB{Δ}
 is an environment pairing each variable of type \AB{σ} in \AB{Γ}
 to one of the same type in \AB{Δ}.
@@ -254,17 +256,18 @@ infix 5 _⊆_
 \end{code}}
 \begin{code}
 _⊆_ : (Γ Δ : Con) → Set
-_⊆_ = flip _[ flip _∈_ ]_
+Γ ⊆ Δ = Δ [ flip _∈_ ] Γ
 \end{code}
 
 Context inclusions allow for the formulation of weakening principles
-explaining how to transport properties along inclusions: knowing that
-\AB{P} holds of \AB{Γ} and that \AB{Γ} \AF{⊆} \AB{Δ} lets us conclude
-that \AB{P} holds for \AB{Δ} too. In the case of variables, weakening
-merely corresponds to applying the transport function in order to
-obtain a renamed variable. The case of environments is also quite simple:
-being a pointwise lifting of a relation \AB{R} between contexts and types,
-they enjoy weakening if \AB{R} does.
+explaining how to transport properties along inclusions. By a ``weakening
+principle'', we mean that knowing that \AB{P} holds of \AB{Γ} and that
+\AB{Γ} \AF{⊆} \AB{Δ} lets us conclude that \AB{P} holds for \AB{Δ} too.
+In the case of variables, weakening merely corresponds to applying the
+transport function in order to obtain a renamed variable. The case of
+environments is also quite simple: being a pointwise lifting of a
+relation \AB{R} between contexts and types, they enjoy weakening if
+\AB{R} does.
 
 \begin{code}
 wk^∈ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (pr : σ ∈ Γ) → σ ∈ Δ
@@ -287,11 +290,11 @@ refl = λ _ → id
 trans : {Γ Δ Θ : Con} (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ Θ) → Γ ⊆ Θ
 trans inc₁ inc₂ = wk[ wk^∈ ] inc₂ inc₁
 
-pop! : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → Γ ∙ σ ⊆ Δ ∙ σ
+pop! : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → (Γ ∙ σ) ⊆ (Δ ∙ σ)
 pop! inc σ here!       = here!
 pop! inc σ (there pr)  = there $ inc σ pr
 
-step : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → Γ ⊆ Δ ∙ σ
+step : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → Γ ⊆ (Δ ∙ σ)
 step inc = trans inc $ λ _ → there
 \end{code}
 
@@ -301,57 +304,83 @@ of the simply-typed λ-calculus.
 
 \section{Semantics and Generic Evaluation Functions}
 
-Because renaming, substitution, pretty-printing, and normalisation
-by evaluation all share the same structure, we can abstract away a
-notion of \AR{Semantics} encompassing all these constructions. This
-makes it possible to implement a generic traversal parametrised by
-such a \AR{Semantics} once and for all and gives us the opportunity
-to focus on the interesting model constructions instead.
+The upcoming sections are dedicated to demonstrating that renaming,
+substitution, pretty-printing, and normalisation by evaluation all
+share the same structure. We start by abstracting away a notion of
+\AR{Semantics} encompassing all these constructions. This approach
+will make it possible for us to implement a generic traversal
+parametrised by such a \AR{Semantics} once and for all and to focus
+on the interesting model constructions instead of repeating the same
+pattern over and over again.
 
-A \AR{Semantics} is indexed by two relations \AB{Env} and \AB{Mod}
+A \AR{Semantics} is indexed by two relations \AB{𝓔} and \AB{𝓜}
 describing respectively the values in the environment and the ones
 in the model. It packs the properties of these relations necessary
 to define the evaluation function.
 
-Environment values need to come with a notion of weakening so that
-the traversal may introduce variables (when going under a binder)
-and keep the environment well-scoped. We also need to be able to
-manufacture values in the environment given a variable in scope
-in order to be able to craft a diagonal environment.
+\begin{code}
+record Semantics {ℓ^E ℓ^M : Level}
+       (𝓔  : (Γ : Con) (σ : ty) → Set ℓ^E)
+       (𝓜  : (Γ : Con) (σ : ty) → Set ℓ^M) : Set (ℓ^E ⊔ ℓ^M) where
+\end{code}
+\AgdaHide{
+\begin{code}
+  infixl 5 _⟦$⟧_
+\end{code}}\vspace{-2.5em}%ugly but it works!
+\begin{code}
+  field
+\end{code}
+
+The first two methods of a \AR{Semantics} are dealing with environment
+values. These values need to come with a notion of weakening (\ARF{wk})
+so that the traversal may introduce fresh variables when going under a
+binder and keep the environment well-scoped. We also need to be able to
+manufacture environment values given a variable in scope (\ARF{embed})
+in order to be able to craft a diagonal environment to evaluate an open
+term.
+
+\begin{code}
+    wk      :  {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : 𝓔 Γ σ) → 𝓔 Δ σ
+    embed   :  {Γ : Con} (σ : ty) (pr : σ ∈ Γ) → 𝓔 Γ σ
+\end{code}
 
 The structure of the model is quite constrained: each constructor
-in the language needs a semantic counterpart. Most of them have a
-type which is a direct translation of the type of the corresponding
-constructor except for two interesting cases: \ARF{⟦var⟧} and \ARF{⟦λ⟧}.
-The variable case guarantees that one can turn a value from the
-environment into one in the model thus making it possible for the
-traversal, when hitting a variable, to lookup the corresponding
-value in the environment and return it. The semantic λ-abstraction
-is notable for two reasons: following Mitchell and Moggi~\cite{mitchell1991kripke},
-it has a Kripke structure thus allowing arbitrary extensions of the
-context; and instead of being a function in the host language taking
-values in the model as arguments, it takes environment values. This
-slight variation in the type of the semantic λ-abstraction is what
+in the language needs a semantic counterpart. We start with the
+two most interesting cases: \ARF{⟦var⟧} and \ARF{⟦λ⟧}. The variable
+case guarantees that one can turn a value from the environment into
+one in the model thus making it possible for the traversal, when
+hitting a variable, to lookup the corresponding value in the environment
+and return it.
+
+\begin{code}
+    ⟦var⟧   :  {Γ : Con} {σ : ty} (v : 𝓔 Γ σ) → 𝓜 Γ σ
+\end{code}
+
+The semantic λ-abstraction is notable for two reasons: first, following
+Mitchell and Moggi~\cite{mitchell1991kripke}, it has a structure typical
+of Kripke style models thus allowing arbitrary extensions of the context;
+and instead of being a function in the host language taking values in the
+model as arguments, it is a function that takes \emph{environment} values.
+This slight variation in the type of the semantic λ-abstraction is what
 makes it possible to go beyond the semantics such as substitution
-or normalisation by evaluation where \AB{Env} and \AB{Mod} happen
+or normalisation by evaluation where \AB{𝓔} and \AB{𝓜} happen
 to coincide.
 
 \begin{code}
-record Semantics {ℓ^E ℓ^M : Level}
-       (Env  : (Γ : Con) (σ : ty) → Set ℓ^E)
-       (Mod  : (Γ : Con) (σ : ty) → Set ℓ^M) : Set (ℓ^E ⊔ ℓ^M) where
-  infixl 5 _⟦$⟧_
-  field
-    wk      :  {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : Env Γ σ) → Env Δ σ
-    embed   :  {Γ : Con} (σ : ty) (pr : σ ∈ Γ) → Env Γ σ
-    ⟦var⟧   :  {Γ : Con} {σ : ty} (v : Env Γ σ) → Mod Γ σ
-    _⟦$⟧_   :  {Γ : Con} {σ τ : ty} → Mod Γ (σ `→ τ) → Mod Γ σ → Mod Γ τ
-    ⟦λ⟧     :  {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : Env Δ σ) → Mod Δ τ) →
-               Mod Γ (σ `→ τ)
-    ⟦⟨⟩⟧    :  {Γ : Con} → Mod Γ `Unit
-    ⟦tt⟧    :  {Γ : Con} → Mod Γ `Bool
-    ⟦ff⟧    :  {Γ : Con} → Mod Γ `Bool
-    ⟦ifte⟧  :  {Γ : Con} {σ : ty} (b : Mod Γ `Bool) (l r : Mod Γ σ) → Mod Γ σ
+    ⟦λ⟧     :  {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : 𝓔 Δ σ) → 𝓜 Δ τ) → 𝓜 Γ (σ `→ τ)
+\end{code}
+
+The remaining fields' types are a direct translation of the types
+of the constructor they correspond to where the type constructor
+characterising typing derivations (\AD{\_⊢\_}) has been replaced
+with the one corresponding to model values (\AB{𝓜}).
+
+\begin{code}
+    _⟦$⟧_   :  {Γ : Con} {σ τ : ty} → 𝓜 Γ (σ `→ τ) → 𝓜 Γ σ → 𝓜 Γ τ
+    ⟦⟨⟩⟧    :  {Γ : Con} → 𝓜 Γ `Unit
+    ⟦tt⟧    :  {Γ : Con} → 𝓜 Γ `Bool
+    ⟦ff⟧    :  {Γ : Con} → 𝓜 Γ `Bool
+    ⟦ifte⟧  :  {Γ : Con} {σ : ty} (b : 𝓜 Γ `Bool) (l r : 𝓜 Γ σ) → 𝓜 Γ σ
 \end{code}
 
 The fundamental lemma of semantics is then proved in a module indexed by
@@ -362,18 +391,18 @@ the type of \ARF{⟦λ⟧} guarantees that the semantic argument can be stored
 in the environment which will have been weakened beforehand.
 
 \begin{code}
-module Eval {ℓ^E ℓ^M : Level} {Env : (Γ : Con) (σ : ty) → Set ℓ^E} {Mod : (Γ : Con) (σ : ty) → Set ℓ^M} (Sem : Semantics Env Mod) where
+module Eval {ℓ^E ℓ^M : Level} {𝓔 : (Γ : Con) (σ : ty) → Set ℓ^E} {𝓜 : (Γ : Con) (σ : ty) → Set ℓ^M} (Sem : Semantics 𝓔 𝓜) where
   open Semantics Sem
-\end{code}\vspace{-2em}%ugly but it works!
+\end{code}\vspace{-2.5em}%ugly but it works!
 \AgdaHide{
 \begin{code}
   infix 10 _⊨⟦_⟧_ _⊨eval_
 \end{code}}
 \begin{code}
-  lemma : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
+  lemma : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ 𝓔 ] Γ) → 𝓜 Δ σ
   lemma (`var v)       ρ = ⟦var⟧ $ ρ _ v
   lemma (t `$ u)       ρ = lemma t ρ ⟦$⟧ lemma u ρ
-  lemma (`λ t)         ρ = ⟦λ⟧  λ inc u → lemma t $ [ Env ] wk[ wk ] inc ρ `∙ u
+  lemma (`λ t)         ρ = ⟦λ⟧  λ inc u → lemma t $ [ 𝓔 ] wk[ wk ] inc ρ `∙ u
   lemma `⟨⟩            ρ = ⟦⟨⟩⟧
   lemma `tt            ρ = ⟦tt⟧
   lemma `ff            ρ = ⟦ff⟧
@@ -382,22 +411,22 @@ module Eval {ℓ^E ℓ^M : Level} {Env : (Γ : Con) (σ : ty) → Set ℓ^E} {Mo
 
 We introduce \AF{\_⊨⟦\_⟧\_} as an alternative name for the fundamental
 lemma and \AF{\_⊨eval\_} for the special case where we use \ARF{embed}
-to generate a diagonal environment of type \AB{Γ} \AF{[} \AB{Env} \AF{]}
+to generate a diagonal environment of type \AB{Γ} \AF{[} \AB{𝓔} \AF{]}
 \AB{Γ}. Because we open the module \AM{Eval} without passing it a parameter
 of type \AF{Semantics}, the types of its elements are all λ-lifted to include
 an extra argument of such a type. This means that partial application of
 \AF{\_⊨⟦\_⟧\_} will correspond to the specialisation of the fundamental
-lemma to a given semantics. \AB{Sem} \AF{⊨⟦} \AB{t} \AF{⟧} \AB{ρ} is
-meant to convey the idea that the semantics \AB{Sem} is used to evaluate
-the term \AB{t} in the environment \AB{ρ}. Similarly, \AB{Sem} \AF{⊨eval}
+lemma to a given semantics. \AB{𝓢} \AF{⊨⟦} \AB{t} \AF{⟧} \AB{ρ} is
+meant to convey the idea that the semantics \AB{𝓢} is used to evaluate
+the term \AB{t} in the environment \AB{ρ}. Similarly, \AB{𝓢} \AF{⊨eval}
 \AB{t} is meant to denote the evaluation of the term \AB{t} in the semantics
-\AB{Sem} (using a diagonal environment).
+\AB{𝓢} (using a diagonal environment).
 
 \begin{code}
-  _⊨⟦_⟧_ : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ Env ] Γ) → Mod Δ σ
+  _⊨⟦_⟧_ : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ 𝓔 ] Γ) → 𝓜 Δ σ
   _⊨⟦_⟧_ = lemma
 
-  _⊨eval_ : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → Mod Γ σ
+  _⊨eval_ : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → 𝓜 Γ σ
   _⊨eval_ t = _⊨⟦_⟧_ t embed
 
 open Eval hiding (lemma) public
@@ -412,24 +441,26 @@ to η-expanding the variables.
 
 \section{Syntactic Semantics}
 
-This work being influenced by McBride's functional pearl~\cite{mcbride2005type},
-it is only normal to start our exploration of \AR{Semantics} with the two
-operations implemented with one single traversal. We call these operations
-\AR{Syntactic} because the values in the model are actual terms and almost
-all constructs are kept as their own semantic counterpart.
-
-As observed by McBride, it is enough to provide three operations describing
-the properties of the values in the environment to get a full-blown
-\AR{Semantics}. This fact is witnessed by the \AF{syntactic} function.
+As we have explained earlier, this work has been directly influenced by
+McBride's functional pearl~\cite{mcbride2005type}. It seems appropriate
+to start our exploration of \AR{Semantics} with the two operations he
+implements with a single traversal. We call these operations syntactic
+because the values in the model are actual terms and almost all term
+constructors are kept as their own semantic counterpart. As observed by
+McBride, it is enough to provide three operations describing the properties
+of the values in the environment to get a full-blown \AR{Semantics}. This
+fact is witnessed by our simple \AR{Syntactic} record type together with
+the \AF{syntactic} function turning its inhabitants into associated
+\AR{Semantics}.
 
 \begin{code}
-record Syntactic {ℓ : Level} (Env : (Γ : Con) (σ : ty) → Set ℓ) : Set ℓ where
+record Syntactic {ℓ : Level} (𝓔 : (Γ : Con) (σ : ty) → Set ℓ) : Set ℓ where
   field
-    embed  : {Γ : Con} (σ : ty) (pr : σ ∈ Γ) → Env Γ σ
-    wk     : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) → Env Γ σ → Env Δ σ
-    ⟦var⟧  : {Γ : Con} {σ : ty} (v : Env Γ σ) → Γ ⊢ σ
+    embed  : {Γ : Con} (σ : ty) (pr : σ ∈ Γ) → 𝓔 Γ σ
+    wk     : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) → 𝓔 Γ σ → 𝓔 Δ σ
+    ⟦var⟧  : {Γ : Con} {σ : ty} (v : 𝓔 Γ σ) → Γ ⊢ σ
 
-syntactic : {ℓ : Level} {Env : (Γ : Con) (σ : ty) → Set ℓ} (syn : Syntactic Env) → Semantics Env _⊢_
+syntactic : {ℓ : Level} {𝓔 : (Γ : Con) (σ : ty) → Set ℓ} (syn : Syntactic 𝓔) → Semantics 𝓔 _⊢_
 syntactic syn =
   let open Syntactic syn in
   record  { wk      = wk
@@ -444,22 +475,20 @@ syntactic syn =
           }
 \end{code}
 
-One important mistake not to make is to think that this definition
-performs some sort of η-expansion because of the definition of \ARF{⟦λ⟧}:
-this operator is actually only ever used by \AF{\_⊨⟦\_⟧\_} when the
-evaluated term is \emph{already} λ-headed so it is indeed perfectly
-harmless.
-
-We can now port McBride's definitions to our framework.
+The shape of \ARF{⟦λ⟧} or \ARF{⟦⟨⟩⟧} should not trick the reader
+into thinking that this definition performs some sort of η-expansion:
+\AF{lemma} indeed only ever uses one of these when the evaluated term's
+head constructor is already respectively a \AIC{`λ} or a \AIC{`⟨⟩}.
+It is therefore absolutely possible to define renaming or substitution
+using this approach. We can now port McBride's definitions to our
+framework.
 
 \subsection{Functoriality, also known as Renaming}
 
 Our first example of a \AR{Syntactic} operation works with variables as
-environment values. As expected, we obtain a rather involved definition of
-the identity function as \AF{Renaming} \AF{⊨eval\_}. But this construction
-is not at all useless: indeed, the more general \AF{Renaming} \AF{⊨⟦\_⟧\_}
-function turns out to be precisely the notion of weakening for terms we need
-once its arguments have been flipped.
+environment values. As a consequence, embedding is trivial; we have already
+defined weakening earlier (see Section \ref{preorder}) and we can turn
+a variable into a term by using the \AIC{`var} constructor.
 
 \begin{code}
 syntacticRenaming : Syntactic (flip _∈_)
@@ -468,26 +497,29 @@ syntacticRenaming =
           ; wk     = wk^∈
           ; ⟦var⟧  = `var }
 
-wk^⊢ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (t : Γ ⊢ σ) → Δ ⊢ σ
-wk^⊢ = flip $ syntactic syntacticRenaming ⊨⟦_⟧_
-\end{code}
-\AgdaHide{
-\begin{code}
 Renaming : Semantics (flip _∈_) _⊢_
 Renaming = syntactic syntacticRenaming
-\end{code}}
+\end{code}
+
+We obtain a rather involved definition of the identity of type \AB{Γ}
+\AD{⊢} \AB{σ} \AS{→} \AB{Γ} \AD{⊢} \AB{σ} as \AF{Renaming} \AF{⊨eval\_}.
+But this construction is not at all useless: indeed, the more general
+\AF{Renaming} \AF{⊨⟦\_⟧\_} function has type \AB{Γ} \AD{⊢} \AB{σ} \AS{→}
+\AB{Γ} \AF{⊆} \AB{Δ} \AS{→} \AB{Δ} \AD{⊢} \AB{σ} which turns out to be
+precisely the notion of weakening for terms we need once its arguments
+have been flipped.
+
+\begin{code}
+wk^⊢ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (t : Γ ⊢ σ) → Δ ⊢ σ
+wk^⊢ = flip $ Renaming ⊨⟦_⟧_
+\end{code}
 
 \subsection{Parallel Substitution}
 
 Our second example of a semantics is another spin on the syntactic model:
-the environment values are now terms (but the diagonal environment obtained
-by \ARF{embed}ding membership proofs will be made up of variables only).
-The \ARF{wk} operation now acts on terms and can only be defined because
-\AF{Renaming} was implemented first.
-
-Once more the semantic function \AF{Substitution} \AF{⊨⟦\_⟧\_} is more
-interesting than the evaluation itself: it is an implementation of parallel
-substitution.
+the environment values are now terms. We can embed variables into environment
+values by using the \AIC{`var} constructor and we inherit weakening for terms
+from the previous example.
 
 \begin{code}
 syntacticSubstitution : Syntactic _⊢_
@@ -497,14 +529,20 @@ syntacticSubstitution =
           ; ⟦var⟧   = id
           }
 
-subst : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
-subst = syntactic syntacticSubstitution ⊨⟦_⟧_
-\end{code}
-\AgdaHide{
-\begin{code}
 Substitution : Semantics _⊢_ _⊢_
 Substitution = syntactic syntacticSubstitution
-\end{code}}
+\end{code}
+
+Because the diagonal environment used by \AF{Substitution} \AF{⊨eval\_}
+is obtained by \ARF{embed}ding membership proofs into terms using the
+\AIC{`var} constructor, we get yet another definition of the identity
+function on terms. The semantic function \AF{Substitution} \AF{⊨⟦\_⟧\_}
+is again more interesting: it is an implementation of parallel substitution.
+
+\begin{code}
+subst : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
+subst = Substitution ⊨⟦_⟧_
+\end{code}
 
 \section{Pretty Printing}
 
@@ -522,15 +560,6 @@ precise type guiding our implementation. Indeed, the environment carries
 \emph{names} for the variables currently in scope whilst the inhabitants of
 the model are \emph{computations} threading a stream to be used as a source
 of fresh names every time a new variable is introduced by a λ-abstraction.
-If the values in the environment were allowed to be computations too, we
-would not root out all faulty implementations: the typechecker would for
-instance quite happily accept a program picking a new name every time a
-variable appears in the term.
-
-Secondly, the fact that values in the model are computations and that this
-poses no problem whatsoever in this framework means it is appropriate for
-handling languages with effects~\cite{moggi1991notions}, or effectful
-semantics (e.g. logging the various function calls).
 
 \AgdaHide{
 \begin{code}
@@ -554,7 +583,19 @@ Names _ _ = String
 
 Printer : (Γ : Con) (σ : ty) → Set
 Printer _ _ = State (Stream String) String
+\end{code}
 
+If the values in the environment were allowed to be computations too, we
+would not root out all faulty implementations: the typechecker would for
+instance quite happily accept a program picking a new name every time a
+variable appears in the term.
+
+Secondly, the fact that values in the model are computations and that this
+poses no problem whatsoever in this framework means it is appropriate for
+handling languages with effects~\cite{moggi1991notions}, or effectful
+semantics (e.g. logging the various function calls).
+
+\begin{code}
 PrettyPrinting : Semantics Names Printer
 PrettyPrinting =
   record  { embed   = λ _ → show ∘ deBruijn
@@ -582,17 +623,21 @@ PrettyPrinting =
                                  ++ "then (" ++ `l` ++ ") "
                                  ++ "else (" ++ `r` ++ ")"
           }
+\end{code}
+
+Our definition of \ARF{embed} erases the membership proofs to
+recover the corresponding de Bruijn indices which are then turned
+into strings using \AF{show}, defined in Agda's standard library.
+This means that, using \AF{PrettyPrinting} \AF{⊨eval\_}, the free
+variables will be displayed as numbers whilst the bound ones will
+be given names chosen by the name supply.
+
+\begin{code}
   where
     deBruijn : {Γ : Con} {σ : ty} → σ ∈ Γ → ℕ
     deBruijn here!       = 0
     deBruijn (there pr)  = 1 + deBruijn pr
 \end{code}
-
-Our definition of \ARF{embed} erases the membership proofs to
-recover the corresponding de Bruijn indices. This means that,
-using \AF{PrettyPrinting} \AF{⊨eval\_}, the free variables will
-be displayed as numbers whilst the bound ones will be given names
-chosen by the name supply.
 
 Now, this means that we still need to provide a \AD{Stream} of fresh
 names to this computation in order to run it. Given that we erase free
@@ -628,13 +673,15 @@ prettyPrint : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → String
 prettyPrint t = proj₁ $ PrettyPrinting ⊨eval t $ names
 \end{code}
 
-We can demonstrate that \AF{prettyPrint} does indeed do the job by
-writing a test which is, given that type theory allows computation
-at the type level, checked at typechecking time:
+We can observe that \AF{prettyPrint} does indeed do the job by writing a
+test. Given that type theory allows computation at the type level, we can
+make sure that such tests are checked at typechecking time. Here we display
+a function applying its argument to the first free variable in scope. The
+free variable is indeed given a natural number as a name whilst the bound
+one uses a letter.
 
 \begin{code}
-pretty$ :  {a b : ty} → prettyPrint {Γ = ε} {σ = (a `→ b) `→ a `→ b} (`λ $ `λ $ `var (there here!) `$ `var here!)
-           ≡ "λa. λb. a(b)"
+pretty$ :  {a b : ty} → prettyPrint {Γ = ε ∙ a `→ b} {σ = a `→ b} (`λ $ `var (there here!) `$ `var here!) ≡ "λa. 0(a)"
 pretty$ = PEq.refl
 \end{code}
 
@@ -643,7 +690,7 @@ pretty$ = PEq.refl
 Normalisation by Evaluation is a technique leveraging the computational
 power of a host language in order to normalise expressions of a deeply
 embedded one. The process is based on a model construction associating
-to each context \AB{Γ} and type \AB{σ}, a type of values \model{}. Two
+a type of values \model{} to each context \AB{Γ} and type \AB{σ}. Two
 procedures are then defined: the first one (\AF{eval}) produces elements
 of \model{} provided a well-typed term of the corresponding \AB{Γ} \AD{⊢}
 \AB{σ} type and an interpretation for the variables in \AB{Γ} whilst
@@ -659,6 +706,11 @@ rules a theory may satisfy.
 \paragraph{β-rule} Using the \AF{Substitution} \AF{Semantics}, we can
 describe β-reduction in the usual manner.
 
+\begin{mathpar}
+\inferrule{
+  }{\text{(\AIC{`λ} \AB{t}) \AIC{`\$} \AB{u} ↝ \AB{t} \AF{⟨} \AB{u} \AF{/var₀⟩}}
+  }{β}
+\end{mathpar}
 \AgdaHide{
 \begin{code}
 infixl 10 _⟨_/var₀⟩
@@ -667,12 +719,6 @@ infixl 10 _⟨_/var₀⟩
 _⟨_/var₀⟩ : {Γ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) (u : Γ ⊢ σ) → Γ ⊢ τ
 t ⟨ u /var₀⟩ = subst t $ [ _⊢_ ] (λ _ → `var) `∙ u
 \end{code}
-
-\begin{mathpar}
-\inferrule{
-  }{\text{(\AIC{`λ} \AB{t}) \AIC{`\$} \AB{u} ↝ \AB{t} \AF{⟨} \AB{u} \AF{/var₀⟩}}
-  }{β}
-\end{mathpar}
 
 \paragraph{ι-rule} The presence of an inductive data type (\AIC{`Bool})
 and its eliminator (\AIC{`ifte}) means we have an extra opportunity for
@@ -704,10 +750,6 @@ terms have a canonical form: functions will all be λ-headed whilst
 record will be a collection of fields which translates here to all
 the elements of the \AIC{`Unit} type being equal to \AIC{`⟨⟩}.
 
-\begin{code}
-eta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) → Γ ⊢ σ `→ τ
-eta t = `λ $ wk^⊢ (step refl) t `$ `var here!
-\end{code}
 \begin{mathpar}
 \inferrule{
   }{\text{\AB{t} ↝ \AF{eta} \AB{t}}
@@ -717,26 +759,24 @@ eta t = `λ $ wk^⊢ (step refl) t `$ `var here!
   }{\text{\AB{t} ↝ \AIC{`⟨⟩}}
   }{η_2}
 \end{mathpar}
+\begin{code}
+eta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) → Γ ⊢ σ `→ τ
+eta t = `λ $ wk^⊢ (step refl) t `$ `var here!
+\end{code}
 
 Now that we have recalled all these rules, we can talk precisely
 about the sort of equational theory decided by the model construction
-we decide to perform. We start with the usual definition of Normalisation
+we choose to perform. We start with the usual definition of Normalisation
 by Evaluation which goes under λs and produces η-long βι-short normal
 forms.
 
 \subsection{Normalisation by Evaluation for βιξη}
 
 These η-long βι-short normal forms can be formally described by two
-mutually defined inductive families. Once more, context inclusions
-induce a notion of weakening.
-
-It should be noted that we do not enforce the fact that \AIC{`embed}
-only lifts elment from the \AIC{`Bool} base type thus guaranteeing that
-the η-rules have been applied as much as possible. This is purely for
-brevety: we reuse this definition later on in a model definition where
-no η-expansion is performed. If we were to add this extra constraint,
-the programs in this subsection would stay exactly the same whilst
-having a slightly more precise type.
+mutually defined inductive families: \AD{\_⊢^{ne}\_} is the type of
+stuck terms made up of a variable to which a spine of eliminators in
+normal forms is applied; and \AD{\_⊢^{nf}\_} describes these normal
+forms.
 
 \AgdaHide{
 \begin{code}
@@ -744,6 +784,7 @@ infix 5 _⊢^ne_ _⊢^nf_
 \end{code}}
 \begin{code}
 mutual
+
   data _⊢^ne_ (Γ : Con) (σ : ty) : Set where
     `var   : (v : σ ∈ Γ) → Γ ⊢^ne σ
     _`$_   : {τ : ty} (t : Γ ⊢^ne τ `→ σ) (u : Γ ⊢^nf τ) → Γ ⊢^ne σ
@@ -755,7 +796,13 @@ mutual
     `tt     : Γ ⊢^nf `Bool
     `ff     : Γ ⊢^nf `Bool
     `λ      : {σ τ : ty} (b : Γ ∙ σ ⊢^nf τ) → Γ ⊢^nf σ `→ τ
+\end{code}
 
+Once more, context inclusions induce a notion of weakening. We hide
+the purely structural definition of \AF{wk^{ne}} and \AF{wk^{nf}}
+but quickly recall their respective types:
+
+\begin{code}
 wk^ne : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^ne σ) → Δ ⊢^ne σ
 wk^nf : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^nf σ) → Δ ⊢^nf σ
 \end{code}
@@ -828,10 +875,12 @@ wk^ne-trans : {Θ Δ Γ : Con} {σ : ty} (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ �
 wk^ne-trans inc₁ inc₂ = wk^ne-trans′ (λ _ _ → PEq.refl)
 \end{code}}
 
-We now come to the definition of the model. It is such that we know that η-expansion
-is applied eagerly: all inhabitants of \AB{Γ} \AF{⊨^βιξη} \AIC{`Unit} are indeed
-equal and all elements of \AB{Γ} \AF{⊨^βιξη} \AB{σ} \AIC{`→} \AB{τ} are functions
-in Agda meaning that their reifications will only ever be \AIC{`λ}-headed.
+We now come to the definition of the model which follows the usual pattern
+pioneered by Berger~\cite{berger1993program}. We proceed by induction on
+the type and make sure that η-expansion is applied eagerly: all inhabitants
+of \AB{Γ} \AF{⊨^βιξη} \AIC{`Unit} are indeed equal and all elements of
+\AB{Γ} \AF{⊨^βιξη} (\AB{σ} \AIC{`→} \AB{τ}) are functions in Agda meaning
+that their reifications will be guaranteed to be \AIC{`λ}-headed.
 
 \AgdaHide{
 \begin{code}
@@ -1224,42 +1273,42 @@ The bulk of the work is to make this intuition formal.
 
 The evidence that two \AR{Semantics} are \AR{Synchronisable} is
 packaged in a record. The record is indexed by the two semantics
-as well as three relations. The first relation (\AB{RelEnvAB})
+as well as three relations. The first relation (\AB{Rel𝓔^{AB}})
 characterises the elements of the (respective) environment types
-which are to be considered synchronised, the second (\AB{RelEnv})
+which are to be considered synchronised, the second (\AB{Rel𝓔})
 explains what it means for two environements to be synchronised
-and the last (\AB{RelMod}) describes what synchronisation means
+and the last (\AB{Rel𝓜}) describes what synchronisation means
 in the model.
 
 \begin{code}
 record Synchronisable
-  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {EnvA : (Γ : Con) (σ : ty) → Set ℓ^EA} {ModA : (Γ : Con) (σ : ty) → Set ℓ^MA} (semA : Semantics EnvA ModA)
-  {EnvB : (Γ : Con) (σ : ty) → Set ℓ^EB} {ModB : (Γ : Con) (σ : ty) → Set ℓ^MB} (semB : Semantics EnvB ModB)
-  {ℓ^RE ℓ^RM ℓ^REAB : Level} (RelEnvAB : {Γ : Con} {σ : ty} (eA : EnvA Γ σ) (eB : EnvB Γ σ) → Set ℓ^REAB)
-  (RelEnv : {Δ Γ : Con} (eA : Δ [ EnvA ] Γ) (eB : Δ [ EnvB ] Γ) → Set ℓ^RE)
-  (RelMod : {Γ : Con} {σ : ty} (mA : ModA Γ σ) (mB : ModB Γ σ) → Set ℓ^RM)
+  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} (𝓢^A : Semantics 𝓔^A 𝓜^A)
+  {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} (𝓢^B : Semantics 𝓔^B 𝓜^B)
+  {ℓ^RE ℓ^RM ℓ^REAB : Level} (Rel𝓔^AB : {Γ : Con} {σ : ty} (eA : 𝓔^A Γ σ) (eB : 𝓔^B Γ σ) → Set ℓ^REAB)
+  (Rel𝓔 : {Δ Γ : Con} (eA : Δ [ 𝓔^A ] Γ) (eB : Δ [ 𝓔^B ] Γ) → Set ℓ^RE)
+  (Rel𝓜 : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM)
   : Set (ℓ^RE ⊔ ℓ^RM ⊔ ℓ^EA ⊔ ℓ^EB ⊔ ℓ^MA ⊔ ℓ^MB ⊔ ℓ^REAB) where
 \end{code}
 
 The record's fields are describing the structure these relations
 need to have. The first topic of interest is the interaction
-between \AB{RelEnvAB} and \AB{RelEnv}. \ARF{RelEnv∙} states that
+between \AB{Rel𝓔^{AB}} and \AB{Rel𝓔}. \ARF{Rel𝓔∙} states that
 it should be possible to extend two synchronised environments as
 long the elements we push onto them are themselves related by
-\AB{RelEnvAB}. \ARF{RelEnvWk} states that two synchronised
+\AB{Rel𝓔^{AB}}. \ARF{Rel𝓔Wk} states that two synchronised
 environments can be weakened whilst staying synchronised.
 
 \AgdaHide{
 \begin{code}
-  module SemA = Semantics semA
-  module SemB = Semantics semB
+  module SemA = Semantics 𝓢^A
+  module SemB = Semantics 𝓢^B
   field
 \end{code}}
 \begin{code}
-    RelEnv∙   :  {Γ Δ : Con} {σ : ty} {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} {uA : EnvA Δ σ} {uB : EnvB Δ σ} (ρR : RelEnv ρA ρB) (uR : RelEnvAB uA uB) →
-                 RelEnv ([ EnvA ] ρA `∙ uA) ([ EnvB ] ρB `∙ uB)
-    RelEnvWk  :  {Γ Δ Θ : Con} (inc : Δ ⊆ Θ) {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                 RelEnv  (wk[ SemA.wk ] inc ρA)
+    Rel𝓔∙   :  {Γ Δ : Con} {σ : ty} {ρA : Δ [ 𝓔^A ] Γ} {ρB : Δ [ 𝓔^B ] Γ} {uA : 𝓔^A Δ σ} {uB : 𝓔^B Δ σ} (ρR : Rel𝓔 ρA ρB) (uR : Rel𝓔^AB uA uB) →
+                 Rel𝓔 ([ 𝓔^A ] ρA `∙ uA) ([ 𝓔^B ] ρB `∙ uB)
+    Rel𝓔Wk  :  {Γ Δ Θ : Con} (inc : Δ ⊆ Θ) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Δ [ 𝓔^B ] Γ} (ρR : Rel𝓔 ρA ρB) →
+                 Rel𝓔  (wk[ SemA.wk ] inc ρA)
                          (wk[ SemB.wk ] inc ρB)
 \end{code}
 
@@ -1274,9 +1323,9 @@ environments, we indeed get synchronised values in the model by
 looking up the values each one of these associates to a given
 variable.
 \begin{code}
-    R⟦var⟧    :  {Γ Δ : Con} {σ : ty} (v : σ ∈ Γ) {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                 RelMod  (semA ⊨⟦ `var v ⟧ ρA)
-                         (semB ⊨⟦ `var v ⟧ ρB)
+    R⟦var⟧    :  {Γ Δ : Con} {σ : ty} (v : σ ∈ Γ) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Δ [ 𝓔^B ] Γ} (ρR : Rel𝓔 ρA ρB) →
+                 Rel𝓜  (𝓢^A ⊨⟦ `var v ⟧ ρA)
+                         (𝓢^B ⊨⟦ `var v ⟧ ρB)
 \end{code}
 
 The second, and probably most interesting case, is the description
@@ -1288,12 +1337,12 @@ model is enough to guarantee that evaluating the lambdas in the original
 environments will deliver synchronised values.
 
 \begin{code}
-    R⟦λ⟧      :  {Γ Δ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                 (r :  {Θ : Con} (inc : Δ ⊆ Θ) {uA : EnvA Θ σ} {uB : EnvB Θ σ} (uR : RelEnvAB uA uB) →
-                       let ρA′  = [ EnvA ] wk[ SemA.wk ] inc ρA `∙ uA
-                           ρB′  = [ EnvB ] wk[ SemB.wk ] inc ρB `∙ uB
-                       in RelMod  (semA ⊨⟦ t ⟧ ρA′) (semB ⊨⟦ t ⟧ ρB′)) →
-                 RelMod (semA ⊨⟦ `λ t ⟧ ρA) (semB ⊨⟦ `λ t ⟧ ρB)
+    R⟦λ⟧      :  {Γ Δ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Δ [ 𝓔^B ] Γ} (ρR : Rel𝓔 ρA ρB) →
+                 (r :  {Θ : Con} (inc : Δ ⊆ Θ) {uA : 𝓔^A Θ σ} {uB : 𝓔^B Θ σ} (uR : Rel𝓔^AB uA uB) →
+                       let ρA′  = [ 𝓔^A ] wk[ SemA.wk ] inc ρA `∙ uA
+                           ρB′  = [ 𝓔^B ] wk[ SemB.wk ] inc ρB `∙ uB
+                       in Rel𝓜  (𝓢^A ⊨⟦ t ⟧ ρA′) (𝓢^B ⊨⟦ t ⟧ ρB′)) →
+                 Rel𝓜 (𝓢^A ⊨⟦ `λ t ⟧ ρA) (𝓢^B ⊨⟦ `λ t ⟧ ρB)
 \end{code}
 
 All the remaining cases are similar. We show here the relational
@@ -1303,24 +1352,24 @@ used are synchronised), one can combine them to obtain a proof
 about the evaluation of an application-headed term.
 
 \begin{code}
-    R⟦$⟧      :  {Γ Δ : Con} {σ τ : ty} (f : Γ ⊢ σ `→ τ) (t : Γ ⊢ σ) {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                 RelMod (semA ⊨⟦ f ⟧ ρA) (semB ⊨⟦ f ⟧ ρB) →
-                 RelMod (semA ⊨⟦ t ⟧ ρA) (semB ⊨⟦ t ⟧ ρB) →
-                 RelMod (semA ⊨⟦ f `$ t ⟧ ρA) (semB ⊨⟦ f `$ t ⟧ ρB)
+    R⟦$⟧      :  {Γ Δ : Con} {σ τ : ty} (f : Γ ⊢ σ `→ τ) (t : Γ ⊢ σ) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Δ [ 𝓔^B ] Γ} (ρR : Rel𝓔 ρA ρB) →
+                 Rel𝓜 (𝓢^A ⊨⟦ f ⟧ ρA) (𝓢^B ⊨⟦ f ⟧ ρB) →
+                 Rel𝓜 (𝓢^A ⊨⟦ t ⟧ ρA) (𝓢^B ⊨⟦ t ⟧ ρB) →
+                 Rel𝓜 (𝓢^A ⊨⟦ f `$ t ⟧ ρA) (𝓢^B ⊨⟦ f `$ t ⟧ ρB)
 \end{code}
 \AgdaHide{
 \begin{code}
-    R⟦⟨⟩⟧     :  {Γ Δ : Con} {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                 RelMod (semA ⊨⟦ `⟨⟩ ⟧ ρA) (semB ⊨⟦ `⟨⟩ ⟧ ρB)
-    R⟦tt⟧     :  {Γ Δ : Con} {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                 RelMod (semA ⊨⟦ `tt ⟧ ρA) (semB ⊨⟦ `tt ⟧ ρB)
-    R⟦ff⟧     :  {Γ Δ : Con} {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                 RelMod (semA ⊨⟦ `ff ⟧ ρA) (semB ⊨⟦ `ff ⟧ ρB)
-    R⟦ifte⟧   :  {Γ Δ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                 RelMod (semA ⊨⟦ b ⟧ ρA) (semB ⊨⟦ b ⟧ ρB) →
-                 RelMod (semA ⊨⟦ l ⟧ ρA) (semB ⊨⟦ l ⟧ ρB) →
-                 RelMod (semA ⊨⟦ r ⟧ ρA) (semB ⊨⟦ r ⟧ ρB) →
-                 RelMod (semA ⊨⟦ `ifte b l r ⟧ ρA) (semB ⊨⟦ `ifte b l r ⟧ ρB)
+    R⟦⟨⟩⟧     :  {Γ Δ : Con} {ρA : Δ [ 𝓔^A ] Γ} {ρB : Δ [ 𝓔^B ] Γ} (ρR : Rel𝓔 ρA ρB) →
+                 Rel𝓜 (𝓢^A ⊨⟦ `⟨⟩ ⟧ ρA) (𝓢^B ⊨⟦ `⟨⟩ ⟧ ρB)
+    R⟦tt⟧     :  {Γ Δ : Con} {ρA : Δ [ 𝓔^A ] Γ} {ρB : Δ [ 𝓔^B ] Γ} (ρR : Rel𝓔 ρA ρB) →
+                 Rel𝓜 (𝓢^A ⊨⟦ `tt ⟧ ρA) (𝓢^B ⊨⟦ `tt ⟧ ρB)
+    R⟦ff⟧     :  {Γ Δ : Con} {ρA : Δ [ 𝓔^A ] Γ} {ρB : Δ [ 𝓔^B ] Γ} (ρR : Rel𝓔 ρA ρB) →
+                 Rel𝓜 (𝓢^A ⊨⟦ `ff ⟧ ρA) (𝓢^B ⊨⟦ `ff ⟧ ρB)
+    R⟦ifte⟧   :  {Γ Δ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Δ [ 𝓔^B ] Γ} (ρR : Rel𝓔 ρA ρB) →
+                 Rel𝓜 (𝓢^A ⊨⟦ b ⟧ ρA) (𝓢^B ⊨⟦ b ⟧ ρB) →
+                 Rel𝓜 (𝓢^A ⊨⟦ l ⟧ ρA) (𝓢^B ⊨⟦ l ⟧ ρB) →
+                 Rel𝓜 (𝓢^A ⊨⟦ r ⟧ ρA) (𝓢^B ⊨⟦ r ⟧ ρB) →
+                 Rel𝓜 (𝓢^A ⊨⟦ `ifte b l r ⟧ ρA) (𝓢^B ⊨⟦ `ifte b l r ⟧ ρB)
 \end{code}}
 
 What tells us that this specification is indeed the right one is, first,
@@ -1330,7 +1379,7 @@ us start with the fundamental lemma.
 
 \subsubsection{Fundamental Lemma of Synchronisable Semantics}
 
-The fundamental lemma is indeed provable as witnessed by the \AgdaModule{Synchronised}
+The fundamental lemma is indeed provable as witnessed by the \AM{Synchronised}
 module which is parametrised by a record of type \AR{Synchronisable} and
 implements the \AF{synchronised} function which is omitted here because
 it is a rather simple traversal inserting the term constructors' relational
@@ -1338,28 +1387,28 @@ counterparts in the right places.
 
 \begin{code}
 module Synchronised
-\end{code}\vspace{-2em}%ugly but it works!
+\end{code}\vspace{-2.5em}%ugly but it works!
 \AgdaHide{
 \begin{code}
-  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level}  {EnvA : (Γ : Con) (σ : ty) → Set ℓ^EA}  {ModA : (Γ : Con) (σ : ty) → Set ℓ^MA}  {semA : Semantics EnvA ModA}  {EnvB : (Γ : Con) (σ : ty) → Set ℓ^EB}  {ModB : (Γ : Con) (σ : ty) → Set ℓ^MB}  {semB : Semantics EnvB ModB}  {ℓ^RE ℓ^RM ℓ^REAB : Level}  {RelEnvAB : {Γ : Con} {σ : ty} (eA : EnvA Γ σ) (eB : EnvB Γ σ) → Set ℓ^REAB}  {RelEnv : {Δ Γ : Con} (eA : Δ [ EnvA ] Γ) (eB : Δ [ EnvB ] Γ) → Set ℓ^RE}  {RelMod : {Γ : Con} {σ : ty} (mA : ModA Γ σ) (mB : ModB Γ σ) → Set ℓ^RM}
+  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level}  {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA}  {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA}  {𝓢^A : Semantics 𝓔^A 𝓜^A}  {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB}  {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB}  {𝓢^B : Semantics 𝓔^B 𝓜^B}  {ℓ^RE ℓ^RM ℓ^REAB : Level}  {Rel𝓔^AB : {Γ : Con} {σ : ty} (eA : 𝓔^A Γ σ) (eB : 𝓔^B Γ σ) → Set ℓ^REAB}  {Rel𝓔 : {Δ Γ : Con} (eA : Δ [ 𝓔^A ] Γ) (eB : Δ [ 𝓔^B ] Γ) → Set ℓ^RE}  {Rel𝓜 : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM}
 \end{code}}
 \begin{code}
-  (rel : Synchronisable semA semB RelEnvAB RelEnv RelMod)
+  (rel : Synchronisable 𝓢^A 𝓢^B Rel𝓔^AB Rel𝓔 Rel𝓜)
   where
-\end{code}\vspace{-2em}%ugly but it works!
+\end{code}\vspace{-2.5em}%ugly but it works!
 \AgdaHide{
 \begin{code}
   open Synchronisable rel
 \end{code}}
 \begin{code}
-  synchronised :  {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ EnvA ] Γ} {ρB : Δ [ EnvB ] Γ} (ρR : RelEnv ρA ρB) →
-                  RelMod (semA ⊨⟦ t ⟧ ρA) (semB ⊨⟦ t ⟧ ρB)
+  synchronised :  {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Δ [ 𝓔^B ] Γ} (ρR : Rel𝓔 ρA ρB) →
+                  Rel𝓜 (𝓢^A ⊨⟦ t ⟧ ρA) (𝓢^B ⊨⟦ t ⟧ ρB)
 \end{code}
 \AgdaHide{
 \begin{code}
   synchronised (`var v)      ρR = R⟦var⟧ v ρR
   synchronised (f `$ t)      ρR = R⟦$⟧ f t ρR (synchronised f ρR) (synchronised t ρR)
-  synchronised (`λ t)        ρR = R⟦λ⟧ t ρR $ λ inc uR → synchronised t (RelEnv∙ (RelEnvWk inc ρR) uR)
+  synchronised (`λ t)        ρR = R⟦λ⟧ t ρR $ λ inc uR → synchronised t (Rel𝓔∙ (Rel𝓔Wk inc ρR) uR)
   synchronised `⟨⟩           ρR = R⟦⟨⟩⟧ ρR
   synchronised `tt           ρR = R⟦tt⟧ ρR
   synchronised `ff           ρR = R⟦ff⟧ ρR
@@ -1386,8 +1435,8 @@ SynchronisableRenamingSubstitution :
 \begin{code}
 SynchronisableRenamingSubstitution =
   record
-    { RelEnv∙   = λ ρR uR → [ uR , ρR ]
-    ; RelEnvWk  = λ inc ρR σ pr → PEq.cong (wk^⊢ inc) (ρR σ pr)
+    { Rel𝓔∙   = λ ρR uR → [ uR , ρR ]
+    ; Rel𝓔Wk  = λ inc ρR σ pr → PEq.cong (wk^⊢ inc) (ρR σ pr)
     ; R⟦var⟧    = λ v ρR → ρR _ v
     ; R⟦$⟧      = λ _ _ _ → PEq.cong₂ _`$_
     ; R⟦λ⟧      = λ _  ρR r → PEq.cong `λ (r (step refl) PEq.refl)
@@ -1512,8 +1561,8 @@ SynchronisableNormalise :
 \begin{code}
 SynchronisableNormalise =
   record
-    { RelEnv∙  = λ ρR uR → [ uR , ρR ]
-    ; RelEnvWk = λ inc ρR σ pr → wk^EQREL σ inc (ρR σ pr)
+    { Rel𝓔∙  = λ ρR uR → [ uR , ρR ]
+    ; Rel𝓔Wk = λ inc ρR σ pr → wk^EQREL σ inc (ρR σ pr)
     ; R⟦var⟧   = λ v ρR → ρR _ v
     ; R⟦$⟧     = λ _ _ _ f → f refl
     ; R⟦λ⟧     = λ _ _ r → r
@@ -1536,69 +1585,69 @@ syntactic semantics we introduced earlier, that leads to four
 lemmas already. That led us to defining a fusion framework
 describing how to relate three semantics.
 
-The evidence that \AB{semA}, \AB{semB} and \AB{semC} are such
-that \AB{semA} followed by \AB{semB} can be said to be equivalent
-to \AB{semC} (e.g. think \AF{Substitution} followed by \AF{Renaming}
+The evidence that \AB{𝓢^A}, \AB{𝓢^B} and \AB{𝓢^C} are such
+that \AB{𝓢^A} followed by \AB{𝓢^B} can be said to be equivalent
+to \AB{𝓢^C} (e.g. think \AF{Substitution} followed by \AF{Renaming}
 can be reduced to \AF{Substitution}) is packed in a record
 \AR{Fusable} indexed by the three semantics but also three
-relations. The first one (\AB{RelEnvBC}) states what it means
-for two environment values of \AB{semB} and \AB{semC} respectively
-to be related. The second one (\AB{RelEnv}) characteries the triples
+relations. The first one (\AB{Rel𝓔^BC}) states what it means
+for two environment values of \AB{𝓢^B} and \AB{𝓢^C} respectively
+to be related. The second one (\AB{Rel𝓔}) characteries the triples
 of environments (one for each one of the semantics) which are
-compatible. Finally, the last one (\AB{RelMod}) relates values
-in \AB{semB} and \AB{semC}'s respective models.
+compatible. Finally, the last one (\AB{Rel𝓜}) relates values
+in \AB{𝓢^B} and \AB{𝓢^C}'s respective models.
 
 \begin{code}
 record Fusable
-  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB ℓ^EC ℓ^MC ℓ^RE ℓ^REBC ℓ^RM : Level} {EnvA : (Γ : Con) (σ : ty) → Set ℓ^EA} {EnvB : (Γ : Con) (σ : ty) → Set ℓ^EB} {EnvC : (Γ : Con) (σ : ty) → Set ℓ^EC} {ModA : (Γ : Con) (σ : ty) → Set ℓ^MA} {ModB : (Γ : Con) (σ : ty) → Set ℓ^MB} {ModC : (Γ : Con) (σ : ty) → Set ℓ^MC} (semA      : Semantics EnvA ModA)
-  (semB      : Semantics EnvB ModB)
-  (semC      : Semantics EnvC ModC)
-  (RelEnvBC  : {Γ : Con} {σ : ty} (eB : EnvB Γ σ) (eC : EnvC Γ σ) → Set ℓ^REBC)
-  (RelEnv    :  {Θ Δ Γ : Con} (eA : Δ [ EnvA ] Γ) (ρB : Θ [ EnvB ] Δ)
-                (eC : Θ [ EnvC ] Γ) → Set ℓ^RE)
-  (RelMod    : {Γ : Con} {σ : ty} (mB : ModB Γ σ) (mC : ModC Γ σ) → Set ℓ^RM)
+  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB ℓ^EC ℓ^MC ℓ^RE ℓ^REBC ℓ^RM : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓜^C : (Γ : Con) (σ : ty) → Set ℓ^MC} (𝓢^A      : Semantics 𝓔^A 𝓜^A)
+  (𝓢^B      : Semantics 𝓔^B 𝓜^B)
+  (𝓢^C      : Semantics 𝓔^C 𝓜^C)
+  (Rel𝓔^BC  : {Γ : Con} {σ : ty} (eB : 𝓔^B Γ σ) (eC : 𝓔^C Γ σ) → Set ℓ^REBC)
+  (Rel𝓔    :  {Θ Δ Γ : Con} (eA : Δ [ 𝓔^A ] Γ) (ρB : Θ [ 𝓔^B ] Δ)
+                (eC : Θ [ 𝓔^C ] Γ) → Set ℓ^RE)
+  (Rel𝓜    : {Γ : Con} {σ : ty} (mB : 𝓜^B Γ σ) (mC : 𝓜^C Γ σ) → Set ℓ^RM)
   : Set (ℓ^RM ⊔ ℓ^RE ⊔ ℓ^EC ⊔ ℓ^EB ⊔ ℓ^EA ⊔ ℓ^MA ⊔ ℓ^REBC) where
 \end{code}
 \AgdaHide{
 \begin{code}
-  module SemA = Semantics semA
-  module SemB = Semantics semB
-  module SemC = Semantics semC
+  module SemA = Semantics 𝓢^A
+  module SemB = Semantics 𝓢^B
+  module SemC = Semantics 𝓢^C
   field
 \end{code}}
 
 Similarly to the previous section, most of the fields of this
 record describe what structure these relations need to have.
 However, we start with something slightly different: given that
-we are planing to run the \AR{Semantics} \AB{semB} \emph{after}
-having run \AB{semA}, we need a way to extract a term from an
-element of \AB{semA}'s model. Our first field is therefore
+we are planing to run the \AR{Semantics} \AB{𝓢^B} \emph{after}
+having run \AB{𝓢^A}, we need a way to extract a term from an
+element of \AB{𝓢^A}'s model. Our first field is therefore
 \ARF{reifyA}:
 
 \begin{code}
-    reifyA    : {Γ : Con} {σ : ty} (m : ModA Γ σ) → Γ ⊢ σ
+    reifyA    : {Γ : Con} {σ : ty} (m : 𝓜^A Γ σ) → Γ ⊢ σ
 \end{code}
 
 Then come two constraints dealing with the relations talking
-about evaluation environments. \ARF{RelEnv∙} tells us how to
+about evaluation environments. \ARF{Rel𝓔∙} tells us how to
 extend related environments: one should be able to push related
-values onto the environments for \AB{semB} and \AB{semC} whilst
-merely extending the one for \AB{semA} with a token value generated
+values onto the environments for \AB{𝓢^B} and \AB{𝓢^C} whilst
+merely extending the one for \AB{𝓢^A} with a token value generated
 using \ARF{embed}.
 
-\ARF{RelEnvWk} guarantees that it is always possible to weaken
-the environments for \AB{semB} and \AB{semC} in a \AB{RelEnv}
+\ARF{Rel𝓔Wk} guarantees that it is always possible to weaken
+the environments for \AB{𝓢^B} and \AB{𝓢^C} in a \AB{Rel𝓔}
 preserving manner.
 
 \begin{code}
-    RelEnv∙   :  {Γ Δ Θ : Con} {σ : ty} {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} {uB : EnvB Θ σ} {uC : EnvC Θ σ} (ρR : RelEnv ρA ρB ρC) (uR : RelEnvBC uB uC) →
-                 RelEnv  ([ EnvA ]  wk[ SemA.wk ] (step refl) ρA
+    Rel𝓔∙   :  {Γ Δ Θ : Con} {σ : ty} {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} {uB : 𝓔^B Θ σ} {uC : 𝓔^C Θ σ} (ρR : Rel𝓔 ρA ρB ρC) (uR : Rel𝓔^BC uB uC) →
+                 Rel𝓔  ([ 𝓔^A ]  wk[ SemA.wk ] (step refl) ρA
                                     `∙ SemA.embed σ here!)
-                         ([ EnvB ]  ρB `∙ uB)
-                         ([ EnvC ]  ρC `∙ uC)
+                         ([ 𝓔^B ]  ρB `∙ uB)
+                         ([ 𝓔^C ]  ρC `∙ uC)
 
-    RelEnvWk  :  {Γ Δ Θ E : Con} (inc : Θ ⊆ E) {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} (ρR : RelEnv ρA ρB ρC) →
-                 RelEnv ρA  (wk[ SemB.wk ] inc ρB)
+    Rel𝓔Wk  :  {Γ Δ Θ E : Con} (inc : Θ ⊆ E) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} (ρR : Rel𝓔 ρA ρB ρC) →
+                 Rel𝓔 ρA  (wk[ SemB.wk ] inc ρB)
                             (wk[ SemC.wk ] inc ρC)
 \end{code}
 
@@ -1609,35 +1658,35 @@ case. It states that fusion indeed happens when evaluating a
 variable using related environments.
 
 \begin{code}
-    R⟦var⟧  : {Γ Δ Θ : Con} {σ : ty} (v : σ ∈ Γ) {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} (ρR : RelEnv ρA ρB ρC) →
-              RelMod  (semB ⊨⟦ reifyA (semA ⊨⟦ `var v ⟧ ρA) ⟧ ρB)
-                      (semC ⊨⟦ `var v ⟧ ρC)
+    R⟦var⟧  : {Γ Δ Θ : Con} {σ : ty} (v : σ ∈ Γ) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} (ρR : Rel𝓔 ρA ρB ρC) →
+              Rel𝓜  (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ `var v ⟧ ρA) ⟧ ρB)
+                      (𝓢^C ⊨⟦ `var v ⟧ ρC)
 \end{code}
 
 The \AIC{`λ}-case puts some rather strong restrictions on the way
-the λ-abstraction's body may be used by \AB{semA}: we assume it
+the λ-abstraction's body may be used by \AB{𝓢^A}: we assume it
 is evaluated in an environment weakened by one variable and extended
-using \AB{semA}'s \ARF{embed}. But it is quite natural to have these
+using \AB{𝓢^A}'s \ARF{embed}. But it is quite natural to have these
 restrictions: given that \ARF{reifyA} quotes the result back, we are
 expecting this type of evaluation in an extended context (i.e. under
 one lambda). And it turns out that this is indeed enough for all of
 our examples.
 
-The evaluation environments used by the semantics \AB{semB} and \AB{semC}
+The evaluation environments used by the semantics \AB{𝓢^B} and \AB{𝓢^C}
 on the other can be arbitrarily weakened before being extended with related
 values to be substituted for the variable bound by the \AIC{`λ}.
 
 \begin{code}
-    R⟦λ⟧    :  {Γ Δ Θ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} (ρR : RelEnv ρA ρB ρC) →
-               (r :  {E : Con} (inc : Θ ⊆ E) {uB : EnvB E σ} {uC : EnvC E σ} (uR : RelEnvBC uB uC) →
-                     let  ρA′ =  [ EnvA ] wk[ SemA.wk ] (step refl) ρA
+    R⟦λ⟧    :  {Γ Δ Θ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} (ρR : Rel𝓔 ρA ρB ρC) →
+               (r :  {E : Con} (inc : Θ ⊆ E) {uB : 𝓔^B E σ} {uC : 𝓔^C E σ} (uR : Rel𝓔^BC uB uC) →
+                     let  ρA′ =  [ 𝓔^A ] wk[ SemA.wk ] (step refl) ρA
                                  `∙ SemA.embed σ here!
-                          ρB′ =  [ EnvB ] wk[ SemB.wk ] inc ρB `∙ uB
-                          ρC′ =  [ EnvC ] wk[ SemC.wk ] inc ρC `∙ uC
-                     in RelMod  (semB ⊨⟦ reifyA (semA ⊨⟦ t ⟧ ρA′) ⟧ ρB′)
-                                (semC ⊨⟦ t ⟧ ρC′)) →
-                RelMod  (semB ⊨⟦ reifyA (semA ⊨⟦ `λ t ⟧ ρA) ⟧ ρB)
-                        (semC ⊨⟦ `λ t ⟧ ρC)
+                          ρB′ =  [ 𝓔^B ] wk[ SemB.wk ] inc ρB `∙ uB
+                          ρC′ =  [ 𝓔^C ] wk[ SemC.wk ] inc ρC `∙ uC
+                     in Rel𝓜  (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ t ⟧ ρA′) ⟧ ρB′)
+                                (𝓢^C ⊨⟦ t ⟧ ρC′)) →
+                Rel𝓜  (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ `λ t ⟧ ρA) ⟧ ρB)
+                        (𝓢^C ⊨⟦ `λ t ⟧ ρC)
 \end{code}
 
 The other cases are just a matter of stating that, given the
@@ -1647,29 +1696,29 @@ fusion can happen on the compound expression.
 \AgdaHide{
 \begin{code}
     R⟦$⟧    : {Γ Δ Θ : Con} {σ τ : ty} (f : Γ ⊢ σ `→ τ) (t : Γ ⊢ σ)
-            {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} →
-             (ρR : RelEnv ρA ρB ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ f ⟧ ρA) ⟧ ρB)
-                   (semC ⊨⟦ f ⟧ ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ t ⟧ ρA) ⟧ ρB) (semC ⊨⟦ t ⟧ ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ f `$ t ⟧ ρA) ⟧ ρB) (semC ⊨⟦ f `$ t ⟧ ρC)
+            {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} →
+             (ρR : Rel𝓔 ρA ρB ρC) →
+            Rel𝓜 (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ f ⟧ ρA) ⟧ ρB)
+                   (𝓢^C ⊨⟦ f ⟧ ρC) →
+            Rel𝓜 (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ t ⟧ ρA) ⟧ ρB) (𝓢^C ⊨⟦ t ⟧ ρC) →
+            Rel𝓜 (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ f `$ t ⟧ ρA) ⟧ ρB) (𝓢^C ⊨⟦ f `$ t ⟧ ρC)
 
-    R⟦⟨⟩⟧   : {Γ Δ Θ : Con} {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} →
-             (ρR : RelEnv ρA ρB ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ `⟨⟩ ⟧ ρA) ⟧ ρB) (semC ⊨⟦ `⟨⟩ ⟧ ρC)
-    R⟦tt⟧   : {Γ Δ Θ : Con} {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} →
-             (ρR : RelEnv ρA ρB ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ `tt ⟧ ρA) ⟧ ρB) (semC ⊨⟦ `tt ⟧ ρC)
-    R⟦ff⟧   : {Γ Δ Θ : Con} {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} →
-             (ρR : RelEnv ρA ρB ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ `ff ⟧ ρA) ⟧ ρB) (semC ⊨⟦ `ff ⟧ ρC)
+    R⟦⟨⟩⟧   : {Γ Δ Θ : Con} {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} →
+             (ρR : Rel𝓔 ρA ρB ρC) →
+            Rel𝓜 (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ `⟨⟩ ⟧ ρA) ⟧ ρB) (𝓢^C ⊨⟦ `⟨⟩ ⟧ ρC)
+    R⟦tt⟧   : {Γ Δ Θ : Con} {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} →
+             (ρR : Rel𝓔 ρA ρB ρC) →
+            Rel𝓜 (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ `tt ⟧ ρA) ⟧ ρB) (𝓢^C ⊨⟦ `tt ⟧ ρC)
+    R⟦ff⟧   : {Γ Δ Θ : Con} {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} →
+             (ρR : Rel𝓔 ρA ρB ρC) →
+            Rel𝓜 (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ `ff ⟧ ρA) ⟧ ρB) (𝓢^C ⊨⟦ `ff ⟧ ρC)
     R⟦ifte⟧ : {Γ Δ Θ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ)
-            {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} →
-             (ρR : RelEnv ρA ρB ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ b ⟧ ρA) ⟧ ρB) (semC ⊨⟦ b ⟧ ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ l ⟧ ρA) ⟧ ρB) (semC ⊨⟦ l ⟧ ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ r ⟧ ρA) ⟧ ρB) (semC ⊨⟦ r ⟧ ρC) →
-            RelMod (semB ⊨⟦ reifyA (semA ⊨⟦ `ifte b l r ⟧ ρA) ⟧ ρB) (semC ⊨⟦ `ifte b l r ⟧ ρC)
+            {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} →
+             (ρR : Rel𝓔 ρA ρB ρC) →
+            Rel𝓜 (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ b ⟧ ρA) ⟧ ρB) (𝓢^C ⊨⟦ b ⟧ ρC) →
+            Rel𝓜 (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ l ⟧ ρA) ⟧ ρB) (𝓢^C ⊨⟦ l ⟧ ρC) →
+            Rel𝓜 (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ r ⟧ ρA) ⟧ ρB) (𝓢^C ⊨⟦ r ⟧ ρC) →
+            Rel𝓜 (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ `ifte b l r ⟧ ρA) ⟧ ρB) (𝓢^C ⊨⟦ `ifte b l r ⟧ ρC)
 \end{code}}
 
 \subsubsection{Fundamental Lemma of Fusable Semantics}
@@ -1682,19 +1731,19 @@ lemma turns out to amount to a simple traversal we choose to omit here.
 
 \begin{code}
 module Fusion
-  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB ℓ^EC ℓ^MC ℓ^RE ℓ^REB ℓ^RM : Level} {EnvA : (Γ : Con) (σ : ty) → Set ℓ^EA} {EnvB : (Γ : Con) (σ : ty) → Set ℓ^EB} {EnvC : (Γ : Con) (σ : ty) → Set ℓ^EC} {ModA : (Γ : Con) (σ : ty) → Set ℓ^MA} {ModB : (Γ : Con) (σ : ty) → Set ℓ^MB} {ModC : (Γ : Con) (σ : ty) → Set ℓ^MC} {semA : Semantics EnvA ModA} {semB : Semantics EnvB ModB} {semC : Semantics EnvC ModC} {RelEnvBC : {Γ : Con} {σ : ty} (eB : EnvB Γ σ) (eC : EnvC Γ σ) → Set ℓ^REB} {RelEnv : {Θ Δ Γ : Con} (ρA : Δ [ EnvA ] Γ) (ρB : Θ [ EnvB ] Δ) (ρC : Θ [ EnvC ] Γ) → Set ℓ^RE} {RelMod : {Γ : Con} {σ : ty} (mB : ModB Γ σ) (mC : ModC Γ σ) → Set ℓ^RM} (fusable : Fusable semA semB semC RelEnvBC RelEnv RelMod)
+  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB ℓ^EC ℓ^MC ℓ^RE ℓ^REB ℓ^RM : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓜^C : (Γ : Con) (σ : ty) → Set ℓ^MC} {𝓢^A : Semantics 𝓔^A 𝓜^A} {𝓢^B : Semantics 𝓔^B 𝓜^B} {𝓢^C : Semantics 𝓔^C 𝓜^C} {Rel𝓔^BC : {Γ : Con} {σ : ty} (eB : 𝓔^B Γ σ) (eC : 𝓔^C Γ σ) → Set ℓ^REB} {Rel𝓔 : {Θ Δ Γ : Con} (ρA : Δ [ 𝓔^A ] Γ) (ρB : Θ [ 𝓔^B ] Δ) (ρC : Θ [ 𝓔^C ] Γ) → Set ℓ^RE} {Rel𝓜 : {Γ : Con} {σ : ty} (mB : 𝓜^B Γ σ) (mC : 𝓜^C Γ σ) → Set ℓ^RM} (fusable : Fusable 𝓢^A 𝓢^B 𝓢^C Rel𝓔^BC Rel𝓔 Rel𝓜)
   where
   open Fusable fusable
 
-  fusion :  {Γ Δ Θ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} (ρR : RelEnv ρA ρB ρC) →
-            RelMod  (semB ⊨⟦ reifyA (semA ⊨⟦ t ⟧ ρA) ⟧ ρB)
-                    (semC ⊨⟦ t ⟧ ρC)
+  fusion :  {Γ Δ Θ : Con} {σ : ty} (t : Γ ⊢ σ) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} (ρR : Rel𝓔 ρA ρB ρC) →
+            Rel𝓜  (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ t ⟧ ρA) ⟧ ρB)
+                    (𝓢^C ⊨⟦ t ⟧ ρC)
 \end{code}
 \AgdaHide{
 \begin{code}
   fusion (`var v)       ρR = R⟦var⟧ v ρR
   fusion (f `$ t)       ρR = R⟦$⟧ f t ρR (fusion f ρR) (fusion t ρR)
-  fusion (`λ t)         ρR = R⟦λ⟧ t ρR $ λ inc uR → fusion t (RelEnv∙ (RelEnvWk inc ρR) uR)
+  fusion (`λ t)         ρR = R⟦λ⟧ t ρR $ λ inc uR → fusion t (Rel𝓔∙ (Rel𝓔Wk inc ρR) uR)
   fusion `⟨⟩            ρR = R⟦⟨⟩⟧ ρR
   fusion `tt            ρR = R⟦tt⟧ ρR
   fusion `ff            ρR = R⟦ff⟧ ρR
@@ -1716,10 +1765,10 @@ A \AR{SyntacticFusable} record packs the evidence necessary to
 prove that the \AR{Syntactic} semantics \AB{synA} and \AB{synB}
 can be fused using the \AR{Syntactic} semantics \AB{synC}. It
 is indexed by these three \AR{Syntactic}s as well as two relations
-corresponding to the \AB{RelEnvBC} and \AB{RelEnv} ones of the
+corresponding to the \AB{Rel𝓔^BC} and \AB{Rel𝓔} ones of the
 \AR{Fusable} framework.
 
-It contains the same \ARF{RelEnv∙}, \ARF{RelEnvWk} and \ARF{R⟦var⟧}
+It contains the same \ARF{Rel𝓔∙}, \ARF{Rel𝓔Wk} and \ARF{R⟦var⟧}
 fields as a \AR{Fusable} as well as a fourth one (\ARF{embedBC})
 saying that \AB{synB} and \AB{synC}'s respective \ARF{embed}s are
 producing related values.
@@ -1727,44 +1776,44 @@ producing related values.
 \AgdaHide{
 \begin{code}
 record SyntacticFusable
-  {ℓ^EA ℓ^EB ℓ^EC ℓ^REBC ℓ^RE : Level} {EnvA : (Γ : Con) (σ : ty) → Set ℓ^EA} {EnvB : (Γ : Con) (σ : ty) → Set ℓ^EB} {EnvC : (Γ : Con) (σ : ty) → Set ℓ^EC} (synA : Syntactic EnvA)
-  (synB : Syntactic EnvB)
-  (synC : Syntactic EnvC)
-  (RelEnvBC : {Γ : Con} {σ : ty} (eB : EnvB Γ σ) (eC : EnvC Γ σ) → Set ℓ^REBC)
-  (RelEnv : {Θ Δ Γ : Con} (ρA : Δ [ EnvA ] Γ) (ρB : Θ [ EnvB ] Δ) (ρC : Θ [ EnvC ] Γ) → Set ℓ^RE)
+  {ℓ^EA ℓ^EB ℓ^EC ℓ^REBC ℓ^RE : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} (synA : Syntactic 𝓔^A)
+  (synB : Syntactic 𝓔^B)
+  (synC : Syntactic 𝓔^C)
+  (Rel𝓔^BC : {Γ : Con} {σ : ty} (eB : 𝓔^B Γ σ) (eC : 𝓔^C Γ σ) → Set ℓ^REBC)
+  (Rel𝓔 : {Θ Δ Γ : Con} (ρA : Δ [ 𝓔^A ] Γ) (ρB : Θ [ 𝓔^B ] Δ) (ρC : Θ [ 𝓔^C ] Γ) → Set ℓ^RE)
   : Set (ℓ^RE ⊔ ℓ^REBC ⊔ ℓ^EC ⊔ ℓ^EB ⊔ ℓ^EA)
   where
   module SynA = Syntactic synA
   module SynB = Syntactic synB
   module SynC = Syntactic synC
   field
-    RelEnv∙ : ({Γ Δ Θ : Con} {σ : ty} {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ}
-               {uB : EnvB Θ σ} {uC : EnvC Θ σ} (ρR : RelEnv ρA ρB ρC) (uR : RelEnvBC uB uC) →
-               RelEnv ([ EnvA ] wk[ SynA.wk ] (step refl) ρA `∙ SynA.embed σ here!)
-                      ([ EnvB ] ρB `∙ uB)
-                      ([ EnvC ] ρC `∙ uC))
-    RelEnvWk : {Γ Δ Θ E : Con} (inc : Θ ⊆ E)
-               {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ} (ρR : RelEnv ρA ρB ρC) →
-               RelEnv ρA (wk[ SynB.wk ] inc ρB) (wk[ SynC.wk ] inc ρC)
-    R⟦var⟧  : {Γ Δ Θ : Con} {σ : ty} (v : σ ∈ Γ) {ρA : Δ [ EnvA ] Γ} {ρB : Θ [ EnvB ] Δ} {ρC : Θ [ EnvC ] Γ}
-              (ρR : RelEnv ρA ρB ρC) →
+    Rel𝓔∙ : ({Γ Δ Θ : Con} {σ : ty} {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ}
+               {uB : 𝓔^B Θ σ} {uC : 𝓔^C Θ σ} (ρR : Rel𝓔 ρA ρB ρC) (uR : Rel𝓔^BC uB uC) →
+               Rel𝓔 ([ 𝓔^A ] wk[ SynA.wk ] (step refl) ρA `∙ SynA.embed σ here!)
+                      ([ 𝓔^B ] ρB `∙ uB)
+                      ([ 𝓔^C ] ρC `∙ uC))
+    Rel𝓔Wk : {Γ Δ Θ E : Con} (inc : Θ ⊆ E)
+               {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ} (ρR : Rel𝓔 ρA ρB ρC) →
+               Rel𝓔 ρA (wk[ SynB.wk ] inc ρB) (wk[ SynC.wk ] inc ρC)
+    R⟦var⟧  : {Γ Δ Θ : Con} {σ : ty} (v : σ ∈ Γ) {ρA : Δ [ 𝓔^A ] Γ} {ρB : Θ [ 𝓔^B ] Δ} {ρC : Θ [ 𝓔^C ] Γ}
+              (ρR : Rel𝓔 ρA ρB ρC) →
               syntactic synB ⊨⟦ syntactic synA ⊨⟦ `var v ⟧ ρA ⟧ ρB ≡ syntactic synC ⊨⟦ `var v ⟧ ρC
 \end{code}}
 \begin{code}
-    embedBC : {Γ : Con} {σ : ty} → RelEnvBC  {Γ ∙ σ} (SynB.embed σ here!)
+    embedBC : {Γ : Con} {σ : ty} → Rel𝓔^BC  {Γ ∙ σ} (SynB.embed σ here!)
                                              (SynC.embed σ here!)
 \end{code}
 
 The important result is that given a \AR{SyntacticFusable} relating
 three \AR{Syntactic} semantics, one can deliver a \AR{Fusable} relating
-the corresponding \AR{Semantics} where \AB{RelMod} is the propositional
+the corresponding \AR{Semantics} where \AB{Rel𝓜} is the propositional
 equality.
 
 \begin{code}
 syntacticFusable :
-  {ℓ^EA ℓ^EB ℓ^EC ℓ^RE ℓ^REBC : Level} {EnvA : (Γ : Con) (σ : ty) → Set ℓ^EA} {EnvB : (Γ : Con) (σ : ty) → Set ℓ^EB} {EnvC : (Γ : Con) (σ : ty) → Set ℓ^EC} {synA : Syntactic EnvA} {synB : Syntactic EnvB} {synC : Syntactic EnvC} {RelEnvBC : {Γ : Con} {σ : ty} (eB : EnvB Γ σ) (eC : EnvC Γ σ) → Set ℓ^REBC} {RelEnv : {Θ Δ Γ : Con} (ρA : Δ [ EnvA ] Γ) (ρB : Θ [ EnvB ] Δ) (ρC : Θ [ EnvC ] Γ) → Set ℓ^RE} (synF : SyntacticFusable synA synB synC RelEnvBC RelEnv) →
+  {ℓ^EA ℓ^EB ℓ^EC ℓ^RE ℓ^REBC : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} {synA : Syntactic 𝓔^A} {synB : Syntactic 𝓔^B} {synC : Syntactic 𝓔^C} {Rel𝓔^BC : {Γ : Con} {σ : ty} (eB : 𝓔^B Γ σ) (eC : 𝓔^C Γ σ) → Set ℓ^REBC} {Rel𝓔 : {Θ Δ Γ : Con} (ρA : Δ [ 𝓔^A ] Γ) (ρB : Θ [ 𝓔^B ] Δ) (ρC : Θ [ 𝓔^C ] Γ) → Set ℓ^RE} (synF : SyntacticFusable synA synB synC Rel𝓔^BC Rel𝓔) →
   Fusable  (syntactic synA) (syntactic synB) (syntactic synC)
-           RelEnvBC RelEnv _≡_
+           Rel𝓔^BC Rel𝓔 _≡_
 \end{code}
 \AgdaHide{
 \begin{code}
@@ -1772,8 +1821,8 @@ syntacticFusable synF =
   let open SyntacticFusable synF in
   record
     { reifyA    = id
-    ; RelEnv∙   = RelEnv∙
-    ; RelEnvWk  = RelEnvWk
+    ; Rel𝓔∙   = Rel𝓔∙
+    ; Rel𝓔Wk  = Rel𝓔Wk
     ; R⟦var⟧    = R⟦var⟧
     ; R⟦$⟧      = λ f t ρR → PEq.cong₂ _`$_
     ; R⟦λ⟧      = λ t ρR r → PEq.cong `λ (r (step refl) embedBC)
@@ -1802,8 +1851,8 @@ RenamingFusable :
 \AgdaHide{
 \begin{code}
 RenamingFusable =
-  record { RelEnv∙   = λ ρR eq → [ eq , ρR ]
-         ; RelEnvWk  = λ inc ρR σ pr → PEq.cong (inc σ) (ρR σ pr)
+  record { Rel𝓔∙   = λ ρR eq → [ eq , ρR ]
+         ; Rel𝓔Wk  = λ inc ρR σ pr → PEq.cong (inc σ) (ρR σ pr)
          ; R⟦var⟧    = λ v ρR → PEq.cong `var (ρR _ v)
          ; embedBC   = PEq.refl }
 \end{code}}
@@ -1824,8 +1873,8 @@ RenamingSubstitutionFusable :
 \AgdaHide{
 \begin{code}
 RenamingSubstitutionFusable =
-  record { RelEnv∙   = λ ρR eq → [ eq , ρR ]
-         ; RelEnvWk  = λ inc ρR σ pr → PEq.cong (Renaming ⊨⟦_⟧ inc) (ρR σ pr)
+  record { Rel𝓔∙   = λ ρR eq → [ eq , ρR ]
+         ; Rel𝓔Wk  = λ inc ρR σ pr → PEq.cong (Renaming ⊨⟦_⟧ inc) (ρR σ pr)
          ; R⟦var⟧    = λ v ρR → ρR _ v
          ; embedBC   = PEq.refl }
 \end{code}}
@@ -1848,10 +1897,10 @@ SubstitutionRenamingFusable :
 \begin{code}
 SubstitutionRenamingFusable =
   let module RenRen = Fusion (syntacticFusable RenamingFusable) in
-  record { RelEnv∙   = λ {_} {_} {_} {_} {ρA} {ρB} {ρC} ρR eq → [ eq , (λ σ pr →
+  record { Rel𝓔∙   = λ {_} {_} {_} {_} {ρA} {ρB} {ρC} ρR eq → [ eq , (λ σ pr →
                          PEq.trans (RenRen.fusion (ρA σ pr) (λ _ _ → PEq.refl))
                                    (ρR σ pr)) ]
-         ; RelEnvWk  = λ inc {ρA} {ρB} {ρC} ρR σ pr →
+         ; Rel𝓔Wk  = λ inc {ρA} {ρB} {ρC} ρR σ pr →
                          PEq.trans (PEq.sym (RenRen.fusion (ρA σ pr) (λ _ _ → PEq.refl)))
                                    (PEq.cong (Renaming ⊨⟦_⟧ inc) (ρR σ pr))
          ; R⟦var⟧    = λ v ρR → ρR _ v
@@ -1876,10 +1925,10 @@ SubstitutionFusable :
 SubstitutionFusable =
   let module RenSubst = Fusion (syntacticFusable RenamingSubstitutionFusable)
       module SubstRen = Fusion (syntacticFusable SubstitutionRenamingFusable) in
-  record { RelEnv∙   = λ {_} {_} {_} {_} {ρA} {ρB} {ρC} ρR eq → [ eq , (λ σ pr →
+  record { Rel𝓔∙   = λ {_} {_} {_} {_} {ρA} {ρB} {ρC} ρR eq → [ eq , (λ σ pr →
                          PEq.trans (RenSubst.fusion (ρA σ pr) (λ _ _ → PEq.refl))
                                    (ρR σ pr)) ]
-         ; RelEnvWk  = λ inc {ρA} {ρB} {ρC} ρR σ pr →
+         ; Rel𝓔Wk  = λ inc {ρA} {ρB} {ρC} ρR σ pr →
                          PEq.trans (PEq.sym (SubstRen.fusion (ρA σ pr) (λ _ _ → PEq.refl)))
                                    (PEq.cong (Renaming ⊨⟦_⟧ inc) (ρR σ pr))
          ; R⟦var⟧    = λ v ρR → ρR _ v
@@ -1942,8 +1991,8 @@ RenamingNormaliseFusable :
 RenamingNormaliseFusable =
   record
     { reifyA   = id
-    ; RelEnv∙  = λ ρR uR → [ uR , ρR ]
-    ; RelEnvWk = λ inc ρR → λ σ pr → wk^EQREL σ inc (ρR σ pr)
+    ; Rel𝓔∙  = λ ρR uR → [ uR , ρR ]
+    ; Rel𝓔Wk = λ inc ρR → λ σ pr → wk^EQREL σ inc (ρR σ pr)
     ; R⟦var⟧   = λ v ρR → ρR _ v
     ; R⟦$⟧     = λ _ _ _ r → r refl
     ; R⟦λ⟧     = λ _ _ r → r
@@ -2032,7 +2081,7 @@ SubstitutionNormaliseFusable =
       module EqNorm  = Synchronised SynchronisableNormalise in
   record
     { reifyA   = id
-    ; RelEnv∙  = λ {_} {_} {_} {_} {ρA} {ρB} {ρC} ρR uR →
+    ; Rel𝓔∙  = λ {_} {_} {_} {_} {ρA} {ρB} {ρC} ρR uR →
                      [ reflEQREL _ uR , proj₁ ρR ]
                    , [ (λ {Θ} inc → wk^EQREL _ inc uR)
                      , (λ σ pr {Θ} inc →
@@ -2041,7 +2090,7 @@ SubstitutionNormaliseFusable =
                                     ((proj₁ ∘ proj₂) ρR σ pr inc)) ]
                      , [ uR , (λ σ pr → transEQREL σ (RenNorm.fusion (ρA σ pr) (proj₁ ρR))
                                           ((proj₂ ∘ proj₂) ρR σ pr)) ]
-    ; RelEnvWk = λ inc {ρA} ρR →
+    ; Rel𝓔Wk = λ inc {ρA} ρR →
                             (λ σ pr → wk^EQREL σ inc (proj₁ ρR σ pr))
                           , (λ σ pr {Θ} inc′ →
                                transEQREL σ (EqNorm.synchronised (ρA σ pr)
