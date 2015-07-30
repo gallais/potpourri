@@ -1469,27 +1469,31 @@ RenamingIsASubstitution t ρ = RenSubst.lemma t (λ σ pr → PEq.refl)
 \end{code}
 
 
-Another example of synchronisable semantics is normalisation by evaluation
+Another example of a synchronisable semantics is Normalisation by Evaluation
 which can be synchronised with itself. This may appear like mindless symbol
 pushing but it is actually crucial to prove such a theorem: we can only
 define a Partial Equivalence Relation~\cite{mitchell1996foundations} (PER)
-on the model and the properties of the Normalisation by Evaluation procedure
-will rely heavily on the fact that the exotic elements that may exist in the
-host language are actually never produced by the evaluation function as long
-as all the elements of the environment were, themselves, not exotic (i.e. one
-part of the PER's diagonal).
+on the model used to implement Normalisation by Evaluation. The proofs of
+the more complex properties of the procedure will rely heavily on the fact
+that the exotic elements that may exist in the host language are actually
+never produced by the evaluation function run on a term as long as all the
+elements of the environment used were, themselves, not exotic i.e. equal to
+themselves according to the PER.
 
-We start with the definition of the PER for the model. It is defined by
-induction on the type and ensures that terms which behave the same
-extensionally are declared equal.
+We start with the definition of the PER for the model. It is constructed
+by induction on the type and ensures that terms which behave the same
+extensionally are declared equal. Two values of type \AIC{`Unit} are
+always trivially equal;  values of type \AIC{`Bool} are normal forms
+and are declared equal when they are effectively syntactically the same;
+finally functions are equal whenever given equal inputs they yield equal
+outputs.
 
 \begin{code}
 EQREL : (Γ : Con) (σ : ty) (T U : Γ ⊨^βιξη σ) → Set
 EQREL Γ `Unit     T U = ⊤
 EQREL Γ `Bool     T U = T ≡ U
-EQREL Γ (σ `→ τ)  T U =
-  {Δ : Con} (inc : Γ ⊆ Δ) {V W : Δ ⊨^βιξη σ} (eqVW : EQREL Δ σ V W) →
-  EQREL Δ τ (T inc V) (U inc W)
+EQREL Γ (σ `→ τ)  T U =  {Δ : Con} (inc : Γ ⊆ Δ) {V W : Δ ⊨^βιξη σ} (eqVW : EQREL Δ σ V W) →
+                         EQREL Δ τ (T inc V) (U inc W)
 \end{code}
 
 It is indeed a PER as witnessed by \AF{symEQREL} and \AF{transEQREL}
