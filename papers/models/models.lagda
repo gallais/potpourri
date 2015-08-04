@@ -13,12 +13,12 @@
 \begin{abstract}
 We introduce a notion of type and scope preserving semantics
 generalising McBride's approach to defining one traversal
-generic enough to be instantiated to substitution first and
-then renaming. Its careful distinction of environment and
-model values as well as its structure typical of a Kripke
-semantics make it capable of expressing renaming and substitution
-but also various variations on Normalisation by Evaluation as
-well as, perhaps more surprisingly, monadic computations such
+generic enough to be instantiated to renaming first and
+then substitution. Its careful distinction of environment and
+model values as well as its variation on a structure typical of
+a Kripke semantics make it capable of expressing renaming and
+substitution but also various forms of Normalisation by Evaluation
+as well as, perhaps more surprisingly, monadic computations such
 as a pretty-printing function.
 
 We then demonstrate that expressing these algorithms in a common
