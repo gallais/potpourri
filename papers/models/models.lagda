@@ -31,8 +31,9 @@ lemma.
 
 \section*{Introduction}
 
-In order to implement an embedded Domain Specific Language (eDSL), a developer
-can opt for either a shallow or a deep embedding. In the shallow approach, she
+In order to implement an embedded Domain Specific Language (eDSL)~\cite{hudak1996building},
+a developer can opt for either a shallow or a deep
+embedding~\cite{svenningsson2013combining,gill2014domain}. In the shallow approach, she
 will use the host language's own types and term constructs to model the domain
 specific language's building blocks. This will allow her to rely on any and all
 of the host's libraries when writing programs in the eDSL. Should she decide
@@ -2135,16 +2136,18 @@ both PEq.refl = PEq.refl , PEq.refl
 \end{code}}
 
 Finally, we may use the notion of \AR{Fusable} to prove that our
-definition of pretty-printing ignores \AR{Renamings} as long as
-the names provided for the free variables are compatible after
-the renaming.
+definition of pretty-printing ignores \AR{Renamings}. In other
+words, as long as the names provided for the free variables are
+compatible after the renaming and as long as the name supplies
+are equal then the string produced, as well as the state of the
+name supply at the end of the process, are equal.
 
 \begin{code}
 RenamingPrettyPrintingFusable :
   Fusable Renaming PrettyPrinting PrettyPrinting
   _≡_
   (λ ρ^A ρ^B ρ^C → ∀ σ pr → ρ^B σ (ρ^A σ pr) ≡ ρ^C σ pr)
-  (λ p q → ∀ names₁ names₂ → names₁ ≡ names₂ → p names₁ ≡ q names₂)
+  (λ p q → ∀ {names₁ names₂} → names₁ ≡ names₂ → p names₁ ≡ q names₂)
 \end{code}
 \AgdaHide{
 \begin{code}
@@ -2152,52 +2155,60 @@ RenamingPrettyPrintingFusable =
   record { reifyA  = id
          ; Rel𝓔∙   = λ ρ^R eq → [ eq , ρ^R ]
          ; Rel𝓔Wk  = λ _ → id
-         ; R⟦var⟧  = λ v ρ^R n₁ n₂ → PEq.cong₂ _,_ (ρ^R _ v)
-         ; R⟦λ⟧    = λ t ρ^R r → λ { (n₁ ∷ n₁s) (n₂ ∷ n₂s) eq →
-                        let (neq , nseq) = ∷-inj eq
-                            (ihstr , ihns) = both (r (step refl) neq (♭ n₁s) (♭ n₂s) (PEq.cong ♭ nseq))
+         ; R⟦var⟧  = λ v ρ^R → PEq.cong₂ _,_ (ρ^R _ v)
+         ; R⟦λ⟧    = λ t ρ^R r → λ { {n₁ ∷ n₁s} {n₂ ∷ n₂s} eq →
+                        let (neq   , nseq) = ∷-inj eq
+                            (ihstr , ihns) = both (r (step refl) neq (PEq.cong ♭ nseq))
                         in PEq.cong₂ _,_ (PEq.cong₂ (λ n str → "λ" ++ n ++ ". " ++ str) neq ihstr) ihns }
-         ; R⟦$⟧    = λ f t {ρ^A} {ρ^B} {ρ^C} ρ^R ihf iht n₁s n₂s eq →
-                        let (ihstrf , eq₁) = both (ihf _ _ eq)
-                            (ihstrt , eq₂) = both (iht _ _ eq₁)
+         ; R⟦$⟧    = λ f t {ρ^A} {ρ^B} {ρ^C} ρ^R ihf iht eq →
+                        let (ihstrf , eq₁) = both (ihf eq)
+                            (ihstrt , eq₂) = both (iht eq₁)
                         in PEq.cong₂ _,_ (PEq.cong₂ (λ strf strt → strf ++ "(" ++ strt ++ ")") ihstrf ihstrt) eq₂
-         ; R⟦⟨⟩⟧   = λ _ _ _ → PEq.cong _
-         ; R⟦tt⟧   = λ _ _ _ → PEq.cong _
-         ; R⟦ff⟧   = λ _ _ _ → PEq.cong _
-         ; R⟦ifte⟧ = λ b l r {ρ^A} {ρ^B} {ρ^C} ρ^R ihb ihl ihr n₁s n₂s eq →
-                       let (ihstrb , eq₁) = both (ihb _ _ eq)
-                           (ihstrl , eq₂) = both (ihl _ _ eq₁)
-                           (ihstrr , eq₃) = both (ihr _ _ eq₂)
+         ; R⟦⟨⟩⟧   = λ _ → PEq.cong _
+         ; R⟦tt⟧   = λ _ → PEq.cong _
+         ; R⟦ff⟧   = λ _ → PEq.cong _
+         ; R⟦ifte⟧ = λ b l r {ρ^A} {ρ^B} {ρ^C} ρ^R ihb ihl ihr eq →
+                       let (ihstrb , eq₁) = both (ihb eq)
+                           (ihstrl , eq₂) = both (ihl eq₁)
+                           (ihstrr , eq₃) = both (ihr eq₂)
                        in PEq.cong₂ _,_ (PEq.cong₂ (λ strb strlr → "if (" ++ strb ++ ") " ++ "then (" ++ strlr)
                                         ihstrb (PEq.cong₂ (λ strl strr → strl ++ ") " ++ "else (" ++ strr ++ ")")
                                         ihstrl ihstrr)) eq₃
     }
 \end{code}}
+A direct corollary is that pretty printing a weakened closed term
+amounts to pretty printing the term itself in a dummy environment.
+
 \begin{code}
-PrettyRenaming : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (inc : Γ ⊆ Δ) (ρ : (σ : ty) (pr : σ ∈ Δ) → String) →
-                 (Printer Δ σ ∋ (_⊨⟦_⟧_ PrettyPrinting {Δ} {Δ} (wk^⊢ inc t) ρ)) names ≡ (PrettyPrinting ⊨⟦ t ⟧ (λ σ → ρ σ ∘ inc σ)) names
-PrettyRenaming t inc ρ = RenPret.lemma t (λ _ _ → PEq.refl) names names PEq.refl
-  where module RenPret = Fusion RenamingPrettyPrintingFusable 
+PrettyRenaming : {Γ : Con} {σ : ty} (t : ε ⊢ σ) (inc : ε ⊆ Γ) →
+  prettyPrint (wk^⊢ inc t) ≡ proj₁ (PrettyPrinting ⊨⟦ t ⟧ (λ _ ()) $ names)
+PrettyRenaming {Γ} t inc = PEq.cong proj₁ $′ RenPret.lemma t (λ _ ()) PEq.refl
+  where module RenPret = Fusion RenamingPrettyPrintingFusable
 \end{code}
 
 \section{Conclusion}
 
-We have explained how to make using an inductive family to only
-represent terms which are well-scoped and well-typed by construction
-more tractable by factoring out a common notion of \AR{Semantics}
-encompassing a wide range of type and scope preserving traversals.
-This approach crucially relies on the distinction we make between
-values in the environment and values in the model, the Kripke
-structure associated to binders and the fact that the semantic
-counterpart of these binders are supplied with \emph{environment}
-values.
+We have explained how to make using an inductive family to only represent
+the terms of and eDSL which are well-scoped and well-typed by construction
+more tractable. We proceeded by factoring out a common notion of \AR{Semantics}
+encompassing a wide range of type and scope preserving traversals such as
+renaming and substitution, which were already handled by the state of the
+art~\cite{mcbride2005type,benton2012strongly}, but also pretty printing, or
+various variations on normalisation by evaluation.
+Our approach crucially relied on the careful distinction we made between
+values in the environment and values in the model, as well as the slight
+variation on the usual structure of the semantic counterpart of binders
+in Kripke models. Indeed, in our formulation, the domain of a binder's
+interpretation is an environment value rather than a model one.
 
-We then demonstrated that these traversals being defined using a
-common framework becomes a blessing when proving their properties.
-We can indeed prove them generically over all well-behaved \AR{Semantics}
-and instantiate the corresponding fundamental lemmas to the particular
-cases we are interested in.
-
+We have then demonstrated that, having this shared structure, one could
+further alleviate the implementer's pain by tackling the properties of
+these \AR{Semantics} in a similarly abstract approach. We characterised,
+using a first logical relation, the traversals which were producing
+related outputs provided they were fed related inputs. A more involved
+second logical relation gave us a general description of triples of
+\AR{Fusable} semantics such that composing the two first ones would
+yield an instance of the third one.
 
 \bibliography{main}
 
