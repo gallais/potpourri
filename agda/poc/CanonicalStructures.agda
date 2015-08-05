@@ -13,16 +13,14 @@ record Curry : Set₁ where
   field
     dom : Set
     cur : Set → Set
-    prf : (cod : Set) (f : dom → cod) → cur cod
+    prf : (cod : Set) (f : cur cod) → dom → cod
 open Curry
 
 curryPair : (A B : Curry) → Curry
 curryPair A B =
   record { dom = dom A × dom B
          ; cur = λ cod → cur A (cur B cod)
-         ; prf = λ cod f → prf A (cur B cod) $ λ a →
-                           prf B cod         $ λ b →
-                           f (a , b)
+         ; prf = λ cod f p → prf B cod (prf A (cur B cod) f (fst p)) (snd p)
          }
 
 curryDefault : (A : Set) → Curry
@@ -46,11 +44,14 @@ postulate
 open import Data.Nat
 open import Data.List
 
-infixr 5 flippedMap
-flippedMap : {A B : Set} (xs : List (dom (Target A))) (f : cur (Target A) B)  → List B
-flippedMap xs f = map f xs
+infixr 5 flippedMap'
+flippedMap : {A : Curry} {B : Set} (xs : List (dom A)) (f : cur A B)  → List B
+flippedMap {A} xs f = map (prf A _ f) xs
 
-syntax flippedMap xs f = f ⟨$⟩ xs
+flippedMap' : {A B : Set} (xs : List (dom (Target A))) (f : cur (Target A) B)  → List B
+flippedMap' {A} = flippedMap {Target A}
+
+syntax flippedMap' xs f = f ⟨$⟩ xs
 
 example : List ℕ
-example = _+_ ⟨$⟩ (1 , 2) ∷ (2 , 3) ∷ []
+example = (λ k l m n → k * l + m * n) ⟨$⟩ ((1 , 2) , (3 , 5)) ∷ ((2 , 3) , (4 , 6)) ∷ []
