@@ -47,7 +47,7 @@ and scope safety on paper and use an inductive \emph{type} to describe an \emph{
 syntax, follow Carette, Kiselyov, and Shan~\cite{carette2009finally} and rely on
 parametric polymorphism to guarantee the existence of an underlying type and scope
 safe term, or use an inductive \emph{family} to represent the term itself whilst
-enforcing these invariants in the type.
+enforcing these invariants in the family's indices.
 
 In previous work, McBride~\cite{mcbride2005type} and Benton, Hur, Kennedy and
 McBride~\cite{benton2012strongly} have shown how to alleviate the programmer's
@@ -105,7 +105,7 @@ in Haskell~\cite{lindley2014hasochism} are outside the scope of this paper but w
 provide a (commented) Haskell module containing all the translated definitions.
 It should be noted that Danvy, Keller and Puech have achieved a similar goal in
 OCaml~\cite{danvytagless} but their formalisation uses Parametric Higher Order Abstract
-Syntax which frees them from having to deal with variable binding, contexts and use
+Syntax~\cite{chlipala2008parametric} which frees them from having to deal with variable binding, contexts and use
 models à la Kripke where one may extend the context. However we consider these to be
 primordial given that they can still guide the implementation of more complex type
 theories where, until now, being typeful is still out of reach but type-level guarantees
