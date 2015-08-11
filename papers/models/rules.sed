@@ -15,6 +15,13 @@ s/++/+\\!+/g
 s/^\\begin{code}/\\begin\{code\}\n\\\\/g
 s/^\\end{code}/\\\\\\end\{code\}\n/g
 
+# Set levels
+s/ \\AgdaBound{ℓ}//g
+s/ \\AgdaPrimitive{⊔} //g
+s/ \?\\AgdaBound{{ℓ}{[^{]*{[^{]*{}[^}]*}}}//g
+s/\\AgdaSymbol{(}\\AgdaSymbol{)}//g
+
+# Implicit arguments
 s/\\AgdaSymbol{\\{}.*\\AgdaSymbol{\\}}[^()→]*\\AgdaSymbol{→} //g
 s/\\AgdaSymbol{\\{}[^()]*\\AgdaSymbol{\\}}//g
 s/\\AgdaSymbol{\\{}.*\\AgdaSymbol{\\}}//g
