@@ -12,7 +12,7 @@
 
 \begin{abstract}
 We introduce a notion of type and scope preserving semantics
-generalising McBride's approach to defining one traversal
+generalising Goguen and McKinna's approach to defining one traversal
 generic enough to be instantiated to renaming first and
 then substitution. Its careful distinction of environment and
 model values as well as its variation on a structure typical of
@@ -47,20 +47,21 @@ and scope safety on paper and use an inductive \emph{type} to describe an \emph{
 syntax, follow Carette, Kiselyov, and Shan~\cite{carette2009finally} and rely on
 parametric polymorphism to guarantee the existence of an underlying type and scope
 safe term, or use an inductive \emph{family} to represent the term itself whilst
-enforcing these invariants in the family's indices.
+enforcing these invariants in its indices.
 
-In previous work, McBride~\cite{mcbride2005type} and Benton, Hur, Kennedy and
-McBride~\cite{benton2012strongly} have shown how to alleviate the programmer's
-burden when opting for the strongly-typed approach based on inductive families
+Goguen and McKinna's Candidates for Substitution~\cite{goguen1997candidates}
+begot work by McBride~\cite{mcbride2005type} and Benton, Hur, Kennedy and
+McBride~\cite{benton2012strongly} showing how to alleviate the programmer's
+burden when she opts for the strongly-typed approach based on inductive families
 in Epigram~\cite{mcbride2004view} and Coq~\cite{Coq:manual} respectively. They
-both start by defining a traversal generic enough to be instantiated to renaming
+both define a traversal generic enough to be instantiated to renaming
 first and then substitution. In Benton et al., the bulk of the work has to be
 repeated when defining Normalisation by Evaluation. Reasoning about these definitions
-is also still mostly done in an ad-hoc manner: Coq's tactics mechanism does help
-them to discharge the four fusion lemmas involving renaming and substitution.
-But the properties of the evaluation function are established using some more
-proof scripts and rely on function extensionality rather than the usual Partial
-Equivalence Relation.
+is also still mostly done in an ad-hoc manner: Coq's tactics do help them discharge
+the four fusion lemmas involving renaming and substitution but the properties of
+the evaluation function are established using some more proof scripts and rely
+on function extensionality rather than the usual Partial Equivalence Relation
+we use.
 
 We build on their insights and define an abstract notion of \AR{Semantics}
 encompassing these two important operations as well as others Carette et al.
@@ -77,11 +78,14 @@ can be used to define a generic evaluation function. We will then showcase the
 ground covered by these \AR{Semantics}: from the syntactic ones corresponding
 to renaming and substitution to pretty-printing or some variations on Normalisation
 by Evaluation. Finally, we will demonstrate how, the definition of \AR{Semantics}
-being generic enough, we can prove theorems about these evaluation functions.
+being generic enough, we can prove fundamental lemmas about these evaluation
+functions: we characterise the semantics which are synchronisable and give an
+abstract treatment of composition yielding compaction and reuse of proofs
+compared to Benton et al.~\cite{benton2012strongly}
 
 \paragraph{Notations} This article is a literate Agda file typeset using the
 \LaTeX{} backend with as little post-processing as possible: we simply hide
-telescopes of implicit arguments and properly display (super / sub)-scripts
+telescopes of implicit arguments as well as \APT{Set} levels and properly display (super / sub)-scripts
 as well as special operators such as \AF{>>=} or \AF{++}. As such, a lot of
 the notations have a meaning in Agda: \AIC{green} identifiers are data constructors,
 \ARF{pink} names refer to record fields, and \AF{blue} is characteristic of
@@ -199,20 +203,27 @@ data _⊢_ (Γ : Con) : (σ : ty) → Set where
   `ifte  : {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) → Γ ⊢ σ
 \end{code}
 
-\section{A Notion of Environments}
+\section{A Generic Notion of Environment}
 
 All the semantics we are interested in defining evaluate a term
 written in the type-correct representation of the calculus defined
 above given an interpretation of its free variables. We call the
-collection of these interpretations for the variables in scope
-an (evaluation) environment. The content of environments may vary
-wildly between different instances (e.g. renaming environments
-contain variables whilst the normalisation by evaluation ones
-carry elements of the model) but their structure is generic.
+collection of these interpretations of type \AB{R} for the variables
+in scope an \AB{R}-(evaluation) environment (and leave out \AB{R}
+when it is easily inferred from the context). Because the content of
+environments may vary wildly between different semantics (e.g. renaming
+environments contain variables whilst the normalisation by evaluation ones
+carry elements of the model) whilst their structure stays the same,
+we define the notion generically. Formally, this translates to
+\AB{R}-environments being the pointwise lifting of the relation
+\AB{R} between contexts and types to a relation between two contexts.
 
-Formally, environments are defined as the pointwise lifting of a
-relation \AB{R} between contexts and types to a relation between
-two contexts.
+Rather than using a datatype to represent such a lifting, we choose
+to use a function space. This decision is based on Jeffrey's observation
+that one can obtain associativity of append for free by using difference
+lists~\cite{jeffrey2011assoc}. In our case the interplay between various
+combinators (e.g. \AF{refl} and \AF{trans}) defined later on is vastly
+simplified by this rather simple decision.
 
 \AgdaHide{
 \begin{code}
@@ -231,25 +242,36 @@ infixl 10 [_]_`∙_
 For a fixed context \AB{Δ} and relation \AB{R}, these environments can
 be built step by step by noticing that the environment corresponding to
 an empty context is trivial and that one may extend and already existing
-environment provided a proof of the right type.
+environment provided a proof of the right type. In concrete cases, there
+will be no sensible way to infer \AB{R} when using the second combinator
+hence our decision to make it possible to tell Agda which relation we are
+working with.
 
 \begin{code}
 `ε : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ} → Δ [ R ] ε
 `ε = λ _ ()
 
-[_]_`∙_ :  {ℓ : Level} {Γ Δ : Con} (R : (Δ : Con) (σ : ty) → Set ℓ) {σ : ty} (ρ : Δ [ R ] Γ) (s : R Δ σ) → Δ [ R ] (Γ ∙ σ)
+[_]_`∙_ :  {ℓ : Level} {Γ Δ : Con} (R : (Δ : Con) (σ : ty) → Set ℓ) {σ : ty}
+           (ρ : Δ [ R ] Γ) (s : R Δ σ) → Δ [ R ] (Γ ∙ σ)
 ([ R ] ρ `∙ s) _ here!       = s
 ([ R ] ρ `∙ s) σ (there pr)  = ρ σ pr
 \end{code}
 
-\subsection{The Preoder of Context Inclusions}
+\subsubsection{The Preorder of Renamings}
 \label{preorder}
 
-One instance of environments which will play a predominant role
-in this paper and the reader may be accustomed to is the notion
-of context inclusion. A context inclusion \AB{Γ} \AF{⊆} \AB{Δ}
-is an environment pairing each variable of type \AB{σ} in \AB{Γ}
-to one of the same type in \AB{Δ}.
+A key instance of environments which will play a predominant role
+in this paper is the notion of renaming. The reader may be accustomed
+to the more restrictive notion of context inclusions as described
+by order preserving embedding~\cite{altenkirch1995categorical}.
+Writing non-injective or non-order preserving renamings would take
+perverse effort given that we implement generic interpretations. In
+practice, the only combinators we use do guarantee that all the
+renamings we generate are context inclusions. As a consequence, we
+will use the two expressions interchangeably from now on.
+
+A context inclusion \AB{Γ} \AF{⊆} \AB{Δ} is an environment pairing
+each variable of type \AB{σ} in \AB{Γ} to one of the same type in \AB{Δ}.
 
 \AgdaHide{
 \begin{code}
@@ -316,8 +338,12 @@ pattern over and over again.
 
 A \AR{Semantics} is indexed by two relations \AB{𝓔} and \AB{𝓜}
 describing respectively the values in the environment and the ones
-in the model. It packs the properties of these relations necessary
-to define the evaluation function.
+in the model. In cases such as substitution or normalisation by
+evaluation, \AB{𝓔} and \AB{𝓜} will happen to coincide but keeping
+these two relations distinct is precisely what makes it possible
+to go beyond these and also model renaming or printing with names.
+The record packs the properties of these relations necessary to
+define the evaluation function.
 
 \begin{code}
 record Semantics {ℓ^E ℓ^M : Level}
@@ -348,10 +374,11 @@ term.
 The structure of the model is quite constrained: each constructor
 in the language needs a semantic counterpart. We start with the
 two most interesting cases: \ARF{⟦var⟧} and \ARF{⟦λ⟧}. The variable
-case guarantees that one can turn a value from the environment into
-one in the model thus making it possible for the traversal, when
-hitting a variable, to lookup the corresponding value in the environment
-and return it.
+case corresponds to the intuition that the environment attaches
+interpretations to the variables in scope: it guarantees that one
+can turn a value from the environment into a model one. The traversal
+will therefore be able to, when hitting a variable, lookup the
+corresponding value in the environment and return it.
 
 \begin{code}
     ⟦var⟧   :  {Γ : Con} {σ : ty} (v : 𝓔 Γ σ) → 𝓜 Γ σ
@@ -360,12 +387,12 @@ and return it.
 The semantic λ-abstraction is notable for two reasons: first, following
 Mitchell and Moggi~\cite{mitchell1991kripke}, it has a structure typical
 of Kripke style models thus allowing arbitrary extensions of the context;
-and instead of being a function in the host language taking values in the
-model as arguments, it is a function that takes \emph{environment} values.
-This slight variation in the type of the semantic λ-abstraction is what
-makes it possible to go beyond the semantics such as substitution
-or normalisation by evaluation where \AB{𝓔} and \AB{𝓜} happen
-to coincide.
+and second, instead of being a function in the host language taking values
+in the model as arguments, it is a function that takes \emph{environment}
+values. Indeed, the body of a λ-abstraction exposes one extra free variable
+thus prompting us to extend the evaluation environment with an additional
+value. This slight variation in the type of semantic λ-abstraction is what
+guarantees that such an argument will be provided to us.
 
 \begin{code}
     ⟦λ⟧     :  {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : 𝓔 Δ σ) → 𝓜 Δ τ) → 𝓜 Γ (σ `→ τ)
@@ -384,12 +411,13 @@ with the one corresponding to model values (\AB{𝓜}).
     ⟦ifte⟧  :  {Γ : Con} {σ : ty} (b : 𝓜 Γ `Bool) (l r : 𝓜 Γ σ) → 𝓜 Γ σ
 \end{code}
 
-The fundamental lemma of semantics is then proved in a module indexed by
+The fundamental lemma of semantics is then proven in a module indexed by
 a \AF{Semantics}. It is defined by structural recursion on the term. Each
 constructor is replaced by its semantic counterpart in order to combine the
-induction hypotheses its subterms give rise to. In the λ-abstraction case,
-the type of \ARF{⟦λ⟧} guarantees that the semantic argument can be stored
-in the environment which will have been weakened beforehand.
+induction hypotheses for its subterms. In the λ-abstraction case, the type
+of \ARF{⟦λ⟧} guarantees, in a fashion reminiscent of Normalisation by Evaluation,
+that the semantic argument can be stored in the environment which will have
+been weakened beforehand.
 
 \begin{code}
 module Eval {ℓ^E ℓ^M : Level} {𝓔 : (Γ : Con) (σ : ty) → Set ℓ^E} {𝓜 : (Γ : Con) (σ : ty) → Set ℓ^M} (Sem : Semantics 𝓔 𝓜) where
@@ -440,12 +468,12 @@ picking a naming scheme for free variables whilst in the usual model
 construction used to perform normalisation by evaluation, it corresponds
 to η-expanding the variables.
 
-\section{Syntactic Semantics}
+\section{Syntax is the Identity Semantics}
 
 As we have explained earlier, this work has been directly influenced by
 McBride's functional pearl~\cite{mcbride2005type}. It seems appropriate
 to start our exploration of \AR{Semantics} with the two operations he
-implements with a single traversal. We call these operations syntactic
+implements as a single traversal. We call these operations syntactic
 because the values in the model are actual terms and almost all term
 constructors are kept as their own semantic counterpart. As observed by
 McBride, it is enough to provide three operations describing the properties
@@ -462,18 +490,16 @@ record Syntactic {ℓ : Level} (𝓔 : (Γ : Con) (σ : ty) → Set ℓ) : Set �
     ⟦var⟧  : {Γ : Con} {σ : ty} (v : 𝓔 Γ σ) → Γ ⊢ σ
 
 syntactic : {ℓ : Level} {𝓔 : (Γ : Con) (σ : ty) → Set ℓ} (syn : Syntactic 𝓔) → Semantics 𝓔 _⊢_
-syntactic syn =
-  let open Syntactic syn in
-  record  { wk      = wk
-          ; embed   = embed
-          ; ⟦var⟧   = ⟦var⟧
-          ; _⟦$⟧_   = _`$_
-          ; ⟦λ⟧     = λ t → `λ $ t (step refl) $ embed _ here!
-          ; ⟦⟨⟩⟧    = `⟨⟩
-          ; ⟦tt⟧    = `tt
-          ; ⟦ff⟧    = `ff
-          ; ⟦ifte⟧  = `ifte
-          }
+syntactic syn = let open Syntactic syn in record
+  { wk      = wk
+  ; embed   = embed
+  ; ⟦var⟧   = ⟦var⟧
+  ; _⟦$⟧_   = _`$_
+  ; ⟦λ⟧     = λ t → `λ $ t (step refl) $ embed _ here!
+  ; ⟦⟨⟩⟧    = `⟨⟩
+  ; ⟦tt⟧    = `tt
+  ; ⟦ff⟧    = `ff
+  ; ⟦ifte⟧  = `ifte }
 \end{code}
 
 The shape of \ARF{⟦λ⟧} or \ARF{⟦⟨⟩⟧} should not trick the reader
@@ -484,7 +510,7 @@ It is therefore absolutely possible to define renaming or substitution
 using this approach. We can now port McBride's definitions to our
 framework.
 
-\subsection{Functoriality, also known as Renaming}
+\subsubsection{Functoriality, also known as Renaming}
 
 Our first example of a \AR{Syntactic} operation works with variables as
 environment values. As a consequence, embedding is trivial; we have already
@@ -515,7 +541,7 @@ wk^⊢ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (t : Γ ⊢ σ) → Δ ⊢ σ
 wk^⊢ = flip $ Renaming ⊨⟦_⟧_
 \end{code}
 
-\subsection{Parallel Substitution}
+\subsubsection{Simultaneous Substitution}
 
 Our second example of a semantics is another spin on the syntactic model:
 the environment values are now terms. We can embed variables into environment
@@ -545,16 +571,20 @@ subst : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ �
 subst = Substitution ⊨⟦_⟧_
 \end{code}
 
-\section{Pretty Printing}
+\section{Printing with Names}
 \label{prettyprint}
 
 Before considering the various model constructions involved in defining
 normalisation functions deciding different equational theories, let us
 make a detour to a perhaps slightly more surprising example of a
-\AF{Semantics}: Pretty Printing. This example is quite interesting for
+\AF{Semantics}: Printing with Names. This example is quite interesting for
 two reasons: it is another instance of a \AR{Semantics} where values in
 the environment and values in the model have a different type, and for
-the first time in this paper, the values in the model are monadic.
+the first time in this paper, the values in the model are monadic. A
+user-facing project would naturally avoid directly building a \AD{String}
+and rather construct an inhabitant of a more sophisticated datatype in order
+to generate a prettier output~\cite{hughes1995design,wadler2003prettier}.
+We stick to the simpler setup as pretty printing is not our focus here.
 
 Firstly, the distinction between the type of values in the environment and
 the ones in the model is once more instrumental in giving the procedure a
@@ -580,8 +610,8 @@ open import Relation.Binary.PropositionalEquality as PEq using (_≡_)
 }
 
 \begin{code}
-Names : (Γ : Con) (σ : ty) → Set
-Names _ _ = String
+Name : (Γ : Con) (σ : ty) → Set
+Name _ _ = String
 
 Printer : (Γ : Con) (σ : ty) → Set
 Printer _ _ = State (Stream String) String
@@ -598,33 +628,25 @@ handling languages with effects~\cite{moggi1991notions}, or effectful
 semantics (e.g. logging the various function calls).
 
 \begin{code}
-PrettyPrinting : Semantics Names Printer
-PrettyPrinting =
-  record  { embed   = λ _ → show ∘ deBruijn
-          ; wk      = λ _ → id
-          ; ⟦var⟧   = return
-          ; _⟦$⟧_   = λ  mf mt →
-                         mf  >>= λ `f` →
-                         mt  >>= λ `t` →
+PrettyPrinting : Semantics Name Printer
+PrettyPrinting = record
+  { embed   = λ _ → show ∘ deBruijn
+  ; wk      = λ _ → id
+  ; ⟦var⟧   = return
+  ; _⟦$⟧_   = λ mf mt →  mf >>= λ `f` → mt >>= λ `t` →
                          return $ `f` ++ "(" ++ `t` ++ ")"
-          ; ⟦λ⟧     = λ  {_} {σ} mb →
-                         get                         >>= λ names →
-                         let `x`   = head names
-                             rest  = tail names in
-                         put rest                    >>= λ _ →
-                         mb (step {σ = σ} refl) `x`  >>= λ `b` →
-                         return $ "λ" ++ `x` ++ ". " ++ `b`
-          ; ⟦⟨⟩⟧    = return "⟨⟩"
-          ; ⟦tt⟧    = return "tt"
-          ; ⟦ff⟧    = return "ff"
-          ; ⟦ifte⟧  = λ  mb ml mr →
-                         mb  >>= λ `b` →
-                         ml  >>= λ `l` →
-                         mr  >>= λ `r` →
-                         return  $ "if (" ++ `b` ++ ") "
-                                 ++ "then (" ++ `l` ++ ") "
-                                 ++ "else (" ++ `r` ++ ")"
-          }
+  ; ⟦λ⟧     = λ {_} {σ} mb → get >>= λ names →
+                             let `x`   = head names
+                                 rest  = tail names in
+                             put rest                    >>= λ _ →
+                             mb (step {σ = σ} refl) `x`  >>= λ `b` →
+                             return $ "λ" ++ `x` ++ ". " ++ `b`
+  ; ⟦⟨⟩⟧    = return "⟨⟩"
+  ; ⟦tt⟧    = return "tt"
+  ; ⟦ff⟧    = return "ff"
+  ; ⟦ifte⟧  =  λ mb ml mr → mb  >>= λ `b` → ml  >>= λ `l` → mr  >>= λ `r` →
+               return $ "if (" ++ `b`  ++ ") then (" ++ `l`
+                                       ++ ") else (" ++ `r` ++ ")" }
 \end{code}
 
 Our definition of \ARF{embed} erases the membership proofs to
@@ -2166,8 +2188,8 @@ RenamingPrettyPrintingFusable =
                        let (ihstrb , eq₁) = both (ihb eq)
                            (ihstrl , eq₂) = both (ihl eq₁)
                            (ihstrr , eq₃) = both (ihr eq₂)
-                       in PEq.cong₂ _,_ (PEq.cong₂ (λ strb strlr → "if (" ++ strb ++ ") " ++ "then (" ++ strlr)
-                                        ihstrb (PEq.cong₂ (λ strl strr → strl ++ ") " ++ "else (" ++ strr ++ ")")
+                       in PEq.cong₂ _,_ (PEq.cong₂ (λ strb strlr → "if (" ++ strb ++ ") then (" ++ strlr)
+                                        ihstrb (PEq.cong₂ (λ strl strr → strl ++ ") else (" ++ strr ++ ")")
                                         ihstrl ihstrr)) eq₃
     }
 \end{code}}

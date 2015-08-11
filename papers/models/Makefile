@@ -7,4 +7,5 @@ all:
 	latexmk -bibtex -pdf -e '$$pdflatex=q/xelatex %O %S/' $(FILE).tex && cd .. && \
 	xdotool search --class mupdf key --window %@ r > /dev/null 2>&1
 clean:
+	rm *.agdai
 	rm -rf latex/
