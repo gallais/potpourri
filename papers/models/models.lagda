@@ -805,22 +805,21 @@ forms.
 
 \AgdaHide{
 \begin{code}
-infix 5 _⊢^ne_ _⊢^nf_
+infix 5 _⊢[_]^ne_ _⊢[_]^nf_
+mutual
 \end{code}}
 \begin{code}
-mutual
+  data _⊢[_]^ne_ (Γ : Con) (R : ty → Set) (σ : ty) : Set where
+    `var   : (v : σ ∈ Γ) → Γ ⊢[ R ]^ne σ
+    _`$_   : {τ : ty} (t : Γ ⊢[ R ]^ne τ `→ σ) (u : Γ ⊢[ R ]^nf τ) → Γ ⊢[ R ]^ne σ
+    `ifte  : (b : Γ ⊢[ R ]^ne `Bool) (l r : Γ ⊢[ R ]^nf σ) → Γ ⊢[ R ]^ne σ
 
-  data _⊢^ne_ (Γ : Con) (σ : ty) : Set where
-    `var   : (v : σ ∈ Γ) → Γ ⊢^ne σ
-    _`$_   : {τ : ty} (t : Γ ⊢^ne τ `→ σ) (u : Γ ⊢^nf τ) → Γ ⊢^ne σ
-    `ifte  : (b : Γ ⊢^ne `Bool) (l r : Γ ⊢^nf σ) → Γ ⊢^ne σ
-
-  data _⊢^nf_ (Γ : Con) : (σ : ty) → Set where
-    `embed  : {σ : ty} (t : Γ ⊢^ne σ) → Γ ⊢^nf σ
-    `⟨⟩     : Γ ⊢^nf `Unit
-    `tt     : Γ ⊢^nf `Bool
-    `ff     : Γ ⊢^nf `Bool
-    `λ      : {σ τ : ty} (b : Γ ∙ σ ⊢^nf τ) → Γ ⊢^nf σ `→ τ
+  data _⊢[_]^nf_ (Γ : Con) (R : ty → Set) : (σ : ty) → Set where
+    `embed  : {σ : ty} {pr : R σ} (t : Γ ⊢[ R ]^ne σ) → Γ ⊢[ R ]^nf σ
+    `⟨⟩     : Γ ⊢[ R ]^nf `Unit
+    `tt     : Γ ⊢[ R ]^nf `Bool
+    `ff     : Γ ⊢[ R ]^nf `Bool
+    `λ      : {σ τ : ty} (b : Γ ∙ σ ⊢[ R ]^nf τ) → Γ ⊢[ R ]^nf (σ `→ τ)
 \end{code}
 
 Once more, context inclusions induce a notion of weakening. We hide
@@ -828,8 +827,8 @@ the purely structural definition of \AF{wk^{ne}} and \AF{wk^{nf}}
 but quickly recall their respective types:
 
 \begin{code}
-wk^ne : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^ne σ) → Δ ⊢^ne σ
-wk^nf : {Δ Γ : Con} (inc : Γ ⊆ Δ) {σ : ty} (ne : Γ ⊢^nf σ) → Δ ⊢^nf σ
+wk^ne : {Δ Γ : Con} (inc : Γ ⊆ Δ) {R : ty → Set} {σ : ty} (ne : Γ ⊢[ R ]^ne σ) → Δ ⊢[ R ]^ne σ
+wk^nf : {Δ Γ : Con} (inc : Γ ⊆ Δ) {R : ty → Set} {σ : ty} (ne : Γ ⊢[ R ]^nf σ) → Δ ⊢[ R ]^nf σ
 \end{code}
 \AgdaHide{
 \begin{code}
@@ -837,7 +836,7 @@ wk^ne inc (`var v)        = `var $′ wk^∈ inc v
 wk^ne inc (ne `$ u)       = wk^ne inc ne `$ wk^nf inc u
 wk^ne inc (`ifte ne l r)  = `ifte (wk^ne inc ne) (wk^nf inc l) (wk^nf inc r)
 
-wk^nf inc (`embed t)  = `embed $′ wk^ne inc t
+wk^nf inc (`embed {pr = pr} t) = `embed {pr = pr} $′ wk^ne inc t
 wk^nf inc `⟨⟩         = `⟨⟩
 wk^nf inc `tt         = `tt
 wk^nf inc `ff         = `ff
@@ -845,62 +844,73 @@ wk^nf inc (`λ nf)     = `λ $′ wk^nf (pop! inc) nf
 
 infix 5 [_,_]
 [_,_] : {Γ : Con} {τ : ty} {P : (σ : ty) (pr : σ ∈ Γ ∙ τ) → Set} →
-        (p0 : P τ here!) →
-        (pS : (σ : ty) (pr : σ ∈ Γ) → P σ (there pr)) →
+        (p0 : P τ zero) →
+        (pS : (σ : ty) (n : σ ∈ Γ) → P σ (1+ n)) →
         (σ : ty) (pr : σ ∈ Γ ∙ τ) → P σ pr
-[ p0 , pS ] σ here!       = p0
-[ p0 , pS ] σ (there pr)  = pS σ pr
+[ p0 , pS ] σ zero    = p0
+[ p0 , pS ] σ (1+ n)  = pS σ n
 
 mutual
 
-  wk^nf-refl′ : {Γ : Con} {σ : ty} {f : Γ ⊆ Γ} (prf : (σ : ty) (pr : σ ∈ Γ) → f σ pr ≡ pr) →
-                (t : Γ ⊢^nf σ) → wk^nf f t ≡ t
+  wk^nf-refl′ : {Γ : Con} {R : ty → Set} {σ : ty} {f : Γ ⊆ Γ} (prf : (σ : ty) (pr : σ ∈ Γ) → f σ pr ≡ pr) →
+                (t : Γ ⊢[ R ]^nf σ) → wk^nf f t ≡ t
   wk^nf-refl′ prf (`embed t)  = PEq.cong `embed $ wk^ne-refl′ prf t
   wk^nf-refl′ prf `⟨⟩         = PEq.refl
   wk^nf-refl′ prf `tt         = PEq.refl
   wk^nf-refl′ prf `ff         = PEq.refl
-  wk^nf-refl′ prf (`λ t)      = PEq.cong `λ $ wk^nf-refl′ ([ PEq.refl , (λ σ → PEq.cong there ∘ prf σ) ]) t
+  wk^nf-refl′ prf (`λ t)      = PEq.cong `λ $ wk^nf-refl′ ([ PEq.refl , (λ σ → PEq.cong 1+_ ∘ prf σ) ]) t
 
-  wk^ne-refl′ : {Γ : Con} {σ : ty} {f : Γ ⊆ Γ} (prf : (σ : ty) (pr : σ ∈ Γ) → f σ pr ≡ pr) →
-                (t : Γ ⊢^ne σ) → wk^ne f t ≡ t
+  wk^ne-refl′ : {Γ : Con} {R : ty → Set} {σ : ty} {f : Γ ⊆ Γ} (prf : (σ : ty) (pr : σ ∈ Γ) → f σ pr ≡ pr) →
+                (t : Γ ⊢[ R ]^ne σ) → wk^ne f t ≡ t
   wk^ne-refl′ prf (`var v)       = PEq.cong `var $ prf _ v
   wk^ne-refl′ prf (t `$ u)       = PEq.cong₂ _`$_ (wk^ne-refl′ prf t) (wk^nf-refl′ prf u)
   wk^ne-refl′ prf (`ifte b l r)  = PEq.cong₂ (uncurry `ifte) (PEq.cong₂ _,_ (wk^ne-refl′ prf b) (wk^nf-refl′ prf l)) (wk^nf-refl′ prf r)
 
 mutual
 
-  wk^nf-trans′ : {Θ Δ Γ : Con} {σ : ty} {inc₁ : Γ ⊆ Δ} {inc₂ : Δ ⊆ Θ}
+  wk^nf-trans′ : {Θ Δ Γ : Con} {R : ty → Set} {σ : ty} {inc₁ : Γ ⊆ Δ} {inc₂ : Δ ⊆ Θ}
                  {f : Γ ⊆ Θ} (prf : (σ : ty) (pr : σ ∈ Γ) → trans inc₁ inc₂ σ pr ≡ f σ pr)
-                 (t : Γ ⊢^nf σ) →  wk^nf inc₂ (wk^nf inc₁ t) ≡ wk^nf f t
+                 (t : Γ ⊢[ R ]^nf σ) →  wk^nf inc₂ (wk^nf inc₁ t) ≡ wk^nf f t
   wk^nf-trans′ prf (`embed t)  = PEq.cong `embed (wk^ne-trans′ prf t)
   wk^nf-trans′ prf `⟨⟩         = PEq.refl
   wk^nf-trans′ prf `tt         = PEq.refl
   wk^nf-trans′ prf `ff         = PEq.refl
-  wk^nf-trans′ prf (`λ t)      = PEq.cong `λ $ wk^nf-trans′ ([ PEq.refl , (λ σ → PEq.cong there ∘ prf σ) ]) t
+  wk^nf-trans′ prf (`λ t)      = PEq.cong `λ $ wk^nf-trans′ ([ PEq.refl , (λ σ → PEq.cong 1+_ ∘ prf σ) ]) t
 
-  wk^ne-trans′ : {Θ Δ Γ : Con} {σ : ty} {inc₁ : Γ ⊆ Δ} {inc₂ : Δ ⊆ Θ}
+  wk^ne-trans′ : {Θ Δ Γ : Con} {R : ty → Set} {σ : ty} {inc₁ : Γ ⊆ Δ} {inc₂ : Δ ⊆ Θ}
                  {f : Γ ⊆ Θ} (prf : (σ : ty) (pr : σ ∈ Γ) → trans inc₁ inc₂ σ pr ≡ f σ pr)
-                 (t : Γ ⊢^ne σ) →  wk^ne inc₂ (wk^ne inc₁ t) ≡ wk^ne f t
+                 (t : Γ ⊢[ R ]^ne σ) →  wk^ne inc₂ (wk^ne inc₁ t) ≡ wk^ne f t
   wk^ne-trans′ prf (`var v)       = PEq.cong `var (prf _ v)
   wk^ne-trans′ prf (t `$ u)       = PEq.cong₂ _`$_ (wk^ne-trans′ prf t) (wk^nf-trans′ prf u)
   wk^ne-trans′ prf (`ifte b l r)  = PEq.cong₂ (uncurry `ifte) (PEq.cong₂ _,_ (wk^ne-trans′ prf b) (wk^nf-trans′ prf l)) (wk^nf-trans′ prf r)
 
-wk^nf-refl : {Γ : Con} {σ : ty} (t : Γ ⊢^nf σ) → wk^nf refl t ≡ t
+wk^nf-refl : {Γ : Con} {R : ty → Set} {σ : ty} (t : Γ ⊢[ R ]^nf σ) → wk^nf refl t ≡ t
 wk^nf-refl = wk^nf-refl′ (λ _ _ → PEq.refl)
 
-wk^ne-refl : {Γ : Con} {σ : ty} (t : Γ ⊢^ne σ) → wk^ne refl t ≡ t
+wk^ne-refl : {Γ : Con} {R : ty → Set} {σ : ty} (t : Γ ⊢[ R ]^ne σ) → wk^ne refl t ≡ t
 wk^ne-refl = wk^ne-refl′ (λ _ _ → PEq.refl)
 
-wk^nf-trans : {Θ Δ Γ : Con} {σ : ty} (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ Θ)
-               (t : Γ ⊢^nf σ) →  wk^nf inc₂ (wk^nf inc₁ t) ≡ wk^nf (trans inc₁ inc₂) t
+wk^nf-trans : {Θ Δ Γ : Con} {R : ty → Set} {σ : ty} (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ Θ)
+               (t : Γ ⊢[ R ]^nf σ) →  wk^nf inc₂ (wk^nf inc₁ t) ≡ wk^nf (trans inc₁ inc₂) t
 wk^nf-trans inc₁ inc₂ = wk^nf-trans′ (λ _ _ → PEq.refl)
 
-wk^ne-trans : {Θ Δ Γ : Con} {σ : ty} (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ Θ)
-               (t : Γ ⊢^ne σ) →  wk^ne inc₂ (wk^ne inc₁ t) ≡ wk^ne (trans inc₁ inc₂) t
+wk^ne-trans : {Θ Δ Γ : Con} {R : ty → Set} {σ : ty} (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ Θ)
+               (t : Γ ⊢[ R ]^ne σ) →  wk^ne inc₂ (wk^ne inc₁ t) ≡ wk^ne (trans inc₁ inc₂) t
 wk^ne-trans inc₁ inc₂ = wk^ne-trans′ (λ _ _ → PEq.refl)
 \end{code}}
 
-We now come to the definition of the model which follows the usual pattern
+We now come to the definition of the model. In order to guarantee that we
+use the η-rules eagerly, we define the predicates on type for which neutral
+expressions may be turned into normal forms in a very strict manner: only
+stuck \AIC{`Bool}ean expressions can be \AIC{`embed}ded.
+
+\begin{code}
+R^η : ty → Set
+R^η `Bool  = ⊤
+R^η _      = ⊥
+\end{code}
+
+which follows the usual pattern
 pioneered by Berger~\cite{berger1993program} and formally explained in great
 details by e.g. Catarina Coquand~\cite{coquand2002formalised}. We proceed by
 induction on the type and make sure that η-expansion is applied eagerly: all
@@ -915,7 +925,7 @@ infix 5 _⊨^βιξη_
 \begin{code}
 _⊨^βιξη_ : (Γ : Con) (σ : ty) → Set
 Γ ⊨^βιξη `Unit   = ⊤
-Γ ⊨^βιξη `Bool   = Γ ⊢^nf `Bool
+Γ ⊨^βιξη `Bool   = Γ ⊢[ R^η ]^nf `Bool
 Γ ⊨^βιξη σ `→ τ  = {Δ : Con} (inc : Γ ⊆ Δ) (u : Δ ⊨^βιξη σ) → Δ ⊨^βιξη τ
 \end{code}
 
@@ -957,14 +967,14 @@ and all stuck functions are turned into functions in the host language.
 mutual
 
   var‿0^βιξη : {Γ : Con} {σ : ty} → Γ ∙ σ ⊨^βιξη σ
-  var‿0^βιξη = reflect^βιξη _ $′ `var here!
+  var‿0^βιξη = reflect^βιξη _ $′ `var zero
 
-  reflect^βιξη : {Γ : Con} (σ : ty) (t : Γ ⊢^ne σ) → Γ ⊨^βιξη σ
+  reflect^βιξη : {Γ : Con} (σ : ty) (t : Γ ⊢[ R^η ]^ne σ) → Γ ⊨^βιξη σ
   reflect^βιξη `Unit     t = tt
   reflect^βιξη `Bool     t = `embed t
   reflect^βιξη (σ `→ τ)  t = λ inc u → reflect^βιξη τ $′ wk^ne inc t `$ reify^βιξη σ u
 
-  reify^βιξη : {Γ : Con} (σ : ty) (T : Γ ⊨^βιξη σ) → Γ ⊢^nf σ
+  reify^βιξη : {Γ : Con} (σ : ty) (T : Γ ⊨^βιξη σ) → Γ ⊢[ R^η ]^nf σ
   reify^βιξη `Unit     T = `⟨⟩
   reify^βιξη `Bool     T = T
   reify^βιξη (σ `→ τ)  T = `λ $′ reify^βιξη τ $′ T (step refl) var‿0^βιξη
@@ -1008,7 +1018,7 @@ consists of η-expanded variables. Normalisation is obtained by reifying
 the result obtained by evaluation.
 
 \begin{code}
-norm^βιξη : {Γ : Con} (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^nf σ
+norm^βιξη : {Γ : Con} (σ : ty) (t : Γ ⊢ σ) → Γ ⊢[ R^η ]^nf σ
 norm^βιξη σ t = reify^βιξη σ $′ Normalise^βιξη ⊨eval t
 \end{code}
 
@@ -1042,6 +1052,11 @@ powerful technique to build models internalizing alternative equational
 theories. This leads us to mutually defining the model (\AF{\_⊨^{βιξ}\_})
 together with the \emph{acting} model (\AF{\_⊨^{βιξ⋆}\_}):
 
+\begin{code}
+R^¬η : ty → Set
+R^¬η _ = ⊤
+\end{code}
+
 \AgdaHide{
 \begin{code}
 infix 5 _⊨^βιξ_ _⊨^βιξ⋆_
@@ -1050,7 +1065,7 @@ infix 5 _⊨^βιξ_ _⊨^βιξ⋆_
 mutual
 
   _⊨^βιξ_   : (Γ : Con) (σ : ty) → Set
-  Γ ⊨^βιξ σ  = Γ ⊢^ne σ ⊎ Γ ⊨^βιξ⋆ σ
+  Γ ⊨^βιξ σ  = Γ ⊢[ R^¬η ]^ne σ ⊎ Γ ⊨^βιξ⋆ σ
 
   _⊨^βιξ⋆_  : (Γ : Con) (σ : ty) → Set
   Γ ⊨^βιξ⋆ `Unit   = ⊤
@@ -1091,18 +1106,18 @@ is not the case: all the values in the acting model are notionally obtained
 from constructor-headed terms.
 
 \begin{code}
-reflect^βιξ : {Γ : Con} (σ : ty) (t : Γ ⊢^ne σ) → Γ ⊨^βιξ σ
+reflect^βιξ : {Γ : Con} (σ : ty) (t : Γ ⊢[ R^¬η ]^ne σ) → Γ ⊨^βιξ σ
 reflect^βιξ σ = inj₁
 
 mutual
 
-  reify^βιξ⋆ : {Γ : Con} (σ : ty) (T : Γ ⊨^βιξ⋆ σ) → Γ ⊢^nf σ
+  reify^βιξ⋆ : {Γ : Con} (σ : ty) (T : Γ ⊨^βιξ⋆ σ) → Γ ⊢[ R^¬η ]^nf σ
   reify^βιξ⋆ `Unit     T = `⟨⟩
   reify^βιξ⋆ `Bool     T = if T then `tt else `ff
   reify^βιξ⋆ (σ `→ τ)  T = `λ $′ reify^βιξ τ $′ T (step refl) var‿0^βιξ
-    where var‿0^βιξ = inj₁ $ `var here!
+    where var‿0^βιξ = inj₁ $ `var zero
 
-  reify^βιξ : {Γ : Con} (σ : ty) (T : Γ ⊨^βιξ σ) → Γ ⊢^nf σ
+  reify^βιξ : {Γ : Con} (σ : ty) (T : Γ ⊨^βιξ σ) → Γ ⊢[ R^¬η ]^nf σ
   reify^βιξ σ (inj₁ ne)  = `embed ne
   reify^βιξ σ (inj₂ T)   = reify^βιξ⋆ σ T
 \end{code}
@@ -1147,7 +1162,7 @@ Normalise^βιξ =
           ; ⟦ifte⟧  = ifte^βιξ
           }
 
-norm^βιξ : {Γ : Con} (σ : ty) (t : Γ ⊢ σ) → Γ ⊢^nf σ
+norm^βιξ : {Γ : Con} (σ : ty) (t : Γ ⊢ σ) → Γ ⊢[ R^¬η ]^nf σ
 norm^βιξ σ t = reify^βιξ σ $′ Normalise^βιξ ⊨eval t
 \end{code}
 
@@ -1568,7 +1583,7 @@ of semantic equality.
 
 \begin{code}
 reify^EQREL    :  {Γ : Con} (σ : ty) {T U : Γ ⊨^βιξη σ} → EQREL Γ σ T U → reify^βιξη σ T ≡ reify^βιξη σ U
-reflect^EQREL  :  {Γ : Con} (σ : ty) {t u : Γ ⊢^ne σ} → t ≡ u → EQREL Γ σ (reflect^βιξη σ t) (reflect^βιξη σ u)
+reflect^EQREL  :  {Γ : Con} (σ : ty) {t u : Γ ⊢[ R^η ]^ne σ} → t ≡ u → EQREL Γ σ (reflect^βιξη σ t) (reflect^βιξη σ u)
 \end{code}
 \AgdaHide{
 \begin{code}
