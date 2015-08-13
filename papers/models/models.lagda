@@ -121,7 +121,7 @@ about scope preservation still help to root out a lot of bugs.
 {-# OPTIONS --no-eta #-}
 module models where
 
-open import Level
+open import Level using (Level ; _⊔_)
 open import Data.Empty
 open import Data.Unit
 open import Data.Bool
@@ -168,9 +168,10 @@ data Con : Set where
   ε    : Con
   _∙_  : (Γ : Con) (σ : ty) → Con
 
+infixr 5 1+_
 data _∈_ (σ : ty) : (Γ : Con) → Set where
-  here!  : {Γ : Con} → σ ∈ (Γ ∙ σ)
-  there  : {Γ : Con} {τ : ty} (pr : σ ∈ Γ) → σ ∈ (Γ ∙ τ)
+  zero  : {Γ : Con} → σ ∈ (Γ ∙ σ)
+  1+_   : {Γ : Con} {τ : ty} (pr : σ ∈ Γ) → σ ∈ (Γ ∙ τ)
 \end{code}
 
 The syntax for this λ-calculus is designed to guarantee that terms are
@@ -253,8 +254,8 @@ working with.
 
 [_]_`∙_ :  {ℓ : Level} {Γ Δ : Con} (R : (Δ : Con) (σ : ty) → Set ℓ) {σ : ty}
            (ρ : Δ [ R ] Γ) (s : R Δ σ) → Δ [ R ] (Γ ∙ σ)
-([ R ] ρ `∙ s) _ here!       = s
-([ R ] ρ `∙ s) σ (there pr)  = ρ σ pr
+([ R ] ρ `∙ s) _ zero    = s
+([ R ] ρ `∙ s) σ (1+ n)  = ρ σ n
 \end{code}
 
 \subsubsection{The Preorder of Renamings}
@@ -314,11 +315,11 @@ trans : {Γ Δ Θ : Con} (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ Θ) → Γ ⊆ Θ
 trans inc₁ inc₂ = wk[ wk^∈ ] inc₂ inc₁
 
 pop! : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → (Γ ∙ σ) ⊆ (Δ ∙ σ)
-pop! inc σ here!       = here!
-pop! inc σ (there pr)  = there $ inc σ pr
+pop! inc σ zero    = zero
+pop! inc σ (1+ n)  = 1+ inc σ n
 
 step : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → Γ ⊆ (Δ ∙ σ)
-step inc = trans inc $ λ _ → there
+step inc = trans inc $ λ _ → 1+_
 \end{code}
 
 Now that we are equipped with the notion of inclusion, we have all
@@ -495,7 +496,7 @@ syntactic syn = let open Syntactic syn in record
   ; embed   = embed
   ; ⟦var⟧   = ⟦var⟧
   ; _⟦$⟧_   = _`$_
-  ; ⟦λ⟧     = λ t → `λ $ t (step refl) $ embed _ here!
+  ; ⟦λ⟧     = λ t → `λ $ t (step refl) $ embed _ zero
   ; ⟦⟨⟩⟧    = `⟨⟩
   ; ⟦tt⟧    = `tt
   ; ⟦ff⟧    = `ff
@@ -597,7 +598,6 @@ of fresh names every time a new variable is introduced by a λ-abstraction.
 \begin{code}
 open import Data.Char using (Char)
 open import Data.String hiding (show)
-open import Data.Nat as ℕ using (ℕ ; _+_)
 open import Data.Nat.Show
 open import Data.List as List hiding (_++_ ; zipWith ; [_])
 open import Coinduction
@@ -652,20 +652,23 @@ PrettyPrinting = record
 Our definition of \ARF{embed} erases the membership proofs to
 recover the corresponding de Bruijn indices which are then turned
 into strings using \AF{show}, defined in Agda's standard library.
-This means that, using \AF{PrettyPrinting} \AF{⊨eval\_}, the free
+This means that, using \AF{Printing} \AF{⊨eval\_}, the free
 variables will be displayed as numbers whilst the bound ones will
-be given names chosen by the name supply.
+be given names chosen by the name supply. Of course this does not
+mean that one should necessarily stick to this naming scheme: a
+more sophisticated one could be picked. In fact, we describe a
+slightly nicer one down below.
 
 \begin{code}
   where
     deBruijn : {Γ : Con} {σ : ty} → σ ∈ Γ → ℕ
-    deBruijn here!       = 0
-    deBruijn (there pr)  = 1 + deBruijn pr
+    deBruijn zero    = 0
+    deBruijn (1+ n)  = 1 + deBruijn n
 \end{code}
 
 Now, this means that we still need to provide a \AD{Stream} of fresh
-names to this computation in order to run it. Given that we erase free
-variables to numbers, we'd rather avoid using numbers if we want to
+names to this computation in order to run it. Given that \ARF{embed} erases
+free variables to numbers, we'd rather avoid using numbers if we want to
 avoid capture. We define \AF{names} (not shown here) as the stream
 cycling through the letters of the alphabet and keeping the identifiers
 unique by appending a natural number incremented by 1 each time we are
@@ -678,7 +681,6 @@ flatten ((a , as) ∷ aass) = go a as (♭ aass) where
   go : {A : Set} → A → List A → Stream (A × List A) → Stream A
   go a []        aass = a ∷ ♯ flatten aass
   go a (b ∷ as)  aass = a ∷ ♯ go b as aass
-
 names : Stream String
 names = flatten $ zipWith cons letters $ "" ∷ ♯ Stream.map show (allNatsFrom 0)
   where
@@ -785,7 +787,7 @@ the elements of the \AIC{`Unit} type being equal to \AIC{`⟨⟩}.
 \end{mathpar}
 \begin{code}
 eta : {Γ : Con} {σ τ : ty} (t : Γ ⊢ σ `→ τ) → Γ ⊢ σ `→ τ
-eta t = `λ $ wk^⊢ (step refl) t `$ `var here!
+eta t = `λ $ wk^⊢ (step refl) t `$ `var zero
 \end{code}
 
 Now that we have recalled all these rules, we can talk precisely
@@ -1264,7 +1266,7 @@ mutual
   reify^βι⋆ `Unit     T = `⟨⟩
   reify^βι⋆ `Bool     T = if T then `tt else `ff
   reify^βι⋆ (σ `→ τ)  T = `λ $ proj₁ $ T (step refl) var‿0^βι
-    where var‿0^βι = reflect^βι _ $ `var here!
+    where var‿0^βι = reflect^βι _ $ `var zero
 
   reify^βι : {Γ : Con} (σ : ty) (T : Γ ⊨^βι σ) → Γ ⊢^whnf σ
   reify^βι σ (t , inj₁ ne) = `embed ne
@@ -1295,7 +1297,7 @@ Normalise^βι =
           ; wk      = wk^βι
           ; ⟦var⟧   = id
           ; _⟦$⟧_   = _$^βι_
-          ; ⟦λ⟧     = λ t → `λ (proj₁ $ t (step refl) (reflect^βι _ $ `var here!)) , inj₂ t
+          ; ⟦λ⟧     = λ t → `λ (proj₁ $ t (step refl) (reflect^βι _ $ `var zero)) , inj₂ t
           ; ⟦⟨⟩⟧    = `⟨⟩ , inj₂ tt
           ; ⟦tt⟧    = `tt , inj₂ true
           ; ⟦ff⟧    = `ff , inj₂ false
@@ -1725,7 +1727,7 @@ preserving manner.
 
 \begin{code}
     𝓔^R‿∙   :  {Γ Δ Θ : Con} {σ : ty} {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Θ [ 𝓔^B ] Δ} {ρ^C : Θ [ 𝓔^C ] Γ} {u^B : 𝓔^B Θ σ} {u^C : 𝓔^C Θ σ} (ρ^R : 𝓔^R ρ^A ρ^B ρ^C) (u^R : 𝓔^R‿BC u^B u^C) →
-                𝓔^R  ([ 𝓔^A ]  wk[ SemA.wk ] (step refl) ρ^A `∙ SemA.embed σ here!)
+                𝓔^R  ([ 𝓔^A ]  wk[ SemA.wk ] (step refl) ρ^A `∙ SemA.embed σ zero)
                       ([ 𝓔^B ]  ρ^B `∙ u^B) ([ 𝓔^C ]  ρ^C `∙ u^C)
 
     𝓔^R‿wk  :  {Γ Δ Θ E : Con} (inc : Θ ⊆ E) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Θ [ 𝓔^B ] Δ} {ρ^C : Θ [ 𝓔^C ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B ρ^C) →
@@ -1759,7 +1761,7 @@ values to be substituted for the variable bound by the \AIC{`λ}.
     R⟦λ⟧    :
       {Γ Δ Θ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Θ [ 𝓔^B ] Δ} {ρ^C : Θ [ 𝓔^C ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B ρ^C) →
       (r :  {E : Con} (inc : Θ ⊆ E) {u^B : 𝓔^B E σ} {u^C : 𝓔^C E σ} (u^R : 𝓔^R‿BC u^B u^C) →
-            let  ρ^A′ =  [ 𝓔^A ] wk[ SemA.wk ] (step refl) ρ^A `∙ SemA.embed σ here!
+            let  ρ^A′ =  [ 𝓔^A ] wk[ SemA.wk ] (step refl) ρ^A `∙ SemA.embed σ zero
                  ρ^B′ =  [ 𝓔^B ] wk[ SemB.wk ] inc ρ^B `∙ u^B
                  ρ^C′ =  [ 𝓔^C ] wk[ SemC.wk ] inc ρ^C `∙ u^C
             in 𝓜^R (𝓢^B ⊨⟦ reifyA (𝓢^A ⊨⟦ t ⟧ ρ^A′) ⟧ ρ^B′) (𝓢^C ⊨⟦ t ⟧ ρ^C′)) →
@@ -1859,7 +1861,7 @@ record SyntacticFusable
   field
     𝓔^R‿∙ : ({Γ Δ Θ : Con} {σ : ty} {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Θ [ 𝓔^B ] Δ} {ρ^C : Θ [ 𝓔^C ] Γ}
                {u^B : 𝓔^B Θ σ} {u^C : 𝓔^C Θ σ} (ρ^R : 𝓔^R ρ^A ρ^B ρ^C) (u^R : 𝓔^R‿BC u^B u^C) →
-               𝓔^R ([ 𝓔^A ] wk[ Syn^A.wk ] (step refl) ρ^A `∙ Syn^A.embed σ here!)
+               𝓔^R ([ 𝓔^A ] wk[ Syn^A.wk ] (step refl) ρ^A `∙ Syn^A.embed σ zero)
                       ([ 𝓔^B ] ρ^B `∙ u^B)
                       ([ 𝓔^C ] ρ^C `∙ u^C))
     𝓔^R‿wk : {Γ Δ Θ E : Con} (inc : Θ ⊆ E)
@@ -1870,7 +1872,7 @@ record SyntacticFusable
               syntactic synB ⊨⟦ syntactic synA ⊨⟦ `var v ⟧ ρ^A ⟧ ρ^B ≡ syntactic synC ⊨⟦ `var v ⟧ ρ^C
 \end{code}}
 \begin{code}
-    embed^BC : {Γ : Con} {σ : ty} → 𝓔^R‿BC  {Γ ∙ σ} (Syn^B.embed σ here!) (Syn^C.embed σ here!)
+    embed^BC : {Γ : Con} {σ : ty} → 𝓔^R‿BC  {Γ ∙ σ} (Syn^B.embed σ zero) (Syn^C.embed σ zero)
 \end{code}
 
 The important result is that given a \AR{SyntacticFusable} relating
