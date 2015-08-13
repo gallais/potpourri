@@ -19,7 +19,7 @@ model values as well as its variation on a structure typical of
 a Kripke semantics make it capable of expressing renaming and
 substitution but also various forms of Normalisation by Evaluation
 as well as, perhaps more surprisingly, monadic computations such
-as a pretty-printing function.
+as a printing function.
 
 We then demonstrate that expressing these algorithms in a common
 framework yields immediate benefits: we can deploy some logical
@@ -76,7 +76,7 @@ as one well-known instance: the preorder of context inclusions. This will lead
 us to defining a generic notion of type and scope-preserving \AR{Semantics} which
 can be used to define a generic evaluation function. We will then showcase the
 ground covered by these \AR{Semantics}: from the syntactic ones corresponding
-to renaming and substitution to pretty-printing or some variations on Normalisation
+to renaming and substitution to printing with names or some variations on Normalisation
 by Evaluation. Finally, we will demonstrate how, the definition of \AR{Semantics}
 being generic enough, we can prove fundamental lemmas about these evaluation
 functions: we characterise the semantics which are synchronisable and give an
@@ -190,6 +190,12 @@ variable whose type corresponds to the domain of the function being defined.
 
 \AgdaHide{
 \begin{code}
+open import Data.Nat as ℕ using (ℕ ; _+_)
+
+size : Con → ℕ
+size ε        = 0
+size (Γ ∙ _)  = 1 + size Γ
+
 infix 5 _⊢_
 infixl 5 _`$_
 \end{code}}
@@ -329,7 +335,7 @@ of the simply-typed λ-calculus.
 \section{Semantics and Generic Evaluation Functions}
 
 The upcoming sections are dedicated to demonstrating that renaming,
-substitution, pretty-printing, and normalisation by evaluation all
+substitution, printing with names, and normalisation by evaluation all
 share the same structure. We start by abstracting away a notion of
 \AR{Semantics} encompassing all these constructions. This approach
 will make it possible for us to implement a generic traversal
@@ -464,7 +470,7 @@ open Eval hiding (lemma) public
 
 The diagonal environment generated using \ARF{embed} when defining the
 \AF{\_⊨eval\_} function lets us kickstart the evaluation of arbitrary
-\emph{open} terms. In the case of pretty-printing, this corresponds to
+\emph{open} terms. In the case of printing with names, this corresponds to
 picking a naming scheme for free variables whilst in the usual model
 construction used to perform normalisation by evaluation, it corresponds
 to η-expanding the variables.
@@ -610,12 +616,19 @@ open import Relation.Binary.PropositionalEquality as PEq using (_≡_)
 }
 
 \begin{code}
-Name : (Γ : Con) (σ : ty) → Set
-Name _ _ = String
+record Name (Γ : Con) (σ : ty) : Set where
+  constructor mkName
+  field runName : String
 
-Printer : (Γ : Con) (σ : ty) → Set
-Printer _ _ = State (Stream String) String
+record Printer (Γ : Con) (σ : ty) : Set where
+  constructor mkPrinter
+  field runPrinter : State (Stream String) String
 \end{code}
+\AgdaHide{
+\begin{code}
+open Name
+open Printer
+\end{code}}
 
 If the values in the environment were allowed to be computations too, we
 would not root out all faulty implementations: the typechecker would for
@@ -628,23 +641,22 @@ handling languages with effects~\cite{moggi1991notions}, or effectful
 semantics (e.g. logging the various function calls).
 
 \begin{code}
-PrettyPrinting : Semantics Name Printer
-PrettyPrinting = record
-  { embed   = λ _ → show ∘ deBruijn
-  ; wk      = λ _ → id
-  ; ⟦var⟧   = return
-  ; _⟦$⟧_   = λ mf mt →  mf >>= λ `f` → mt >>= λ `t` →
-                         return $ `f` ++ "(" ++ `t` ++ ")"
-  ; ⟦λ⟧     = λ {_} {σ} mb → get >>= λ names →
-                             let `x`   = head names
-                                 rest  = tail names in
-                             put rest                    >>= λ _ →
-                             mb (step {σ = σ} refl) `x`  >>= λ `b` →
-                             return $ "λ" ++ `x` ++ ". " ++ `b`
-  ; ⟦⟨⟩⟧    = return "⟨⟩"
-  ; ⟦tt⟧    = return "tt"
-  ; ⟦ff⟧    = return "ff"
-  ; ⟦ifte⟧  =  λ mb ml mr → mb  >>= λ `b` → ml  >>= λ `l` → mr  >>= λ `r` →
+Printing : Semantics Name Printer
+Printing = record
+  { embed   = λ _ → mkName ∘ show ∘ deBruijn
+  ; wk      = λ _ → mkName ∘ runName
+  ; ⟦var⟧   = mkPrinter ∘ return ∘ runName
+  ; _⟦$⟧_   =  λ mf mt → mkPrinter $ runPrinter mf >>= λ `f` →
+               runPrinter mt >>= λ `t` → return $ `f` ++ " (" ++ `t` ++ ")"
+  ; ⟦λ⟧     =  λ {_} {σ} mb → mkPrinter $ get >>= λ names → let `x` = head names in
+               put (tail names)                                  >>= λ _ →
+               runPrinter (mb (step {σ = σ} refl) (mkName `x`))  >>= λ `b` →
+               return $ "λ" ++ `x` ++ ". " ++ `b`
+  ; ⟦⟨⟩⟧    = mkPrinter $ return "⟨⟩"
+  ; ⟦tt⟧    = mkPrinter $ return "tt"
+  ; ⟦ff⟧    = mkPrinter $ return "ff"
+  ; ⟦ifte⟧  =  λ mb ml mr → mkPrinter $ runPrinter mb >>= λ `b` →
+               runPrinter ml >>= λ `l` → runPrinter mr >>= λ `r` →
                return $ "if (" ++ `b`  ++ ") then (" ++ `l`
                                        ++ ") else (" ++ `r` ++ ")" }
 \end{code}
@@ -694,12 +706,30 @@ names = flatten $ zipWith cons letters $ "" ∷ ♯ Stream.map show (allNatsFrom
     allNatsFrom : ℕ → Stream ℕ
     allNatsFrom k = k ∷ ♯ allNatsFrom (1 + k)
 \end{code}}
+
+Before defining \AF{print}, we introduce \AF{nameContext} (implementation
+omitted here) which is a function delivering a stateful computation using
+the provided stream of fresh names to generate an environment of names
+for a given context. This means that we are now able to define a printing
+function using names rather than number for the variables appearing free
+in a term.
+
 \begin{code}
-prettyPrint : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → String
-prettyPrint t = proj₁ $ PrettyPrinting ⊨eval t $ names
+nameContext : (Δ : Con) (Γ : Con) → State (Stream String) (Δ [ Name ] Γ)
+\end{code}
+\AgdaHide{
+\begin{code}
+nameContext Δ ε        =  return $ λ _ ()
+nameContext Δ (Γ ∙ σ)  =  nameContext Δ Γ >>= λ g →
+                        get >>= λ names → put (tail names) >>
+                        return ([ Name ] g `∙ mkName (head names))
+\end{code}}\vspace{-2em}%ugly but it works!
+\begin{code}
+print : {Γ : Con} {σ : ty} (t : Γ ⊢ σ) → String
+print {Γ} t = proj₁ $ (nameContext Γ Γ >>= runPrinter ∘ Printing ⊨⟦ t ⟧_) names
 \end{code}
 
-We can observe that \AF{prettyPrint} does indeed do the job by writing a
+We can observe that \AF{print} does indeed do the job by writing a
 test. Given that type theory allows computation at the type level, we can
 make sure that such tests are checked at typechecking time. Here we display
 a function applying its argument to the first free variable in scope. The
@@ -707,7 +737,7 @@ free variable is indeed given a natural number as a name whilst the bound
 one uses a letter.
 
 \begin{code}
-pretty$ :  {a b : ty} → prettyPrint {Γ = ε ∙ a `→ b} {σ = a `→ b} (`λ $ `var (there here!) `$ `var here!) ≡ "λa. 0(a)"
+pretty$ : {a b : ty} → print {Γ = ε ∙ a `→ b} (`λ $ `var (1+ zero) `$ `var zero) ≡ "λb. a (b)"
 pretty$ = PEq.refl
 \end{code}
 
@@ -2178,45 +2208,53 @@ name supply at the end of the process, are equal.
 
 \begin{code}
 RenamingPrettyPrintingFusable :
-  Fusable Renaming PrettyPrinting PrettyPrinting
+  Fusable Renaming Printing Printing
   _≡_
   (λ ρ^A ρ^B ρ^C → ∀ σ pr → ρ^B σ (ρ^A σ pr) ≡ ρ^C σ pr)
-  (λ p q → ∀ {names₁ names₂} → names₁ ≡ names₂ → p names₁ ≡ q names₂)
+  (λ p q → ∀ {names₁ names₂} → names₁ ≡ names₂ → runPrinter p names₁ ≡ runPrinter q names₂)
 \end{code}
 \AgdaHide{
 \begin{code}
-RenamingPrettyPrintingFusable =
-  record { reifyA  = id
-         ; 𝓔^R‿∙   = λ ρ^R eq → [ eq , ρ^R ]
-         ; 𝓔^R‿wk  = λ _ → id
-         ; R⟦var⟧  = λ v ρ^R → PEq.cong₂ _,_ (ρ^R _ v)
-         ; R⟦λ⟧    = λ t ρ^R r → λ { {n₁ ∷ n₁s} {n₂ ∷ n₂s} eq →
+RenamingPrettyPrintingFusable = record
+  { reifyA   = id
+  ; 𝓔^R‿∙   = λ ρ^R eq → [ eq , ρ^R ]
+  ; 𝓔^R‿wk  = λ _ ρ^R σ pr → PEq.cong (mkName ∘ runName) (ρ^R σ pr)
+  ; R⟦var⟧   = λ v ρ^R → PEq.cong₂ (λ n ns → runName n , ns) (ρ^R _ v)
+  ; R⟦λ⟧     = λ t ρ^R r → λ { {n₁ ∷ n₁s} {n₂ ∷ n₂s} eq →
                         let (neq   , nseq) = ∷-inj eq
-                            (ihstr , ihns) = both (r (step refl) neq (PEq.cong ♭ nseq))
+                            (ihstr , ihns) = both (r (step refl) (PEq.cong mkName neq) (PEq.cong ♭ nseq))
                         in PEq.cong₂ _,_ (PEq.cong₂ (λ n str → "λ" ++ n ++ ". " ++ str) neq ihstr) ihns }
-         ; R⟦$⟧    = λ f t {ρ^A} {ρ^B} {ρ^C} ρ^R ihf iht eq →
+  ; R⟦$⟧     = λ f t {ρ^A} {ρ^B} {ρ^C} ρ^R ihf iht eq →
                         let (ihstrf , eq₁) = both (ihf eq)
                             (ihstrt , eq₂) = both (iht eq₁)
-                        in PEq.cong₂ _,_ (PEq.cong₂ (λ strf strt → strf ++ "(" ++ strt ++ ")") ihstrf ihstrt) eq₂
-         ; R⟦⟨⟩⟧   = λ _ → PEq.cong _
-         ; R⟦tt⟧   = λ _ → PEq.cong _
-         ; R⟦ff⟧   = λ _ → PEq.cong _
-         ; R⟦ifte⟧ = λ b l r {ρ^A} {ρ^B} {ρ^C} ρ^R ihb ihl ihr eq →
+                        in PEq.cong₂ _,_ (PEq.cong₂ (λ strf strt → strf ++ " (" ++ strt ++ ")") ihstrf ihstrt) eq₂
+  ; R⟦⟨⟩⟧    = λ _ → PEq.cong _
+  ; R⟦tt⟧    = λ _ → PEq.cong _
+  ; R⟦ff⟧    = λ _ → PEq.cong _
+  ; R⟦ifte⟧  = λ b l r {ρ^A} {ρ^B} {ρ^C} ρ^R ihb ihl ihr eq →
                        let (ihstrb , eq₁) = both (ihb eq)
                            (ihstrl , eq₂) = both (ihl eq₁)
                            (ihstrr , eq₃) = both (ihr eq₂)
                        in PEq.cong₂ _,_ (PEq.cong₂ (λ strb strlr → "if (" ++ strb ++ ") then (" ++ strlr)
                                         ihstrb (PEq.cong₂ (λ strl strr → strl ++ ") else (" ++ strr ++ ")")
-                                        ihstrl ihstrr)) eq₃
-    }
+                                        ihstrl ihstrr)) eq₃ }
+
+tailComm : (Δ Γ : Con) {names : Stream String} →
+           tail (proj₂ (nameContext Δ Γ names)) ≡ proj₂ (nameContext Δ Γ (tail names))
+tailComm Δ ε        = PEq.refl
+tailComm Δ (Γ ∙ _)  = PEq.cong tail (tailComm Δ Γ)
+
+proof : (Δ Γ : Con) {names : Stream String} → proj₂ (nameContext Δ Γ names) ≡ Stream.drop (size Γ) names
+proof Δ ε       = PEq.refl
+proof Δ (Γ ∙ _) = λ { {_ ∷ names} → PEq.trans (tailComm Δ Γ) (proof Δ Γ) }
 \end{code}}
 A direct corollary is that pretty printing a weakened closed term
 amounts to pretty printing the term itself in a dummy environment.
 
 \begin{code}
 PrettyRenaming : {Γ : Con} {σ : ty} (t : ε ⊢ σ) (inc : ε ⊆ Γ) →
-  prettyPrint (wk^⊢ inc t) ≡ proj₁ (PrettyPrinting ⊨⟦ t ⟧ (λ _ ()) $ names)
-PrettyRenaming {Γ} t inc = PEq.cong proj₁ $′ RenPret.lemma t (λ _ ()) PEq.refl
+  print (wk^⊢ inc t) ≡ proj₁ (runPrinter (Printing ⊨⟦ t ⟧ (λ _ ())) $ Stream.drop (size Γ) names)
+PrettyRenaming {Γ} t inc = PEq.cong proj₁ (RenPret.lemma t (λ _ ()) (proof Γ Γ))
   where module RenPret = Fusion RenamingPrettyPrintingFusable
 \end{code}
 
