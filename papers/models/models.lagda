@@ -743,7 +743,7 @@ pretty$ = PEq.refl
 
 \section{Normalisation by Evaluation}
 
-Normalisation by Evaluation is a technique leveraging the computational
+Normalisation by Evaluation is a technique exploiting the computational
 power of a host language in order to normalise expressions of a deeply
 embedded one. The process is based on a model construction associating
 a type of values \model{} to each context \AB{Γ} and type \AB{σ}. Two
@@ -1382,8 +1382,8 @@ in the model.
 record Synchronisable
   {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} (𝓢^A : Semantics 𝓔^A 𝓜^A)
   {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} (𝓢^B : Semantics 𝓔^B 𝓜^B)
-  {ℓ^RE ℓ^RM ℓ^REAB : Level} (𝓔^R‿AB : {Γ : Con} {σ : ty} (eA : 𝓔^A Γ σ) (eB : 𝓔^B Γ σ) → Set ℓ^REAB)
-  (𝓔^R : {Δ Γ : Con} (eA : Δ [ 𝓔^A ] Γ) (eB : Δ [ 𝓔^B ] Γ) → Set ℓ^RE)
+  {ℓ^RE ℓ^RM ℓ^REAB : Level} (𝓔^R‿AB : {Γ : Con} {σ : ty} (e^A : 𝓔^A Γ σ) (e^B : 𝓔^B Γ σ) → Set ℓ^REAB)
+  (𝓔^R : {Δ Γ : Con} (e^A : Δ [ 𝓔^A ] Γ) (e^B : Δ [ 𝓔^B ] Γ) → Set ℓ^RE)
   (𝓜^R : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM)
   : Set (ℓ^RE ⊔ ℓ^RM ⊔ ℓ^EA ⊔ ℓ^EB ⊔ ℓ^MA ⊔ ℓ^MB ⊔ ℓ^REAB) where
 \end{code}
@@ -1485,7 +1485,7 @@ counterpart of term constructors into scope by \AK{open}ing the record. The
 traversal then uses them to combine the induction hypotheses arising structurally.
 
 \begin{code}
-module Synchronised {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓢^A : Semantics 𝓔^A 𝓜^A} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓢^B : Semantics 𝓔^B 𝓜^B} {ℓ^RE ℓ^RM ℓ^REAB : Level} {𝓔^R‿AB : {Γ : Con} {σ : ty} (eA : 𝓔^A Γ σ) (eB : 𝓔^B Γ σ) → Set ℓ^REAB} {𝓔^R : {Δ Γ : Con} (eA : Δ [ 𝓔^A ] Γ) (eB : Δ [ 𝓔^B ] Γ) → Set ℓ^RE} {𝓜^R : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM} (rel : Synchronisable 𝓢^A 𝓢^B 𝓔^R‿AB 𝓔^R 𝓜^R) where
+module Synchronised {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓢^A : Semantics 𝓔^A 𝓜^A} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓢^B : Semantics 𝓔^B 𝓜^B} {ℓ^RE ℓ^RM ℓ^REAB : Level} {𝓔^R‿AB : {Γ : Con} {σ : ty} (e^A : 𝓔^A Γ σ) (e^B : 𝓔^B Γ σ) → Set ℓ^REAB} {𝓔^R : {Δ Γ : Con} (e^A : Δ [ 𝓔^A ] Γ) (e^B : Δ [ 𝓔^B ] Γ) → Set ℓ^RE} {𝓜^R : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM} (rel : Synchronisable 𝓢^A 𝓢^B 𝓔^R‿AB 𝓔^R 𝓜^R) where
   open Synchronisable rel
 
   lemma :  {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) → 𝓜^R (𝓢^A ⊨⟦ t ⟧ ρ^A) (𝓢^B ⊨⟦ t ⟧ ρ^B)
@@ -1839,7 +1839,7 @@ identified what the constraints should be, proving the fundamental
 lemma turns out to amount to a simple traversal we choose to omit here.
 
 \begin{code}
-module Fusion {ℓ^EA ℓ^MA ℓ^EB ℓ^MB ℓ^EC ℓ^MC ℓ^RE ℓ^REB ℓ^RM : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓜^C : (Γ : Con) (σ : ty) → Set ℓ^MC} {𝓢^A : Semantics 𝓔^A 𝓜^A} {𝓢^B : Semantics 𝓔^B 𝓜^B} {𝓢^C : Semantics 𝓔^C 𝓜^C} {𝓔^R‿BC : {Γ : Con} {σ : ty} (eB : 𝓔^B Γ σ) (eC : 𝓔^C Γ σ) → Set ℓ^REB} {𝓔^R : {Θ Δ Γ : Con} (ρ^A : Δ [ 𝓔^A ] Γ) (ρ^B : Θ [ 𝓔^B ] Δ) (ρ^C : Θ [ 𝓔^C ] Γ) → Set ℓ^RE} {𝓜^R : {Γ : Con} {σ : ty} (mB : 𝓜^B Γ σ) (mC : 𝓜^C Γ σ) → Set ℓ^RM} (fusable : Fusable 𝓢^A 𝓢^B 𝓢^C 𝓔^R‿BC 𝓔^R 𝓜^R) where
+module Fusion {ℓ^EA ℓ^MA ℓ^EB ℓ^MB ℓ^EC ℓ^MC ℓ^RE ℓ^REB ℓ^RM : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓜^C : (Γ : Con) (σ : ty) → Set ℓ^MC} {𝓢^A : Semantics 𝓔^A 𝓜^A} {𝓢^B : Semantics 𝓔^B 𝓜^B} {𝓢^C : Semantics 𝓔^C 𝓜^C} {𝓔^R‿BC : {Γ : Con} {σ : ty} (e^B : 𝓔^B Γ σ) (e^C : 𝓔^C Γ σ) → Set ℓ^REB} {𝓔^R : {Θ Δ Γ : Con} (ρ^A : Δ [ 𝓔^A ] Γ) (ρ^B : Θ [ 𝓔^B ] Δ) (ρ^C : Θ [ 𝓔^C ] Γ) → Set ℓ^RE} {𝓜^R : {Γ : Con} {σ : ty} (mB : 𝓜^B Γ σ) (mC : 𝓜^C Γ σ) → Set ℓ^RM} (fusable : Fusable 𝓢^A 𝓢^B 𝓢^C 𝓔^R‿BC 𝓔^R 𝓜^R) where
   open Fusable fusable
 
   lemma :  {Γ Δ Θ : Con} {σ : ty} (t : Γ ⊢ σ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Θ [ 𝓔^B ] Δ} {ρ^C : Θ [ 𝓔^C ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B ρ^C) →
@@ -1881,7 +1881,7 @@ record SyntacticFusable
   {ℓ^EA ℓ^EB ℓ^EC ℓ^REBC ℓ^RE : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} (synA : Syntactic 𝓔^A)
   (synB : Syntactic 𝓔^B)
   (synC : Syntactic 𝓔^C)
-  (𝓔^R‿BC : {Γ : Con} {σ : ty} (eB : 𝓔^B Γ σ) (eC : 𝓔^C Γ σ) → Set ℓ^REBC)
+  (𝓔^R‿BC : {Γ : Con} {σ : ty} (e^B : 𝓔^B Γ σ) (e^C : 𝓔^C Γ σ) → Set ℓ^REBC)
   (𝓔^R : {Θ Δ Γ : Con} (ρ^A : Δ [ 𝓔^A ] Γ) (ρ^B : Θ [ 𝓔^B ] Δ) (ρ^C : Θ [ 𝓔^C ] Γ) → Set ℓ^RE)
   : Set (ℓ^RE ⊔ ℓ^REBC ⊔ ℓ^EC ⊔ ℓ^EB ⊔ ℓ^EA)
   where
@@ -1911,7 +1911,7 @@ the corresponding \AR{Semantics} where \AB{𝓜^R} is the propositional
 equality.
 
 \begin{code}
-syntacticFusable :  {ℓ^EA ℓ^EB ℓ^EC ℓ^RE ℓ^REBC : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} {syn^A : Syntactic 𝓔^A} {syn^B : Syntactic 𝓔^B} {syn^C : Syntactic 𝓔^C} {𝓔^R‿BC : {Γ : Con} {σ : ty} (eB : 𝓔^B Γ σ) (eC : 𝓔^C Γ σ) → Set ℓ^REBC} {𝓔^R : {Θ Δ Γ : Con} (ρ^A : Δ [ 𝓔^A ] Γ) (ρ^B : Θ [ 𝓔^B ] Δ) (ρ^C : Θ [ 𝓔^C ] Γ) → Set ℓ^RE} (syn^R : SyntacticFusable syn^A syn^B syn^C 𝓔^R‿BC 𝓔^R) →
+syntacticFusable :  {ℓ^EA ℓ^EB ℓ^EC ℓ^RE ℓ^REBC : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} {syn^A : Syntactic 𝓔^A} {syn^B : Syntactic 𝓔^B} {syn^C : Syntactic 𝓔^C} {𝓔^R‿BC : {Γ : Con} {σ : ty} (e^B : 𝓔^B Γ σ) (e^C : 𝓔^C Γ σ) → Set ℓ^REBC} {𝓔^R : {Θ Δ Γ : Con} (ρ^A : Δ [ 𝓔^A ] Γ) (ρ^B : Θ [ 𝓔^B ] Δ) (ρ^C : Θ [ 𝓔^C ] Γ) → Set ℓ^RE} (syn^R : SyntacticFusable syn^A syn^B syn^C 𝓔^R‿BC 𝓔^R) →
   Fusable (syntactic syn^A) (syntactic syn^B) (syntactic syn^C) 𝓔^R‿BC 𝓔^R _≡_
 \end{code}
 \AgdaHide{
@@ -2261,7 +2261,7 @@ PrettyRenaming {Γ} t inc = PEq.cong proj₁ (RenPret.lemma t (λ _ ()) (proof �
 \section{Conclusion}
 
 We have explained how to make using an inductive family to only represent
-the terms of and eDSL which are well-scoped and well-typed by construction
+the terms of an eDSL which are well-scoped and well-typed by construction
 more tractable. We proceeded by factoring out a common notion of \AR{Semantics}
 encompassing a wide range of type and scope preserving traversals such as
 renaming and substitution, which were already handled by the state of the

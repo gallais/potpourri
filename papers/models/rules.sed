@@ -9,6 +9,7 @@ s/₀/\_\{\\scriptscriptstyle\{\}0\}/g
 
 # Operators
 s/>>=/\\mathbin\{>\\!\\!>\\mkern-6.7mu=\}/g
+s/>>/\\mathbin\{>\\!\\!>}/g
 s/++/+\\!+/g
 
 # Latex
