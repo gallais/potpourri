@@ -1207,7 +1207,7 @@ when the two terms compared for equality have matching head constructors
 and one needs to inspect these constructors' arguments to conclude. For
 that purpose, we introduce an inductive family describing terms in weak-head
 normal forms. Naturally, it is possible to define weakening for these as
-well as erasure functions \AF{erase^whnf} and \AF{erase^whne} targetting
+well as erasure functions \AF{erase^{whnf}} and \AF{erase^{whne}} targetting
 \AD{\_⊢\_} (their rather simple definitions are omitted here).
 
 \begin{code}
