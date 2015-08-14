@@ -666,10 +666,14 @@ recover the corresponding de Bruijn indices which are then turned
 into strings using \AF{show}, defined in Agda's standard library.
 This means that, using \AF{Printing} \AF{⊨eval\_}, the free
 variables will be displayed as numbers whilst the bound ones will
-be given names chosen by the name supply. Of course this does not
-mean that one should necessarily stick to this naming scheme: a
-more sophisticated one could be picked. In fact, we describe a
-slightly nicer one down below.
+be given names taken from the name supply. This is quite clearly
+a rather crude name generation strategy and our approach to naming
+would naturally be more sophisticated in a user-facing language.
+We can for instance imagine that the binders arising from a user
+input would carry naming hints based on the name the user picked
+and that binders manufactured by the machine would be following
+a type-based scheme: functions would be \AB{f}s or \AB{g}s, natural
+numbers \AB{m}s, \AB{n}s, etc.
 
 \begin{code}
   where
