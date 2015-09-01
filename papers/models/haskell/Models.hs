@@ -1,5 +1,6 @@
 {-# OPTIONS  -Wall               #-}
 {-# LANGUAGE GADTs               #-}
+{-# LANGUAGE EmptyCase           #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE KindSignatures      #-}
@@ -45,7 +46,7 @@ type Environment (d :: Con) (e :: Con -> Ty -> *) (g :: Con) =
   forall a. STy a -> Var g a -> e d a
 
 envNull :: Environment d e 'Null
-envNull = undefined
+envNull v = case v of {}
 
 envCons :: Environment d e g -> e d a -> Environment d e ('Cons g a)
 envCons _   e _ Z     = e
