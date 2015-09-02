@@ -1,6 +1,7 @@
-{-# OPTIONS  -Wall         #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE RankNTypes    #-}
+{-# OPTIONS  -Wall          #-}
+{-# LANGUAGE RankNTypes     #-}
+{-# LANGUAGE DataKinds      #-}
+{-# LANGUAGE KindSignatures #-}
 
 module FancyDomain where
 
@@ -8,6 +9,7 @@ import Data.Sequence as Seq
 
 import Context
 import qualified Language    as TM
+import Semantics
 import qualified NormalForms as NF
 
 ----------------------------------------------------
@@ -20,107 +22,127 @@ import qualified NormalForms as NF
 -- the current scope.
 ----------------------------------------------------
 
-data Dom a =
-    NF (ActDom a)
-  | NE a (Seq (ArgDom a))
+data Dom (g :: Context) =
+    NF (ActDom g)
+  | NE (Var g) (Spine g)
   | BT
-  deriving Functor
 
-data ArgDom a =
-    APP (Dom a)
-  | REC (Dom a) (Dom a) (Dom a)
-  deriving Functor
+data Elim (g :: Context) =
+    APP (Dom g)
+  | REC (Dom g) (Dom g) (Dom g)
 
-data ActDom a =
-    BND (BndDom a) (forall b. (a -> b) -> Dom b -> Dom b)
-  | SUC (Dom a)
+newtype Spine (g :: Context) = Spine { unSpine :: Seq (Elim g) }
+
+data ActDom (g :: Context) =
+    BND (Binder g) (forall d. Renaming g d -> Dom d -> Dom d)
+  | SUC (Dom g)
   | ZRO
   | NAT
   | SET
-  deriving Functor
 
-data BndDom a = LAM | PI (Dom a)
-  deriving Functor
+data Binder (g :: Context) = LAM | PI (Dom g)
 
--- The evaluation functions
+-- Renaming for the domain
 
-evalScope :: TM.Check (Maybe a) -> (a -> Dom b) -> forall c. (b -> c) -> Dom c -> Dom c
-evalScope t rho wk d = evalCheck t $ maybe d $ fmap (fmap wk) rho
+weakDom :: Renaming g d -> Dom g -> Dom d
+weakDom ren (NF ad)   = NF $ weakActDom ren ad
+weakDom ren (NE v sp) = NE (ren v) $ weakSpine ren sp
+weakDom _   BT        = BT
 
-evalBinder :: TM.Binder a -> TM.Check (Maybe a) -> (a -> Dom b) -> Dom b
-evalBinder TM.Lam     t rho = NF $ BND LAM                    $ evalScope t rho
-evalBinder (TM.Pi s)  t rho = NF $ BND (PI $ evalCheck s rho) $ evalScope t rho
-evalBinder (TM.Let u) t rho = evalCheck t $ maybe (evalInfer u rho) rho
+weakActDom :: Renaming g d -> ActDom g -> ActDom d
+weakActDom ren (BND bd t) = BND (weakBinder ren bd) $ t . trans ren
+weakActDom ren (SUC n)    = SUC $ weakDom ren n
+weakActDom _   ZRO        = ZRO
+weakActDom _   NAT        = NAT
+weakActDom _   SET        = SET
 
-evalCheck :: TM.Check a -> (a -> Dom b) -> Dom b
-evalCheck (TM.Bnd bd t) rho = evalBinder bd t rho
-evalCheck TM.Zro        _   = NF ZRO
-evalCheck (TM.Suc n)    rho = NF $ SUC $ evalCheck n rho
-evalCheck (TM.Emb t)    rho = evalInfer t rho
-evalCheck TM.Nat        _   = NF NAT
-evalCheck TM.Set        _   = NF SET
+weakBinder :: Renaming g d -> Binder g -> Binder d
+weakBinder _   LAM    = LAM
+weakBinder ren (PI a) = PI $ weakDom ren a
 
-evalInfer :: TM.Infer a -> (a -> Dom b) -> Dom b
-evalInfer (TM.Var a)    rho = rho a
-evalInfer (TM.Ann t _)  rho = evalCheck t rho
-evalInfer (TM.Cut t sp) rho = cut (evalInfer t rho) $ fmap (flip evalElim rho) sp
+weakElim :: Renaming g d -> Elim g -> Elim d
+weakElim ren (APP u)      = APP $ weakDom ren u
+weakElim ren (REC ty s z) = REC (wk ty) (wk s) (wk z)
+  where wk = weakDom ren
 
-evalElim :: TM.Elim a -> (a -> Dom b) -> ArgDom b
-evalElim (TM.App t)      rho = APP $ evalCheck t rho
-evalElim (TM.Rec ty z s) rho = REC (evalCheck ty rho) (evalCheck z rho) (evalCheck s rho)
+weakSpine :: Renaming g d -> Spine g -> Spine d
+weakSpine ren = Spine . fmap (weakElim ren) . unSpine
 
-cut :: Dom a -> Seq (ArgDom a) -> Dom a
-cut BT        _    = BT
-cut (NE a sp) args = NE a $ sp >< args
-cut d         args =
-  case viewl args of
-    EmptyL             -> d
-    (APP u :< tl)      -> cut (app d u) tl
-    (REC ty z s :< tl) -> cut (rec ty z s d) tl
+----------------------------------------------------
+-- EVALUATION
+----------------------------------------------------
 
-app :: Dom a -> Dom a -> Dom a
-app (NF (BND _ d)) u = d id u
-app (NE a sp)      u = NE a $ sp |> APP u
-app _              _ = BT
+data BinderOrLet (g :: Context) = BINDER (Binder g) | LET (Dom g)
 
-rec :: Dom a -> Dom a -> Dom a -> Dom a -> Dom a
-rec _  z _ (NF ZRO)     = z
-rec ty z s (NF (SUC d)) = s `app` d `app` rec ty z s d
-rec ty z s (NE a sp)    = NE a $ sp |> REC ty z s
-rec _  _ _ _            = BT
+domCUT :: Dom g -> Spine g -> Dom g
+domCUT (NE v sp)  sp' = NE v $ Spine $ unSpine sp >< unSpine sp'
+domCUT nf@(NF ad) sp  =
+  case viewl $ unSpine sp of
+    EmptyL    -> nf
+    el :< sp' -> actCUT ad el (Spine sp')
+domCUT BT         _   = BT
 
+actCUT :: ActDom g -> Elim g -> Spine g -> Dom g
+actCUT ZRO       (REC _ _ z)   = domCUT z
+actCUT (SUC n)   r@(REC _ s _) = domCUT $ domCUT s $ Spine sp
+  where sp = fromList [ APP n , APP $ domCUT n $ Spine $ singleton r ]
+actCUT (BND _ t) (APP el)      = domCUT (t refl el)
+actCUT _ _ = const BT
+
+normalisation :: Semantics Dom Dom BinderOrLet Dom Elim Spine
+normalisation = Semantics
+  { weak  = weakDom
+  , embed = \ v -> NE v $ Spine empty
+  , var   = id
+  , cut   = domCUT
+  , ann   = const
+  , lam   = BINDER LAM
+  , piT   = BINDER . PI
+  , letx  = LET
+  , bnd   = \ bdOrLet t -> case bdOrLet of
+                             LET v     -> t refl v
+                             BINDER bd -> NF $ BND bd t
+  , zro   = NF ZRO
+  , suc   = NF . SUC
+  , emb   = id
+  , nat   = NF NAT
+  , set   = NF SET
+  , app   = APP
+  , rec   = REC
+  , spine = Spine
+  }
 
 ----------------------------------------------------
 -- THE REIFICATION PROCESS
 ----------------------------------------------------
 
-reflect :: a -> Dom a
-reflect a = NE a empty
+reflect :: Var g -> Dom g
+reflect v = NE v $ Spine empty
 
-reify :: Dom a -> NF.Nf a
-reify (NF d) = reifyAct d
-reify (NE a sp)
-  | Seq.null sp = NF.Emb $ NF.Var a
-  | otherwise   = NF.Emb $ NF.Cut a $ fmap reifyArg sp
+reify :: Dom g -> NF.Nf g
+reify (NF d)    = reifyAct d
+reify (NE v sp) = NF.Emb $ NF.Cut v $ NF.Spine $ fmap reifyArg $ unSpine sp
 
-reifyAct :: ActDom a -> NF.Nf a
-reifyAct (BND LAM    d) = NF.lamAbs          $ reify $ d Just $ reflect Nothing
-reifyAct (BND (PI s) d) = NF.piAbs (reify s) $ reify $ d Just $ reflect Nothing
-reifyAct (SUC d)        = NF.Suc $ reify d
-reifyAct ZRO            = NF.Zro
-reifyAct NAT            = NF.Nat
-reifyAct SET            = NF.Set
+reifyAct :: ActDom g -> NF.Nf g
+reifyAct (BND bd t) = NF.Bnd (reifyBinder bd) $ reify $ t (top refl) $ reflect Z
+reifyAct (SUC d)    = NF.Suc $ reify d
+reifyAct ZRO        = NF.Zro
+reifyAct NAT        = NF.Nat
+reifyAct SET        = NF.Set
 
-reifyArg :: ArgDom a -> NF.Elim a
+reifyBinder :: Binder g -> NF.Binder g
+reifyBinder LAM    = NF.Lam
+reifyBinder (PI a) = NF.Pi $ reify a
+
+reifyArg :: Elim g -> NF.Elim g
 reifyArg (APP t)      = NF.App $ reify t
 reifyArg (REC ty z s) = NF.Rec (reify ty) (reify z) (reify s)
 
-instance (ValidContext a, Show a) => Show (Dom a) where
+instance SContextI g => Show (Dom g) where
   show d = show $ reify d
 
+normInfer :: TM.Infer a -> NF.Nf a
+normInfer t = reify $ lemmaInfer normalisation t $ reflect
 
-normInfer :: ValidContext a => TM.Infer a -> NF.Nf a
-normInfer t = reify $ evalInfer t $ diag (reflect Nothing)
-
-normCheck :: ValidContext a => TM.Check a -> NF.Nf a
-normCheck t = reify $ evalCheck t $ diag (reflect Nothing)
+normCheck :: TM.Check a -> NF.Nf a
+normCheck t = reify $ lemmaCheck normalisation t $ reflect

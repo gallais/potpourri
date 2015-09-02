@@ -1,9 +1,10 @@
-{-# OPTIONS  -Wall         #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# OPTIONS  -Wall          #-}
+{-# LANGUAGE DataKinds      #-}
+{-# LANGUAGE KindSignatures #-}
 
 module Language where
 
-import Data.Foldable as Fold
+--import Data.Foldable as Fold
 import Data.Sequence
 import Context
 
@@ -13,53 +14,50 @@ import Context
 -- ones.
 ----------------------------------------------------
 
-type Type a = Check a
+type Type (g :: Context) = Check g
 
-data Check a =
-    Bnd (Binder a) (Check (Maybe a))
+data Check (g :: Context) =
+    Bnd (Binder g) (Check ('Bind g))
   | Zro
-  | Suc (Check a)
-  | Emb (Infer a)
+  | Suc (Check g)
+  | Emb (Infer g)
   | Nat
   | Set
-  deriving Functor
 
-data Infer a =
-    Var a
-  | Cut (Infer a) (Spine a)
-  | Ann (Check a) (Type a)
-  deriving (Show, Functor)
+data Infer (g :: Context) =
+    Var (Var g)
+  | Cut (Infer g) (Spine g)
+  | Ann (Check g) (Type g)
 
-type Spine a = Seq (Elim a)
+newtype Spine (g :: Context) = Spine { unSpine :: Seq (Elim g) }
 
-data Elim a =
-    App (Check a)
-  | Rec (Type a) (Check a) (Check a)
-  deriving (Show, Functor)
+data Elim (g :: Context) =
+    App (Check g)
+  | Rec (Type g) (Check g) (Check g)
 
-data Binder a =
+data Binder (g :: Context) =
     Lam
-  | Pi  (Type a)
-  | Let (Infer a)
-  deriving (Show, Functor)
+  | Pi  (Type g)
+  | Let (Infer g)
 
-piAbs :: Type a -> Type (Maybe a) -> Type a
+piAbs :: Type g -> Type ('Bind g) -> Type g
 piAbs a = Bnd (Pi a)
 
-lamAbs :: Check (Maybe a) -> Check a
+lamAbs :: Check ('Bind g) -> Check g
 lamAbs = Bnd Lam
 
-letAbs :: Type a -> Check a -> Check (Maybe a) -> Check a
+letAbs :: Type g -> Check g -> Check ('Bind g) -> Check g
 letAbs ty te = Bnd (Let (Ann te ty))
 
-var :: a -> Check a
-var = Emb . Var
+--var :: Var g -> Check g
+--var = Emb . Var
 
 appInfer :: Infer a -> Elim a -> Infer a
-appInfer (Cut a sp) el = Cut a $ sp |> el
-appInfer t          el = Cut t $ singleton el
+appInfer (Cut a sp) el = Cut a $ Spine $ unSpine sp |> el
+appInfer t          el = Cut t $ Spine $ singleton el
 
-ppCheck :: [String] -> (a -> String) -> Check a -> String
+{-
+ppCheck :: [String] -> (a -> String) -> Check g -> String
 ppCheck (n : ns) vars (Bnd bd t) = ppBinder n ns vars bd ++ ' ' : ppCheck ns (maybe n vars) t
 ppCheck _        _    Nat        = "Nat"
 ppCheck _        _    Set        = "Set"
@@ -67,7 +65,7 @@ ppCheck _        _    Zro        = "0"
 ppCheck ns       vars (Suc m)    = ppNat ns vars m 1
 ppCheck ns       vars (Emb t)    = ppInfer ns vars t
 
-ppNat :: [String] -> (a -> String) -> Check a -> Int -> String
+ppNat :: [String] -> (a -> String) -> Check g -> Int -> String
 ppNat _  _    Zro     k = show k
 ppNat ns vars (Suc m) k = ppNat ns vars m (k + 1)
 ppNat ns vars t       k = show k ++ " + " ++ ppCheck ns vars t
@@ -89,7 +87,8 @@ ppElim :: [String] -> (a -> String) -> String -> Elim a -> String
 ppElim ns vars t (App u)     = '(' : t ++ ") $ " ++ ppCheck ns vars u
 ppElim ns vars t (Rec _ z s) = "Rec[ " ++ ppCheck ns vars z ++ ", " ++ ppCheck ns vars s ++ " ] " ++ t
 
-instance ValidContext a => Show (Check a) where
+instance ValidContext a => Show (Check g) where
   show t =
     let (ns, vars) = freshNames witness $ fmap (:[]) ['a'..'z'] in
     ppCheck ns vars t
+-}

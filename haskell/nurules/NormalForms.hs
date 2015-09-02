@@ -1,5 +1,6 @@
-{-# OPTIONS  -Wall         #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# OPTIONS  -Wall          #-}
+{-# LANGUAGE DataKinds      #-}
+{-# LANGUAGE KindSignatures #-}
 
 module NormalForms where
 
@@ -7,65 +8,69 @@ import Data.Sequence
 
 import Context
 import qualified Language as TM
+import Semantics()
 
-type Type a = Nf a
+type Type (g :: Context) = Nf g
 
-data Nf a =
-    Bnd (Binder a) (Nf (Maybe a))
+data Nf (g :: Context) =
+    Bnd (Binder g) (Nf ('Bind g))
   | Zro
-  | Suc (Nf a)
-  | Emb (Ne a)
+  | Suc (Nf g)
+  | Emb (Ne g)
   | Nat
   | Set
-  deriving (Eq, Functor)
+  deriving Eq
 
-data Ne a =
-    Var a
-  | Cut a (Spine a)
-  deriving (Eq, Functor)
+data Ne (g :: Context) = Cut (Var g) (Spine g)
+  deriving Eq
 
-type Spine a = Seq (Elim a)
+newtype Spine g = Spine { unSpine :: Seq (Elim g) }
+  deriving Eq
 
-data Elim a =
-    App (Nf a)
-  | Rec (Type a) (Nf a) (Nf a)
-  deriving (Eq, Functor)
+data Elim (g :: Context) =
+    App (Nf g)
+  | Rec (Type g) (Nf g) (Nf g)
+  deriving Eq
 
-data Binder a =
+data Binder (g :: Context) =
     Lam
-  | Pi  (Type a)
-  deriving (Eq, Functor)
+  | Pi  (Type g)
+  deriving Eq
 
-piAbs :: Type a -> Type (Maybe a) -> Type a
+piAbs :: Type g -> Type ('Bind g) -> Type g
 piAbs a = Bnd (Pi a)
 
-lamAbs :: Nf (Maybe a) -> Nf a
+lamAbs :: Nf ('Bind g) -> Nf g
 lamAbs = Bnd Lam
 
 
 -- Normal forms are a subset of the language, obviously
-eraseNf :: Nf a -> TM.Check a
-eraseNf (Bnd bnd t) = TM.Bnd (eraseBinder bnd) (eraseNf t)
-eraseNf Zro         = TM.Zro
-eraseNf (Suc m)     = TM.Suc $ eraseNf m
-eraseNf (Emb t)     = TM.Emb $ eraseNe t
-eraseNf Nat         = TM.Nat
-eraseNf Set         = TM.Set
+eraseNf :: Nf g -> TM.Check g
+eraseNf (Bnd bd t) = TM.Bnd (eraseBinder bd) (eraseNf t)
+eraseNf Zro        = TM.Zro
+eraseNf (Suc m)    = TM.Suc $ eraseNf m
+eraseNf (Emb t)    = TM.Emb $ eraseNe t
+eraseNf Nat        = TM.Nat
+eraseNf Set        = TM.Set
 
-eraseNe :: Ne a -> TM.Infer a
-eraseNe (Var a)    = TM.Var a
-eraseNe (Cut a sp) = TM.Cut (TM.Var a) $ eraseSpine sp
+eraseNe :: Ne g -> TM.Infer g
+eraseNe (Cut a sp) = case viewl $ unSpine sp of
+  EmptyL -> TM.Var a
+  _      -> TM.Cut (TM.Var a) $ eraseSpine sp
 
-eraseSpine :: Spine a -> TM.Spine a
-eraseSpine = fmap eraseElim
+eraseSpine :: Spine g -> TM.Spine g
+eraseSpine = TM.Spine . fmap eraseElim . unSpine
 
-eraseElim :: Elim a -> TM.Elim a
+eraseElim :: Elim g -> TM.Elim g
 eraseElim (App t)      = TM.App $ eraseNf t
 eraseElim (Rec ty z s) = TM.Rec (eraseNf ty) (eraseNf z) (eraseNf s)
 
-eraseBinder :: Binder a -> TM.Binder a
+eraseBinder :: Binder g -> TM.Binder g
 eraseBinder (Pi s) = TM.Pi $ eraseNf s
 eraseBinder Lam    = TM.Lam
 
-instance ValidContext a => Show (Nf a) where
+instance SContextI g => Show (Nf g) where
   show = show . eraseNf
+
+instance SContextI g => Show (Ne g) where
+  show = show . eraseNe
