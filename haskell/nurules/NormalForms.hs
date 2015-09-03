@@ -37,12 +37,26 @@ data Binder (g :: Context) =
   | Pi  (Type g)
   deriving Eq
 
-piAbs :: Type g -> Type ('Bind g) -> Type g
-piAbs a = Bnd (Pi a)
+var :: Var g -> Nf g
+var v = Emb $ Cut v $ Spine empty
 
-lamAbs :: Nf ('Bind g) -> Nf g
-lamAbs = Bnd Lam
+instance Monoid (Spine g) where
+  mempty         = Spine empty
+  mappend sp sp' = Spine $ unSpine sp >< unSpine sp'
 
+renamingNe :: Renaming g d -> Ne g -> Ne d
+renamingNe = undefined
+
+renamingNf :: Renaming g d -> Nf g -> Nf d
+renamingNf = undefined
+
+renamingElim :: Renaming g d -> Elim g -> Elim d
+renamingElim ren (App u)      = App $ renamingNf ren u
+renamingElim ren (Rec ty s z) = Rec (rnf ty) (rnf s) (rnf z)
+  where rnf = renamingNf ren
+
+renamingSpine :: Renaming g d -> Spine g -> Spine d
+renamingSpine ren = Spine . fmap (renamingElim ren) . unSpine
 
 -- Normal forms are a subset of the language, obviously
 eraseNf :: Nf g -> TM.Check g

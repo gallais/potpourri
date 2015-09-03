@@ -6,6 +6,7 @@
 module FancyDomain where
 
 import Data.Sequence as Seq
+import Data.Monoid
 
 import Context
 import qualified Language    as TM
@@ -42,6 +43,10 @@ data ActDom (g :: Context) =
 
 data Binder (g :: Context) = LAM | PI (Dom g)
 
+instance Monoid (Spine g) where
+  mempty         = Spine empty
+  mappend sp sp' = Spine $ unSpine sp >< unSpine sp'
+
 -- Renaming for the domain
 
 weakDom :: Renaming g d -> Dom g -> Dom d
@@ -75,7 +80,7 @@ weakSpine ren = Spine . fmap (weakElim ren) . unSpine
 data BinderOrLet (g :: Context) = BINDER (Binder g) | LET (Dom g)
 
 domCUT :: Dom g -> Spine g -> Dom g
-domCUT (NE v sp)  sp' = NE v $ Spine $ unSpine sp >< unSpine sp'
+domCUT (NE v sp)  sp' = NE v $ sp <> sp'
 domCUT nf@(NF ad) sp  =
   case viewl $ unSpine sp of
     EmptyL    -> nf
