@@ -52,7 +52,8 @@ averageTopN n = mkCellular $ return . average . topN n
 
 randomPick :: (Num a, Pixel b) => CellularT IO (a, a) (Maybe b)
 randomPick = mkCellular select
-  where select xs = Just . (xs !!) <$> randomRIO (0, length xs - 1)
+  where select xs = (\ n -> guard (not $ null xs) >> return (xs !! n))
+                    <$> randomRIO (0, length xs - 1)
 
 black :: Pixel a => Image a -> a
 black img = let px = pixelAt img 0 0 in mixWith (\ _ _ _ -> 0) px px
@@ -102,5 +103,5 @@ main :: IO ()
 main = do
   (fp : n : _) <- getArgs
   (Right img)  <- readImage $ fp
-  extendedImg  <- mapMDynamicImage (extendImage (read n) $ averageTopN 1) img
+  extendedImg  <- mapMDynamicImage (extendImage (read n) $ randomPick) img
   savePngImage (fp ++ ".ext" ++ n ++ ".png") extendedImg
