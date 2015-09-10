@@ -1,7 +1,15 @@
+{-# LANGUAGE RankNTypes            #-}
+
 module Main where
 
-import Data.SubSet
+import Data.Bijection
+import Data.DecidableSubset as DS
+
 import Data.Cellular
+import Data.Pixel
+
+import Data.Function
+import Data.Maybe
 import Data.List
 import Data.Monoid
 import Data.Function.Memoize
@@ -11,65 +19,88 @@ import Codec.Picture
 import System.Environment
 
 import Control.Monad
+import Control.Monad.Identity
+import Control.Monad.Primitive
+import System.Random
 
-instance Memoizable a => Memoizable (Sum a) where
-  memoize f = memoize (f . Sum) . getSum
+region :: (Num a, Ord a, Integral a) => a -> a -> a -> DecidableSubset (a, a) (Sum a, Sum a)
+region w h s = castBox $ DS.intersection outerDS imageDS
+  where box x w y h = DS.cartesian (DS.range x (x + w - 1)) (DS.range y (y + h - 1))
+        outerDS     = DS.complement $ box 0 w 0 h
+        imageDS     = box (-s) (w + 2 * s) (-s) (h + 2 * s)
+        castBox b   = DS.bijection b identity (pair monoidSum monoidSum)
 
-box :: (Num a, Ord a) => a -> a -> DecidableSubSet (a, a) (a, a)
-box w h = DecidableSubSet { subSet = SubSet id,  decide = dec} where
-  dec el@(x, y) = guard (0 <= x && x < w && 0 <= y && y < h) >> return el
+-- Various strategies:
+mkCellular :: (Num a, Pixel b, Monad m) =>
+              ([b] -> m (Maybe b)) -> CellularT m (a, a) (Maybe b)
+mkCellular f = Cellular $ (f . catMaybes =<<) . sequence . (<$> neighbours)
+  where neighbours = (,) <$> [-1,0,1] <*> [-1,0,1]
 
-growImageCellular :: (Num a, Ord b, Pixel b) => Cellular (a, a) b
-growImageCellular = Cellular $ head . tail . top3 where
-  top3 f     = take 3 $ sortBy (flip compare) $ f <$> neighbours
-  neighbours = (,) <$> [-1,0,1] <*> [-1,0,1]
+medianTop3 :: (Num a, Ord b, Pixel b, Monad m) => CellularT m (a, a) (Maybe b)
+medianTop3 = mkCellular $ return . second . top3
+ where second xs = guard (length xs >= 2) >> return (xs !! 2)
+       top3      = take 3 . sortBy (flip compare)
 
-growImagePreCellular :: (Num a, Ord a, Ord b, Pixel b) => a -> a -> PreCellular (a, a) (a, a) b
-growImagePreCellular w h = PreCellular
-  { decidableSubSet = complement $ box w h
-  , cellular        = growImageCellular }
+averageAll :: (Num a, Averageable b, Ord b, Pixel b, Monad m) =>
+              CellularT m (a, a) (Maybe b)
+averageAll = mkCellular $ return . average
+
+averageTopN :: (Num a, Averageable b, Ord b, Pixel b, Monad m) =>
+               Integer -> CellularT m (a, a) (Maybe b)
+averageTopN n = mkCellular $ return . average . topN n
+  where topN n = genericTake n . sortBy (flip compare)
+
+randomPick :: (Num a, Pixel b) => CellularT IO (a, a) (Maybe b)
+randomPick = mkCellular select
+  where select xs = Just . (xs !!) <$> randomRIO (0, length xs - 1)
 
 black :: Pixel a => Image a -> a
 black img = let px = pixelAt img 0 0 in mixWith (\ _ _ _ -> 0) px px
 
--- here we use newtype wrappers to tell Haskell which
--- monoid to pick.
-growImage :: (Pixel a, Ord a) => Image a -> [(Int, Int) -> a]
-growImage img = finish $ runP (growImagePreCellular width height) init
-  where finish = fmap (\ f (x, y) -> f (Sum x, Sum y))
-        width  = Sum $ imageWidth img
-        height = Sum $ imageHeight img
-        init   = either (const $ black img)
-                        (\ (x, y) -> pixelAt img (getSum x) (getSum y))
+extendImage :: (Pixel a, Ord a, Monad m, PrimMonad m) =>
+               Int -> CellularT m (Integer, Integer) (Maybe a) -> Image a -> m (Image a)
+extendImage n cell img = makeImage (last . take (n + 1) $ runPM preCell init)
+  where
+    makeImage          = withImage (width + 2 * n) (height + 2 * n) . defaultBlack
+    defaultBlack state = \ x y ->
+      let x' = x - n; y' = y - n in
+      maybe (return $ pixelAt img x' y')
+            (fmap (maybe (black img) id) . state)
+            $ decide regionDS (Sum (fromIntegral x'), Sum (fromIntegral y'))
 
-extendedImage :: (Ord a, Pixel a) => Image a -> Int -> Image a
-extendedImage img ext = generateImage newOne (width + 2 * ext) (height + 2 * ext)
-  where width  = imageWidth img
-        height = imageHeight img
-        growth = growImage img !! ext
-        newOne = \ x y -> maybe (growth (x - ext, y - ext)) (uncurry $ pixelAt img)
-                                $ decide (box width height) (x - ext, y - ext)
+    preCell            = PreCellular regionDS $ Cellular
+                       $ \ init -> delta cell $ \ (x, y) -> init (Sum x, Sum y)
 
-extendedDynamicImage :: DynamicImage -> Int -> DynamicImage
-extendedDynamicImage dimg ext = case dimg of
-  ImageY8     img -> ImageY8     $ extendedImage img ext
-  ImageY16    img -> ImageY16    $ extendedImage img ext
-  ImageYF     img -> ImageYF     $ extendedImage img ext
-  ImageYA8    img -> ImageYA8    $ extendedImage img ext
-  ImageYA16   img -> ImageYA16   $ extendedImage img ext
-  ImageRGB8   img -> ImageRGB8   $ extendedImage img ext
-  ImageRGB16  img -> ImageRGB16  $ extendedImage img ext
-  ImageRGBF   img -> ImageRGBF   $ extendedImage img ext
-  ImageRGBA8  img -> ImageRGBA8  $ extendedImage img ext
-  ImageRGBA16 img -> ImageRGBA16 $ extendedImage img ext
-  ImageYCbCr8 img -> ImageYCbCr8 $ extendedImage img ext
-  ImageCMYK8  img -> ImageCMYK8  $ extendedImage img ext
-  ImageCMYK16 img -> ImageCMYK16 $ extendedImage img ext
+    init               = either (const $ return $ Nothing)
+                                (uncurry ((\ x y -> return $ do
+                                   guard (0 <= x && x < width)
+                                   guard (0 <= y && y < height)
+                                   return (pixelAt img  x y)) `on` (fromIntegral . getSum)))
 
+    width              = imageWidth img
+    height             = imageHeight img
+    regionDS           = region (fromIntegral width) (fromIntegral height) (fromIntegral n)
+
+mapMDynamicImage :: Monad m =>
+ (forall a. (Pixel a, Ord a, Averageable a) => Image a -> m (Image a)) -> DynamicImage -> m DynamicImage
+mapMDynamicImage f dimg = case dimg of
+  ImageY8     img -> ImageY8     <$> f img
+  ImageY16    img -> ImageY16    <$> f img
+  ImageYF     img -> ImageYF     <$> f img
+  ImageYA8    img -> ImageYA8    <$> f img
+  ImageYA16   img -> ImageYA16   <$> f img
+  ImageRGB8   img -> ImageRGB8   <$> f img
+  ImageRGB16  img -> ImageRGB16  <$> f img
+  ImageRGBF   img -> ImageRGBF   <$> f img
+  ImageRGBA8  img -> ImageRGBA8  <$> f img
+  ImageRGBA16 img -> ImageRGBA16 <$> f img
+  ImageYCbCr8 img -> ImageYCbCr8 <$> f img
+  ImageCMYK8  img -> ImageCMYK8  <$> f img
+  ImageCMYK16 img -> ImageCMYK16 <$> f img
 
 main :: IO ()
 main = do
   (fp : n : _) <- getArgs
   (Right img)  <- readImage $ fp
-  savePngImage (fp ++ ".ext" ++ n ++ ".png") $ extendedDynamicImage img $ read n
-
+  extendedImg  <- mapMDynamicImage (extendImage (read n) $ averageTopN 1) img
+  savePngImage (fp ++ ".ext" ++ n ++ ".png") extendedImg
