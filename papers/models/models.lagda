@@ -12,12 +12,12 @@
 
 \begin{abstract}
 We introduce a notion of type and scope preserving semantics
-generalising Goguen and McKinna's approach to defining one traversal
-generic enough to be instantiated to renaming first and
-then substitution. Its careful distinction of environment and
-model values as well as its variation on a structure typical of
-a Kripke semantics make it capable of expressing renaming and
-substitution but also various forms of Normalisation by Evaluation
+generalising Goguen and McKinna's ``Candidates for Substitution''
+approach to defining one traversal generic enough to be instantiated
+to renaming first and then substitution. Its careful distinction of
+environment and model values as well as its variation on a structure
+typical of a Kripke semantics make it capable of expressing renaming
+and substitution but also various forms of Normalisation by Evaluation
 as well as, perhaps more surprisingly, monadic computations such
 as a printing function.
 
@@ -26,7 +26,7 @@ framework yields immediate benefits: we can deploy some logical
 relations generically over these instances and obtain for instance
 the fusion lemmas for renaming, substitution and normalisation by
 evaluation as simple corollaries of the appropriate fundamental
-lemma.
+lemma. All of this work has been formalised in Agda.
 \end{abstract}
 
 \section*{Introduction}
@@ -72,7 +72,7 @@ them but also prove their properties generically.
 
 \paragraph{Outline} We shall start by defining the simple calculus we will use
 as a running example. We will then introduce a notion of environments as well
-as one well-known instance: the preorder of context inclusions. This will lead
+as one well-known instance: the preorder of renamings. This will lead
 us to defining a generic notion of type and scope-preserving \AR{Semantics} which
 can be used to define a generic evaluation function. We will then showcase the
 ground covered by these \AR{Semantics}: from the syntactic ones corresponding
@@ -93,9 +93,9 @@ defined symbols. Underscores have a special status: when defining mixfix
 identifiers~\cite{danielsson2011parsing}, they mark positions where arguments
 may be inserted; our using the development version of Agda means that we have
 access to Haskell-style sections i.e. one may write \AF{\_+} \AN{5} for the partial
-application of \AF{\_+\_} corresponding to \AS{λ} x \AS{→} \AB{x} \AF{+} \AN{5}
-or, to mention something that will appear later on, \AF{Renaming} \AF{⊨⟦\_⟧\_}
-for the partial applications of \AF{\_⊨⟦\_⟧\_} to \AF{Renaming}.
+application of \AF{\_+\_} corresponding to \AS{λ} \AB{x} \AS{→} \AB{x} \AF{+} \AN{5}
+or, to mention something that we will use later on, \AF{Renaming} \AF{⊨⟦\_⟧\_}
+for the partial application of \AF{\_⊨⟦\_⟧\_} to \AF{Renaming}.
 
 \paragraph{Formalisation} This whole development has been checked by Agda~\cite{norell2009dependently}
 which guarantees that all constructions are indeed well-typed, and all functions are
@@ -109,11 +109,12 @@ in Haskell~\cite{lindley2014hasochism} are outside the scope of this paper but w
 provide a (commented) Haskell module containing all the translated definitions.
 It should be noted that Danvy, Keller and Puech have achieved a similar goal in
 OCaml~\cite{danvytagless} but their formalisation uses Parametric Higher Order Abstract
-Syntax~\cite{chlipala2008parametric} which frees them from having to deal with variable binding, contexts and use
-models à la Kripke where one may extend the context. However we consider these to be
-primordial given that they can still guide the implementation of more complex type
-theories where, until now, being typeful is still out of reach but type-level guarantees
-about scope preservation still help to root out a lot of bugs.
+Syntax~\cite{chlipala2008parametric} which frees them from having to deal with variable
+binding, contexts and use models à la Kripke. However we consider these to be primordial:
+they can still guide the implementation of more complex type theories where, until now,
+being typeful is still out of reach. Type-level guarantees about scope preservation can
+help root out bugs related to fresh name generation, name capture or arithmetic on de
+Bruijn levels to recover de Bruijn indices.
 
 
 \AgdaHide{
@@ -137,12 +138,15 @@ _$′_ = _$_
 \section{The Calculus}
 
 We are going to define and study various semantics for a simply-typed λ-calculus
-with \AIC{`Bool} and \AIC{`Unit} as base types as a minimal example of a sum type
-and a record type equipped with an η-rule.
+with \AIC{`Bool} and \AIC{`Unit} as base types. This serves as a minimal example
+of a system with a sum type and a record type equipped with an η-rule. 
 
 \AgdaHide{
 \begin{code}
 infixr 20 _`→_
+infixl 10 _∙_
+infix 5 _∈_
+infixr 5 1+_
 \end{code}}
 \begin{code}
 data ty : Set where
@@ -151,42 +155,35 @@ data ty : Set where
   _`→_   : (σ τ : ty) → ty
 \end{code}
 
-In order to be able to talk about the type of the variables in scope, we
+In order to be able to talk about the types of the variables in scope, we
 need a notion of contexts. We choose to represent them as snoc lists of
 types; \AIC{ε} denotes the empty context and \AB{Γ} \AIC{∙} \AB{σ} the
 context \AB{Γ} extended with a fresh variable of type \AB{σ}. Variables
 are then positions in such a context represented as typed de Bruijn
 indices~\cite{de1972lambda}.
 
-\AgdaHide{
-\begin{code}
-infixl 10 _∙_
-infix 5 _∈_
-\end{code}}
 \begin{code}
 data Con : Set where
   ε    : Con
   _∙_  : (Γ : Con) (σ : ty) → Con
 
-infixr 5 1+_
 data _∈_ (σ : ty) : (Γ : Con) → Set where
   zero  : {Γ : Con} → σ ∈ (Γ ∙ σ)
   1+_   : {Γ : Con} {τ : ty} (pr : σ ∈ Γ) → σ ∈ (Γ ∙ τ)
 \end{code}
 
-The syntax for this λ-calculus is designed to guarantee that terms are
+The syntax for this calculus is designed to guarantee that terms are
 well-scoped and well-typed by construction. This presentation due to
 Altenkirch and Reus~\cite{altenkirch1999monadic} relies heavily on
 Dybjer's inductive families~\cite{dybjer1991inductive}. Rather than
 having untyped pre-terms and a typing relation assigning a type to
-them, the rules are here enforced in the syntax: we can see for example
-that the \AIC{`var} constructor takes a typed de Bruijn index and
-constructs a term of the corresponding type; that application (\AIC{\_`\$\_})
-takes a function from \AB{σ} to \AB{τ}, an argument of type \AB{σ} living
-in the same scope \AB{Γ} and produces a term of type \AB{τ}; or that the
-body of a λ-abstraction (\AIC{`λ}) has its context extended with a fresh
-variable whose type corresponds to the domain of the function being defined.
-
+them, the typing rules are here enforced in the syntax: we can see for
+example that the \AIC{`var} constructor takes a typed de Bruijn index;
+that application (\AIC{\_`\$\_}) ensures that the domain of the function
+coincides with the type of its argument; that the body of a λ-abstraction
+(\AIC{`λ}) is defined in a context extended with a fresh variable whose
+type corresponds to the domain of the function; or that the two branches
+of a conditional (\AIC{`ifte}) need to have the same type.
 
 \AgdaHide{
 \begin{code}
@@ -212,25 +209,25 @@ data _⊢_ (Γ : Con) : (σ : ty) → Set where
 
 \section{A Generic Notion of Environment}
 
-All the semantics we are interested in defining evaluate a term
-written in the type-correct representation of the calculus defined
-above given an interpretation of its free variables. We call the
-collection of these interpretations of type \AB{R} for the variables
-in scope an \AB{R}-(evaluation) environment (and leave out \AB{R}
-when it is easily inferred from the context). Because the content of
-environments may vary wildly between different semantics (e.g. renaming
-environments contain variables whilst the normalisation by evaluation ones
-carry elements of the model) whilst their structure stays the same,
-we define the notion generically. Formally, this translates to
-\AB{R}-environments being the pointwise lifting of the relation
-\AB{R} between contexts and types to a relation between two contexts.
+All the semantics we are interested in defining associate to a term \AB{t}
+of type \AB{Γ} \AD{⊢} \AB{σ}, a value of type \AB{𝓜} \AB{Γ} \AB{σ} given
+an interpretation \AB{𝓔} \AB{Δ} {τ} for each one of its free variables
+\AB{τ} in \AB{Γ}. We call the collection of these interpretations an
+\AB{𝓔}-(evaluation) environment. We leave out \AB{𝓔} when it can easily
+be inferred from the context.
 
-Rather than using a datatype to represent such a lifting, we choose
-to use a function space. This decision is based on Jeffrey's observation
-that one can obtain associativity of append for free by using difference
-lists~\cite{jeffrey2011assoc}. In our case the interplay between various
-combinators (e.g. \AF{refl} and \AF{trans}) defined later on is vastly
-simplified by this rather simple decision.
+The content of environments may vary wildly between different semantics:
+when defining renaming, the environments will carry variables whilst the
+ones used for normalisation by evaluation contain elements of the model.
+But their structure stays the same which prompts us to define the notion
+generically. Formally, this translates to \AB{𝓔}-environments being the
+pointwise lifting of the relation \AB{𝓔} between contexts and types to a
+relation between two contexts. Rather than using a datatype to represent
+such a lifting, we choose to use a function space. This decision is based
+on Jeffrey's observation that one can obtain associativity of append for
+free by using difference lists~\cite{jeffrey2011assoc}. In our case the
+interplay between various combinators (e.g. \AF{refl} and \AF{trans})
+defined later on is vastly simplified by this rather simple decision.
 
 \AgdaHide{
 \begin{code}
@@ -246,39 +243,37 @@ _[_]_ :  {ℓ : Level} (Δ : Con) (R : (Δ : Con) (σ : ty) → Set ℓ) (Γ : C
 infixl 10 [_]_`∙_
 \end{code}}
 
-For a fixed context \AB{Δ} and relation \AB{R}, these environments can
+For a fixed context \AB{Δ} and relation \AB{𝓔}, these environments can
 be built step by step by noticing that the environment corresponding to
-an empty context is trivial and that one may extend and already existing
+an empty context is trivial and that one may extend an already existing
 environment provided a proof of the right type. In concrete cases, there
-will be no sensible way to infer \AB{R} when using the second combinator
+will be no sensible way to infer \AB{𝓔} when using the second combinator
 hence our decision to make it possible to tell Agda which relation we are
 working with.
 
 \begin{code}
-`ε : {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ} → Δ [ R ] ε
+`ε : {ℓ : Level} {Δ : Con} {𝓔 : (Δ : Con) (σ : ty) → Set ℓ} → Δ [ 𝓔 ] ε
 `ε = λ _ ()
 
-[_]_`∙_ :  {ℓ : Level} {Γ Δ : Con} (R : (Δ : Con) (σ : ty) → Set ℓ) {σ : ty}
-           (ρ : Δ [ R ] Γ) (s : R Δ σ) → Δ [ R ] (Γ ∙ σ)
-([ R ] ρ `∙ s) _ zero    = s
-([ R ] ρ `∙ s) σ (1+ n)  = ρ σ n
+[_]_`∙_ :  {ℓ : Level} {Γ Δ : Con} (𝓔 : (Δ : Con) (σ : ty) → Set ℓ) {σ : ty}
+           (ρ : Δ [ 𝓔 ] Γ) (s : 𝓔 Δ σ) → Δ [ 𝓔 ] (Γ ∙ σ)
+([ 𝓔 ] ρ `∙ s) _ zero    = s
+([ 𝓔 ] ρ `∙ s) σ (1+ n)  = ρ σ n
 \end{code}
 
-\subsubsection{The Preorder of Renamings}
-\label{preorder}
+\paragraph{The Preorder of Renamings}\label{preorder}
+A key instance of environments playing a predominant role in this paper
+is the notion of renaming. The reader may be accustomed to the more
+restrictive notion of context inclusions as described by Order Preserving
+Embeddings~\cite{altenkirch1995categorical}. Writing non-injective or
+non-order preserving renamings would take perverse effort given that we
+only implement generic interpretations. In practice, the only combinators
+we use do guarantee that all the renamings we generate are context inclusions.
+As a consequence, we will use the two expressions interchangeably from now
+on.
 
-A key instance of environments which will play a predominant role
-in this paper is the notion of renaming. The reader may be accustomed
-to the more restrictive notion of context inclusions as described
-by order preserving embedding~\cite{altenkirch1995categorical}.
-Writing non-injective or non-order preserving renamings would take
-perverse effort given that we implement generic interpretations. In
-practice, the only combinators we use do guarantee that all the
-renamings we generate are context inclusions. As a consequence, we
-will use the two expressions interchangeably from now on.
-
-A context inclusion \AB{Γ} \AF{⊆} \AB{Δ} is an environment pairing
-each variable of type \AB{σ} in \AB{Γ} to one of the same type in \AB{Δ}.
+A context inclusion \AB{Γ} \AF{⊆} \AB{Δ} is an environment pairing each
+variable of type \AB{σ} in \AB{Γ} to one of the same type in \AB{Δ}.
 
 \AgdaHide{
 \begin{code}
@@ -296,15 +291,15 @@ principle'', we mean that knowing that \AB{P} holds of \AB{Γ} and that
 In the case of variables, weakening merely corresponds to applying the
 transport function in order to obtain a renamed variable. The case of
 environments is also quite simple: being a pointwise lifting of a
-relation \AB{R} between contexts and types, they enjoy weakening if
-\AB{R} does.
+relation \AB{𝓔} between contexts and types, they enjoy weakening if
+\AB{𝓔} does.
 
 \begin{code}
 wk^∈ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (pr : σ ∈ Γ) → σ ∈ Δ
 wk^∈ inc pr = inc _ pr
 
-wk[_] :  {ℓ : Level} {Δ : Con} {R : (Δ : Con) (σ : ty) → Set ℓ} (wk : {Θ : Con} {σ : ty} (inc : Δ ⊆ Θ) → R Δ σ → R Θ σ)
-         {Γ Θ : Con} (inc : Δ ⊆ Θ) (ρ : Δ [ R ] Γ) →  Θ [ R ] Γ
+wk[_] :  {ℓ : Level} {Δ : Con} {𝓔 : (Δ : Con) (σ : ty) → Set ℓ} (wk : {Θ : Con} {σ : ty} (inc : Δ ⊆ Θ) → 𝓔 Δ σ → 𝓔 Θ σ)
+         {Γ Θ : Con} (inc : Δ ⊆ Θ) (ρ : Δ [ 𝓔 ] Γ) →  Θ [ 𝓔 ] Γ
 wk[ wk ] inc ρ = λ σ pr → wk inc $ ρ σ pr
 \end{code}
 
@@ -320,12 +315,11 @@ refl = λ _ → id
 trans : {Γ Δ Θ : Con} (inc₁ : Γ ⊆ Δ) (inc₂ : Δ ⊆ Θ) → Γ ⊆ Θ
 trans inc₁ inc₂ = wk[ wk^∈ ] inc₂ inc₁
 
-pop! : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → (Γ ∙ σ) ⊆ (Δ ∙ σ)
-pop! inc σ zero    = zero
-pop! inc σ (1+ n)  = 1+ inc σ n
-
 step : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → Γ ⊆ (Δ ∙ σ)
 step inc = trans inc $ λ _ → 1+_
+
+pop! : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) → (Γ ∙ σ) ⊆ (Δ ∙ σ)
+pop! inc = [ flip _∈_ ] step inc `∙ zero
 \end{code}
 
 Now that we are equipped with the notion of inclusion, we have all
@@ -392,9 +386,9 @@ corresponding value in the environment and return it.
 \end{code}
 
 The semantic λ-abstraction is notable for two reasons: first, following
-Mitchell and Moggi~\cite{mitchell1991kripke}, it has a structure typical
-of Kripke style models thus allowing arbitrary extensions of the context;
-and second, instead of being a function in the host language taking values
+Mitchell and Moggi~\cite{mitchell1991kripke}, its structure is typical
+of models à la Kripke allowing arbitrary extensions of the context; and
+second, instead of being a function in the host language taking values
 in the model as arguments, it is a function that takes \emph{environment}
 values. Indeed, the body of a λ-abstraction exposes one extra free variable
 thus prompting us to extend the evaluation environment with an additional
@@ -517,8 +511,7 @@ It is therefore absolutely possible to define renaming or substitution
 using this approach. We can now port McBride's definitions to our
 framework.
 
-\subsubsection{Functoriality, also known as Renaming}
-
+\paragraph{Functoriality, also known as Renaming}
 Our first example of a \AR{Syntactic} operation works with variables as
 environment values. As a consequence, embedding is trivial; we have already
 defined weakening earlier (see Section \ref{preorder}) and we can turn
@@ -526,10 +519,10 @@ a variable into a term by using the \AIC{`var} constructor.
 
 \begin{code}
 syntacticRenaming : Syntactic (flip _∈_)
-syntacticRenaming =
-  record  { embed  = λ _ → id
-          ; wk     = wk^∈
-          ; ⟦var⟧  = `var }
+syntacticRenaming = record
+  { embed  = λ _ → id
+  ; wk     = wk^∈
+  ; ⟦var⟧  = `var }
 
 Renaming : Semantics (flip _∈_) _⊢_
 Renaming = syntactic syntacticRenaming
@@ -548,8 +541,7 @@ wk^⊢ : {Δ Γ : Con} {σ : ty} (inc : Γ ⊆ Δ) (t : Γ ⊢ σ) → Δ ⊢ σ
 wk^⊢ = flip $ Renaming ⊨⟦_⟧_
 \end{code}
 
-\subsubsection{Simultaneous Substitution}
-
+\paragraph{Simultaneous Substitution}
 Our second example of a semantics is another spin on the syntactic model:
 the environment values are now terms. We can embed variables into environment
 values by using the \AIC{`var} constructor and we inherit weakening for terms
@@ -557,11 +549,10 @@ from the previous example.
 
 \begin{code}
 syntacticSubstitution : Syntactic _⊢_
-syntacticSubstitution =
-  record  { embed   = λ _ → `var
-          ; wk      = wk^⊢
-          ; ⟦var⟧   = id
-          }
+syntacticSubstitution = record
+  { embed   = λ _ → `var
+  ; wk      = wk^⊢
+  ; ⟦var⟧   = id }
 
 Substitution : Semantics _⊢_ _⊢_
 Substitution = syntactic syntacticSubstitution
@@ -571,7 +562,8 @@ Because the diagonal environment used by \AF{Substitution} \AF{⊨eval\_}
 is obtained by \ARF{embed}ding membership proofs into terms using the
 \AIC{`var} constructor, we get yet another definition of the identity
 function on terms. The semantic function \AF{Substitution} \AF{⊨⟦\_⟧\_}
-is again more interesting: it is an implementation of parallel substitution.
+is once again more interesting: it is an implementation of simultaneous
+substitution.
 
 \begin{code}
 subst : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ _⊢_ ] Γ) → Δ ⊢ σ
@@ -584,21 +576,22 @@ subst = Substitution ⊨⟦_⟧_
 Before considering the various model constructions involved in defining
 normalisation functions deciding different equational theories, let us
 make a detour to a perhaps slightly more surprising example of a
-\AF{Semantics}: Printing with Names. This example is quite interesting for
-two reasons: it is another instance of a \AR{Semantics} where values in
-the environment and values in the model have a different type, and for
-the first time in this paper, the values in the model are monadic. A
-user-facing project would naturally avoid directly building a \AD{String}
-and rather construct an inhabitant of a more sophisticated datatype in order
-to generate a prettier output~\cite{hughes1995design,wadler2003prettier}.
-We stick to the simpler setup as pretty printing is not our focus here.
+\AF{Semantics}: printing with names. A user-facing project would naturally
+avoid directly building a \AD{String} and rather construct an inhabitant of
+a more sophisticated datatype in order to generate a prettier output~\cite{hughes1995design,wadler2003prettier}.
+But we stick to the simpler setup as pretty printing is not our focus here.
 
-Firstly, the distinction between the type of values in the environment and
-the ones in the model is once more instrumental in giving the procedure a
-precise type guiding our implementation. Indeed, the environment carries
-\emph{names} for the variables currently in scope whilst the inhabitants of
-the model are \emph{computations} threading a stream to be used as a source
-of fresh names every time a new variable is introduced by a λ-abstraction.
+
+This example is quite interesting for two reasons. Firstly, the distinction
+between the type of values in the environment and the ones in the model is
+once more instrumental in giving the procedure a precise type guiding our
+implementation. Indeed, the environment carries \emph{names} for the variables
+currently in scope whilst the inhabitants of the model are \emph{computations}
+threading a stream to be used as a source of fresh names every time a new variable
+is introduced by a λ-abstraction. If the values in the environment were allowed
+to be computations too, we would not root out all faulty implementations: the
+typechecker would for instance quite happily accept a program picking a new
+name every time a variable appears in the term.
 
 \AgdaHide{
 \begin{code}
@@ -630,35 +623,33 @@ open Name
 open Printer
 \end{code}}
 
-If the values in the environment were allowed to be computations too, we
-would not root out all faulty implementations: the typechecker would for
-instance quite happily accept a program picking a new name every time a
-variable appears in the term.
-
 Secondly, the fact that values in the model are computations and that this
 poses no problem whatsoever in this framework means it is appropriate for
 handling languages with effects~\cite{moggi1991notions}, or effectful
 semantics (e.g. logging the various function calls).
 
 \begin{code}
+format$ : String → String → String
+format$ f t = f ++ " (" ++ t ++ ")"
+
+formatIf : String → String → String → String
+formatIf b l r = "if (" ++ b  ++ ") then (" ++ l ++ ") else (" ++ r ++ ")"
+
 Printing : Semantics Name Printer
 Printing = record
   { embed   = λ _ → mkName ∘ show ∘ deBruijn
   ; wk      = λ _ → mkName ∘ runName
   ; ⟦var⟧   = mkPrinter ∘ return ∘ runName
-  ; _⟦$⟧_   =  λ mf mt → mkPrinter $ runPrinter mf >>= λ `f` →
-               runPrinter mt >>= λ `t` → return $ `f` ++ " (" ++ `t` ++ ")"
-  ; ⟦λ⟧     =  λ {_} {σ} mb → mkPrinter $ get >>= λ names → let `x` = head names in
+  ; _⟦$⟧_   =  λ mf mt → mkPrinter $ format$ <$> runPrinter mf ⊛ runPrinter mt
+  ; ⟦λ⟧     =  λ {_} {σ} mb → mkPrinter $ get >>= names → let `x` = head names in
                put (tail names)                                  >>= λ _ →
                runPrinter (mb (step {σ = σ} refl) (mkName `x`))  >>= λ `b` →
                return $ "λ" ++ `x` ++ ". " ++ `b`
   ; ⟦⟨⟩⟧    = mkPrinter $ return "⟨⟩"
   ; ⟦tt⟧    = mkPrinter $ return "tt"
   ; ⟦ff⟧    = mkPrinter $ return "ff"
-  ; ⟦ifte⟧  =  λ mb ml mr → mkPrinter $ runPrinter mb >>= λ `b` →
-               runPrinter ml >>= λ `l` → runPrinter mr >>= λ `r` →
-               return $ "if (" ++ `b`  ++ ") then (" ++ `l`
-                                       ++ ") else (" ++ `r` ++ ")" }
+  ; ⟦ifte⟧  =  λ mb ml mr → mkPrinter $
+               formatIf <$> runPrinter mb ⊛ runPrinter ml ⊛ runPrinter mr }
 \end{code}
 
 Our definition of \ARF{embed} erases the membership proofs to
