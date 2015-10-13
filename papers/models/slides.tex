@@ -1,0 +1,71 @@
+\documentclass[xetex, mathserif, serif]{beamer}
+\usepackage[english]{babel}
+\usepackage[references]{agda}
+\setmainfont[Ligatures=TeX]{XITS}
+\setmathfont{XITS Math}
+\usepackage{catchfilebetweentags}
+\usepackage{graphicx} 
+
+\title{Type and Scope Preserving Semantics}
+\titlegraphic{\hfill \includegraphics{colour-science.pdf}}
+\author[me]{Guillaume Allais\\[3mm]Conor McBride}
+\institute{University of Strathclyde}
+\date{SPLS, 2015-10-21}
+
+
+\begin{document}
+ 
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \begin{frame}\frametitle{Simple Types}
+    Minimal system: A record type, a sum type and function spaces.
+
+    \ExecuteMetaData[models.tex]{ty}
+    \ExecuteMetaData[models.tex]{context}
+  \end{frame}
+
+  \begin{frame}\frametitle{Deep Embedding - Variables}
+    Typed de Bruijn indices
+
+    \ExecuteMetaData[models.tex]{var}
+  \end{frame}
+  \begin{frame}\frametitle{Deep Embedding - Terms}
+    ASTs type and scope correct by construction
+
+    \ExecuteMetaData[models.tex]{term}
+  \end{frame}
+
+  \begin{frame}\frametitle{Goguen \& McKinna: Conspicuously similar functions}
+    \only<1>{\ExecuteMetaData[usual.tex]{rename}}
+    \only<2>{\ExecuteMetaData[usual.tex]{subst}}
+  \end{frame}
+
+  \begin{frame}\frametitle{Factoring Out the Common Parts}
+    \ExecuteMetaData[models.tex]{syntactic}
+  \end{frame}
+
+  \begin{frame}\frametitle{Implementing the traversal Once and For All}
+    \ExecuteMetaData[usual.tex]{syn}
+    \ExecuteMetaData[usual.tex]{synextend}
+  \end{frame}
+
+  \begin{frame}\frametitle{Is that it? Not quite.}
+    \begin{itemize}
+      \item Properties of these traversals (4 fusion lemmas)
+      \item Other interesting traversals?
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}\frametitle{Normalisation by Evaluation's ``eval''}
+    \ExecuteMetaData[usual.tex]{sem}
+  \end{frame}
+
+  \begin{frame}{Interesting open questions}
+    \begin{itemize}
+      \item Generic representation of syntax with binding
+    \end{itemize}
+  \end{frame}
+
+\end{document}

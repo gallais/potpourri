@@ -148,12 +148,14 @@ infixl 10 _∙_
 infix 5 _∈_
 infixr 5 1+_
 \end{code}}
+%<*ty>
 \begin{code}
 data ty : Set where
   `Unit  : ty
   `Bool  : ty
   _`→_   : (σ τ : ty) → ty
 \end{code}
+%</ty>
 
 In order to be able to talk about the types of the variables in scope, we
 need a notion of contexts. We choose to represent them as snoc lists of
@@ -162,15 +164,20 @@ context \AB{Γ} extended with a fresh variable of type \AB{σ}. Variables
 are then positions in such a context represented as typed de Bruijn
 indices~\cite{de1972lambda}.
 
+%<*context>
 \begin{code}
 data Con : Set where
   ε    : Con
   _∙_  : (Γ : Con) (σ : ty) → Con
-
+\end{code}
+%</context>
+%<*var>
+\begin{code}
 data _∈_ (σ : ty) : (Γ : Con) → Set where
   zero  : {Γ : Con} → σ ∈ (Γ ∙ σ)
   1+_   : {Γ : Con} {τ : ty} (pr : σ ∈ Γ) → σ ∈ (Γ ∙ τ)
 \end{code}
+%</var>
 
 The syntax for this calculus is designed to guarantee that terms are
 well-scoped and well-typed by construction. This presentation due to
@@ -196,6 +203,7 @@ size (Γ ∙ _)  = 1 + size Γ
 infix 5 _⊢_
 infixl 5 _`$_
 \end{code}}
+%<*term>
 \begin{code}
 data _⊢_ (Γ : Con) : (σ : ty) → Set where
   `var   : {σ : ty} (v : σ ∈ Γ) → Γ ⊢ σ
@@ -206,7 +214,7 @@ data _⊢_ (Γ : Con) : (σ : ty) → Set where
   `ff    : Γ ⊢ `Bool
   `ifte  : {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) → Γ ⊢ σ
 \end{code}
-
+%</term>
 \section{A Generic Notion of Environment}
 
 All the semantics we are interested in defining associate to a term \AB{t}
@@ -233,10 +241,12 @@ defined later on is vastly simplified by this rather simple decision.
 \begin{code}
 infix 5 _[_]_
 \end{code}}
+%<*environment>
 \begin{code}
-_[_]_ :  {ℓ : Level} (Δ : Con) (R : (Δ : Con) (σ : ty) → Set ℓ) (Γ : Con) → Set ℓ
-Δ [ R ] Γ = (σ : ty) (v : σ ∈ Γ) → R Δ σ
+_[_]_ :  {ℓ : Level} (Δ : Con) (𝓔 : (Δ : Con) (σ : ty) → Set ℓ) (Γ : Con) → Set ℓ
+Δ [ 𝓔 ] Γ = (σ : ty) (v : σ ∈ Γ) → 𝓔 Δ σ
 \end{code}
+%</environment>
 
 \AgdaHide{
 \begin{code}
@@ -483,13 +493,16 @@ fact is witnessed by our simple \AR{Syntactic} record type together with
 the \AF{syntactic} function turning its inhabitants into associated
 \AR{Semantics}.
 
+%<*syntactic>
 \begin{code}
 record Syntactic {ℓ : Level} (𝓔 : (Γ : Con) (σ : ty) → Set ℓ) : Set ℓ where
   field
     embed  : {Γ : Con} (σ : ty) (pr : σ ∈ Γ) → 𝓔 Γ σ
     wk     : {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) → 𝓔 Γ σ → 𝓔 Δ σ
     ⟦var⟧  : {Γ : Con} {σ : ty} (v : 𝓔 Γ σ) → Γ ⊢ σ
-
+\end{code}
+%</syntactic>
+\begin{code}
 syntactic : {ℓ : Level} {𝓔 : (Γ : Con) (σ : ty) → Set ℓ} (syn : Syntactic 𝓔) → Semantics 𝓔 _⊢_
 syntactic syn = let open Syntactic syn in record
   { wk      = wk
@@ -641,7 +654,7 @@ Printing = record
   ; wk      = λ _ → mkName ∘ runName
   ; ⟦var⟧   = mkPrinter ∘ return ∘ runName
   ; _⟦$⟧_   =  λ mf mt → mkPrinter $ format$ <$> runPrinter mf ⊛ runPrinter mt
-  ; ⟦λ⟧     =  λ {_} {σ} mb → mkPrinter $ get >>= names → let `x` = head names in
+  ; ⟦λ⟧     =  λ {_} {σ} mb → mkPrinter $ get >>= λ names → let `x` = head names in
                put (tail names)                                  >>= λ _ →
                runPrinter (mb (step {σ = σ} refl) (mkName `x`))  >>= λ `b` →
                return $ "λ" ++ `x` ++ ". " ++ `b`
@@ -968,12 +981,14 @@ that their reifications will be guaranteed to be \AIC{`λ}-headed.
 \begin{code}
 infix 5 _⊨^βιξη_
 \end{code}}
+%<*sem>
 \begin{code}
 _⊨^βιξη_ : (Γ : Con) (σ : ty) → Set
 Γ ⊨^βιξη `Unit   = ⊤
 Γ ⊨^βιξη `Bool   = Γ ⊢[ R^βιξη ]^nf `Bool
 Γ ⊨^βιξη σ `→ τ  = {Δ : Con} (inc : Γ ⊆ Δ) (u : Δ ⊨^βιξη σ) → Δ ⊨^βιξη τ
 \end{code}
+%</sem>
 
 Normal forms may be weakened, and context inclusions may be composed hence
 the rather simple definition of weakening for inhabitants of the model.
