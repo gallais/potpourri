@@ -1421,6 +1421,9 @@ record Synchronisable
   {ℓ^RE ℓ^RM ℓ^REAB : Level} (𝓔^R‿AB : {Γ : Con} {σ : ty} (e^A : 𝓔^A Γ σ) (e^B : 𝓔^B Γ σ) → Set ℓ^REAB)
   (𝓔^R : {Δ Γ : Con} (e^A : Δ [ 𝓔^A ] Γ) (e^B : Δ [ 𝓔^B ] Γ) → Set ℓ^RE)
   (𝓜^R : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM) : Set (ℓ^RE ⊔ ℓ^RM ⊔ ℓ^EA ⊔ ℓ^EB ⊔ ℓ^MA ⊔ ℓ^MB ⊔ ℓ^REAB) where
+  module 𝓢^A = Semantics 𝓢^A
+  module 𝓢^B = Semantics 𝓢^B
+  field
 \end{code}
 
 The record's fields are describing the structure these relations
@@ -1431,16 +1434,10 @@ long the elements we push onto them are themselves related by
 \AB{𝓔^R_{AB}}. \ARF{𝓔^R‿wk} states that two synchronised
 environments can be weakened whilst staying synchronised.
 
-\AgdaHide{
-\begin{code}
-  module SemA = Semantics 𝓢^A
-  module SemB = Semantics 𝓢^B
-  field
-\end{code}}
 \begin{code}
     𝓔^R‿∙   :  {Γ Δ : Con} {σ : ty} {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} {u^A : 𝓔^A Δ σ} {u^B : 𝓔^B Δ σ} (ρ^R : 𝓔^R ρ^A ρ^B) (u^R : 𝓔^R‿AB u^A u^B) → 𝓔^R ([ 𝓔^A ] ρ^A `∙ u^A) ([ 𝓔^B ] ρ^B `∙ u^B)
     𝓔^R‿wk  :  {Γ Δ Θ : Con} (inc : Δ ⊆ Θ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) →
-                𝓔^R (wk[ SemA.wk ] inc ρ^A) (wk[ SemB.wk ] inc ρ^B)
+                 𝓔^R (wk[ 𝓢^A.wk ] inc ρ^A) (wk[ 𝓢^B.wk ] inc ρ^B)
 \end{code}
 
 We then have the relational counterparts of the term constructors.
@@ -1456,7 +1453,7 @@ variable.
 
 \begin{code}
     R⟦var⟧    :  {Γ Δ : Con} {σ : ty} (v : σ ∈ Γ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ `var v ⟧ ρ^A) (𝓢^B ⊨⟦ `var v ⟧ ρ^B)
+                 𝓜^R (𝓢^A.⟦var⟧ (ρ^A σ v)) (𝓢^B.⟦var⟧ (ρ^B σ v))
 \end{code}
 
 The second, and probably most interesting case, is the description
@@ -1468,12 +1465,8 @@ model is enough to guarantee that evaluating the lambdas in the original
 environments will deliver synchronised values.
 
 \begin{code}
-    R⟦λ⟧      :  {Γ Δ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) →
-                 (r :  {Θ : Con} (inc : Δ ⊆ Θ) {u^A : 𝓔^A Θ σ} {u^B : 𝓔^B Θ σ} (u^R : 𝓔^R‿AB u^A u^B) →
-                       let ρ^A′  = [ 𝓔^A ] wk[ SemA.wk ] inc ρ^A `∙ u^A
-                           ρ^B′  = [ 𝓔^B ] wk[ SemB.wk ] inc ρ^B `∙ u^B
-                       in 𝓜^R  (𝓢^A ⊨⟦ t ⟧ ρ^A′) (𝓢^B ⊨⟦ t ⟧ ρ^B′)) →
-                 𝓜^R (𝓢^A ⊨⟦ `λ t ⟧ ρ^A) (𝓢^B ⊨⟦ `λ t ⟧ ρ^B)
+    R⟦λ⟧      :  {Γ : Con} {σ τ : ty} {f^A : {Δ : Con} → Γ ⊆ Δ → 𝓔^A Δ σ → 𝓜^A Δ τ} → {f^B : {Δ : Con} → Γ ⊆ Δ → 𝓔^B Δ σ → 𝓜^B Δ τ} → (f^r :  {Δ : Con} (inc : Γ ⊆ Δ) {u^A : 𝓔^A Δ σ} {u^B : 𝓔^B Δ σ} (u^R : 𝓔^R‿AB u^A u^B) → 𝓜^R  (f^A inc u^A) (f^B inc u^B)) →
+                 𝓜^R (𝓢^A.⟦λ⟧ f^A) (𝓢^B.⟦λ⟧ f^B)
 \end{code}
 
 All the remaining cases are similar. We show here the relational
@@ -1483,24 +1476,17 @@ used are synchronised), one can combine them to obtain a proof
 about the evaluation of an application-headed term.
 
 \begin{code}
-    R⟦$⟧      :  {Γ Δ : Con} {σ τ : ty} (f : Γ ⊢ σ `→ τ) (t : Γ ⊢ σ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ f ⟧ ρ^A) (𝓢^B ⊨⟦ f ⟧ ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ t ⟧ ρ^A) (𝓢^B ⊨⟦ t ⟧ ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ f `$ t ⟧ ρ^A) (𝓢^B ⊨⟦ f `$ t ⟧ ρ^B)
+    R⟦$⟧      :  {Γ : Con} {σ τ : ty} {f^A : 𝓜^A Γ $ σ `→ τ} {f^B : 𝓜^B Γ $ σ `→ τ} {u^A : 𝓜^A Γ σ} {u^B : 𝓜^B Γ σ} (f^R : 𝓜^R f^A f^B) (u^R : 𝓜^R u^A u^B) →
+                 𝓜^R (f^A 𝓢^A.⟦$⟧ u^A) (f^B 𝓢^B.⟦$⟧ u^B)
 \end{code}
 \AgdaHide{
 \begin{code}
-    R⟦⟨⟩⟧     :  {Γ Δ : Con} {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ `⟨⟩ ⟧ ρ^A) (𝓢^B ⊨⟦ `⟨⟩ ⟧ ρ^B)
-    R⟦tt⟧     :  {Γ Δ : Con} {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ `tt ⟧ ρ^A) (𝓢^B ⊨⟦ `tt ⟧ ρ^B)
-    R⟦ff⟧     :  {Γ Δ : Con} {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ `ff ⟧ ρ^A) (𝓢^B ⊨⟦ `ff ⟧ ρ^B)
-    R⟦ifte⟧   :  {Γ Δ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ b ⟧ ρ^A) (𝓢^B ⊨⟦ b ⟧ ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ l ⟧ ρ^A) (𝓢^B ⊨⟦ l ⟧ ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ r ⟧ ρ^A) (𝓢^B ⊨⟦ r ⟧ ρ^B) →
-                 𝓜^R (𝓢^A ⊨⟦ `ifte b l r ⟧ ρ^A) (𝓢^B ⊨⟦ `ifte b l r ⟧ ρ^B)
+    R⟦⟨⟩⟧     :  {Γ : Con} → 𝓜^R {Γ} 𝓢^A.⟦⟨⟩⟧ 𝓢^B.⟦⟨⟩⟧
+    R⟦tt⟧     :  {Γ : Con} → 𝓜^R {Γ} 𝓢^A.⟦tt⟧ 𝓢^B.⟦tt⟧
+    R⟦ff⟧     :  {Γ : Con} → 𝓜^R {Γ} 𝓢^A.⟦ff⟧ 𝓢^B.⟦ff⟧
+    R⟦ifte⟧   :  {Γ : Con} {σ : ty} {b^A : _} {b^B : _} {l^A r^A : _} {l^B r^B : _} (b^R : 𝓜^R {Γ} {`Bool} b^A b^B)
+                 (l^R : 𝓜^R l^A l^B) (r^R : 𝓜^R {Γ} {σ} r^A r^B) →
+                 𝓜^R (𝓢^A.⟦ifte⟧ b^A l^A r^A) (𝓢^B.⟦ifte⟧ b^B l^B r^B)
 \end{code}}
 
 For this specification to be useful, we need to verify that it is indeed
@@ -1525,12 +1511,12 @@ module Synchronised {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {𝓔^A : (Γ : Con) (
 
   lemma :  {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) → 𝓜^R (𝓢^A ⊨⟦ t ⟧ ρ^A) (𝓢^B ⊨⟦ t ⟧ ρ^B)
   lemma (`var v)       ρ^R = R⟦var⟧ v ρ^R
-  lemma (f `$ t)       ρ^R = R⟦$⟧ f t ρ^R (lemma f ρ^R) (lemma t ρ^R)
-  lemma (`λ t)         ρ^R = R⟦λ⟧ t ρ^R $ λ inc u^R → lemma t (𝓔^R‿∙ (𝓔^R‿wk inc ρ^R) u^R)
-  lemma `⟨⟩            ρ^R = R⟦⟨⟩⟧ ρ^R
-  lemma `tt            ρ^R = R⟦tt⟧ ρ^R
-  lemma `ff            ρ^R = R⟦ff⟧ ρ^R
-  lemma (`ifte b l r)  ρ^R = R⟦ifte⟧ b l r ρ^R (lemma b ρ^R) (lemma l ρ^R) (lemma r ρ^R)
+  lemma (f `$ t)       ρ^R = R⟦$⟧ (lemma f ρ^R) (lemma t ρ^R)
+  lemma (`λ t)         ρ^R = R⟦λ⟧ λ inc u^R → lemma t (𝓔^R‿∙ (𝓔^R‿wk inc ρ^R) u^R)
+  lemma `⟨⟩            ρ^R = R⟦⟨⟩⟧
+  lemma `tt            ρ^R = R⟦tt⟧
+  lemma `ff            ρ^R = R⟦ff⟧
+  lemma (`ifte b l r)  ρ^R = R⟦ifte⟧ (lemma b ρ^R) (lemma l ρ^R) (lemma r ρ^R)
 \end{code}
 
 \subsubsection{Examples of Synchronisable Semantics}
@@ -1557,12 +1543,12 @@ SynchronisableRenamingSubstitution =
     { 𝓔^R‿∙   = λ ρ^R u^R → [ u^R , ρ^R ]
     ; 𝓔^R‿wk  = λ inc ρ^R σ pr → PEq.cong (wk^⊢ inc) (ρ^R σ pr)
     ; R⟦var⟧    = λ v ρ^R → ρ^R _ v
-    ; R⟦$⟧      = λ _ _ _ → PEq.cong₂ _`$_
-    ; R⟦λ⟧      = λ _  ρ^R r → PEq.cong `λ (r (step refl) PEq.refl)
-    ; R⟦⟨⟩⟧     = λ _  → PEq.refl
-    ; R⟦tt⟧     = λ _  → PEq.refl
-    ; R⟦ff⟧     = λ _  → PEq.refl
-    ; R⟦ifte⟧   = λ _ _ _ _ eqb eql → PEq.cong₂ (uncurry `ifte) (PEq.cong₂ _,_ eqb eql)
+    ; R⟦$⟧      = PEq.cong₂ _`$_
+    ; R⟦λ⟧      = λ r → PEq.cong `λ (r (step refl) PEq.refl)
+    ; R⟦⟨⟩⟧     = PEq.refl
+    ; R⟦tt⟧     = PEq.refl
+    ; R⟦ff⟧     = PEq.refl
+    ; R⟦ifte⟧   = λ eqb eql → PEq.cong₂ (uncurry `ifte) (PEq.cong₂ _,_ eqb eql)
     }
 \end{code}}
 
@@ -1663,27 +1649,14 @@ reflect^EQREL `Bool     eq = PEq.cong (`embed _) eq
 reflect^EQREL (σ `→ τ)  eq = λ inc rel → reflect^EQREL τ $ PEq.cong₂ _`$_ (PEq.cong (wk^ne inc) eq) (reify^EQREL σ rel)
 
 ifteRelNorm :
-      {Γ Δ : Con} {σ : ty} (b : Γ ⊢ `Bool) (l r : Γ ⊢ σ)
-      {ρ^A ρ^B : Δ [ _⊨^βιξη_ ] Γ} →
-      ((σ₁ : ty) (pr : σ₁ ∈ Γ) → EQREL Δ σ₁ (ρ^A σ₁ pr) (ρ^B σ₁ pr)) →
-      Normalise^βιξη ⊨⟦ b ⟧ ρ^A ≡ Normalise^βιξη ⊨⟦ b ⟧ ρ^B →
-      EQREL Δ σ (Normalise^βιξη ⊨⟦ l ⟧ ρ^A) (Normalise^βιξη ⊨⟦ l ⟧ ρ^B) →
-      EQREL Δ σ (Normalise^βιξη ⊨⟦ r ⟧ ρ^A) (Normalise^βιξη ⊨⟦ r ⟧ ρ^B) →
-      EQREL Δ σ (Normalise^βιξη ⊨⟦ `ifte b l r ⟧ ρ^A)
-      (Normalise^βιξη ⊨⟦ `ifte b l r ⟧ ρ^B)
-ifteRelNorm b l r {ρ^A} {ρ^B} ρ^R eqb eql eqr
-  with Normalise^βιξη ⊨⟦ b ⟧ ρ^A
-     | Normalise^βιξη ⊨⟦ b ⟧ ρ^B
-ifteRelNorm b l r ρ^R PEq.refl eql eqr | `embed _ t | `embed _ .t =
-  reflect^EQREL _ (PEq.cong₂ (uncurry `ifte) (PEq.cong₂ _,_ PEq.refl (reify^EQREL _ eql)) (reify^EQREL _ eqr))
-ifteRelNorm b l r ρ^R () eql eqr | `embed _ t | `tt
-ifteRelNorm b l r ρ^R () eql eqr | `embed _ t | `ff
-ifteRelNorm b l r ρ^R () eql eqr | `tt | `embed _ t
-ifteRelNorm b l r ρ^R PEq.refl eql eqr | `tt | `tt = eql
-ifteRelNorm b l r ρ^R () eql eqr | `tt | `ff
-ifteRelNorm b l r ρ^R () eql eqr | `ff | `embed _ t
-ifteRelNorm b l r ρ^R () eql eqr | `ff | `tt
-ifteRelNorm b l r ρ^R PEq.refl eql eqr | `ff | `ff = eqr
+      let open Semantics Normalise^βιξη in
+      {Γ : Con} {σ : ty} {b^A b^B : Γ ⊨^βιξη `Bool} {l^A l^B r^A r^B : Γ ⊨^βιξη σ} →
+      EQREL Γ `Bool b^A b^B → EQREL Γ σ l^A l^B → EQREL Γ σ r^A r^B →
+      EQREL Γ σ (⟦ifte⟧ b^A l^A r^A) (⟦ifte⟧ b^B l^B r^B)
+ifteRelNorm {b^A = `tt}         PEq.refl l^R r^R = l^R
+ifteRelNorm {b^A = `ff}         PEq.refl l^R r^R = r^R
+ifteRelNorm {b^A = `embed _ ne} PEq.refl l^R r^R =
+  reflect^EQREL _ (PEq.cong₂ (`ifte ne) (reify^EQREL _ l^R) (reify^EQREL _ r^R))
 \end{code}}
 
 And that's enough to prove that evaluating a term in two
@@ -1702,12 +1675,13 @@ SynchronisableNormalise =
   record  { 𝓔^R‿∙   = λ ρ^R u^R → [ u^R , ρ^R ]
           ; 𝓔^R‿wk  = λ inc ρ^R σ pr → wk^EQREL σ inc (ρ^R σ pr)
           ; R⟦var⟧   = λ v ρ^R → ρ^R _ v
-          ; R⟦$⟧     = λ _ _ _ f → f refl
-          ; R⟦λ⟧     = λ _ _ r → r
-          ; R⟦⟨⟩⟧    = λ _ → ⟨⟩
-          ; R⟦tt⟧    = λ _ → PEq.refl
-          ; R⟦ff⟧    = λ _ → PEq.refl
-          ; R⟦ifte⟧  = ifteRelNorm }
+          ; R⟦$⟧     = λ f → f refl
+          ; R⟦λ⟧     = λ r → r
+          ; R⟦⟨⟩⟧    = ⟨⟩
+          ; R⟦tt⟧    = PEq.refl
+          ; R⟦ff⟧    = PEq.refl
+          ; R⟦ifte⟧  = ifteRelNorm
+          }
 \end{code}}
 
 We omit the details of the easy proof but still recall the type
