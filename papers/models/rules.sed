@@ -23,6 +23,6 @@ s/ \?\\AgdaBound{{ℓ}{[^{]*{[^{]*{}[^}]*}}}//g
 s/\\AgdaSymbol{(}\\AgdaSymbol{)}//g
 
 # Implicit arguments
-s/\\AgdaSymbol{\\{}.*\\AgdaSymbol{\\}}[^()→]*\\AgdaSymbol{→} //g
-s/\\AgdaSymbol{\\{}[^()]*\\AgdaSymbol{\\}}//g
-s/\\AgdaSymbol{\\{}.*\\AgdaSymbol{\\}}//g
+s/\\AgdaSymbol{\\{}.*\\AgdaSymbol{\\}}[^()→;]*\\AgdaSymbol{→} //g
+s/\\AgdaSymbol{\\{}[^();]*\\AgdaSymbol{\\}}//g
+s/\\AgdaSymbol{\\{}[^;]*\\AgdaSymbol{\\}}//g
