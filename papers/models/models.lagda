@@ -911,7 +911,7 @@ wk^nf inc `ff           = `ff
 wk^nf inc (`λ nf)       = `λ $′ wk^nf (pop! inc) nf
 
 infix 5 [_,_]
-[_,_] : {Γ : Con} {τ : ty} {P : (σ : ty) (pr : σ ∈ Γ ∙ τ) → Set} →
+[_,_] : {ℓ : Level} {Γ : Con} {τ : ty} {P : (σ : ty) (pr : σ ∈ Γ ∙ τ) → Set ℓ} →
         (p0 : P τ zero) →
         (pS : (σ : ty) (n : σ ∈ Γ) → P σ (1+ n)) →
         (σ : ty) (pr : σ ∈ Γ ∙ τ) → P σ pr
@@ -1427,37 +1427,38 @@ formal.
 
 The evidence that two \AR{Semantics} are \AR{Synchronisable} is
 packaged in a record. The record is indexed by the two semantics
-as well as three relations. The first relation (\AB{𝓔^{R}_{AB}})
+as well as two relations. The first relation (\AB{𝓔^R})
 characterises the elements of the (respective) environment types
-which are to be considered synchronised, the second (\AB{𝓔^R})
-explains what it means for two environments to be synchronised
-and the last (\AB{𝓜^R}) describes what synchronisation means
-in the model.
+which are to be considered synchronised, and the second one (\AB{𝓜^R})
+describes what synchronisation means in the model. We can lift
+\AB{𝓔^R} in a pointwise manner to talk about entire environments
+using the \AF{`∀[\_,\_]} predicate transformer omitted here.
 
+\AgdaHide{
+\begin{code}
+`∀[_,_] :  {ℓ^A ℓ^B ℓ^R : Level} (𝓔^A : Con → ty → Set ℓ^A) (𝓔^B : Con → ty → Set ℓ^B)
+           (𝓔^R : {Γ : Con} {σ : ty} (u^A : 𝓔^A Γ σ) (u^B : 𝓔^B Γ σ) → Set ℓ^R) →
+           {Γ Δ : Con} (ρ^A : Δ [ 𝓔^A ] Γ) (ρ^B : Δ [ 𝓔^B ] Γ) → Set ℓ^R
+`∀[ 𝓔^A , 𝓔^B ] 𝓔^R ρ^A ρ^B = (σ : ty) (pr : σ ∈ _) → 𝓔^R (ρ^A σ pr) (ρ^B σ pr)
+\end{code}}
 \begin{code}
 record Synchronisable
   {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} (𝓢^A : Semantics 𝓔^A 𝓜^A)
   {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} (𝓢^B : Semantics 𝓔^B 𝓜^B)
-  {ℓ^RE ℓ^RM ℓ^REAB : Level} (𝓔^R‿AB : {Γ : Con} {σ : ty} (e^A : 𝓔^A Γ σ) (e^B : 𝓔^B Γ σ) → Set ℓ^REAB)
-  (𝓔^R : {Δ Γ : Con} (e^A : Δ [ 𝓔^A ] Γ) (e^B : Δ [ 𝓔^B ] Γ) → Set ℓ^RE)
-  (𝓜^R : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM) : Set (ℓ^RE ⊔ ℓ^RM ⊔ ℓ^EA ⊔ ℓ^EB ⊔ ℓ^MA ⊔ ℓ^MB ⊔ ℓ^REAB) where
+  {ℓ^RE ℓ^RM : Level} (𝓔^R : {Γ : Con} {σ : ty} (u^A : 𝓔^A Γ σ) (e^B : 𝓔^B Γ σ) → Set ℓ^RE)
+  (𝓜^R : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM) : Set (ℓ^RE ⊔ ℓ^RM ⊔ ℓ^EA ⊔ ℓ^EB ⊔ ℓ^MA ⊔ ℓ^MB) where
   module 𝓢^A = Semantics 𝓢^A
   module 𝓢^B = Semantics 𝓢^B
   field
 \end{code}
 
 The record's fields are describing the structure these relations
-need to have. The first topic of interest is the interaction
-between \AB{𝓔^R_{AB}} and \AB{𝓔^R}. \ARF{𝓔^R_{∙}} states that
-it should be possible to extend two synchronised environments as
-long as the elements we push onto them are themselves related by
-\AB{𝓔^R_{AB}}. \ARF{𝓔^R‿wk} states that two synchronised
-environments can be weakened whilst staying synchronised.
+need to have. \ARF{𝓔^R‿wk} states that two synchronised environments
+can be weakened whilst staying synchronised.
 
 \begin{code}
-    𝓔^R‿∙   :  {Γ Δ : Con} {σ : ty} {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} {u^A : 𝓔^A Δ σ} {u^B : 𝓔^B Δ σ} (ρ^R : 𝓔^R ρ^A ρ^B) (u^R : 𝓔^R‿AB u^A u^B) → 𝓔^R ([ 𝓔^A ] ρ^A `∙ u^A) ([ 𝓔^B ] ρ^B `∙ u^B)
-    𝓔^R‿wk  :  {Γ Δ Θ : Con} (inc : Δ ⊆ Θ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) →
-               𝓔^R (wk[ 𝓢^A.wk ] inc ρ^A) (wk[ 𝓢^B.wk ] inc ρ^B)
+    𝓔^R‿wk  :  {Γ Δ Θ : Con} (inc : Δ ⊆ Θ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : `∀[ 𝓔^A , 𝓔^B ] 𝓔^R {Γ} {Δ} ρ^A ρ^B) →
+               `∀[ 𝓔^A , 𝓔^B ] 𝓔^R (wk[ 𝓢^A.wk ] inc ρ^A) (wk[ 𝓢^B.wk ] inc ρ^B)
 \end{code}
 
 We then have the relational counterparts of the term constructors.
@@ -1470,7 +1471,7 @@ in the model by looking up the values each one of these associate
 to a given variable.
 
 \begin{code}
-    R⟦var⟧    :  {Γ Δ : Con} {σ : ty} (v : σ ∈ Γ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) →
+    R⟦var⟧    :  {Γ Δ : Con} {σ : ty} (v : σ ∈ Γ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : `∀[ 𝓔^A , 𝓔^B ] 𝓔^R ρ^A ρ^B) →
                  𝓜^R (𝓢^A.⟦var⟧ (ρ^A σ v)) (𝓢^B.⟦var⟧ (ρ^B σ v))
 \end{code}
 
@@ -1483,7 +1484,7 @@ model is enough to guarantee that evaluating the lambdas in the original
 environments will deliver synchronised values.
 
 \begin{code}
-    R⟦λ⟧      :  {Γ : Con} {σ τ : ty} {f^A : {Δ : Con} → Γ ⊆ Δ → 𝓔^A Δ σ → 𝓜^A Δ τ} → {f^B : {Δ : Con} → Γ ⊆ Δ → 𝓔^B Δ σ → 𝓜^B Δ τ} → (f^r :  {Δ : Con} (inc : Γ ⊆ Δ) {u^A : 𝓔^A Δ σ} {u^B : 𝓔^B Δ σ} (u^R : 𝓔^R‿AB u^A u^B) → 𝓜^R  (f^A inc u^A) (f^B inc u^B)) →
+    R⟦λ⟧      :  {Γ : Con} {σ τ : ty} {f^A : {Δ : Con} → Γ ⊆ Δ → 𝓔^A Δ σ → 𝓜^A Δ τ} → {f^B : {Δ : Con} → Γ ⊆ Δ → 𝓔^B Δ σ → 𝓜^B Δ τ} → (f^r :  {Δ : Con} (inc : Γ ⊆ Δ) {u^A : 𝓔^A Δ σ} {u^B : 𝓔^B Δ σ} (u^R : 𝓔^R u^A u^B) → 𝓜^R  (f^A inc u^A) (f^B inc u^B)) →
                  𝓜^R (𝓢^A.⟦λ⟧ f^A) (𝓢^B.⟦λ⟧ f^B)
 \end{code}
 
@@ -1507,13 +1508,12 @@ about the evaluation of an application-headed term.
                  𝓜^R (𝓢^A.⟦ifte⟧ b^A l^A r^A) (𝓢^B.⟦ifte⟧ b^B l^B r^B)
 \end{code}}
 
-For this specification to be useful, we need to verify that it is indeed
-possible for us to benefit from its introduction which we can conclude
-based on two observations. First, our ability to prove a fundamental lemma
-stating that given relations satisfying this specification, the evaluation
-of a term in related environments yields related values; second, our ability
-to find with various instances of such synchronised semantics. Let us start
-with the fundamental lemma.
+For this specification to be useful, we need to verify that we can indeed
+benefit from its introduction. This is witnessed by two facts. First, our
+ability to prove a fundamental lemma stating that given relations satisfying
+this specification, the evaluation of a term in related environments yields
+related values; second, our ability to find with various instances of such
+synchronised semantics. Let us start with the fundamental lemma.
 
 \paragraph{Fundamental Lemma of Synchronisable Semantics}
 The fundamental lemma is indeed provable. We introduce a \AM{Synchronised}
@@ -1523,13 +1523,25 @@ counterpart of term constructors into scope by \AK{open}ing the record. The
 traversal then uses them to combine the induction hypotheses arising structurally.
 
 \begin{code}
-module Synchronised {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓢^A : Semantics 𝓔^A 𝓜^A} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓢^B : Semantics 𝓔^B 𝓜^B} {ℓ^RE ℓ^RM ℓ^REAB : Level} {𝓔^R‿AB : {Γ : Con} {σ : ty} (e^A : 𝓔^A Γ σ) (e^B : 𝓔^B Γ σ) → Set ℓ^REAB} {𝓔^R : {Δ Γ : Con} (e^A : Δ [ 𝓔^A ] Γ) (e^B : Δ [ 𝓔^B ] Γ) → Set ℓ^RE} {𝓜^R : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM} (rel : Synchronisable 𝓢^A 𝓢^B 𝓔^R‿AB 𝓔^R 𝓜^R) where
+infixl 10 [_,_,_]_∙^R_
+[_,_,_]_∙^R_ : {ℓ^EA ℓ^EB ℓ^ER : Level} (𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA)
+               (𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB)
+           (𝓔^R : {Γ : Con} {σ : ty} (u^A : 𝓔^A Γ σ) (u^B : 𝓔^B Γ σ) → Set ℓ^ER)
+           {Δ Γ : Con} {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : `∀[ 𝓔^A , 𝓔^B ] 𝓔^R ρ^A ρ^B)
+           {σ : ty} {u^A : 𝓔^A Δ σ} {u^B : 𝓔^B Δ σ} (u^R : 𝓔^R u^A u^B) →
+           `∀[ 𝓔^A , 𝓔^B ] 𝓔^R ([ 𝓔^A ] ρ^A `∙ u^A) ([ 𝓔^B ] ρ^B `∙ u^B)
+[ 𝓔^A , 𝓔^B , 𝓔^R ] ρ^R ∙^R u^R = [ u^R , ρ^R ]
+\end{code}
+
+\begin{code}
+module Synchronised {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓢^A : Semantics 𝓔^A 𝓜^A} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓢^B : Semantics 𝓔^B 𝓜^B} {ℓ^RE ℓ^RM : Level} {𝓔^R : {Γ : Con} {σ : ty} (u^A : 𝓔^A Γ σ) (u^B : 𝓔^B Γ σ) → Set ℓ^RE} {𝓜^R : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM} (rel : Synchronisable 𝓢^A 𝓢^B 𝓔^R 𝓜^R) where
   open Synchronisable rel
 
-  lemma :  {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B) → 𝓜^R (𝓢^A ⊨⟦ t ⟧ ρ^A) (𝓢^B ⊨⟦ t ⟧ ρ^B)
+  lemma :  {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : `∀[ 𝓔^A , 𝓔^B ] 𝓔^R ρ^A ρ^B) →
+           𝓜^R (𝓢^A ⊨⟦ t ⟧ ρ^A) (𝓢^B ⊨⟦ t ⟧ ρ^B)
   lemma (`var v)       ρ^R = R⟦var⟧ v ρ^R
   lemma (f `$ t)       ρ^R = R⟦$⟧ (lemma f ρ^R) (lemma t ρ^R)
-  lemma (`λ t)         ρ^R = R⟦λ⟧ λ inc u^R → lemma t (𝓔^R‿∙ (𝓔^R‿wk inc ρ^R) u^R)
+  lemma (`λ t)         ρ^R = R⟦λ⟧ λ inc u^R → lemma t ([ 𝓔^A , 𝓔^B , 𝓔^R ] 𝓔^R‿wk inc ρ^R ∙^R u^R)
   lemma `⟨⟩            ρ^R = R⟦⟨⟩⟧
   lemma `tt            ρ^R = R⟦tt⟧
   lemma `ff            ρ^R = R⟦ff⟧
@@ -1543,22 +1555,17 @@ fact that \AF{Renaming} and \AF{Substitution} have precisely the
 same behaviour whenever the environment we use for \AF{Substitution}
 is only made up of variables. The (mundane) proofs which mostly
 consist of using the congruence of propositional equality are
-left out. We show with the lemma \AF{RenamingIsASubstitution} how
-the result is derived directly from the fundamental lemma of
-\AR{Synchronisable} semantics.
+left out.
 
 \begin{code}
-SynchronisableRenamingSubstitution : Synchronisable Renaming Substitution
-  (λ v t → `var v ≡ t)
-  (λ ρ^A ρ^B → (σ : ty) (pr : σ ∈ _) → `var (ρ^A σ pr) ≡ ρ^B σ pr)
-  _≡_
+SynchronisableRenamingSubstitution :  Synchronisable Renaming Substitution
+                                      (λ v t → `var v ≡ t) _≡_
 \end{code}
 \AgdaHide{
 \begin{code}
 SynchronisableRenamingSubstitution =
   record
-    { 𝓔^R‿∙   = λ ρ^R u^R → [ u^R , ρ^R ]
-    ; 𝓔^R‿wk  = λ inc ρ^R σ pr → PEq.cong (wk^⊢ inc) (ρ^R σ pr)
+    { 𝓔^R‿wk  = λ inc ρ^R σ pr → PEq.cong (wk^⊢ inc) (ρ^R σ pr)
     ; R⟦var⟧    = λ v ρ^R → ρ^R _ v
     ; R⟦$⟧      = PEq.cong₂ _`$_
     ; R⟦λ⟧      = λ r → PEq.cong `λ (r (step refl) PEq.refl)
@@ -1574,10 +1581,10 @@ we meant to prove is derived directly from the fundamental lemma of
 \AR{Synchronisable} semantics:
 
 \begin{code}
-RenamingIsASubstitution : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ flip (_∈_) ] Γ) →
+RenamingIsASubstitution : {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Γ ⊆ Δ) →
   Renaming ⊨⟦ t ⟧ ρ ≡ Substitution ⊨⟦ t ⟧ (λ σ → `var ∘ ρ σ)
-RenamingIsASubstitution t ρ = RenSubst.lemma t (λ σ pr → PEq.refl)
-  where module RenSubst = Synchronised SynchronisableRenamingSubstitution
+RenamingIsASubstitution t ρ = lemma t (λ σ pr → PEq.refl)
+  where open Synchronised SynchronisableRenamingSubstitution
 \end{code}
 
 
@@ -1649,7 +1656,9 @@ wk^EQREL (σ `→ τ)  inc eq = λ inc′ eqVW → eq (trans inc inc′) eqVW
 The interplay of reflect and reify with this notion of equality has
 to be described in one go because of their being mutually defined.
 It confirms our claim that \AF{EQREL} is indeed an appropriate notion
-of semantic equality.
+of semantic equality: values related by \AF{EQREL} are reified to
+propositionally equal normal forms whilst propositionally equal neutral
+terms are reflected to values related by \AF{EQREL}.
 
 \begin{code}
 reify^EQREL    :  {Γ : Con} (σ : ty) {T U : Γ ⊨^βιξη σ} → EQREL Γ σ T U → reify^βιξη σ T ≡ reify^βιξη σ U
@@ -1681,16 +1690,13 @@ environments related in a pointwise manner by \AF{EQREL}
 yields two semantic objects themselves related by \AF{EQREL}.
 
 \begin{code}
-SynchronisableNormalise : Synchronisable Normalise^βιξη Normalise^βιξη
-  (EQREL _ _)
-  (λ ρ^A ρ^B → (σ : ty) (pr : σ ∈ _) → EQREL _ σ (ρ^A σ pr) (ρ^B σ pr))
-  (EQREL _ _)
+SynchronisableNormalise :  Synchronisable Normalise^βιξη Normalise^βιξη
+                           (EQREL _ _) (EQREL _ _)
 \end{code}
 \AgdaHide{
 \begin{code}
 SynchronisableNormalise =
-  record  { 𝓔^R‿∙   = λ ρ^R u^R → [ u^R , ρ^R ]
-          ; 𝓔^R‿wk  = λ inc ρ^R σ pr → wk^EQREL σ inc (ρ^R σ pr)
+  record  { 𝓔^R‿wk  = λ inc ρ^R σ pr → wk^EQREL σ inc (ρ^R σ pr)
           ; R⟦var⟧   = λ v ρ^R → ρ^R _ v
           ; R⟦$⟧     = λ f → f refl
           ; R⟦λ⟧     = λ r → r
@@ -1708,8 +1714,7 @@ case:
 \begin{code}
 refl^βιξη :  {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρ^A ρ^B : Δ [ _⊨^βιξη_ ] Γ} (ρ^R : (σ : ty) (pr : σ ∈ Γ) → EQREL Δ σ (ρ^A σ pr) (ρ^B σ pr)) →
              EQREL Δ σ (Normalise^βιξη ⊨⟦ t ⟧ ρ^A) (Normalise^βιξη ⊨⟦ t ⟧ ρ^B)
-refl^βιξη t ρ^R = ReflNorm.lemma t ρ^R
-  where module ReflNorm = Synchronised SynchronisableNormalise
+refl^βιξη t ρ^R = lemma t ρ^R where open Synchronised SynchronisableNormalise
 \end{code}
 
 
@@ -1726,7 +1731,7 @@ their calculus into Coq. This observation naturally led us to
 defining a fusion framework describing how to relate three semantics:
 the pair we want to run sequentially and the third one they correspond
 to. The fundamental lemma we prove can then be instantiated six times
-to derive the corresponding lemmas.
+to derive the corresponding corollaries.
 
 The evidence that \AB{𝓢^A}, \AB{𝓢^B} and \AB{𝓢^C} are such
 that \AB{𝓢^A} followed by \AB{𝓢^B} can be said to be equivalent
@@ -1742,9 +1747,7 @@ in \AB{𝓢^B} and \AB{𝓢^C}'s respective models.
 
 \begin{code}
 record Fusable
-  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB ℓ^EC ℓ^MC ℓ^RE ℓ^REBC ℓ^RM : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓜^C : (Γ : Con) (σ : ty) → Set ℓ^MC} (𝓢^A      : Semantics 𝓔^A 𝓜^A)
-  (𝓢^B : Semantics 𝓔^B 𝓜^B)
-  (𝓢^C : Semantics 𝓔^C 𝓜^C)
+  {ℓ^EA ℓ^MA ℓ^EB ℓ^MB ℓ^EC ℓ^MC ℓ^RE ℓ^REBC ℓ^RM : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓔^C : (Γ : Con) (σ : ty) → Set ℓ^EC} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓜^C : (Γ : Con) (σ : ty) → Set ℓ^MC} (𝓢^A : Semantics 𝓔^A 𝓜^A) (𝓢^B : Semantics 𝓔^B 𝓜^B) (𝓢^C : Semantics 𝓔^C 𝓜^C)
   (𝓔^R‿BC : {Γ : Con} {σ : ty} (e^B : 𝓔^B Γ σ) (e^C : 𝓔^C Γ σ) → Set ℓ^REBC)
   (𝓔^R :  {Θ Δ Γ : Con} (ρ^A : Δ [ 𝓔^A ] Γ) (ρ^B : Θ [ 𝓔^B ] Δ) (ρ^C : Θ [ 𝓔^C ] Γ) → Set ℓ^RE)
   (𝓜^R : {Γ : Con} {σ : ty} (m^B : 𝓜^B Γ σ) (m^C : 𝓜^C Γ σ) → Set ℓ^RM)
@@ -1752,9 +1755,9 @@ record Fusable
 \end{code}
 \AgdaHide{
 \begin{code}
-  module SemA = Semantics 𝓢^A
-  module SemB = Semantics 𝓢^B
-  module SemC = Semantics 𝓢^C
+  module 𝓢^A = Semantics 𝓢^A
+  module 𝓢^B = Semantics 𝓢^B
+  module 𝓢^C = Semantics 𝓢^C
   field
 \end{code}}
 
@@ -1783,11 +1786,11 @@ preserving manner.
 
 \begin{code}
     𝓔^R‿∙   :  {Γ Δ Θ : Con} {σ : ty} {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Θ [ 𝓔^B ] Δ} {ρ^C : Θ [ 𝓔^C ] Γ} {u^B : 𝓔^B Θ σ} {u^C : 𝓔^C Θ σ} (ρ^R : 𝓔^R ρ^A ρ^B ρ^C) (u^R : 𝓔^R‿BC u^B u^C) →
-                𝓔^R  ([ 𝓔^A ]  wk[ SemA.wk ] (step refl) ρ^A `∙ SemA.embed σ zero)
-                      ([ 𝓔^B ]  ρ^B `∙ u^B) ([ 𝓔^C ]  ρ^C `∙ u^C)
+               𝓔^R  ([ 𝓔^A ]  wk[ 𝓢^A.wk ] (step refl) ρ^A `∙ 𝓢^A.embed σ zero)
+                    ([ 𝓔^B ]  ρ^B `∙ u^B) ([ 𝓔^C ]  ρ^C `∙ u^C)
 
     𝓔^R‿wk  :  {Γ Δ Θ E : Con} (inc : Θ ⊆ E) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Θ [ 𝓔^B ] Δ} {ρ^C : Θ [ 𝓔^C ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B ρ^C) →
-               𝓔^R ρ^A (wk[ SemB.wk ] inc ρ^B) (wk[ SemC.wk ] inc ρ^C)
+               𝓔^R ρ^A (wk[ 𝓢^B.wk ] inc ρ^B) (wk[ 𝓢^C.wk ] inc ρ^C)
 \end{code}
 
 Then we have the relational counterpart of the various term
@@ -1810,16 +1813,16 @@ expecting this type of evaluation in an extended context (i.e. under
 one lambda). And it turns out that this is indeed enough for all of
 our examples.
 The evaluation environments used by the semantics \AB{𝓢^B} and \AB{𝓢^C}
-on the other can be arbitrarily weakened before being extended with related
-values to be substituted for the variable bound by the \AIC{`λ}.
+on the other hand can be arbitrarily weakened before being extended with
+related values to be substituted for the variable bound by the \AIC{`λ}.
 
 \begin{code}
     R⟦λ⟧    :
       {Γ Δ Θ : Con} {σ τ : ty} (t : Γ ∙ σ ⊢ τ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Θ [ 𝓔^B ] Δ} {ρ^C : Θ [ 𝓔^C ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B ρ^C) →
       (r :  {E : Con} (inc : Θ ⊆ E) {u^B : 𝓔^B E σ} {u^C : 𝓔^C E σ} (u^R : 𝓔^R‿BC u^B u^C) →
-            let  ρ^A′ =  [ 𝓔^A ] wk[ SemA.wk ] (step refl) ρ^A `∙ SemA.embed σ zero
-                 ρ^B′ =  [ 𝓔^B ] wk[ SemB.wk ] inc ρ^B `∙ u^B
-                 ρ^C′ =  [ 𝓔^C ] wk[ SemC.wk ] inc ρ^C `∙ u^C
+            let  ρ^A′ =  [ 𝓔^A ] wk[ 𝓢^A.wk ] (step refl) ρ^A `∙ 𝓢^A.embed σ zero
+                 ρ^B′ =  [ 𝓔^B ] wk[ 𝓢^B.wk ] inc ρ^B `∙ u^B
+                 ρ^C′ =  [ 𝓔^C ] wk[ 𝓢^C.wk ] inc ρ^C `∙ u^C
             in 𝓜^R (𝓢^B ⊨⟦ reify^A (𝓢^A ⊨⟦ t ⟧ ρ^A′) ⟧ ρ^B′) (𝓢^C ⊨⟦ t ⟧ ρ^C′)) →
       𝓜^R (𝓢^B ⊨⟦ reify^A (𝓢^A ⊨⟦ `λ t ⟧ ρ^A) ⟧ ρ^B) (𝓢^C ⊨⟦ `λ t ⟧ ρ^C)
 \end{code}
