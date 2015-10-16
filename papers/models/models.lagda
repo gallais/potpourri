@@ -1801,7 +1801,7 @@ variable using related environments.
 
 \begin{code}
     R⟦var⟧  :  {Γ Δ Θ : Con} {σ : ty} (v : σ ∈ Γ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Θ [ 𝓔^B ] Δ} {ρ^C : Θ [ 𝓔^C ] Γ} (ρ^R : 𝓔^R ρ^A ρ^B ρ^C) →
-               𝓜^R (𝓢^B ⊨⟦ reify^A (𝓢^A ⊨⟦ `var v ⟧ ρ^A) ⟧ ρ^B) (𝓢^C ⊨⟦ `var v ⟧ ρ^C)
+               𝓜^R (𝓢^B ⊨⟦ reify^A (𝓢^A.⟦var⟧ (ρ^A σ v)) ⟧ ρ^B) (𝓢^C.⟦var⟧ (ρ^C σ v))
 \end{code}
 
 The \AIC{`λ}-case puts some rather strong restrictions on the way
@@ -1893,7 +1893,7 @@ evidence of them being fusable with much fewer assumptions.
 We isolate them and prove the result generically in order to
 avoid repeating ourselves.
 A \AR{SyntacticFusable} record packs the evidence necessary to
-prove that the \AR{Syntactic} semantics \AB{synA} and \AB{syn^B}
+prove that the \AR{Syntactic} semantics \AB{syn^A} and \AB{syn^B}
 can be fused using the \AR{Syntactic} semantics \AB{syn^C}. It
 is indexed by these three \AR{Syntactic}s as well as two relations
 corresponding to the \AB{𝓔^R_{BC}} and \AB{𝓔^R} ones of the
@@ -1901,7 +1901,7 @@ corresponding to the \AB{𝓔^R_{BC}} and \AB{𝓔^R} ones of the
 
 It contains the same \ARF{𝓔^R‿∙}, \ARF{𝓔^R‿wk} and \ARF{R⟦var⟧}
 fields as a \AR{Fusable} as well as a fourth one (\ARF{embed^{BC}})
-saying that \AB{synB} and \AB{synC}'s respective \ARF{embed}s are
+saying that \AB{syn^B} and \AB{syn^C}'s respective \ARF{embed}s are
 producing related values.
 
 \AgdaHide{
@@ -1967,7 +1967,7 @@ syntacticFusable synF =
 It is then trivial to prove that \AR{Renaming} can be fused with itself
 to give rise to another renaming (obtained by composing the two context
 inclusions): \ARF{𝓔^R‿∙} uses \AF{[\_,\_]}, a case-analysis combinator
-for \AB{σ} \AD{∈} (\AB{Γ} \AIC{‵∙} τ) distinguishing the case where \AB{σ}
+for \AB{σ} \AD{∈} (\AB{Γ} \AIC{∙} τ) distinguishing the case where \AB{σ}
 \AD{∈} \AB{Γ} and the one where \AB{σ} equals \AB{τ}, whilst the other connectives
 are either simply combining induction hypotheses using the congruence of
 propositional equality or even simply its reflexivity (the two \ARF{embed}s
@@ -2028,8 +2028,9 @@ SubstitutionRenamingFusable =
 \end{code}}
 
 Finally, using the fact that we now know how to fuse a \AR{Substitution}
-and a \AR{Renaming} together no matter in which order they're performed,
-we can prove that two \AR{Substitution}s can be fused together.
+and a \AR{Renaming} together no matter in which order they are performed,
+we can prove that two \AR{Substitution}s can be fused together to give
+rise to another \AR{Substitution}.
 
 \begin{code}
 SubstitutionFusable :
@@ -2085,7 +2086,7 @@ times in a row, using the former instances to discharge the constraints
 arising in the later ones. But we are not at all limited to proving
 statements about \AR{Syntactic}s only.
 
-\paragraph{Example of Fusable Semantics}
+\paragraph{Examples of Fusable Semantics}
 
 The most simple example of \AR{Fusable} \AR{Semantics} involving a non
 \AR{Syntactic} one is probably the proof that \AR{Renaming} followed
@@ -2093,11 +2094,8 @@ by \AR{Normalise^{βιξη}} is equivalent to Normalisation by Evaluation
 where the environment has been tweaked.
 
 \begin{code}
-RenamingNormaliseFusable :
-  Fusable Renaming Normalise^βιξη Normalise^βιξη
-  (EQREL _ _)
-  (λ ρ^A ρ^B ρ^C → ∀ σ pr → EQREL _ σ (ρ^B σ (ρ^A σ pr)) (ρ^C σ pr))
-  (EQREL _ _)
+RenamingNormaliseFusable : Fusable Renaming Normalise^βιξη Normalise^βιξη (EQREL _ _)
+  (λ ρ^A ρ^B ρ^C → ∀ σ pr → EQREL _ σ (ρ^B σ (ρ^A σ pr)) (ρ^C σ pr)) (EQREL _ _)
 \end{code}
 \AgdaHide{
 \begin{code}
@@ -2171,21 +2169,18 @@ term where the substitution has been evaluated first. The constraints
 imposed on the environments might seem quite restrictive but they are
 actually similar to the Uniformity condition described by C. Coquand~\cite{coquand2002formalised}
 in her detailed account of Normalisation by Evaluation for a simply-typed
-λ-calculus with explicit substitutions.
+λ-calculus with explicit substitution.
 
 
 \begin{code}
-SubstitutionNormaliseFusable :
-  Fusable  Substitution
-           Normalise^βιξη
-           Normalise^βιξη
-           (EQREL _ _)
-           (λ ρ^A ρ^B ρ^C → ((σ : ty) (pr : σ ∈ _) → EQREL _ σ (ρ^B σ pr) (ρ^B σ pr))
-                      × ((σ : ty) (pr : σ ∈ _) {Θ : Con} (inc : _ ⊆ Θ) →
+SubstitutionNormaliseFusable : Fusable  Substitution Normalise^βιξη Normalise^βιξη
+  (EQREL _ _)
+  (λ ρ^A ρ^B ρ^C → `∀[ _⊨^βιξη_ , _⊨^βιξη_ ] (EQREL _ _ ) ρ^B ρ^B
+                 × ((σ : ty) (pr : σ ∈ _) {Θ : Con} (inc : _ ⊆ Θ) →
                          EQREL Θ σ (Normalise^βιξη ⊨⟦ ρ^A σ pr ⟧ (λ σ pr → wk^βιξη σ inc $ ρ^B σ pr))
                                    (wk^βιξη σ inc $ ρ^C σ pr))
-                      × ((σ : ty) (pr : σ ∈ _) → EQREL _ σ (Normalise^βιξη ⊨⟦ ρ^A σ pr ⟧ ρ^B) (ρ^C σ pr)))
-           (EQREL _ _)
+                 × ((σ : ty) (pr : σ ∈ _) → EQREL _ σ (Normalise^βιξη ⊨⟦ ρ^A σ pr ⟧ ρ^B) (ρ^C σ pr)))
+  (EQREL _ _)
 \end{code}
 \AgdaHide{
 \begin{code}
@@ -2236,10 +2231,8 @@ are equal then the string produced, as well as the state of the
 name supply at the end of the process, are equal.
 
 \begin{code}
-RenamingPrettyPrintingFusable :
-  Fusable Renaming Printing Printing
-  _≡_
-  (λ ρ^A ρ^B ρ^C → ∀ σ pr → ρ^B σ (ρ^A σ pr) ≡ ρ^C σ pr)
+RenamingPrettyPrintingFusable : Fusable Renaming Printing Printing _≡_
+  (λ ρ^A ρ^B → `∀[ Name , Name ] _≡_ (λ σ → ρ^B σ ∘ ρ^A σ))
   (λ p q → ∀ {names₁ names₂} → names₁ ≡ names₂ → runPrinter p names₁ ≡ runPrinter q names₂)
 \end{code}
 \AgdaHide{
@@ -2283,8 +2276,8 @@ amounts to pretty printing the term itself in a dummy environment.
 \begin{code}
 PrettyRenaming : {Γ : Con} {σ : ty} (t : ε ⊢ σ) (inc : ε ⊆ Γ) →
   print (wk^⊢ inc t) ≡ proj₁ (runPrinter (Printing ⊨⟦ t ⟧ (λ _ ())) $ Stream.drop (size Γ) names)
-PrettyRenaming {Γ} t inc = PEq.cong proj₁ (RenPret.lemma t (λ _ ()) (proof Γ Γ))
-  where module RenPret = Fusion RenamingPrettyPrintingFusable
+PrettyRenaming {Γ} t inc = PEq.cong proj₁ $ lemma t (λ _ ()) $ proof Γ Γ
+  where open Fusion RenamingPrettyPrintingFusable
 \end{code}
 
 \section{Conclusion}
