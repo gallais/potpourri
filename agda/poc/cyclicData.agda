@@ -38,7 +38,7 @@ record ν (d : Desc) (i : Size) : Set where
 -- an endofunctor on (ℕ → Set). This thing is once more strictly
 -- positive so we could take its fixpoint. But we may as well
 -- take advantage of the scope provided to us by the ℕ index: we
--- introduce a binder `fix⟨_⟩` and a variable `var`.
+-- introduce a binder `fix⟨_⟩` and a variable constructor `var`.
 -- Elements of `μ′ d n` are finite representations of potentially
 -- cyclic trees with `n` pointers in scope.
 
@@ -76,10 +76,12 @@ mutual
 unroll : {d : Desc} (r : μ′ d 0) → ν d ∞
 unroll r = unrollν _ _ r
 
--- Greatest fixpoints are notoriously annoying to prove things
--- about. We can define bisimulation by first giving a relational
--- interpretation ⟦_⟧R for our Descriptions and then defining
--- `[_]_~_` as the appropriate greatest fixpoint.
+-- It's notoriously annoying to prove statements about greatest
+-- fixpoints in most current theorem provers. E.g. the right notion
+-- of equality is bisimulation rather than propositional equality.
+-- We define bisimulation by first giving a relational interpretation
+-- ⟦_⟧R of our Descriptions and then defining  `[_]_~_` as the
+-- appropriate greatest fixpoint.
 
 Rel : Set → Set₁
 Rel X = X → X → Set
@@ -93,9 +95,9 @@ record [_]_~_ {d : Desc} (i : Size) (v w : ν d i) : Set where
   coinductive
   field force : {j : Size< i} → ⟦ d ⟧R [ j ]_~_ (ν.force v) (ν.force w)
 
--- Before looking at example, we introduce a handy combinator to
--- generate elements of `ν d i`: if we know how  to generate layer
--- after layer of `⟦ d ⟧`-things then we know how to generate an
+-- Before looking at examples, we introduce a handy combinator to
+-- generate elements of `ν d i`: if we know how to generate layers
+-- after layers of `⟦ d ⟧`-things then we know how to generate an
 -- element of `ν d i`.
 
 pure : (d : Desc) {i : Size} (r : {X : Size → Set} → X i → ⟦ d ⟧ (X i)) → ν d i
@@ -116,7 +118,7 @@ private
                             ; false → arg A $ const $ rec ret
                             }
   -- It gives rise to three different type formers: the one for
-  -- list, cyclic lists and colists respectively.
+  -- lists, cyclic lists and colists respectively.
 
   list : Set → Set
   list = μ ∘ listD
@@ -127,8 +129,8 @@ private
   colist : Set → Size → Set
   colist A = ν (listD A)
 
-  -- We introduce some pattern synonyms to be able to have nice
-  -- notations for our (c)lists.
+  -- We introduce some pattern synonyms so that our examples of
+  -- (c)lists are slightly more readable.
   
   infixr 5 _∷_
   pattern nil      = ⟨ true , tt ⟩
