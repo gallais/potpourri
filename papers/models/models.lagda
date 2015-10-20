@@ -1,4 +1,4 @@
-%%%%% Pick one of the three
+%%%% Pick one of the three
 %\include{articleheader}
 %\include{sigplanheader}
 \include{lncsheader}
@@ -379,11 +379,9 @@ to go beyond these and also model renaming or printing with names.
 The record packs the properties of these relations necessary to
 define the evaluation function.
 
-%<*semantics>
 \begin{code}
 record Semantics {ℓ^E ℓ^M : Level} (𝓔 : Con → ty → Set ℓ^E) (𝓜 : Con → ty → Set ℓ^M) : Set (ℓ^E ⊔ ℓ^M) where
 \end{code}
-%</semantics>
 \AgdaHide{
 \begin{code}
   infixl 5 _⟦$⟧_
@@ -398,12 +396,10 @@ manufacture environment values given a variable in scope (\ARF{embed})
 in order to be able to craft a diagonal environment to evaluate an open
 term.
 
-%<*semantics1>
 \begin{code}
     wk      :  {Γ Δ : Con} {σ : ty} (inc : Γ ⊆ Δ) (r : 𝓔 Γ σ) → 𝓔 Δ σ
     embed   :  {Γ : Con} (σ : ty) (pr : σ ∈ Γ) → 𝓔 Γ σ
 \end{code}
-%</semantics1>
 
 The structure of the model is quite constrained: each constructor
 in the language needs a semantic counterpart. We start with the
@@ -414,11 +410,9 @@ can turn a value from the environment into a model one. The traversal
 will therefore be able to, when hitting a variable, lookup the
 corresponding value in the environment and return it.
 
-%<*semantics2>
 \begin{code}
     ⟦var⟧   :  {Γ : Con} {σ : ty} (v : 𝓔 Γ σ) → 𝓜 Γ σ
 \end{code}
-%</semantics2>
 
 The semantic λ-abstraction is notable for two reasons: first, following
 Mitchell and Moggi~\cite{mitchell1991kripke}, its structure is typical
@@ -430,11 +424,9 @@ thus prompting us to extend the evaluation environment with an additional
 value. This slight variation in the type of semantic λ-abstraction
 guarantees that such an argument will be provided to us.
 
-%<*semantics3>
 \begin{code}
     ⟦λ⟧     :  {Γ : Con} {σ τ : ty} (t : {Δ : Con} (pr : Γ ⊆ Δ) (u : 𝓔 Δ σ) → 𝓜 Δ τ) → 𝓜 Γ (σ `→ τ)
 \end{code}
-%</semantics3>
 
 The remaining fields' types are a direct translation of the types
 of the constructor they correspond to where the type constructor
@@ -466,6 +458,7 @@ module Eval {ℓ^E ℓ^M : Level} {𝓔 : (Γ : Con) (σ : ty) → Set ℓ^E} {�
 \begin{code}
   infix 10 _⊨⟦_⟧_ _⊨eval_
 \end{code}}
+%<*evaluation>
 \begin{code}
   lemma : {Δ Γ : Con} {σ : ty} (t : Γ ⊢ σ) (ρ : Δ [ 𝓔 ] Γ) → 𝓜 Δ σ
   lemma (`var v)       ρ = ⟦var⟧ $ ρ _ v
@@ -476,6 +469,7 @@ module Eval {ℓ^E ℓ^M : Level} {𝓔 : (Γ : Con) (σ : ty) → Set ℓ^E} {�
   lemma `ff            ρ = ⟦ff⟧
   lemma (`ifte b l r)  ρ = ⟦ifte⟧ (lemma b ρ) (lemma l ρ) (lemma r ρ)
 \end{code}
+%</evaluation>
 
 We introduce \AF{\_⊨⟦\_⟧\_} as an alternative name for the fundamental
 lemma and \AF{\_⊨eval\_} for the special case where we use \ARF{embed}

@@ -14,13 +14,14 @@ paper: prepare
 
 auxiliary:
 	agda -i . -i ~/languages/agda/libs/agda-stdlib/src/ -i ~/projects/potpourri/agda --latex $(AUXILIARY).lagda
+	sed -f rulesUsual.sed -i latex/$(AUXILIARY).tex
 
-slides: prepare
+slides: prepare auxiliary
 	cd latex && sed -f rules.sed -f rules2.sed -i $(SLIDES).tex -i $(AUXILIARY).tex $(PAPER).tex && \
 	latexmk -bibtex -pdf -e '$$pdflatex=q/xelatex %O %S/' $(SLIDES).tex && cd ..
 
 finish: paper auxiliary slides
 	xdotool search --class mupdf key --window %@ r > /dev/null 2>&1
 clean:
-	rm *.agdai
+	rm -f *.agdai
 	rm -rf latex/

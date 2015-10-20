@@ -5,11 +5,11 @@
 \setmathfont{XITS Math}
 \usepackage{catchfilebetweentags}
 \usepackage{graphicx} 
-\setlength\mathindent{0em}
+\setlength\mathindent{-1.5em}
 
 \title{Type and Scope Preserving Semantics}
 \titlegraphic{\hfill \includegraphics{colour-science.pdf}}
-\author[me]{Guillaume Allais\\[3mm]Conor McBride}
+\author[me]{Guillaume Allais\\[1em] James Chapman \and Conor McBride}
 \institute{University of Strathclyde}
 \date{SPLS, 2015-10-21}
 
@@ -64,11 +64,17 @@
   \end{frame}
 
   \begin{frame}\frametitle{An Abstract Notion of Semantics}
-    \ExecuteMetaData[models.tex]{semantics}\unskip
-    \vspace{-2.5em}\ExecuteMetaData[models.tex]{semantics1}\unskip
-    \vspace{-2.5em}\ExecuteMetaData[models.tex]{semantics2}\unskip
-    \vspace{-2.5em}\ExecuteMetaData[models.tex]{semantics3}\unskip
+    \ExecuteMetaData[usual.tex]{semantics}
   \end{frame}
+
+  \begin{frame}\frametitle{An Abstract Notion of Semantics}
+    \ExecuteMetaData[models.tex]{evaluation}
+  \end{frame}
+
+  \begin{frame}\frametitle{Various Instances}
+    \ExecuteMetaData[usual.tex]{semexamples}
+  \end{frame}
+
 
   \begin{frame}{Interesting open questions}
     \begin{itemize}
