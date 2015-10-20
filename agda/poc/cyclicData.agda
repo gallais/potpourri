@@ -12,6 +12,10 @@ open import Data.Product
 open import Function
 open import Relation.Binary.PropositionalEquality
 
+--------------------------------------------------------------
+-- Strictly Positive Functors and their Fixpoints
+--------------------------------------------------------------
+
 -- We start with the datatype of Descriptions and its usual
 -- semantics as an endofunctor on Set. Given that this functor
 -- is strictly positive, we can take its least and greatest
@@ -33,6 +37,10 @@ data μ (d : Desc) : Set where
 record ν (d : Desc) (i : Size) : Set where
   coinductive
   field force : {j : Size< i} → ⟦ d ⟧ (ν d j)
+
+--------------------------------------------------------------
+-- Non-standard Semantics: Potentially Cyclic Structures
+--------------------------------------------------------------
 
 -- But we can also give a non-standard interpretation of it as
 -- an endofunctor on (ℕ → Set). This thing is once more strictly
@@ -76,6 +84,10 @@ mutual
 unroll : {d : Desc} (r : μ′ d 0) → ν d ∞
 unroll r = unrollν _ _ r
 
+--------------------------------------------------------------
+-- Reasoning: Bisimulation
+--------------------------------------------------------------
+
 -- It's notoriously annoying to prove statements about greatest
 -- fixpoints in most current theorem provers. E.g. the right notion
 -- of equality is bisimulation rather than propositional equality.
@@ -95,17 +107,29 @@ record [_]_~_ {d : Desc} (i : Size) (v w : ν d i) : Set where
   coinductive
   field force : {j : Size< i} → ⟦ d ⟧R [ j ]_~_ (ν.force v) (ν.force w)
 
+--------------------------------------------------------------
+-- A handful of combinators
+--------------------------------------------------------------
+
+fmap : (d : Desc) {X Y : Set} (f : X → Y) (dx : ⟦ d ⟧ X) → ⟦ d ⟧ Y
+fmap (rec d)   f (x , dx) = f x , fmap d f dx
+fmap ret       f dx       = dx
+fmap (arg A d) f (a , dx) = a , fmap (d a) f dx
+
+unfold : (d : Desc) {S : Set} {i : Size} (n : S → ⟦ d ⟧ S) (s : S) → ν d i
+ν.force (unfold d n s) = fmap d (unfold d n) (n s)
+
 -- Before looking at examples, we introduce a handy combinator to
 -- generate elements of `ν d i`: if we know how to generate layers
 -- after layers of `⟦ d ⟧`-things then we know how to generate an
 -- element of `ν d i`.
 
-pure : (d : Desc) {i : Size} (r : {X : Size → Set} → X i → ⟦ d ⟧ (X i)) → ν d i
-ν.force (pure d r) = r (pure d r)
+pure : (d : Desc) (r : ⟦ d ⟧ ⊤) {i : Size} → ν d i
+pure d r = unfold d (const r) tt
 
--------------------------------------------------
--- EXAMPLES
--------------------------------------------------
+--------------------------------------------------------------
+-- Examples
+--------------------------------------------------------------
 
 private
 
@@ -144,7 +168,7 @@ private
   czeros = rec[ 0 ∷ var zero ]
 
   zeros : {i : Size} → colist ℕ i
-  zeros = pure _ $ λ r → false , 0 , r , tt
+  zeros = pure _ $ false , 0 , tt , tt
 
   -- Finally, we conclude with a proof that unfolding `czeros` leads
   -- to an infinite colist of 0s.
