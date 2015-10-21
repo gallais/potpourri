@@ -10,7 +10,7 @@
 \begin{code}
 module usual where
 
-open import models hiding (Semantics ; Renaming ; Substitution ; Printing ; Normalise^βιξη)
+open import models hiding (Semantics ; Synchronisable ; Fusable ; Renaming ; Substitution ; Printing ; Normalise^βιξη)
 open import Data.Unit
 open import Data.Bool
 open import Function
@@ -110,21 +110,21 @@ sem (`ifte b l r)  ρ = ifte^βιξη (sem b ρ) (sem l ρ) (sem r ρ)
 \begin{code}
 record Semantics (𝓔 𝓜 : Con → ty → Set) : Set where
   field 
-\end{code}
+\end{code}\vspace{-2em}
 \uncover<2->{
 \begin{code}
     wk      :  {Γ Δ : Con} {σ : ty} → Γ ⊆ Δ → 𝓔 Γ σ → 𝓔 Δ σ
     embed   :  {Γ : Con} → ∀ σ → σ ∈ Γ → 𝓔 Γ σ
     ⟦var⟧   :  {Γ : Con} {σ : ty} → 𝓔 Γ σ → 𝓜 Γ σ
-\end{code}}
+\end{code}}\vspace{-2em}
 \uncover<3->{
 \begin{code}
     ⟦λ⟧     :  {Γ : Con} {σ τ : ty} → (t : ∀ Δ → Γ ⊆ Δ → 𝓔 Δ σ → 𝓜 Δ τ) → 𝓜 Γ (σ `→ τ)
-\end{code}}
+\end{code}}\vspace{-2em}
 \uncover<4->{
 \begin{code}
     _⟦$⟧_   :  {Γ : Con} {σ τ : ty} → 𝓜 Γ (σ `→ τ) → 𝓜 Γ σ → 𝓜 Γ τ
-\end{code}}
+\end{code}}\vspace{-2em}
 \uncover<5->{
 \begin{code}
     ⟦⟨⟩⟧    :  {Γ : Con} → 𝓜 Γ `Unit
@@ -149,3 +149,33 @@ Substitution = syntactic syntacticSubstitution
 Printing = models.Printing
 Normalise^βιξη = models.Normalise^βιξη
 \end{code}
+
+%<*synchronisable>
+\begin{code}
+record Synchronisable {𝓔^A 𝓔^B 𝓜^A 𝓜^B : (Γ : Con) (σ : ty) → Set}
+  (𝓢^A : models.Semantics 𝓔^A 𝓜^A) (𝓢^B : models.Semantics 𝓔^B 𝓜^B)
+  (𝓔^R  : {Γ : Con} {σ : ty} → 𝓔^A Γ σ → 𝓔^B Γ σ → Set)
+  (𝓜^R  : {Γ : Con} {σ : ty} → 𝓜^A Γ σ → 𝓜^B Γ σ → Set) : Set where
+\end{code}
+\AgdaHide{
+\begin{code}
+  module 𝓢^A = models.Semantics 𝓢^A
+  module 𝓢^B = models.Semantics 𝓢^B
+  field
+\end{code}}\vspace{-2em}
+\uncover<2->{
+\begin{code}
+    𝓔^R‿wk  :  {Γ Δ Θ : Con} (inc : Δ ⊆ Θ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : `∀[ 𝓔^A , 𝓔^B ] 𝓔^R {Γ} {Δ} ρ^A ρ^B) →
+               `∀[ 𝓔^A , 𝓔^B ] 𝓔^R (wk[ 𝓢^A.wk ] inc ρ^A) (wk[ 𝓢^B.wk ] inc ρ^B)
+\end{code}}\vspace{-2em}
+\uncover<3->{
+\begin{code}
+    R⟦var⟧    :  {Γ Δ : Con} {σ : ty} (v : σ ∈ Γ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : `∀[ 𝓔^A , 𝓔^B ] 𝓔^R ρ^A ρ^B) →
+                 𝓜^R (𝓢^A.⟦var⟧ (ρ^A σ v)) (𝓢^B.⟦var⟧ (ρ^B σ v))
+\end{code}}\vspace{-2em}
+\uncover<4->{
+\begin{code}
+    R⟦λ⟧ :  {Γ : Con} {σ τ : ty} {f^A : {Δ : Con} → Γ ⊆ Δ → 𝓔^A Δ σ → 𝓜^A Δ τ} → {f^B : {Δ : Con} → Γ ⊆ Δ → 𝓔^B Δ σ → 𝓜^B Δ τ} → (f^R : {Δ : Con} (pr : Γ ⊆ Δ) {u^A : 𝓔^A Δ σ} {u^B : 𝓔^B Δ σ} (u^R : 𝓔^R u^A u^B) → 𝓜^R (f^A pr u^A) (f^B pr u^B))
+            → 𝓜^R (𝓢^A.⟦λ⟧ f^A) (𝓢^B.⟦λ⟧ f^B)
+\end{code}}
+%</synchronisable>

@@ -20,6 +20,22 @@
     \titlepage
   \end{frame}
 
+  \begin{frame}\frametitle{Motivations}
+    \begin{itemize}
+      \item Formally studying PLs
+      \begin{itemize}
+        \item Representation of Terms / Typing derivations
+        \item With good properties: closed under renaming and substitution, normalising
+        \item Themselves with good properties
+      \end{itemize}
+      \item Writing DSLs
+      \begin{itemize}
+        \item Strong guarantees (type, scope safety)
+        \item With ASTs we can inspect (optimise, compile)
+      \end{itemize}  
+    \end{itemize}
+  \end{frame}
+  
   \begin{frame}\frametitle{Simple Types}
     Minimal system: A record type, a sum type and function spaces.
 
@@ -54,20 +70,23 @@
 
   \begin{frame}\frametitle{Is that it? Not quite.}
     \begin{itemize}
-      \item Properties of these traversals? (4 fusion lemmas)
       \item Other interesting instance?
+      \item Properties of these traversals? (4 fusion lemmas)
+      \item What if I don't program in Agda?
+      \item Generic boilerplate for all syntaxes with binding?
     \end{itemize}
   \end{frame}
 
   \begin{frame}\frametitle{Normalisation by Evaluation's ``eval''}
-    \ExecuteMetaData[usual.tex]{sem}
+    \only<1>{\ExecuteMetaData[usual.tex]{sem}}\unskip
+    \only<2>{\ExecuteMetaData[usual.tex]{subst}}\unskip
   \end{frame}
 
   \begin{frame}\frametitle{An Abstract Notion of Semantics}
     \ExecuteMetaData[usual.tex]{semantics}
   \end{frame}
 
-  \begin{frame}\frametitle{An Abstract Notion of Semantics}
+  \begin{frame}\frametitle{And a Fundamental Lemma}
     \ExecuteMetaData[models.tex]{evaluation}
   \end{frame}
 
@@ -75,10 +94,48 @@
     \ExecuteMetaData[usual.tex]{semexamples}
   \end{frame}
 
-
-  \begin{frame}{Interesting open questions}
+  \begin{frame}\frametitle{Is that it? Not quite.}
     \begin{itemize}
-      \item Generic representation of syntax with binding
+      \item \textcolor{gray}{Other interesting instance?}
+      \item Properties of these traversals? (4 fusion lemmas)
+      \item What if I don't program in Agda?
+      \item Generic boilerplate for all syntaxes with binding?
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}{A Relational Interpretation}
+    \ExecuteMetaData[usual.tex]{synchronisable}
+  \end{frame}
+
+  \begin{frame}{And a Fundamental Lemma}
+    \ExecuteMetaData[models.tex]{relational}
+  \end{frame}
+
+  \begin{frame}{An interesting corollary}
+    \ExecuteMetaData[models.tex]{synchroexample}
+    \ExecuteMetaData[models.tex]{synchroexample2}
+  \end{frame}
+  
+  \begin{frame}{Is that it? Not quite.}
+    \begin{itemize}
+      \item \textcolor{gray}{Other interesting instance?}
+      \item \textcolor{gray}{Properties of these traversals? (4 fusion lemmas)}
+      \item What if I don't program in Agda?
+      \item Generic boilerplate for all syntaxes with binding?
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}{Using this somewhere else}
+    The programming part of this talk can be implemented in Haskell:
+    {\small\url{https://github.com/gallais/type-scope-semantics/}}
+  \end{frame}
+
+  \begin{frame}{Is that it? Not quite.}
+    \begin{itemize}
+      \item \textcolor{gray}{Other interesting instance?}
+      \item \textcolor{gray}{Properties of these traversals? (4 fusion lemmas)}
+      \item \textcolor{gray}{What if I don't program in Agda?}
+      \item Generic boilerplate for all syntaxes with binding?
     \end{itemize}
   \end{frame}
 

@@ -14,7 +14,7 @@ paper: prepare
 
 auxiliary:
 	agda -i . -i ~/languages/agda/libs/agda-stdlib/src/ -i ~/projects/potpourri/agda --latex $(AUXILIARY).lagda
-	sed -f rulesUsual.sed -i latex/$(AUXILIARY).tex
+	sed -f rulesUsual.sed -f rules.sed -f rules2.sed -i latex/$(AUXILIARY).tex
 
 slides: prepare auxiliary
 	cd latex && sed -f rules.sed -f rules2.sed -i $(SLIDES).tex -i $(AUXILIARY).tex $(PAPER).tex && \

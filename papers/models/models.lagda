@@ -1515,7 +1515,9 @@ infer \AR{𝓔^A}, \AR{𝓔^B} and \AR{𝓔^R}.
 
 module Synchronised {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {𝓔^A : (Γ : Con) (σ : ty) → Set ℓ^EA} {𝓜^A : (Γ : Con) (σ : ty) → Set ℓ^MA} {𝓢^A : Semantics 𝓔^A 𝓜^A} {𝓔^B : (Γ : Con) (σ : ty) → Set ℓ^EB} {𝓜^B : (Γ : Con) (σ : ty) → Set ℓ^MB} {𝓢^B : Semantics 𝓔^B 𝓜^B} {ℓ^RE ℓ^RM : Level} {𝓔^R : {Γ : Con} {σ : ty} (u^A : 𝓔^A Γ σ) (u^B : 𝓔^B Γ σ) → Set ℓ^RE} {𝓜^R : {Γ : Con} {σ : ty} (mA : 𝓜^A Γ σ) (mB : 𝓜^B Γ σ) → Set ℓ^RM} (𝓡 : Synchronisable 𝓢^A 𝓢^B 𝓔^R 𝓜^R) where
   open Synchronisable 𝓡
-
+\end{code}\vspace{-2.5em}
+%<*relational>
+\begin{code}
   lemma :  {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρ^A : Δ [ 𝓔^A ] Γ} {ρ^B : Δ [ 𝓔^B ] Γ} (ρ^R : `∀[ 𝓔^A , 𝓔^B ] 𝓔^R ρ^A ρ^B) →
            𝓜^R (𝓢^A ⊨⟦ t ⟧ ρ^A) (𝓢^B ⊨⟦ t ⟧ ρ^B)
   lemma (`var v)       ρ^R = R⟦var⟧ v ρ^R
@@ -1526,6 +1528,7 @@ module Synchronised {ℓ^EA ℓ^MA ℓ^EB ℓ^MB : Level} {𝓔^A : (Γ : Con) (
   lemma `ff            ρ^R = R⟦ff⟧
   lemma (`ifte b l r)  ρ^R = R⟦ifte⟧ (lemma b ρ^R) (lemma l ρ^R) (lemma r ρ^R)
 \end{code}
+%</relational>
 
 \paragraph{Examples of Synchronisable Semantics}
 
@@ -1668,10 +1671,12 @@ And that's enough to prove that evaluating a term in two
 environments related in a pointwise manner by \AF{EQREL}
 yields two semantic objects themselves related by \AF{EQREL}.
 
+%<*synchroexample>
 \begin{code}
 SynchronisableNormalise :  Synchronisable Normalise^βιξη Normalise^βιξη
                            (EQREL _ _) (EQREL _ _)
 \end{code}
+%</synchroexample>
 \AgdaHide{
 \begin{code}
 SynchronisableNormalise =
@@ -1690,11 +1695,13 @@ We omit the details of the easy proof but still recall the type
 of the corollary of the fundamental lemma one obtains in this
 case:
 
+%<*synchroexample2>
 \begin{code}
-refl^βιξη :  {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρ^A ρ^B : Δ [ _⊨^βιξη_ ] Γ} (ρ^R : (σ : ty) (pr : σ ∈ Γ) → EQREL Δ σ (ρ^A σ pr) (ρ^B σ pr)) →
+refl^βιξη :  {Γ Δ : Con} {σ : ty} (t : Γ ⊢ σ) {ρ^A ρ^B : Δ [ _⊨^βιξη_ ] Γ} (ρ^R : `∀[ _⊨^βιξη_ , _ ] (EQREL _ _) ρ^A ρ^B) →
              EQREL Δ σ (Normalise^βιξη ⊨⟦ t ⟧ ρ^A) (Normalise^βιξη ⊨⟦ t ⟧ ρ^B)
 refl^βιξη t ρ^R = lemma t ρ^R where open Synchronised SynchronisableNormalise
 \end{code}
+%</synchroexample2>
 
 
 We can now move on to the more complex example of a proof
