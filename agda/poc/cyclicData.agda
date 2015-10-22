@@ -116,6 +116,39 @@ fmap (rec d)   f (x , dx) = f x , fmap d f dx
 fmap ret       f dx       = dx
 fmap (arg A d) f (a , dx) = a , fmap (d a) f dx
 
+All : {X : Set} (P : X → Set) (d : Desc) (v : ⟦ d ⟧ X) → Set
+All P (rec d)   (r , v) = P r × All P d v
+All P ret       v       = ⊤
+All P (arg A d) (a , v) = All P (d a) v
+
+mutual
+
+  induction : {d : Desc} (P : μ d → Set) (ih : (v : ⟦ d ⟧ (μ d)) → All P d v → P ⟨ v ⟩) →
+              (v : μ d) → P v
+  induction {d} P ih ⟨ v ⟩ = ih v (induction-aux P ih d v)
+
+  induction-aux : {d : Desc} (P : μ d → Set) (ih : (v : ⟦ d ⟧ (μ d)) → All P d v → P ⟨ v ⟩) →
+                  (e : Desc) (v : ⟦ e ⟧ (μ d)) → All P e v
+  induction-aux P ih (rec e)   (r , v) = induction P ih r , induction-aux P ih e v
+  induction-aux P ih ret       v       = tt
+  induction-aux P ih (arg A e) (a , v) = induction-aux P ih (e a) v
+
+import Data.Vec as Vec
+
+mutual
+
+  cfold : {d : Desc} {B : Set} (ih : ⟦ d ⟧ B → B) (fix : (B → ⟦ d ⟧ B) → B)
+          {n : ℕ} (ρ : Vec.Vec B n) (v : μ′ d n) → B
+  cfold {d} ih fix ρ fix⟨ v ⟩ = fix (λ b → cfold-aux ih fix (b Vec.∷ ρ) d v)
+  cfold {d} ih fix ρ ⟨ v ⟩    = ih (cfold-aux ih fix ρ d v)
+  cfold {d} ih fix ρ (var k)  = Vec.lookup k ρ
+  
+  cfold-aux : {B : Set} {d : Desc} (ih : ⟦ d ⟧ B → B) (fix : (B → ⟦ d ⟧ B) → B)
+              {n : ℕ} (ρ : Vec.Vec B n) (e : Desc) (v : ⟦ e ⟧′ (μ′ d) n) → ⟦ e ⟧ B
+  cfold-aux ih fix ρ (rec e)   (r , v) = cfold ih fix ρ r , cfold-aux ih fix ρ e v
+  cfold-aux ih fix ρ ret       v       = tt
+  cfold-aux ih fix ρ (arg A e) (a , v) = a , cfold-aux ih fix ρ (e a) v
+
 unfold : (d : Desc) {S : Set} {i : Size} (n : S → ⟦ d ⟧ S) (s : S) → ν d i
 ν.force (unfold d n s) = fmap d (unfold d n) (n s)
 
@@ -170,7 +203,19 @@ private
   zeros : {i : Size} → colist ℕ i
   zeros = pure _ $ false , 0 , tt , tt
 
-  -- Finally, we conclude with a proof that unfolding `czeros` leads
+  open import Data.String
+  open import Data.Nat.Show as Nat
+
+  print : clist ℕ → String
+  print = cfold alg (λ r → "rec X. " ++ alg (r "X")) Vec.[]
+    where alg : ⟦ listD ℕ ⟧ String → String
+          alg (true  , _)          = "[]"
+          alg (false , n , ns , _) = Nat.show n ++ " ∷ " ++ ns
+
+  test : print czeros ≡ "rec X. 0 ∷ X"
+  test = refl
+
+  -- Finally, e conclude with a proof that unfolding `czeros` leads
   -- to an infinite colist of 0s.
 
   equality : [ ∞ ] unroll czeros ~ zeros
