@@ -42,10 +42,13 @@ open _=[_]=>_
 _⊆_ : (m n : ℕ) → Set
 m ⊆ n = m =[ Fin ]=> n
 
+Weakening : (X : ℕ → Set) → Set
+Weakening X = {m n : ℕ} → m ⊆ n → X m → X n
+
 eps : {n : ℕ} {E : ℕ → Set} → 0 =[ E ]=> n
 lookup eps ()
 
-_∙_ : {n m : ℕ} {E : ℕ → Set} (ρ : m =[ E ]=> n) (u : E n) →  suc m =[ E ]=> n
+_∙_ : {n m : ℕ} {E : ℕ → Set} → m =[ E ]=> n → E n →  suc m =[ E ]=> n
 lookup (ρ ∙ u) = λ k → case k of λ { zero → u; (suc k) → lookup ρ k }
 
 refl : {n : ℕ} → n ⊆ n
@@ -63,17 +66,20 @@ pop! ρ = step ρ ∙ zero
 extend : {m : ℕ} → m ⊆ suc m
 extend = step refl
 
+Kripke : (E M : ℕ → Set) (n : ℕ) → Set
+Kripke E M n = {m : ℕ} → n ⊆ m → E m → M m
+
 record Semantics (E MC MI : ℕ → Set) : Set where
   field
     -- Environment:
-    ⟦wk⟧  : {n m : ℕ} (inc : n =[ Fin ]=> m) → E n → E m
+    ⟦wk⟧  : {n m : ℕ} → n =[ Fin ]=> m → E n → E m
     ⟦new⟧ : E 1
     -- Check:
-    ⟦sig⟧ : {n : ℕ} (a : MC n) (b : {m : ℕ} (inc : n =[ Fin ]=> m) (e : E m) → MC m) → MC n
-    ⟦pi⟧  : {n : ℕ} (a : MC n) (b : {m : ℕ} (inc : n =[ Fin ]=> m) (e : E m) → MC m) → MC n
+    ⟦sig⟧ : {n : ℕ} (a : MC n) (b : Kripke E MC n) → MC n
+    ⟦pi⟧  : {n : ℕ} (a : MC n) (b : Kripke E MC n) → MC n
     ⟦nat⟧ : {n : ℕ} → MC n
     ⟦set⟧ : {n : ℕ} → MC n
-    ⟦lam⟧ : {n : ℕ} (t : {m : ℕ} (inc : n =[ Fin ]=> m) (e : E m) → MC m) → MC n
+    ⟦lam⟧ : {n : ℕ} (t : Kripke E MC n) → MC n
     ⟦per⟧ : {n : ℕ} (a b : MC n) → MC n
     ⟦zro⟧ : {n : ℕ} → MC n
     ⟦suc⟧ : {n : ℕ} (m : MC n) → MC n
@@ -89,7 +95,7 @@ record Semantics (E MC MI : ℕ → Set) : Set where
   fresh : {n : ℕ} → E (suc n)
   fresh = ⟦wk⟧ (eps ∙ zero) ⟦new⟧
 
-  weakE : {n m p : ℕ} (inc : n =[ Fin ]=> p) (ρ : m =[ E ]=> n) → m =[ E ]=> p
+  weakE : {m : ℕ} → Weakening $ m =[ E ]=>_
   lookup (weakE inc ρ) k = ⟦wk⟧ inc $ lookup ρ k
 
   diag : {n : ℕ} → n =[ E ]=> n
@@ -100,8 +106,8 @@ module Eval {E MC MI : ℕ → Set} (Sem : Semantics E MC MI) where
 
   open Semantics Sem
 
-  lemmaC : {m n : ℕ} (c : Check m) (ρ : m =[ E ]=> n) → MC n
-  lemmaI : {m n : ℕ} (i : Infer m) (ρ : m =[ E ]=> n) → MI n
+  lemmaC : {m n : ℕ} → Check m → m =[ E ]=> n → MC n
+  lemmaI : {m n : ℕ} → Infer m → m =[ E ]=> n → MI n
 
   lemmaC (`sig a b) ρ = ⟦sig⟧ (lemmaC a ρ) $ λ inc u → lemmaC b $ weakE inc ρ ∙ u 
   lemmaC (`pi a b)  ρ = ⟦pi⟧ (lemmaC a ρ)  $ λ inc u → lemmaC b $ weakE inc ρ ∙ u
@@ -123,10 +129,10 @@ module Eval {E MC MI : ℕ → Set} (Sem : Semantics E MC MI) where
   _⊨⟦_⟧C_ = lemmaC
   _⊨⟦_⟧I_ = lemmaI
 
-  _⊨_⟨_/0⟩C : {n : ℕ} (b : Check (suc n)) (u : E n) → MC n
+  _⊨_⟨_/0⟩C : {n : ℕ} → Check (suc n) → E n → MC n
   _⊨_⟨_/0⟩C b u = lemmaC b (diag ∙ u)
 
-  _⊨_⟨_/0⟩I : {n : ℕ} (b : Infer (suc n)) (u : E n) → MI n
+  _⊨_⟨_/0⟩I : {n : ℕ} → Infer (suc n) → E n → MI n
   _⊨_⟨_/0⟩I b u = lemmaI b (diag ∙ u)
 
 open Eval hiding (lemmaC ; lemmaI)
@@ -151,10 +157,10 @@ Renaming = record
   ; ⟦snd⟧ = `snd
   ; ⟦ind⟧ = `ind }
 
-weakI : {m n : ℕ} (inc : m ⊆ n) (t : Infer m) → Infer n
+weakI : Weakening Infer
 weakI = flip $ Renaming ⊨⟦_⟧I_
 
-weakC : {m n : ℕ} (inc : m ⊆ n) (t : Check m) → Check n
+weakC : Weakening Check
 weakC = flip $ Renaming ⊨⟦_⟧C_
 
 _`→_ : {n : ℕ} (a b : Check n) → Check n
@@ -180,17 +186,11 @@ Substitution = record
   ; ⟦snd⟧ = `snd
   ; ⟦ind⟧ = `ind }
 
-substI : {m n : ℕ} (t : Infer m) (ρ : m =[ Infer ]=> n) → Infer n
+substI : {m n : ℕ} → Infer m → m =[ Infer ]=> n → Infer n
 substI = Substitution ⊨⟦_⟧I_
 
-substC : {m n : ℕ} (t : Check m) (ρ : m =[ Infer ]=> n) → Check n
+substC : {m n : ℕ} → Check m → m =[ Infer ]=> n → Check n
 substC = Substitution ⊨⟦_⟧C_
-
-_⟨_/0⟩I : {n : ℕ} (b : Infer (suc n)) (u : Infer n) → Infer n
-b ⟨ u /0⟩I = substI b (diag ∙ u) where open Semantics Substitution
-
-_⟨_/0⟩C : {n : ℕ} (b : Check (suc n)) (u : Infer n) → Check n
-b ⟨ u /0⟩C = substC b (diag ∙ u) where open Semantics Substitution
 
 ReduceABit : Semantics Infer Check Infer
 ReduceABit = record
