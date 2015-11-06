@@ -1,8 +1,9 @@
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --copatterns          #-}
+{-# OPTIONS --no-positivity-check #-}
 
 module tt2 where
 
-open import Data.Nat
+open import Data.Nat as ℕ
 open import Data.Fin
 open import Data.Product
 open import Function
@@ -17,16 +18,13 @@ record Domain : Set₁ where
     Abs : ℕ → Set
 open Domain
 
-_⇒_ : (X Y : ℕ → Set) → Set
-X ⇒ Y = {n : ℕ} → X n → Y n
-
-record _⇒D_ (S T : Domain) : Set where
+record [_]_⇒[_]_ (S : Domain) (m : ℕ) (T : Domain) (n : ℕ) : Set where
   field
-    fVar : Var S ⇒ Var T
-    fChk : Chk S ⇒ Chk T
-    fInf : Inf S ⇒ Inf T
-    fAbs : Abs S ⇒ Abs T
-open _⇒D_
+    fVar : Var S m → Var T n
+    fChk : Chk S m → Chk T n
+    fInf : Inf S m → Inf T n
+    fAbs : Abs S m → Abs T n
+open [_]_⇒[_]_
 
 data CheckF (S : Domain) (n : ℕ) : Set where
   -- types
@@ -53,7 +51,7 @@ data InferF (S : Domain) (n : ℕ) : Set where
   `snd : (t : Inf S n)                   → InferF S n 
   `ind : (p z s : Chk S n) (m : Inf S n) → InferF S n
 
-fmap-CheckF : {S T : Domain} → S ⇒D T → CheckF S ⇒ CheckF T
+fmap-CheckF : {S T : Domain} {m n : ℕ} → [ S ] m ⇒[ T ] n → CheckF S m → CheckF T n
 fmap-CheckF f (`sig A B) = `sig (fChk f A) (fAbs f B)
 fmap-CheckF f (`pi A B)  = `pi (fChk f A) (fAbs f B)
 fmap-CheckF f `nat       = `nat
@@ -64,7 +62,7 @@ fmap-CheckF f `zro       = `zro
 fmap-CheckF f (`suc m)   = `suc (fChk f m)
 fmap-CheckF f (`emb e)   = `emb (fInf f e)
 
-fmap-InferF : {S T : Domain} → S ⇒D T → InferF S ⇒ InferF T
+fmap-InferF : {S T : Domain} {m n : ℕ} → [ S ] m ⇒[ T ] n → InferF S m → InferF T n
 fmap-InferF f (`var k)       = `var (fVar f k)
 fmap-InferF f (`ann t A)     = `ann (fChk f t) (fChk f A)
 fmap-InferF f (`app t u)     = `app (fInf f t) (fChk f u)
@@ -87,6 +85,11 @@ mutual
   data Infer (n : ℕ) : Set where
     mkInfer : InferF language n → Infer n
 
+check : {n : ℕ} → Check n → CheckF language n
+check (mkCheck t) = t
+
+infer : {n : ℕ} → Infer n → InferF language n
+infer (mkInfer t) = t
 
 record Semantics (E MC MI : ℕ → Set) : Set where
 
@@ -128,11 +131,11 @@ module Eval {E MC MI : ℕ → Set} (Sem : Semantics E MC MI) where
   lemma-Check (mkCheck t) ρ = lemma-CheckF t ρ
   lemma-Infer (mkInfer t) ρ = lemma-InferF t ρ
   
-  lemma-CheckF (`sig a b) ρ = ⟦check⟧ $ `sig (lemma-Check a ρ) (λ ren u → lemma-Check b (weakE ren ρ ∙ u))
-  lemma-CheckF (`pi a b)  ρ = ⟦check⟧ $ `pi  (lemma-Check a ρ) (λ ren u → lemma-Check b (weakE ren ρ ∙ u))
+  lemma-CheckF (`sig a b) ρ = ⟦check⟧ $ `sig (lemma-Check a ρ) (λ m ren u → lemma-Check b (weakE ren ρ ∙ u))
+  lemma-CheckF (`pi a b)  ρ = ⟦check⟧ $ `pi  (lemma-Check a ρ) (λ m ren u → lemma-Check b (weakE ren ρ ∙ u))
   lemma-CheckF `nat       ρ = ⟦check⟧ `nat
   lemma-CheckF `set       ρ = ⟦check⟧ `set
-  lemma-CheckF (`lam b)   ρ = ⟦check⟧ $ `lam (λ ren u → lemma-Check b (weakE ren ρ ∙ u))
+  lemma-CheckF (`lam b)   ρ = ⟦check⟧ $ `lam (λ m ren u → lemma-Check b (weakE ren ρ ∙ u))
   lemma-CheckF (`per a b) ρ = ⟦check⟧ $ `per (lemma-Check a ρ) $ lemma-Check b ρ
   lemma-CheckF `zro       ρ = ⟦check⟧ `zro
   lemma-CheckF (`suc m)   ρ = ⟦check⟧ $ `suc $ lemma-Check m ρ
@@ -148,6 +151,9 @@ module Eval {E MC MI : ℕ → Set} (Sem : Semantics E MC MI) where
 
   _⊨⟦_⟧C_ = lemma-Check
   _⊨⟦_⟧I_ = lemma-Infer
+
+  _⊨evalC_ = λ {n} c → lemma-Check {n} c diag
+  _⊨evalI_ = λ {n} i → lemma-Infer {n} i diag
 
   _⊨_⟨_/0⟩C : {n : ℕ} → Check (suc n) → E n → MC n
   _⊨_⟨_/0⟩C b u = lemma-Check b (diag ∙ u)
@@ -166,9 +172,9 @@ Renaming = record
 
   where
   
-    reify : record language { Abs = Kripke Fin Check } ⇒D language
+    reify : {n : ℕ} → [ record language { Abs = Kripke Fin Check } ] n ⇒[ language ] n
     reify = record { fVar = id; fChk = id; fInf = id
-                   ; fAbs = λ t → t (step refl) zero }
+                   ; fAbs = λ t → t _ (step refl) zero }
 weakI : Weakening Infer
 weakI = flip $ Renaming ⊨⟦_⟧I_
 
@@ -182,76 +188,281 @@ Substitution : Semantics Infer Check Infer
 Substitution = record
   { ⟦wk⟧    = weakI
   ; ⟦new⟧   = mkInfer $ `var zero
-  ; ⟦check⟧ = {!!}
-  ; ⟦infer⟧ = {!!} }
+  ; ⟦check⟧ = mkCheck ∘ λ
+                { (`sig A B)  → `sig A (abs B)
+                ; (`pi A B)   → `pi  A (abs B)
+                ; `nat        → `nat
+                ; `set        → `set
+                ; (`lam b)    → `lam (abs b)
+                ; (`per a b)  → `per a b
+                ; `zro        → `zro
+                ; (`suc m)    → `suc m
+                ; (`emb e)    → `emb e }
+  ; ⟦infer⟧ = mkInfer ∘ λ
+                { (`var k)        → infer k
+                ; (`ann t A)      → `ann t A
+                ; (`app t u)      → `app t u
+                ; (`fst t)        → `fst t
+                ; (`snd t)        → `snd t
+                ; (`ind p z s m)  → `ind p z s m }
+
+  } where
+
+  var₀ : {n : ℕ} → Infer (suc n)
+  var₀ = mkInfer $ `var zero
+
+  abs : {n : ℕ} → Kripke Infer Check n → Check (suc n)
+  abs t = t _ extend var₀
 
 
-
-{-
-record
-  { ⟦wk⟧  = weakI
-  ; ⟦new⟧ = `var zero
-  ; ⟦sig⟧ = λ a b → `sig a $ b extend (`var zero)
-  ; ⟦pi⟧  = λ a b → `pi  a $ b extend (`var zero)
-  ; ⟦nat⟧ = `nat
-  ; ⟦set⟧ = `set
-  ; ⟦lam⟧ = λ b   → `lam   $ b extend (`var zero)
-  ; ⟦per⟧ = `per
-  ; ⟦zro⟧ = `zro
-  ; ⟦suc⟧ = `suc
-  ; ⟦emb⟧ = `emb
-  ; ⟦var⟧ = id
-  ; ⟦ann⟧ = `ann
-  ; ⟦app⟧ = `app
-  ; ⟦fst⟧ = `fst
-  ; ⟦snd⟧ = `snd
-  ; ⟦ind⟧ = `ind }
-
-substI : {m n : ℕ} → InferF m → m =[ InferF ]=> n → InferF n
+substI : {m n : ℕ} → Infer m → Var m =>[ Infer ] n → Infer n
 substI = Substitution ⊨⟦_⟧I_
 
-substC : {m n : ℕ} → CheckF m → m =[ InferF ]=> n → CheckF n
+substC : {m n : ℕ} → Check m → Var m =>[ Infer ] n → Check n
 substC = Substitution ⊨⟦_⟧C_
 
-ReduceABit : Semantics InferF CheckF InferF
-ReduceABit = record
-  { ⟦wk⟧  = weakI
-  ; ⟦new⟧ = `var zero
-  ; ⟦sig⟧ = λ a b → `sig a $ b extend (`var zero)
-  ; ⟦pi⟧  = λ a b → `pi  a $ b extend (`var zero)
-  ; ⟦nat⟧ = `nat
-  ; ⟦set⟧ = `set
-  ; ⟦lam⟧ = λ b   → `lam   $ b extend (`var zero)
-  ; ⟦per⟧ = `per
-  ; ⟦zro⟧ = `zro
-  ; ⟦suc⟧ = `suc
-  ; ⟦emb⟧ = emb
-  ; ⟦var⟧ = id
-  ; ⟦ann⟧ = ann
-  ; ⟦app⟧ = app
-  ; ⟦fst⟧ = `fst
-  ; ⟦snd⟧ = `snd
-  ; ⟦ind⟧ = ind } where
+mutual
 
-  ann : {n : ℕ} (t A : CheckF n) → InferF n
-  ann (`emb e) A = e
-  ann t        A = `ann t A
-  
-  app : {n : ℕ} (i : InferF n) (t : CheckF n) → InferF n
-  app (`ann (`lam t) (`pi a b)) u = Substitution ⊨ ann t b ⟨ ann u a /0⟩I
-  app i                         u = `app i u
-  
-  emb : {n : ℕ} (i : InferF n) → CheckF n
-  emb (`ann t A) = t
-  emb i          = `emb i
+  data Model (n : ℕ) : Set where
+    Error :                  Model n
+    Stuck : InferF model n → Model n
+    Value : CheckF model n → Model n
 
-  ind : {n : ℕ} (p z s : CheckF n) (m : InferF n) → InferF n
-  ind p z s (`ann `zro     A) = ann z (emb $ app (ann p (`pi `nat `set)) z)
-  ind p z s (`ann (`suc n) A) =
-    let annP   = ann p $ `pi `nat `set
-        wkAnnP = weakI extend annP
-        var0   = emb $ `var zero
-        typS   = `pi `nat $ emb (app wkAnnP var0) `→ emb (app wkAnnP $ `suc var0)
-    in app (app (ann s typS) n) $ emb $ ind p z s (`ann n `nat)
-  ind p z s i = `ind p z s i
--}
+  model : Domain
+  model = record
+    { Var = Fin
+    ; Chk = Model
+    ; Inf = Model
+    ; Abs = Kripke Model Model }
+
+mutual
+
+  {-# TERMINATING #-}
+  weakM : Weakening Model
+  weakM ren Error       = Error
+  weakM ren (Stuck ne)  = Stuck (fmap-InferF (weakM′ ren) ne)
+  weakM ren (Value nf)  = Value (fmap-CheckF (weakM′ ren) nf)
+
+  weakM′ : {m n : ℕ} → m ⊆ n → [ model ] m ⇒[ model ] n
+  weakM′ ren = record
+    { fVar = lookup ren
+    ; fChk = weakM ren
+    ; fInf = weakM ren
+    ; fAbs = λ t p ren′ → t p (trans ren ren′) }
+
+Normalisation : Semantics Model Model Model
+Normalisation = record
+  { ⟦wk⟧    = weakM
+  ; ⟦new⟧   = Stuck (`var zero)
+  ; ⟦check⟧ = λ { (`sig A B)  → ⟦sig⟧ A B
+                ; (`pi A B)   → ⟦pi⟧ A B
+                ; `nat        → Value `nat
+                ; `set        → Value `set
+                ; (`lam b)    → Value $ `lam b
+                ; (`per a b)  → ⟦per⟧ a b
+                ; `zro        → Value `zro
+                ; (`suc m)    → ⟦suc⟧ m
+                ; (`emb e)    → ⟦emb⟧ e }
+  ; ⟦infer⟧ = λ { (`var k)        → k
+                ; (`ann t A)      → t
+                ; (`app t u)      → ⟦app⟧ t u
+                ; (`fst t)        → ⟦fst⟧ t
+                ; (`snd t)        → ⟦snd⟧ t
+                ; (`ind p z s m)  → ⟦ind⟧ p z s m } } where
+
+  ⟦sig⟧ : {n : ℕ} → Model n → Kripke Model Model n → Model n
+  ⟦sig⟧ Error  B = Error
+  ⟦sig⟧ A      B = Value $ `sig A B
+  
+  ⟦pi⟧ : {n : ℕ} → Model n → Kripke Model Model n → Model n
+  ⟦pi⟧ Error B = Error
+  ⟦pi⟧ A     B = Value $ `pi A B
+  
+  ⟦per⟧ : {n : ℕ} → Model n → Model n → Model n
+  ⟦per⟧ Error  B      = Error
+  ⟦per⟧ A      Error  = Error
+  ⟦per⟧ A      B      = Value $ `per A B
+  
+  ⟦suc⟧ : {n : ℕ} → Model n → Model n
+  ⟦suc⟧ Error  = Error
+  ⟦suc⟧ m      = Value $ `suc m
+
+  ⟦emb⟧ : {n : ℕ} → Model n → Model n
+  ⟦emb⟧ Error      = Error
+  ⟦emb⟧ (Stuck ne) = Stuck ne
+  ⟦emb⟧ (Value nf) = Value nf
+
+  ⟦app⟧ : {n : ℕ} → Model n → Model n → Model n
+  ⟦app⟧ Error              u = Error
+  ⟦app⟧ (Stuck ne)         u = Stuck (`app (Stuck ne) u)
+  ⟦app⟧ (Value (`pi A B))  u = B _ refl u
+  ⟦app⟧ (Value (`lam b))   u = b _ refl u
+  ⟦app⟧ _ _                  = Error
+
+  ⟦fst⟧ : {n : ℕ} → Model n → Model n
+  ⟦fst⟧ Error               = Error
+  ⟦fst⟧ (Stuck ne)          = Stuck (`fst (Stuck ne))
+  ⟦fst⟧ (Value (`per a b))  = a
+  ⟦fst⟧ _                   = Error
+
+  ⟦snd⟧ : {n : ℕ} → Model n → Model n
+  ⟦snd⟧ Error               = Error
+  ⟦snd⟧ (Stuck ne)          = Stuck (`snd (Stuck ne))
+  ⟦snd⟧ (Value (`per a b))  = b
+  ⟦snd⟧ _                   = Error
+
+  ⟦ind⟧ : {n : ℕ} (p z s m : Model n) → Model n
+  ⟦ind⟧ p z s Error             = Error
+  ⟦ind⟧ p z s (Stuck ne)        = Stuck (`ind p z s (Stuck ne))
+  ⟦ind⟧ p z s (Value `zro)      = z
+  ⟦ind⟧ p z s (Value (`suc m))  = ⟦app⟧ (⟦app⟧ s m) (⟦ind⟧ p z s m)
+  ⟦ind⟧ _ _ _ _                 = Error
+
+import Level
+open import Data.Maybe
+open import Category.Monad
+open RawMonad (monad {Level.zero})
+
+mutual
+
+  reifyIF : {n : ℕ} → Model n → Maybe (InferF language n)
+  reifyIF (Stuck (`var k))       = return $ `var k
+  reifyIF (Stuck (`ann t A))     =  `ann <$> reify t ⊛  reify A
+  reifyIF (Stuck (`app t u))     = `app <$> reifyI t ⊛ reify u
+  reifyIF (Stuck (`fst t))       = `fst <$> reifyI t
+  reifyIF (Stuck (`snd t))       = `snd <$> reifyI t
+  reifyIF (Stuck (`ind p z s m)) = `ind <$> reify p ⊛ reify z ⊛ reify z ⊛ reifyI m
+  reifyIF _                      = nothing
+
+  reifyI : {n : ℕ} → Model n → Maybe (Infer n)
+  reifyI i = mkInfer <$> reifyIF i
+  
+  reifyCF : {n : ℕ} → Model n → Maybe (CheckF language n)
+  reifyCF (Value (`sig A B)) = `sig <$> reify A ⊛ reifyAbs B
+  reifyCF (Value (`pi A B))  = `pi <$> reify A ⊛ reifyAbs B
+  reifyCF (Value `nat)       = return `nat
+  reifyCF (Value `set)       = return `set
+  reifyCF (Value (`lam t))   = `lam <$> reifyAbs t
+  reifyCF (Value (`per a b)) = `per <$> reify a ⊛ reify b
+  reifyCF (Value `zro)       = return `zro
+  reifyCF (Value (`suc m))   = `suc <$> reify m
+  reifyCF (Value (`emb e))   = check <$> reify e
+  reifyCF _                  = nothing
+
+  {-# TERMINATING #-}
+  reifyAbs : {n : ℕ} → Kripke Model Model n → Maybe (Check (suc n))
+  reifyAbs t = reify $ t _ (step refl) (Stuck (`var zero))
+
+  reifyC : {n : ℕ} → Model n → Maybe (Check n)
+  reifyC c = mkCheck <$> reifyCF c
+  
+  reify : {n : ℕ} → Model n → Maybe (Check n)
+  reify Error       = nothing
+  reify (Stuck ne)  = mkCheck ∘ `emb <$> reifyI (Stuck ne)
+  reify (Value nf)  = reifyC (Value nf)
+
+normC : {n : ℕ} → Check n → Maybe (Check n)
+normC = reify ∘ Normalisation ⊨evalC_
+
+neu : {n : ℕ} → Infer n → Check n
+neu ne = mkCheck (`emb ne)
+
+var : (m : ℕ) {n : ℕ} (k : Fin n) → Infer (m ℕ.+ n)
+var m k = mkInfer $ `var (raise m k)
+
+nat : {n : ℕ} → Check n
+nat = mkCheck `nat
+
+zro : {n : ℕ} → Check n
+zro = mkCheck `zro
+
+set : {n : ℕ} → Check n
+set = mkCheck `set
+
+succ : {n : ℕ} → Check n → Check n
+succ = mkCheck ∘ `suc
+
+lam : {n : ℕ} (t : Fin (suc n) → Check (suc n)) → Check n
+lam t = mkCheck $ `lam $ t zero
+
+app : {n : ℕ} → Infer n → Check n → Infer n
+app t u = mkInfer $ `app t u
+
+ann : {n : ℕ} → Check n → Check n → Infer n
+ann t A = mkInfer $ `ann t A
+
+noLam : {n : ℕ} (t : Check n) → Check n
+noLam t = mkCheck $ `lam $ weakC (step refl) t
+
+pi : {n : ℕ} (A : Check n) (B : Fin (suc n) → Check (suc n)) → Check n
+pi A B = mkCheck $ `pi A $ B zero
+
+arr : {n : ℕ} (A B : Check n) → Check n
+arr A B = pi A (λ _ → weakC (step refl) B)
+
+sig : {n : ℕ} (A : Check n) (B : Fin (suc n) → Check (suc n)) → Check n
+sig A B = mkCheck $ `sig A $ B zero
+
+per : {n : ℕ} (a b : Check n) → Check n
+per a b = mkCheck $ `per a b
+
+prd : {n : ℕ} (A B : Check n) → Check n
+prd A B = sig A (λ _ → weakC (step refl) B)
+
+_$′_ : {A B : Set} → (A → B) → A → B
+_$′_ = _$_
+
+embℕ : {n : ℕ} (m : ℕ) → Check n
+embℕ zero    = mkCheck `zro
+embℕ (suc m) = succ (embℕ m)
+
+private
+
+  addTy : {n : ℕ} → Check n
+  addTy = arr nat nat
+
+  add : Check 0
+  add = lam $ λ m →
+        lam $ λ n → neu $ mkInfer
+            $ `ind (noLam nat)
+                   (neu $ var 0 n)
+                   (noLam $ lam $ λ m+n → succ $ neu $ var 0 zero)
+                   (var 1 m)
+
+
+  open import Relation.Binary.PropositionalEquality as PEq
+
+  4+7 : normC (neu $ app (app (ann add addTy) (embℕ 4)) (embℕ 7)) ≡ just (embℕ 11)
+  4+7 = PEq.refl
+
+  vecTy : {n : ℕ} → Check n
+  vecTy = arr set $ arr nat set
+
+  vec : {n : ℕ} → Check n
+  vec = lam $ λ A →
+        lam $ λ n → neu $ mkInfer
+            $ `ind (noLam set)
+                   nat
+                   (noLam $ lam $ λ vecAn → prd (neu $ var 2 A) (neu $ var 0 vecAn))
+                   (var 0 n)
+
+  vecSet3 : normC {0} (neu $ app (app (ann vec vecTy) set) (embℕ 3)) ≡ just (prd set $ prd set $ prd set nat)
+  vecSet3 = PEq.refl
+
+  tabTy : Check 0
+  tabTy = pi set              $ λ A →
+          arr (neu $ var 0 A) $
+          pi nat              $ λ n →
+          neu $ app (app (ann vec vecTy) (neu $ var 1 A)) (neu $ var 0 n)
+
+  tab : Check 0
+  tab = lam $ λ A →
+        lam $ λ a →
+        lam $ λ n → neu $ mkInfer
+            $ `ind (neu $ app (ann vec vecTy) (neu $ var 2 A))
+                   zro
+                   (noLam $ lam $ λ tabn → per (neu $ var 2 a) (neu $ var 0 tabn))
+                   (var 0 n)
+
+  tabℕ3 : normC (neu $ app (app (app (ann tab tab) set) nat) (embℕ 3)) ≡ just (per nat $ per nat $ per nat zro)
+  tabℕ3 = PEq.refl
