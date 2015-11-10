@@ -1,14 +1,13 @@
-{-# OPTIONS --copatterns          #-}
 {-# OPTIONS --no-positivity-check #-}
 
-module tt2 where
+module tt.tt2 where
 
 open import Data.Nat as ℕ
 open import Data.Fin
 open import Data.Product
 open import Function
 
-open import env
+open import tt.env
 
 record Domain : Set₁ where
   field
@@ -131,11 +130,11 @@ module Eval {E MC MI : ℕ → Set} (Sem : Semantics E MC MI) where
   lemma-Check (mkCheck t) ρ = lemma-CheckF t ρ
   lemma-Infer (mkInfer t) ρ = lemma-InferF t ρ
   
-  lemma-CheckF (`sig a b) ρ = ⟦check⟧ $ `sig (lemma-Check a ρ) (λ m ren u → lemma-Check b (weakE ren ρ ∙ u))
-  lemma-CheckF (`pi a b)  ρ = ⟦check⟧ $ `pi  (lemma-Check a ρ) (λ m ren u → lemma-Check b (weakE ren ρ ∙ u))
+  lemma-CheckF (`sig a b) ρ = ⟦check⟧ $ `sig (lemma-Check a ρ) (λ ren u → lemma-Check b (weakE ren ρ ∙ u))
+  lemma-CheckF (`pi a b)  ρ = ⟦check⟧ $ `pi  (lemma-Check a ρ) (λ ren u → lemma-Check b (weakE ren ρ ∙ u))
   lemma-CheckF `nat       ρ = ⟦check⟧ `nat
   lemma-CheckF `set       ρ = ⟦check⟧ `set
-  lemma-CheckF (`lam b)   ρ = ⟦check⟧ $ `lam (λ m ren u → lemma-Check b (weakE ren ρ ∙ u))
+  lemma-CheckF (`lam b)   ρ = ⟦check⟧ $ `lam (λ ren u → lemma-Check b (weakE ren ρ ∙ u))
   lemma-CheckF (`per a b) ρ = ⟦check⟧ $ `per (lemma-Check a ρ) $ lemma-Check b ρ
   lemma-CheckF `zro       ρ = ⟦check⟧ `zro
   lemma-CheckF (`suc m)   ρ = ⟦check⟧ $ `suc $ lemma-Check m ρ
@@ -174,7 +173,7 @@ Renaming = record
   
     reify : {n : ℕ} → [ record language { Abs = Kripke Fin Check } ] n ⇒[ language ] n
     reify = record { fVar = id; fChk = id; fInf = id
-                   ; fAbs = λ t → t _ (step refl) zero }
+                   ; fAbs = λ t → t extend zero }
 weakI : Weakening Infer
 weakI = flip $ Renaming ⊨⟦_⟧I_
 
@@ -189,11 +188,11 @@ Substitution = record
   { ⟦wk⟧    = weakI
   ; ⟦new⟧   = mkInfer $ `var zero
   ; ⟦check⟧ = mkCheck ∘ λ
-                { (`sig A B)  → `sig A (abs B)
-                ; (`pi A B)   → `pi  A (abs B)
+                { (`sig A B)  → `sig A (abs (λ {n} → B {n}))
+                ; (`pi A B)   → `pi  A (abs (λ {n} → B {n}))
                 ; `nat        → `nat
                 ; `set        → `set
-                ; (`lam b)    → `lam (abs b)
+                ; (`lam b)    → `lam (abs (λ {n} → b {n}))
                 ; (`per a b)  → `per a b
                 ; `zro        → `zro
                 ; (`suc m)    → `suc m
@@ -212,7 +211,7 @@ Substitution = record
   var₀ = mkInfer $ `var zero
 
   abs : {n : ℕ} → Kripke Infer Check n → Check (suc n)
-  abs t = t _ extend var₀
+  abs {n} t = t {suc n} extend var₀
 
 
 substI : {m n : ℕ} → Infer m → Var m =>[ Infer ] n → Infer n
@@ -248,7 +247,7 @@ mutual
     { fVar = lookup ren
     ; fChk = weakM ren
     ; fInf = weakM ren
-    ; fAbs = λ t p ren′ → t p (trans ren ren′) }
+    ; fAbs = λ t ren′ → t (trans ren ren′)  }
 
 Normalisation : Semantics Model Model Model
 Normalisation = record
@@ -295,8 +294,8 @@ Normalisation = record
   ⟦app⟧ : {n : ℕ} → Model n → Model n → Model n
   ⟦app⟧ Error              u = Error
   ⟦app⟧ (Stuck ne)         u = Stuck (`app (Stuck ne) u)
-  ⟦app⟧ (Value (`pi A B))  u = B _ refl u
-  ⟦app⟧ (Value (`lam b))   u = b _ refl u
+  ⟦app⟧ (Value (`pi A B))  u = B refl u
+  ⟦app⟧ (Value (`lam b))   u = b refl u
   ⟦app⟧ _ _                  = Error
 
   ⟦fst⟧ : {n : ℕ} → Model n → Model n
@@ -351,7 +350,7 @@ mutual
 
   {-# TERMINATING #-}
   reifyAbs : {n : ℕ} → Kripke Model Model n → Maybe (Check (suc n))
-  reifyAbs t = reify $ t _ (step refl) (Stuck (`var zero))
+  reifyAbs t = reify $ t extend (Stuck (`var zero))
 
   reifyC : {n : ℕ} → Model n → Maybe (Check n)
   reifyC c = mkCheck <$> reifyCF c
@@ -392,13 +391,13 @@ ann : {n : ℕ} → Check n → Check n → Infer n
 ann t A = mkInfer $ `ann t A
 
 noLam : {n : ℕ} (t : Check n) → Check n
-noLam t = mkCheck $ `lam $ weakC (step refl) t
+noLam t = mkCheck $ `lam $ weakC extend t
 
 pi : {n : ℕ} (A : Check n) (B : Fin (suc n) → Check (suc n)) → Check n
 pi A B = mkCheck $ `pi A $ B zero
 
 arr : {n : ℕ} (A B : Check n) → Check n
-arr A B = pi A (λ _ → weakC (step refl) B)
+arr A B = pi A (λ _ → weakC extend B)
 
 sig : {n : ℕ} (A : Check n) (B : Fin (suc n) → Check (suc n)) → Check n
 sig A B = mkCheck $ `sig A $ B zero
@@ -407,7 +406,7 @@ per : {n : ℕ} (a b : Check n) → Check n
 per a b = mkCheck $ `per a b
 
 prd : {n : ℕ} (A B : Check n) → Check n
-prd A B = sig A (λ _ → weakC (step refl) B)
+prd A B = sig A (λ _ → weakC extend B)
 
 _$′_ : {A B : Set} → (A → B) → A → B
 _$′_ = _$_

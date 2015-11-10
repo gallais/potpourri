@@ -1,4 +1,4 @@
-module env where
+module tt.env where
 
 open import Data.Nat
 open import Data.Fin
