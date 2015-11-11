@@ -188,11 +188,11 @@ Substitution = record
   { ⟦wk⟧    = weakI
   ; ⟦new⟧   = mkInfer $ `var zero
   ; ⟦check⟧ = mkCheck ∘ λ
-                { (`sig A B)  → `sig A (abs (λ {n} → B {n}))
-                ; (`pi A B)   → `pi  A (abs (λ {n} → B {n}))
+                { (`sig A B)  → `sig A (abs′ (λ {n} → B {n}))
+                ; (`pi A B)   → `pi  A (abs′ (λ {n} → B {n}))
                 ; `nat        → `nat
                 ; `set        → `set
-                ; (`lam b)    → `lam (abs (λ {n} → b {n}))
+                ; (`lam b)    → `lam (abs′ (λ {n} → b {n}))
                 ; (`per a b)  → `per a b
                 ; `zro        → `zro
                 ; (`suc m)    → `suc m
@@ -210,9 +210,8 @@ Substitution = record
   var₀ : {n : ℕ} → Infer (suc n)
   var₀ = mkInfer $ `var zero
 
-  abs : {n : ℕ} → Kripke Infer Check n → Check (suc n)
-  abs {n} t = t {suc n} extend var₀
-
+  abs′ : {n : ℕ} → Kripke Infer Check n → Check (suc n)
+  abs′ {n} = abs {n = n} (mkInfer $ `var zero)
 
 substI : {m n : ℕ} → Infer m → Var m =>[ Infer ] n → Infer n
 substI = Substitution ⊨⟦_⟧I_
