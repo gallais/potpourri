@@ -37,5 +37,11 @@ extend = step refl
 Weakening : (X : ℕ → Set) → Set
 Weakening X = {m n : ℕ} → m ⊆ n → X m → X n
 
+Substituting : (X Y : ℕ → Set) → Set
+Substituting X Y = {m n : ℕ} → Y m → Var m =>[ X ] n → Y n
+
 Kripke : (E M : ℕ → Set) (n : ℕ) → Set
 Kripke E M n = {m : ℕ} → n ⊆ m → E m → M m
+
+abs : {E M : ℕ → Set} {n : ℕ} → E (suc n) → Kripke E M n → M (suc n)
+abs v k = k extend v
