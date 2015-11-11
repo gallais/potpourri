@@ -7,6 +7,10 @@ open import Function
 open import tt.raw
 open import tt.env
 
+-----------------------------------------------------------
+-- SEMANTICS
+-----------------------------------------------------------
+
 record Semantics (E MC MT MI : ℕ → Set) : Set where
   field
     -- Environment:
@@ -16,8 +20,8 @@ record Semantics (E MC MT MI : ℕ → Set) : Set where
     ⟦El⟧   : {n : ℕ} (A : MC n) → MT n
     ⟦unEl⟧ : {n : ℕ} (A : MT n) → MC n
     -- Check:
-    ⟦sig⟧  : {n : ℕ} (a : MC n) (b : Kripke E MC n) → MC n
-    ⟦pi⟧   : {n : ℕ} (a : MC n) (b : Kripke E MC n) → MC n
+    ⟦sig⟧  : {n : ℕ} (a : MT n) (b : Kripke E MT n) → MT n
+    ⟦pi⟧   : {n : ℕ} (a : MT n) (b : Kripke E MT n) → MT n
     ⟦nat⟧  : {n : ℕ} → MC n
     ⟦set⟧  : {n : ℕ} → ℕ → MC n
     ⟦lam⟧  : {n : ℕ} (t : Kripke E MC n) → MC n
@@ -43,7 +47,7 @@ record Semantics (E MC MT MI : ℕ → Set) : Set where
   diag {0}     = pack $ λ ()
   diag {suc _} = weakE extend diag ∙ fresh
   
-module Eval {E MC MT MI : ℕ → Set} (Sem : Semantics E MC MT MI) where
+module semantics {E MC MT MI : ℕ → Set} (Sem : Semantics E MC MT MI) where
 
   open Semantics Sem
 
@@ -51,8 +55,8 @@ module Eval {E MC MT MI : ℕ → Set} (Sem : Semantics E MC MT MI) where
   lemmaT : {m n : ℕ} → Type m  → Var m =>[ E ] n → MT n
   lemmaI : {m n : ℕ} → Infer m → Var m =>[ E ] n → MI n
 
-  lemmaC (`sig a b) ρ = ⟦sig⟧ (lemmaC a ρ) $ λ inc u → lemmaC b $ weakE inc ρ ∙ u 
-  lemmaC (`pi a b)  ρ = ⟦pi⟧ (lemmaC a ρ)  $ λ inc u → lemmaC b $ weakE inc ρ ∙ u
+  lemmaC (`sig a b) ρ = ⟦unEl⟧ $ ⟦sig⟧ (lemmaT a ρ) $ λ inc u → lemmaT b $ weakE inc ρ ∙ u 
+  lemmaC (`pi a b)  ρ = ⟦unEl⟧ $ ⟦pi⟧ (lemmaT a ρ)  $ λ inc u → lemmaT b $ weakE inc ρ ∙ u
   lemmaC `nat       ρ = ⟦nat⟧
   lemmaC (`set b)   ρ = ⟦set⟧ b
   lemmaC (`lam b)   ρ = ⟦lam⟧ λ inc u → lemmaC b $ weakE inc ρ ∙ u
@@ -83,29 +87,60 @@ module Eval {E MC MT MI : ℕ → Set} (Sem : Semantics E MC MT MI) where
   _⊨_⟨_/0⟩I : {n : ℕ} → Infer (suc n) → E n → MI n
   _⊨_⟨_/0⟩I b u = lemmaI b (diag ∙ u)
 
-open Eval hiding (lemmaC ; lemmaI) public
+open semantics hiding (lemmaC ; lemmaT ; lemmaI) public
+
+
+
+-----------------------------------------------------------
+-- SYNTACTIC SEMANTICS
+-----------------------------------------------------------
+
+record Syntactic (E : ℕ → Set) : Set where
+  field
+    ⟦wk⟧  : Weakening E
+    ⟦new⟧ : E 1
+    ⟦var⟧ : {n : ℕ} → E n → Infer n
+
+  fresh : {n : ℕ} → E (suc n)
+  fresh = ⟦wk⟧ (eps ∙ zero) ⟦new⟧
+
+module syntactic {E : ℕ → Set} (Syn : Syntactic E) where
+
+  open Syntactic Syn
+
+  lemma : Semantics E Check Type Infer
+  lemma = record
+    { ⟦wk⟧   = ⟦wk⟧
+    ; ⟦new⟧  = ⟦new⟧
+    ; ⟦El⟧   = El
+    ; ⟦unEl⟧ = unEl
+    ; ⟦sig⟧  = λ a → sig a ∘ abs fresh
+    ; ⟦pi⟧   = λ a → pi a ∘ abs fresh
+    ; ⟦nat⟧  = `nat
+    ; ⟦set⟧  = `set
+    ; ⟦lam⟧  = `lam ∘ abs fresh
+    ; ⟦per⟧  = `per
+    ; ⟦zro⟧  = `zro
+    ; ⟦suc⟧  = `suc
+    ; ⟦emb⟧  = `emb
+    ; ⟦var⟧  = ⟦var⟧
+    ; ⟦ann⟧  = `ann
+    ; ⟦app⟧  = `app
+    ; ⟦fst⟧  = `fst
+    ; ⟦snd⟧  = `snd
+    ; ⟦ind⟧  = `ind }
+
+
+
+-----------------------------------------------------------
+-- EXAMPLES OF SYNTACTIC SEMANTICS
+-----------------------------------------------------------
 
 Renaming : Semantics Fin Check Type Infer
-Renaming = record
-  { ⟦wk⟧   = lookup
-  ; ⟦new⟧  = zero
-  ; ⟦El⟧   = El
-  ; ⟦unEl⟧ = unEl
-  ; ⟦sig⟧  = λ a b → `sig a $ b extend zero
-  ; ⟦pi⟧   = λ a b → `pi  a $ b extend zero
-  ; ⟦nat⟧  = `nat
-  ; ⟦set⟧  = `set
-  ; ⟦lam⟧  = λ b   → `lam   $ b extend zero
-  ; ⟦per⟧  = `per
-  ; ⟦zro⟧  = `zro
-  ; ⟦suc⟧  = `suc
-  ; ⟦emb⟧  = `emb
-  ; ⟦var⟧  = `var
-  ; ⟦ann⟧  = `ann
-  ; ⟦app⟧  = `app
-  ; ⟦fst⟧  = `fst
-  ; ⟦snd⟧  = `snd
-  ; ⟦ind⟧  = `ind }
+Renaming = syntactic.lemma $ record
+  { ⟦wk⟧  = lookup
+  ; ⟦new⟧ = zero
+  ; ⟦var⟧ = `var }
 
 weakI : Weakening Infer
 weakI = flip $ Renaming ⊨⟦_⟧I_
@@ -117,29 +152,16 @@ weakC : Weakening Check
 weakC = flip $ Renaming ⊨⟦_⟧C_
 
 Substitution : Semantics Infer Check Type Infer
-Substitution = record
-  { ⟦wk⟧   = weakI
-  ; ⟦new⟧  = `var zero
-  ; ⟦El⟧   = El
-  ; ⟦unEl⟧ = unEl
-  ; ⟦sig⟧  = λ a b → `sig a $ b extend (`var zero )
-  ; ⟦pi⟧   = λ a b → `pi  a $ b extend (`var zero )
-  ; ⟦nat⟧  = `nat
-  ; ⟦set⟧  = `set
-  ; ⟦lam⟧  = λ b   → `lam   $ b extend (`var zero )
-  ; ⟦per⟧  = `per
-  ; ⟦zro⟧  = `zro
-  ; ⟦suc⟧  = `suc
-  ; ⟦emb⟧  = `emb
-  ; ⟦var⟧  = id
-  ; ⟦ann⟧  = `ann
-  ; ⟦app⟧  = `app
-  ; ⟦fst⟧  = `fst
-  ; ⟦snd⟧  = `snd
-  ; ⟦ind⟧  = `ind }
+Substitution = syntactic.lemma $ record
+  { ⟦wk⟧  = weakI
+  ; ⟦new⟧ = `var zero
+  ; ⟦var⟧ = id }
 
-substI : {m n : ℕ} → Infer m → Var m =>[ Infer ] n → Infer n
+substI : Substituting Infer Infer
 substI = Substitution ⊨⟦_⟧I_
 
-substC : {m n : ℕ} → Check m → Var m =>[ Infer ] n → Check n
+substT : Substituting Infer Type
+substT = Substitution ⊨⟦_⟧T_
+
+substC : Substituting Infer Check
 substC = Substitution ⊨⟦_⟧C_
