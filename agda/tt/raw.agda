@@ -5,6 +5,12 @@ module tt.raw where
 open import Data.Nat as ℕ
 open import Data.Fin hiding (_<_)
 open import Function
+open import Relation.Binary.PropositionalEquality
+
+-----------------------------------------------------------
+-- SYNTAX
+-----------------------------------------------------------
+
 
 mutual
 
@@ -41,6 +47,12 @@ mutual
 
 open Type public
 
+
+
+-----------------------------------------------------------
+-- SMART CONSTRUCTORS
+-----------------------------------------------------------
+
 var₀ : {n : ℕ} → Check (suc n)
 var₀ = `emb (`var zero)
 
@@ -55,3 +67,11 @@ unEl (sig A B) = `sig A B
 
 pi : {n : ℕ} → Type n → Type (suc n) → Type n
 unEl (pi A B) = `pi A B
+
+
+-----------------------------------------------------------
+-- INVERSION LEMMAS
+-----------------------------------------------------------
+
+`var-inj : {m : ℕ} {k l : Fin m} → `var k ≡ `var l → k ≡ l
+`var-inj refl = refl
