@@ -212,6 +212,11 @@ module syntacticRelated
                  in cong₂ patt (cong₂ _,_ hp hz) (cong₂ _,_ hs hm)
     }
 
+RenSubVar : Related Renaming Substitution (_≡_ ∘ `var) _≡_ _≡_ _≡_
+RenSubVar = syntacticRelated.lemma $ record
+  { ⟦wk⟧^R    = λ inc ρ^R → cong (weakI inc) ∘ ρ^R
+  ; ⟦var⟧^R   = λ k ρ^R → ρ^R k
+  ; ⟦fresh⟧^R = PEq.refl }
 
 RenExt : Related Renaming Renaming _≡_ _≡_ _≡_ _≡_
 RenExt = syntacticRelated.lemma $ record

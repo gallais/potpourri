@@ -4,11 +4,15 @@ module tt.typ.prp where
 open import Data.Nat
 open import Data.Fin hiding (_<_)
 open import Function
+open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; subst ; cong)
 
 open import tt.raw
 open import tt.env
 open import tt.sem
+open import tt.sem.rel
+open import tt.sem.fus
 open import tt.typ
+
 
 module TypingWeak
        (_↝_ : {n : ℕ} (a b : Type n) → Set)
@@ -27,13 +31,33 @@ module TypingWeak
     weak∈ m⊆n ren (`ind p z s m) = {!!}
     weak∈ m⊆n ren (`red red t)   = `red (weak↝ m⊆n red) (weak∈ m⊆n ren t)
     weak∈ m⊆n ren (`snd {t} {A} {B} Ht)       =
-      let ih : _ ⊢ weakI m⊆n (`snd t) ∈ (Substitution ⊨ weakT _ B ⟨ weakI m⊆n (`fst t) /0⟩T)
-          ih = `snd (weak∈ m⊆n ren Ht)
-      in {!!}
+      let ih  : _ ⊢ weakI m⊆n (`snd t) ∈ (Substitution ⊨ weakT _ B ⟨ weakI m⊆n (`fst t) /0⟩T)
+          ih  = `snd (weak∈ m⊆n ren Ht)
+
+          prf : Substitution ⊨ weakT (pop! m⊆n) B ⟨ weakI m⊆n (`fst t) /0⟩T
+              ≡ weakT m⊆n (Substitution ⊨ B ⟨ `fst t /0⟩T)
+          prf = PEq.trans (fusion.lemmaT RenSub B (λ _ → PEq.refl)) $ PEq.sym $
+                PEq.trans (fusion.lemmaT SubRen B (λ _ → PEq.refl)) $
+                related.lemmaT SubExt B $ λ
+                { zero    → PEq.refl
+                ; (suc k) → {!!}
+                }
+
+      in subst (_ ⊢ weakI m⊆n (`snd t) ∈_) prf ih
     weak∈ m⊆n ren (`app {f} {t} {A} {B} Hf Ht) =
-      let ih : _ ⊢ weakI m⊆n (`app f t) ∈ Substitution ⊨ weakT _ B ⟨ weakI m⊆n (`ann t A) /0⟩T
-          ih = `app (weak∈ m⊆n ren Hf) (weak∋ m⊆n ren Ht)
-      in {!!}
+      let ih  : _ ⊢ weakI m⊆n (`app f t) ∈ Substitution ⊨ weakT _ B ⟨ weakI m⊆n (`ann t A) /0⟩T
+          ih  = `app (weak∈ m⊆n ren Hf) (weak∋ m⊆n ren Ht)
+          
+          prf : Substitution ⊨ weakT (pop! m⊆n) B ⟨ weakI m⊆n (`ann t A) /0⟩T
+              ≡ weakT m⊆n (Substitution ⊨ B ⟨ `ann t A /0⟩T)
+          prf = PEq.trans (fusion.lemmaT RenSub B (λ _ → PEq.refl)) $ PEq.sym $
+                PEq.trans (fusion.lemmaT SubRen B (λ _ → PEq.refl)) $
+                related.lemmaT SubExt B $ λ
+                  { zero    → PEq.refl
+                  ; (suc k) → {!!}
+                  }
+          
+      in subst (_ ⊢ weakI m⊆n (`app f t) ∈_) prf ih
 
 
     weak∋ : {m n : ℕ} {Γ : Context m} {Δ : Context n} {c : Check m} {A : Type m}

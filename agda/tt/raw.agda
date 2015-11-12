@@ -16,12 +16,12 @@ mutual
 
   data Check (n : ℕ) : Set where
     -- types
-    `sig : (t : Type n) (u : Type (suc n)) → Check n
+    `sig : (A : Type n) (B : Type (suc n)) → Check n
     `pi  : (A : Type n) (B : Type (suc n)) → Check n
     `nat :                                   Check n
     `set : ℕ                               → Check n
     -- lambda abstraction
-    `lam : (t : Check (suc n))             → Check n
+    `lam : (b : Check (suc n))             → Check n
     -- constructors
     `per : (a b : Check n)                 → Check n
     `zro :                                   Check n
