@@ -1,7 +1,7 @@
 module tt.sem where
 
 open import Data.Nat
-open import Data.Fin
+open import Data.Fin hiding (lift)
 open import Function
 
 open import tt.raw
@@ -41,7 +41,10 @@ record Semantics (E MC MT MI : ℕ → Set) : Set where
   fresh = ⟦wk⟧ (eps ∙ zero) ⟦new⟧
 
   weakE : {m : ℕ} → Weakening $ Var m =>[ E ]_
-  lookup (weakE inc ρ) k = ⟦wk⟧ inc $ lookup ρ k
+  weakE = wk[ ⟦wk⟧ ]
+
+  lift : {m n : ℕ} → Var m =>[ E ] n → Var suc m =>[ E ] suc n
+  lift ρ = weakE extend ρ ∙ fresh
 
   diag : {n : ℕ} → Var n =>[ E ] n
   diag {0}     = pack $ λ ()
@@ -95,7 +98,7 @@ open semantics hiding (lemmaC ; lemmaT ; lemmaI) public
 -- SYNTACTIC SEMANTICS
 -----------------------------------------------------------
 
-record Syntactic (E : ℕ → Set) : Set where
+record SyntacticSemantics (E : ℕ → Set) : Set where
   field
     ⟦wk⟧  : Weakening E
     ⟦new⟧ : E 1
@@ -104,9 +107,9 @@ record Syntactic (E : ℕ → Set) : Set where
   fresh : {n : ℕ} → E (suc n)
   fresh = ⟦wk⟧ (eps ∙ zero) ⟦new⟧
 
-module syntactic {E : ℕ → Set} (Syn : Syntactic E) where
+module syntacticSemantics {E : ℕ → Set} (Syn : SyntacticSemantics E) where
 
-  open Syntactic Syn
+  open SyntacticSemantics Syn
 
   lemma : Semantics E Check Type Infer
   lemma = record
@@ -137,7 +140,7 @@ module syntactic {E : ℕ → Set} (Syn : Syntactic E) where
 -----------------------------------------------------------
 
 Renaming : Semantics Fin Check Type Infer
-Renaming = syntactic.lemma $ record
+Renaming = syntacticSemantics.lemma $ record
   { ⟦wk⟧  = lookup
   ; ⟦new⟧ = zero
   ; ⟦var⟧ = `var }
@@ -152,7 +155,7 @@ weakC : Weakening Check
 weakC = flip $ Renaming ⊨⟦_⟧C_
 
 Substitution : Semantics Infer Check Type Infer
-Substitution = syntactic.lemma $ record
+Substitution = syntacticSemantics.lemma $ record
   { ⟦wk⟧  = weakI
   ; ⟦new⟧ = `var zero
   ; ⟦var⟧ = id }
