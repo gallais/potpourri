@@ -1,4 +1,4 @@
-module tt.sem.prp where
+module tt.sem.fus where
 
 open import Data.Nat
 open import Data.Fin
@@ -184,6 +184,7 @@ record SyntacticFusion
                 E^R ρ₁ ρ₂ ρ₃ → {u₂ : E₂ p} {u₃ : E₃ p} → E₂₃^R u₂ u₃ → E^R (S₁.lift ρ₁) (ρ₂ ∙ u₂) (ρ₃ ∙ u₃)
     ⟦wk⟧^R    : {m n p q : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
                 (inc : p ⊆ q) → E^R ρ₁ ρ₂ ρ₃ → E^R ρ₁ (S₂.weakE inc ρ₂) (S₃.weakE inc ρ₃)
+    -- var
     ⟦var⟧^R   : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p}
                 (k : Fin m) (ρ^R : E^R ρ₁ ρ₂ ρ₃) → MI^R (`var k) ρ₁ ρ₂ ρ₃
     ⟦fresh⟧^R : {m : ℕ} → E₂₃^R {suc m} S₂.fresh S₃.fresh
