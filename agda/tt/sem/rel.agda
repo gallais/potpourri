@@ -38,7 +38,7 @@ record Related
   module S₁ = Semantics S₁
   module S₂ = Semantics S₂
 
-  Kripke^R : {M : ℕ → Set} (MM^R : M^R M) → M^R (λ n → M (suc n))
+  Kripke^R : {M : ℕ → Set} (MM^R : M^R M) → M^R (M ∘ suc)
   Kripke^R MM^R b ρ₁ ρ₂ =
     {q : ℕ} (inc : _ ⊆ q) {u₁ : E₁ q} {u₂ : E₂ q} → E₁₂^R u₁ u₂ →
     MM^R b (S₁.weakE inc ρ₁ ∙ u₁) (S₂.weakE inc ρ₂ ∙ u₂)

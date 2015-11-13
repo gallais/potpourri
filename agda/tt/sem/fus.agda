@@ -43,7 +43,7 @@ record Fusion
   MI^R : M^R Infer
   MI^R t ρ₁ ρ₂ ρ₃ = MI₂₃^R (S₂ ⊨⟦ reifyI₁ (S₁ ⊨⟦ t ⟧I ρ₁) ⟧I ρ₂) (S₃ ⊨⟦ t ⟧I ρ₃)
 
-  Kripke^R : {M : ℕ → Set} (MM^R : M^R M) → M^R (λ n → M (suc n))
+  Kripke^R : {M : ℕ → Set} (MM^R : M^R M) → M^R (M ∘ suc)
   Kripke^R MM^R b ρ₁ ρ₂ ρ₃ =
     {q : ℕ} (inc : _ ⊆ q) {u₂ : E₂ q} {u₃ : E₃ q} → E₂₃^R u₂ u₃ →
     MM^R b (S₁.weakE extend ρ₁ ∙ S₁.fresh) (S₂.weakE inc ρ₂ ∙ u₂) (S₃.weakE inc ρ₃ ∙ u₃)

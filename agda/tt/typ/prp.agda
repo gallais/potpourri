@@ -18,17 +18,13 @@ weakβT : {m n : ℕ} (t : Type (suc m)) (u : Infer m) (m⊆n : m ⊆ n) →
          ≡ weakT m⊆n (Substitution ⊨ t ⟨ u /0⟩T)
 weakβT {m} {n} t u m⊆n = PEq.trans eq₁ $ PEq.sym eq₂ where
 
-  boringDiag : {m : ℕ} → ∀[ _≡_ ] (Semantics.diag Substitution {m}) (pack `var)
-  boringDiag zero    = PEq.refl
-  boringDiag (suc k) = cong (weakI extend) (boringDiag k)
-
   eq₁ : Substitution ⊨ weakT (pop! m⊆n) t ⟨ weakI m⊆n u /0⟩T
       ≡ Substitution ⊨⟦ t ⟧T (trans m⊆n (pack `var) ∙ weakI m⊆n u)
-  eq₁ = fusion.lemmaT RenSub t (λ { zero → PEq.refl ; (suc k) → boringDiag {n} (lookup m⊆n k) })
+  eq₁ = fusion.lemmaT RenSub t $ λ { zero → PEq.refl ; (suc k) → PEq.refl }
 
   eq₂ : weakT m⊆n (Substitution ⊨ t ⟨ u /0⟩T)
       ≡ Substitution ⊨⟦ t ⟧T (trans m⊆n (pack `var) ∙ weakI m⊆n u)
-  eq₂ = fusion.lemmaT SubRen t (λ { zero → PEq.refl ; (suc k) → cong (weakI m⊆n) (boringDiag k) })
+  eq₂ = fusion.lemmaT SubRen t $ λ { zero → PEq.refl ; (suc k) → PEq.refl }
 
 module TypingWeak
        (_↝_ : {n : ℕ} (a b : Type n) → Set)

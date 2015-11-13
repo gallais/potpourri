@@ -15,7 +15,7 @@ record Semantics (E MC MT MI : ℕ → Set) : Set where
   field
     -- Environment:
     ⟦wk⟧   : {n m : ℕ} → Var n =>[ Fin ] m → E n → E m
-    ⟦new⟧  : E 1
+    ⟦diag⟧ : {m : ℕ} → Var m =>[ E ] m
     -- Type↔Check
     ⟦El⟧   : {n : ℕ} (A : MC n) → MT n
     ⟦unEl⟧ : {n : ℕ} (A : MT n) → MC n
@@ -38,7 +38,7 @@ record Semantics (E MC MT MI : ℕ → Set) : Set where
     ⟦ind⟧  : {n : ℕ} (p z s : MC n) (m : MI n) → MI n
 
   fresh : {n : ℕ} → E (suc n)
-  fresh = ⟦wk⟧ (eps ∙ zero) ⟦new⟧
+  fresh = lookup ⟦diag⟧ zero
 
   weakE : {m : ℕ} → Weakening $ Var m =>[ E ]_
   weakE = wk[ ⟦wk⟧ ]
@@ -46,10 +46,6 @@ record Semantics (E MC MT MI : ℕ → Set) : Set where
   lift : {m n : ℕ} → Var m =>[ E ] n → Var suc m =>[ E ] suc n
   lift ρ = weakE extend ρ ∙ fresh
 
-  diag : {n : ℕ} → Var n =>[ E ] n
-  diag {0}     = pack $ λ ()
-  diag {suc _} = weakE extend diag ∙ fresh
-  
 module semantics {E MC MT MI : ℕ → Set} (Sem : Semantics E MC MT MI) where
 
   open Semantics Sem
@@ -82,13 +78,13 @@ module semantics {E MC MT MI : ℕ → Set} (Sem : Semantics E MC MT MI) where
   _⊨⟦_⟧I_ = lemmaI
 
   _⊨_⟨_/0⟩C : {n : ℕ} → Check (suc n) → E n → MC n
-  _⊨_⟨_/0⟩C b u = lemmaC b (diag ∙ u)
+  _⊨_⟨_/0⟩C b u = lemmaC b (⟦diag⟧ ∙ u)
   
   _⊨_⟨_/0⟩T : {n : ℕ} → Type (suc n) → E n → MT n
-  _⊨_⟨_/0⟩T b u = lemmaT b (diag ∙ u)
+  _⊨_⟨_/0⟩T b u = lemmaT b (⟦diag⟧ ∙ u)
 
   _⊨_⟨_/0⟩I : {n : ℕ} → Infer (suc n) → E n → MI n
-  _⊨_⟨_/0⟩I b u = lemmaI b (diag ∙ u)
+  _⊨_⟨_/0⟩I b u = lemmaI b (⟦diag⟧ ∙ u)
 
 open semantics hiding (lemmaC ; lemmaT ; lemmaI) public
 
@@ -100,12 +96,12 @@ open semantics hiding (lemmaC ; lemmaT ; lemmaI) public
 
 record SyntacticSemantics (E : ℕ → Set) : Set where
   field
-    ⟦wk⟧  : Weakening E
-    ⟦new⟧ : E 1
-    ⟦var⟧ : {n : ℕ} → E n → Infer n
+    ⟦wk⟧   : Weakening E
+    ⟦diag⟧ : {m : ℕ} → Var m =>[ E ] m
+    ⟦var⟧  : {n : ℕ} → E n → Infer n
 
   fresh : {n : ℕ} → E (suc n)
-  fresh = ⟦wk⟧ (eps ∙ zero) ⟦new⟧
+  fresh = lookup ⟦diag⟧ zero
 
 module syntacticSemantics {E : ℕ → Set} (Syn : SyntacticSemantics E) where
 
@@ -114,7 +110,7 @@ module syntacticSemantics {E : ℕ → Set} (Syn : SyntacticSemantics E) where
   lemma : Semantics E Check Type Infer
   lemma = record
     { ⟦wk⟧   = ⟦wk⟧
-    ; ⟦new⟧  = ⟦new⟧
+    ; ⟦diag⟧ = ⟦diag⟧
     ; ⟦El⟧   = El
     ; ⟦unEl⟧ = unEl
     ; ⟦sig⟧  = λ a → sig a ∘ abs fresh
@@ -141,9 +137,9 @@ module syntacticSemantics {E : ℕ → Set} (Syn : SyntacticSemantics E) where
 
 Renaming : Semantics Fin Check Type Infer
 Renaming = syntacticSemantics.lemma $ record
-  { ⟦wk⟧  = lookup
-  ; ⟦new⟧ = zero
-  ; ⟦var⟧ = `var }
+  { ⟦wk⟧   = lookup
+  ; ⟦diag⟧ = pack id
+  ; ⟦var⟧  = `var }
 
 weakI : Weakening Infer
 weakI = flip $ Renaming ⊨⟦_⟧I_
@@ -156,9 +152,9 @@ weakC = flip $ Renaming ⊨⟦_⟧C_
 
 Substitution : Semantics Infer Check Type Infer
 Substitution = syntacticSemantics.lemma $ record
-  { ⟦wk⟧  = weakI
-  ; ⟦new⟧ = `var zero
-  ; ⟦var⟧ = id }
+  { ⟦wk⟧   = weakI
+  ; ⟦diag⟧ = pack `var
+  ; ⟦var⟧  = id }
 
 substI : Substituting Infer Infer
 substI = Substitution ⊨⟦_⟧I_
