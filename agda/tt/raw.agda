@@ -68,6 +68,8 @@ unEl (sig A B) = `sig A B
 pi : {n : ℕ} → Type n → Type (suc n) → Type n
 unEl (pi A B) = `pi A B
 
+app : {n : ℕ} → Check n → Type n → Check n → Check n
+app t T u = `emb (`app (`ann t T) u)
 
 -----------------------------------------------------------
 -- INVERSION LEMMAS

@@ -3,10 +3,12 @@ module tt.typ where
 open import Data.Nat
 open import Data.Fin hiding (_<_)
 open import Function
+open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; subst)
 
 open import tt.raw
 open import tt.env
 open import tt.sem
+open import tt.sem.fus
 
 
 infixr 5 _`→_
@@ -23,7 +25,7 @@ infix 1 _⊢var_∈_
   
 data _⊢var_∈_ : {n : ℕ} → Context n → Fin n → Type n → Set where
 
-  zero : {n : ℕ} {Γ : Context n} {A : Type n} →
+  zro  : {n : ℕ} {Γ : Context n} {A : Type n} →
 
          ---------------------------------
          Γ ∙⟩ A ⊢var zero ∈ weakT extend A
@@ -36,8 +38,33 @@ data _⊢var_∈_ : {n : ℕ} → Context n → Fin n → Type n → Set where
          Γ ∙⟩ A ⊢var suc k ∈ weakT extend B
            
 record [_]_⇒_ {m n : ℕ} (inc : m ⊆ n) (Γ : Context m) (Δ : Context n) : Set where
+  constructor pack
   field weakVar : {k : Fin m} {A : Type m} → Γ ⊢var k ∈ A → Δ ⊢var lookup inc k ∈ weakT inc A
 open [_]_⇒_ public
+
+POP! : {m n : ℕ} {inc : m ⊆ n} {Γ : Context m} {Δ : Context n} →
+       [ inc ] Γ ⇒ Δ → (A : Type m) → [ pop! inc ] Γ ∙⟩ A ⇒ (Δ ∙⟩ weakT inc A)
+weakVar (POP! {inc = inc} {Δ = Δ} ren A) zro =
+
+  let eq : weakT extend (weakT inc A)
+         ≡ weakT (pop! inc) (weakT extend A)
+      eq = PEq.trans (fusion.lemmaT RenRen A (λ _ → PEq.refl))
+         $ PEq.sym $ fusion.lemmaT RenRen A (λ _ → PEq.refl)
+
+  in subst (Δ ∙⟩ weakT inc A ⊢var zero ∈_) eq zro
+
+weakVar (POP! {inc = inc} {Δ = Δ} ren A) (suc {B = B} {k} Hk) =
+  
+  let ih : Δ ∙⟩ weakT inc A ⊢var lookup (pop! inc) (suc k) ∈ weakT extend (weakT inc B)
+      ih = suc (weakVar ren Hk)
+
+      eq : weakT extend (weakT inc B)
+         ≡ weakT (pop! inc) (weakT extend B)
+      eq = PEq.trans (fusion.lemmaT RenRen B (λ _ → PEq.refl))
+         $ PEq.sym $  fusion.lemmaT RenRen B (λ _ → PEq.refl)
+        
+  in subst (Δ ∙⟩ weakT inc A ⊢var lookup (pop! inc) (suc k) ∈_) eq ih
+
 
 module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
 
@@ -138,14 +165,19 @@ module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
 
       `ind : {p z s : Check n} {m : Infer n} {ℓ : ℕ} →
 
-             Γ ⊢ pi nat (set ℓ) ∋ p →
+             let pTy : {n : ℕ} → Type n
+                 pTy = λ {n} → pi nat (set ℓ) in
+
+             Γ ⊢ pTy ∋ p →
+             Γ ⊢ El (app p pTy `zro) ∋ z →
+
              let P : {m : ℕ} → n ⊆ m → Check m → Type m
-                 P = λ inc x → El (`emb (`app (`ann (weakC inc p) (pi nat (set ℓ))) x)) in
-             Γ ⊢ P refl `zro ∋ z →
+                 P = λ inc x → El (app (weakC inc p) pTy x) in
+
              Γ ⊢ pi nat (P extend var₀ `→ P extend (`suc var₀)) ∋ s →
              Γ ⊢ m ∈ nat →
              ---------------------------
-             Γ ⊢ `ind p z s m ∈ P refl (`emb m)
+             Γ ⊢ `ind p z s m ∈ El (app p pTy (`emb m))
 
       `red : {e : Infer n} {A B : Type n} →
              A ↝ B → Γ ⊢ e ∈ A →
