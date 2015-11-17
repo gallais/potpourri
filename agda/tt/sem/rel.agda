@@ -48,19 +48,22 @@ record Related
     -- Env
     ⟦wk⟧^R   : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
                (inc : n ⊆ p) → E^R ρ₁ ρ₂ → E^R (S₁.weakE inc ρ₁) (S₂.weakE inc ρ₂)
-    -- Check
+    -- Type
     ⟦sig⟧^R  : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
                (A : Type m) → MT^R A ρ₁ ρ₂ →
                (B : Type (suc m)) → Kripke^R MT^R B ρ₁ ρ₂ →
-               E^R ρ₁ ρ₂ → MC^R (`sig A B) ρ₁ ρ₂
+               E^R ρ₁ ρ₂ → MT^R (`sig A B) ρ₁ ρ₂
     ⟦pi⟧^R   : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
                (A : Type m) → MT^R A ρ₁ ρ₂ →
                (B : Type (suc m)) → Kripke^R MT^R B ρ₁ ρ₂ →
-               E^R ρ₁ ρ₂ → MC^R (`pi A B) ρ₁ ρ₂
+               E^R ρ₁ ρ₂ → MT^R (`pi A B) ρ₁ ρ₂
     ⟦nat⟧^R  : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
-               E^R ρ₁ ρ₂ → MC^R `nat ρ₁ ρ₂
+               E^R ρ₁ ρ₂ → MT^R `nat ρ₁ ρ₂
     ⟦set⟧^R  : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
-               (ℓ : ℕ) → E^R ρ₁ ρ₂ → MC^R (`set ℓ) ρ₁ ρ₂
+               (ℓ : ℕ) → E^R ρ₁ ρ₂ → MT^R (`set ℓ) ρ₁ ρ₂
+    ⟦elt⟧^R  : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
+               (e : Infer m) → MI^R e ρ₁ ρ₂ → E^R ρ₁ ρ₂ → MT^R (`elt e) ρ₁ ρ₂
+    -- Check
     ⟦lam⟧^R  : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
                (b : Check (suc m)) → Kripke^R MC^R b ρ₁ ρ₂ →
                E^R ρ₁ ρ₂ → MC^R (`lam b) ρ₁ ρ₂
@@ -72,11 +75,10 @@ record Related
                E^R ρ₁ ρ₂ → MC^R `zro ρ₁ ρ₂
     ⟦suc⟧^R  : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
                (m : Check m) → MC^R m ρ₁ ρ₂ → E^R ρ₁ ρ₂ → MC^R (`suc m) ρ₁ ρ₂
+    ⟦typ⟧^R  : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
+               (A : Type m) → MT^R A ρ₁ ρ₂ → E^R ρ₁ ρ₂ → MC^R (`typ A) ρ₁ ρ₂
     ⟦emb⟧^R  : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
                (e : Infer m) → MI^R e ρ₁ ρ₂ → E^R ρ₁ ρ₂ → MC^R (`emb e) ρ₁ ρ₂
-    -- Type
-    ⟦El⟧^R   : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n}
-               (t : Check m) → MC^R t ρ₁ ρ₂ → E^R ρ₁ ρ₂ → MT^R (El t) ρ₁ ρ₂
     -- Infer
     ⟦var⟧^R  : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n}
                (k : Fin m) (ρ^R : E^R ρ₁ ρ₂) → MI^R (`var k) ρ₁ ρ₂
@@ -129,17 +131,18 @@ module related
   lemmaT : lemmaTy MT^R
   lemmaI : lemmaTy MI^R
   
-  lemmaC (`sig A B)  ρ^R = ⟦sig⟧^R A (lemmaT A ρ^R) B (abs^R MT^R lemmaT B ρ^R) ρ^R
-  lemmaC (`pi A B)   ρ^R = ⟦pi⟧^R  A (lemmaT A ρ^R) B (abs^R MT^R lemmaT B ρ^R) ρ^R
-  lemmaC `nat        ρ^R = ⟦nat⟧^R ρ^R
-  lemmaC (`set ℓ)    ρ^R = ⟦set⟧^R ℓ ρ^R
   lemmaC (`lam b)    ρ^R = ⟦lam⟧^R b (abs^R MC^R lemmaC b ρ^R) ρ^R
   lemmaC (`per a b)  ρ^R = ⟦per⟧^R a (lemmaC a ρ^R) b (lemmaC b ρ^R) ρ^R
   lemmaC `zro        ρ^R = ⟦zro⟧^R ρ^R
   lemmaC (`suc m)    ρ^R = ⟦suc⟧^R m (lemmaC m ρ^R) ρ^R
+  lemmaC (`typ A)    ρ^R = ⟦typ⟧^R A (lemmaT A ρ^R) ρ^R
   lemmaC (`emb e)    ρ^R = ⟦emb⟧^R e (lemmaI e ρ^R) ρ^R
   
-  lemmaT (El t) ρ^R = ⟦El⟧^R t (lemmaC t ρ^R) ρ^R
+  lemmaT (`sig A B)  ρ^R = ⟦sig⟧^R A (lemmaT A ρ^R) B (abs^R MT^R lemmaT B ρ^R) ρ^R
+  lemmaT (`pi A B)   ρ^R = ⟦pi⟧^R  A (lemmaT A ρ^R) B (abs^R MT^R lemmaT B ρ^R) ρ^R
+  lemmaT `nat        ρ^R = ⟦nat⟧^R ρ^R
+  lemmaT (`set ℓ)    ρ^R = ⟦set⟧^R ℓ ρ^R
+  lemmaT (`elt e)    ρ^R = ⟦elt⟧^R e (lemmaI e ρ^R) ρ^R
   
   lemmaI (`var k)       ρ^R = ⟦var⟧^R k ρ^R
   lemmaI (`ann t A)     ρ^R = ⟦ann⟧^R t (lemmaC t ρ^R) A (lemmaT A ρ^R) ρ^R
@@ -177,7 +180,7 @@ record SyntacticRelated
     ⟦var⟧^R   : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n}
                 (k : Fin m) (ρ^R : E^R ρ₁ ρ₂) → MI^R (`var k) ρ₁ ρ₂
     ⟦fresh⟧^R : {m : ℕ} → E₁₂^R {suc m} S₁.fresh S₂.fresh
-  
+
 
 module syntacticRelated
   {E₁ E₂ : ℕ → Set}
@@ -196,12 +199,13 @@ module syntacticRelated
     ; ⟦pi⟧^R  = λ _ hA _ hB _ → cong₂ `pi  hA (hB extend ⟦fresh⟧^R)
     ; ⟦nat⟧^R = λ _ → PEq.refl
     ; ⟦set⟧^R = λ _ _ → PEq.refl
+    ; ⟦elt⟧^R = λ _ hE _ → cong `elt hE
     ; ⟦lam⟧^R = λ _ hb _ → cong `lam (hb extend ⟦fresh⟧^R)
     ; ⟦per⟧^R = λ _ ha _ hb _ → cong₂ `per ha hb
     ; ⟦zro⟧^R = λ _ → PEq.refl
     ; ⟦suc⟧^R = λ _ hm _ → cong `suc hm
+    ; ⟦typ⟧^R = λ _ hA _ → cong `typ hA
     ; ⟦emb⟧^R = λ _ he _ → cong `emb he
-    ; ⟦El⟧^R  = λ _ ht _ → cong El ht
     ; ⟦var⟧^R = ⟦var⟧^R
     ; ⟦ann⟧^R = λ _ ht _ hA _ → cong₂ `ann ht hA
     ; ⟦app⟧^R = λ _ ht _ hu _ → cong₂ `app ht hu
@@ -229,3 +233,4 @@ SubExt = syntacticRelated.lemma $ record
   { ⟦wk⟧^R    = λ inc ρ^R → cong (weakI inc) ∘ ρ^R
   ; ⟦var⟧^R   = λ k ρ^R → ρ^R k
   ; ⟦fresh⟧^R = PEq.refl }
+

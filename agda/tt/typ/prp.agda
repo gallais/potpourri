@@ -44,16 +44,16 @@ module TypingWeak
     weak∈ {n = n} {Δ = Δ} m⊆n ren (`ind {p} {z} {s} {m} {ℓ} Hp Hz Hs Hm) =
     
       let pTy : {n : ℕ} → Type n
-          pTy = λ {n} → pi nat (set ℓ)
-          ihS : Δ ⊢ weakT m⊆n (pi nat (El (app (weakC extend p) pTy var₀)
-                                    `→ El (app (weakC extend p) pTy (`suc var₀))))
+          pTy = λ {n} → `pi `nat (`set ℓ)
+          ihS : Δ ⊢ weakT m⊆n (`pi `nat (appT (weakC extend p) pTy var₀
+                                      `→ appT (weakC extend p) pTy (`suc var₀)))
                   ∋ weakC m⊆n s
           ihS = weak∋ m⊆n ren Hs
 
-          wkS : Δ ⊢ pi nat (El (app (weakC extend (weakC m⊆n p)) pTy var₀)
-                         `→ El (app (weakC extend (weakC m⊆n p)) pTy (`suc var₀)))
+          wkS : Δ ⊢ `pi `nat (appT (weakC extend (weakC m⊆n p)) pTy var₀
+                           `→ appT (weakC extend (weakC m⊆n p)) pTy (`suc var₀))
                 ∋ weakC m⊆n s
-          wkS = let patt = λ u vw → pi nat $ pi (El (app u pTy var₀)) $ El (app (proj₁ vw) pTy (`suc (proj₂ vw)))
+          wkS = let patt = λ u vw → `pi `nat (`pi (appT u pTy var₀) (appT (proj₁ vw) pTy (`suc (proj₂ vw))))
 
                     ↑    = Semantics.lift Renaming
 
@@ -92,6 +92,14 @@ module TypingWeak
       in subst (_ ⊢ weakI m⊆n (`app f t) ∈_) (weakβT B (`ann t A) m⊆n) ih
 
 
+    weakSet : {m n : ℕ} {Γ : Context m} {Δ : Context n} {ℓ : ℕ} {A : Type m}
+              (m⊆n : m ⊆ n) (ren : [ m⊆n ] Γ ⇒ Δ) → Γ ⊢set ℓ ∋ A → Δ ⊢set ℓ ∋ weakT m⊆n A
+    weakSet m⊆n ren (`sig A B) = `sig (weakSet m⊆n ren A) $ weakSet (pop! m⊆n) (POP! ren _) B
+    weakSet m⊆n ren (`pi A B)  = `pi (weakSet m⊆n ren A) $ weakSet (pop! m⊆n) (POP! ren _) B
+    weakSet m⊆n ren `nat       = `nat
+    weakSet m⊆n ren (`set ℓ)   = `set ℓ
+    weakSet m⊆n ren (`elt e)   = `elt (weak∈ m⊆n ren e)
+
     weak∋ : {m n : ℕ} {Γ : Context m} {Δ : Context n} {c : Check m} {A : Type m}
             (m⊆n : m ⊆ n) (ren : [ m⊆n ] Γ ⇒ Δ) → Γ ⊢ A ∋ c → Δ ⊢ weakT m⊆n A ∋ weakC m⊆n c
     weak∋ m⊆n ren (`lam b)     = `lam (weak∋ (pop! m⊆n) (POP! ren _) b)
@@ -104,4 +112,5 @@ module TypingWeak
     weak∋ m⊆n ren `zro         = `zro
     weak∋ m⊆n ren (`suc m)     = `suc (weak∋ m⊆n ren m)
     weak∋ m⊆n ren (`emb e)     = `emb (weak∈ m⊆n ren e)
+    weak∋ m⊆n ren (`typ s)     = `typ (weakSet m⊆n ren s)
     weak∋ m⊆n ren (`red red t) = `red (weak↝ m⊆n red) (weak∋ m⊆n ren t)

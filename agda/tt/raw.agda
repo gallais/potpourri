@@ -14,18 +14,16 @@ open import Relation.Binary.PropositionalEquality
 
 mutual
 
-  record Type (n : ℕ) : Set where
-    inductive
-    constructor El
-    field
-      unEl : Check n
+  data Type (n : ℕ) : Set where
+    -- types
+    `sig : (A : Type n) (B : Type (suc n)) → Type n
+    `pi  : (A : Type n) (B : Type (suc n)) → Type n
+    `nat :                                   Type n
+    `set : ℕ                               → Type n
+    `elt : (e : Infer n)                   → Type n
 
   data Check (n : ℕ) : Set where
-    -- types
-    `sig : (A : Type n) (B : Type (suc n)) → Check n
-    `pi  : (A : Type n) (B : Type (suc n)) → Check n
-    `nat :                                   Check n
-    `set : ℕ                               → Check n
+    `typ : (A : Type n)                    → Check n
     -- lambda abstraction
     `lam : (b : Check (suc n))             → Check n
     -- constructors
@@ -45,10 +43,6 @@ mutual
     `snd : (t : Infer n)                              → Infer n
     `ind : (p z s : Check n) (m : Infer n) → Infer n
 
-open Type public
-
-
-
 -----------------------------------------------------------
 -- SMART CONSTRUCTORS
 -----------------------------------------------------------
@@ -56,20 +50,11 @@ open Type public
 var₀ : {n : ℕ} → Check (suc n)
 var₀ = `emb (`var zero)
 
-set : {n : ℕ} (ℓ : ℕ) → Type n
-unEl (set ℓ) = `set ℓ
+appC : {n : ℕ} → Check n → Type n → Check n → Check n
+appC t T u = `emb (`app (`ann t T) u)
 
-nat : {n : ℕ} → Type n
-nat = El `nat
-
-sig : {n : ℕ} → Type n → Type (suc n) → Type n
-unEl (sig A B) = `sig A B
-
-pi : {n : ℕ} → Type n → Type (suc n) → Type n
-unEl (pi A B) = `pi A B
-
-app : {n : ℕ} → Check n → Type n → Check n → Check n
-app t T u = `emb (`app (`ann t T) u)
+appT : {n : ℕ} → Check n → Type n → Check n → Type n
+appT t T u = `elt (`app (`ann t T) u)
 
 -----------------------------------------------------------
 -- INVERSION LEMMAS
@@ -77,3 +62,4 @@ app t T u = `emb (`app (`ann t T) u)
 
 `var-inj : {m : ℕ} {k l : Fin m} → `var k ≡ `var l → k ≡ l
 `var-inj refl = refl
+

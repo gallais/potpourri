@@ -13,7 +13,7 @@ open import tt.sem.fus
 
 infixr 5 _`→_
 _`→_ : {n : ℕ} (a b : Type n) → Type n
-a `→ b = pi a $ weakT extend b
+a `→ b = `pi a $ weakT extend b
 
 
 infixl 5 _∙⟩_
@@ -79,21 +79,27 @@ module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
   
              Γ ⊢set ℓ ∋ s → Γ ∙⟩ s ⊢set ℓ ∋ t →
              --------------------------------------
-             Γ ⊢set ℓ ∋ sig s t
+             Γ ⊢set ℓ ∋ `sig s t
 
       `pi  : {s : Type n} {t : Type (suc n)} {ℓ : ℕ} →
    
              Γ ⊢set ℓ ∋ s → Γ ∙⟩ s ⊢set ℓ ∋ t →
              --------------------------------------
-             Γ ⊢set ℓ ∋ pi s t
+             Γ ⊢set ℓ ∋ `pi s t
 
-      `nat : Γ ⊢set 0 ∋ El `nat
+      `nat : Γ ⊢set 0 ∋ `nat
 
       `set : {ℓ ℓ′ : ℕ} →
 
              ℓ > ℓ′ →
              --------------------
-             Γ ⊢set ℓ ∋ set ℓ′
+             Γ ⊢set ℓ ∋ `set ℓ′
+
+      `elt : {ℓ : ℕ} {e : Infer n} →
+
+             Γ ⊢ e ∈ `set ℓ →
+             --------------------
+             Γ ⊢set ℓ ∋ `elt e
 
     data _⊢_∋_ {n : ℕ} (Γ : Context n) : Type n → Check n → Set where
 
@@ -101,22 +107,22 @@ module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
     
              Γ ∙⟩ A ⊢ B ∋ b →
              --------------------
-             Γ ⊢ pi A B ∋ `lam b
+             Γ ⊢ `pi A B ∋ `lam b
 
 
       `per : {a b : Check n} {A : Type n} {B : Type (suc n)} →
 
              Γ ⊢ A ∋ a → Γ ⊢ Substitution ⊨ B ⟨ `ann a A /0⟩T ∋ b →
              -----------------------
-             Γ ⊢ sig A B ∋ `per a b
+             Γ ⊢ `sig A B ∋ `per a b
 
-      `zro : Γ ⊢ nat ∋ `zro
+      `zro : Γ ⊢ `nat ∋ `zro
 
       `suc : {m : Check n} →
 
-             Γ ⊢ nat ∋ m →
+             Γ ⊢ `nat ∋ m →
              -----------------
-             Γ ⊢ nat ∋ `suc m
+             Γ ⊢ `nat ∋ `suc m
 
       `emb : {e : Infer n} {A : Type n} →
 
@@ -124,11 +130,11 @@ module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
              -----------
              Γ ⊢ A ∋ `emb e
 
-      `set : {A : Type n} {ℓ : ℕ} →
+      `typ : {A : Type n} {ℓ : ℕ} →
 
              Γ ⊢set ℓ ∋ A →
              ---------------
-             Γ ⊢ set ℓ ∋ unEl A
+             Γ ⊢ `set ℓ ∋ `typ A
 
       `red : {t : Check n} {A B : Type n} →
 
@@ -153,37 +159,37 @@ module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
 
       `app : {t : Infer n} {u : Check n} {A : Type n} {B : Type (suc n)} →
 
-             Γ ⊢ t ∈ pi A B → Γ ⊢ A ∋ u →
+             Γ ⊢ t ∈ `pi A B → Γ ⊢ A ∋ u →
              -----------------------------
              Γ ⊢ `app t u ∈ Substitution ⊨ B ⟨ `ann u A /0⟩T
 
       `fst : {t : Infer n} {A : Type n} {B : Type (suc n)} →
 
-             Γ ⊢  t ∈ sig A B →
+             Γ ⊢  t ∈ `sig A B →
              -------------------
              Γ ⊢ `fst t ∈ A
 
       `snd : {t : Infer n} {A : Type n} {B : Type (suc n)} →
 
-             Γ ⊢  t ∈ sig A B →
+             Γ ⊢  t ∈ `sig A B →
              -------------------
              Γ ⊢ `snd t ∈ Substitution ⊨ B ⟨ `fst t /0⟩T
 
       `ind : {p z s : Check n} {m : Infer n} {ℓ : ℕ} →
 
              let pTy : {n : ℕ} → Type n
-                 pTy = λ {n} → pi nat (set ℓ) in
+                 pTy = λ {n} → `pi `nat (`set ℓ) in
 
              Γ ⊢ pTy ∋ p →
-             Γ ⊢ El (app p pTy `zro) ∋ z →
+             Γ ⊢ appT p pTy `zro ∋ z →
 
              let P : {m : ℕ} → n ⊆ m → Check m → Type m
-                 P = λ inc x → El (app (weakC inc p) pTy x) in
+                 P = λ inc x → appT (weakC inc p) pTy x in
 
-             Γ ⊢ pi nat (P extend var₀ `→ P extend (`suc var₀)) ∋ s →
-             Γ ⊢ m ∈ nat →
+             Γ ⊢ `pi `nat (P extend var₀ `→ P extend (`suc var₀)) ∋ s →
+             Γ ⊢ m ∈ `nat →
              ---------------------------
-             Γ ⊢ `ind p z s m ∈ El (app p pTy (`emb m))
+             Γ ⊢ `ind p z s m ∈ appT p pTy (`emb m)
 
       `red : {e : Infer n} {A B : Type n} →
              A ↝ B → Γ ⊢ e ∈ A →

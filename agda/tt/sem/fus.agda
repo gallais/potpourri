@@ -54,19 +54,22 @@ record Fusion
                E^R ρ₁ ρ₂ ρ₃ → {u₂ : E₂ p} {u₃ : E₃ p} → E₂₃^R u₂ u₃ → E^R (S₁.lift ρ₁) (ρ₂ ∙ u₂) (ρ₃ ∙ u₃)
     ⟦wk⟧^R   : {m n p q : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
                (inc : p ⊆ q) → E^R ρ₁ ρ₂ ρ₃ → E^R ρ₁ (S₂.weakE inc ρ₂) (S₃.weakE inc ρ₃)
-    -- Check
+    -- Type
     ⟦sig⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
                (A : Type m) → MT^R A ρ₁ ρ₂ ρ₃ →
                (B : Type (suc m)) → Kripke^R MT^R B ρ₁ ρ₂ ρ₃ →
-               E^R ρ₁ ρ₂ ρ₃ → MC^R (`sig A B) ρ₁ ρ₂ ρ₃
+               E^R ρ₁ ρ₂ ρ₃ → MT^R (`sig A B) ρ₁ ρ₂ ρ₃
     ⟦pi⟧^R   : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
                (A : Type m) → MT^R A ρ₁ ρ₂ ρ₃ →
                (B : Type (suc m)) → Kripke^R MT^R B ρ₁ ρ₂ ρ₃ →
-               E^R ρ₁ ρ₂ ρ₃ → MC^R (`pi A B) ρ₁ ρ₂ ρ₃
+               E^R ρ₁ ρ₂ ρ₃ → MT^R (`pi A B) ρ₁ ρ₂ ρ₃
     ⟦nat⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
-               E^R ρ₁ ρ₂ ρ₃ → MC^R `nat ρ₁ ρ₂ ρ₃
+               E^R ρ₁ ρ₂ ρ₃ → MT^R `nat ρ₁ ρ₂ ρ₃
     ⟦set⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
-               (ℓ : ℕ) → E^R ρ₁ ρ₂ ρ₃ → MC^R (`set ℓ) ρ₁ ρ₂ ρ₃
+               (ℓ : ℕ) → E^R ρ₁ ρ₂ ρ₃ → MT^R (`set ℓ) ρ₁ ρ₂ ρ₃
+    ⟦elt⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
+               (e : Infer m) → MI^R e ρ₁ ρ₂ ρ₃ → E^R ρ₁ ρ₂ ρ₃ → MT^R (`elt e) ρ₁ ρ₂ ρ₃
+    -- Check
     ⟦lam⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
                (b : Check (suc m)) → Kripke^R MC^R b ρ₁ ρ₂ ρ₃ →
                E^R ρ₁ ρ₂ ρ₃ → MC^R (`lam b) ρ₁ ρ₂ ρ₃
@@ -78,11 +81,10 @@ record Fusion
                E^R ρ₁ ρ₂ ρ₃ → MC^R `zro ρ₁ ρ₂ ρ₃
     ⟦suc⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
                (m : Check m) → MC^R m ρ₁ ρ₂ ρ₃ → E^R ρ₁ ρ₂ ρ₃ → MC^R (`suc m) ρ₁ ρ₂ ρ₃
+    ⟦typ⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
+               (A : Type m) → MT^R A ρ₁ ρ₂ ρ₃ → E^R ρ₁ ρ₂ ρ₃ → MC^R (`typ A) ρ₁ ρ₂ ρ₃
     ⟦emb⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
                (e : Infer m) → MI^R e ρ₁ ρ₂ ρ₃ → E^R ρ₁ ρ₂ ρ₃ → MC^R (`emb e) ρ₁ ρ₂ ρ₃
-    -- Type
-    ⟦El⟧^R   : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p}
-               (t : Check m) → MC^R t ρ₁ ρ₂ ρ₃ → E^R ρ₁ ρ₂ ρ₃ → MT^R (El t) ρ₁ ρ₂ ρ₃
     -- Infer
     ⟦var⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p}
                (k : Fin m) (ρ^R : E^R ρ₁ ρ₂ ρ₃) → MI^R (`var k) ρ₁ ρ₂ ρ₃
@@ -136,18 +138,19 @@ module fusion
   lemmaC : lemmaTy MC^R
   lemmaT : lemmaTy MT^R
   lemmaI : lemmaTy MI^R
-  
-  lemmaC (`sig A B)  ρ^R = ⟦sig⟧^R A (lemmaT A ρ^R) B (abs^R MT^R lemmaT B ρ^R) ρ^R
-  lemmaC (`pi A B)   ρ^R = ⟦pi⟧^R  A (lemmaT A ρ^R) B (abs^R MT^R lemmaT B ρ^R) ρ^R
-  lemmaC `nat        ρ^R = ⟦nat⟧^R ρ^R
-  lemmaC (`set ℓ)    ρ^R = ⟦set⟧^R ℓ ρ^R
+
   lemmaC (`lam t)    ρ^R = ⟦lam⟧^R t (abs^R MC^R lemmaC t ρ^R) ρ^R
   lemmaC (`per a b)  ρ^R = ⟦per⟧^R a (lemmaC a ρ^R) b (lemmaC b ρ^R) ρ^R
   lemmaC `zro        ρ^R = ⟦zro⟧^R ρ^R
   lemmaC (`suc m)    ρ^R = ⟦suc⟧^R m (lemmaC m ρ^R) ρ^R
+  lemmaC (`typ A)    ρ^R = ⟦typ⟧^R A (lemmaT A ρ^R) ρ^R
   lemmaC (`emb e)    ρ^R = ⟦emb⟧^R e (lemmaI e ρ^R) ρ^R
 
-  lemmaT (El t) ρ^R = ⟦El⟧^R t (lemmaC t ρ^R) ρ^R
+  lemmaT (`sig A B)  ρ^R = ⟦sig⟧^R A (lemmaT A ρ^R) B (abs^R MT^R lemmaT B ρ^R) ρ^R
+  lemmaT (`pi A B)   ρ^R = ⟦pi⟧^R  A (lemmaT A ρ^R) B (abs^R MT^R lemmaT B ρ^R) ρ^R
+  lemmaT `nat        ρ^R = ⟦nat⟧^R ρ^R
+  lemmaT (`set ℓ)    ρ^R = ⟦set⟧^R ℓ ρ^R
+  lemmaT (`elt e)    ρ^R = ⟦elt⟧^R e (lemmaI e ρ^R) ρ^R
   
   lemmaI (`var k)        ρ^R = ⟦var⟧^R k ρ^R
   lemmaI (`ann t A)      ρ^R = ⟦ann⟧^R t (lemmaC t ρ^R) A (lemmaT A ρ^R) ρ^R
@@ -212,12 +215,13 @@ module syntacticFusion
     ; ⟦pi⟧^R   = λ _ hA _ hB _ → cong₂ `pi hA (hB extend ⟦fresh⟧^R)
     ; ⟦nat⟧^R  = λ _ → PEq.refl
     ; ⟦set⟧^R  = λ _ _ → PEq.refl
+    ; ⟦elt⟧^R  = λ _ he _ → cong `elt he
     ; ⟦lam⟧^R  = λ _ hT _ → cong `lam (hT extend ⟦fresh⟧^R)
     ; ⟦per⟧^R  = λ _ ha _ hb _ → cong₂ `per ha hb
     ; ⟦zro⟧^R  = λ _ → PEq.refl
     ; ⟦suc⟧^R  = λ _ hm _ → cong `suc hm
+    ; ⟦typ⟧^R  = λ _ hA _ → cong `typ hA
     ; ⟦emb⟧^R  = λ _ he _ → cong `emb he
-    ; ⟦El⟧^R   = λ _ hT _ → cong El hT
     ; ⟦var⟧^R  = ⟦var⟧^R
     ; ⟦ann⟧^R  = λ _ ht _ hA _ → cong₂ `ann ht hA
     ; ⟦app⟧^R  = λ _ ht _ hu _ → cong₂ `app ht hu
