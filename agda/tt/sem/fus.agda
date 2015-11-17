@@ -1,7 +1,7 @@
 module tt.sem.fus where
 
 open import Data.Nat
-open import Data.Fin
+open import Data.Fin hiding (lift)
 open import Function
 open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; cong ; cong₂)
 
@@ -9,16 +9,26 @@ open import tt.raw
 open import tt.env
 open import tt.sem
 
+-- Once more it's quite convenient to guide the type inference
+-- by using a record to package this definition.
+
+record FusionRel (Tm E₁ E₂ E₃ R₁ R₂ : ℕ → Set) : Set₁ where
+  constructor T
+  field t : {m n p : ℕ} → Tm m → Var m =>[ E₁ ] n → Var n =>[ E₂ ] p → Var m =>[ E₃ ] p → R₁ p → R₂ p → Set
+
+lift : {Tm E₁ E₂ E₃ R₁ R₂ : ℕ → Set} → Rel R₁ R₂ → FusionRel Tm E₁ E₂ E₃ R₁ R₂
+lift R = T $ λ _ _ _ _ → R
+
 record Fusion
   {E₁ E₂ E₃ MC₁ MC₂ MC₃ MT₁ MT₂ MT₃ MI₁ MI₂ MI₃ : ℕ → Set}
   (S₁     : Semantics E₁ MC₁ MT₁ MI₁)
   (S₂     : Semantics E₂ MC₂ MT₂ MI₂)
   (S₃     : Semantics E₃ MC₃ MT₃ MI₃)
-  (E₂₃^R  : Rel E₂ E₃)
+  (E₂₃^R  : FusionRel Fin E₁ E₂ E₃ E₂ E₃)
   (E^R    : {m n p : ℕ} → Var m =>[ E₁ ] n → Var n =>[ E₂ ] p → Var m =>[ E₃ ] p → Set)
-  (MC₂₃^R : Rel MC₂ MC₃)
-  (MT₂₃^R : Rel MT₂ MT₃)
-  (MI₂₃^R : Rel MI₂ MI₃)
+  (MC₂₃^R : FusionRel Check E₁ E₂ E₃ MC₂ MC₃)
+  (MT₂₃^R : FusionRel Type  E₁ E₂ E₃ MT₂ MT₃)
+  (MI₂₃^R : FusionRel Infer E₁ E₂ E₃ MI₂ MI₃)
   : Set where
 
   module S₁ = Semantics S₁
@@ -35,23 +45,25 @@ record Fusion
   M^R M = {m n p : ℕ} (t : M m) (ρ₁ : Var m =>[ E₁ ] n) (ρ₂ : Var n =>[ E₂ ] p) (ρ₃ : Var m =>[ E₃ ] p) → Set
 
   MC^R : M^R Check
-  MC^R t ρ₁ ρ₂ ρ₃ = MC₂₃^R (S₂ ⊨⟦ reifyC₁ (S₁ ⊨⟦ t ⟧C ρ₁) ⟧C ρ₂) (S₃ ⊨⟦ t ⟧C ρ₃)
+  MC^R t ρ₁ ρ₂ ρ₃ = FusionRel.t MC₂₃^R t ρ₁ ρ₂ ρ₃ (S₂ ⊨⟦ reifyC₁ (S₁ ⊨⟦ t ⟧C ρ₁) ⟧C ρ₂) (S₃ ⊨⟦ t ⟧C ρ₃)
 
   MT^R : M^R Type
-  MT^R t ρ₁ ρ₂ ρ₃ = MT₂₃^R (S₂ ⊨⟦ reifyT₁ (S₁ ⊨⟦ t ⟧T ρ₁) ⟧T ρ₂) (S₃ ⊨⟦ t ⟧T ρ₃)
+  MT^R t ρ₁ ρ₂ ρ₃ = FusionRel.t MT₂₃^R t ρ₁ ρ₂ ρ₃(S₂ ⊨⟦ reifyT₁ (S₁ ⊨⟦ t ⟧T ρ₁) ⟧T ρ₂) (S₃ ⊨⟦ t ⟧T ρ₃)
   
   MI^R : M^R Infer
-  MI^R t ρ₁ ρ₂ ρ₃ = MI₂₃^R (S₂ ⊨⟦ reifyI₁ (S₁ ⊨⟦ t ⟧I ρ₁) ⟧I ρ₂) (S₃ ⊨⟦ t ⟧I ρ₃)
+  MI^R t ρ₁ ρ₂ ρ₃ = FusionRel.t MI₂₃^R t ρ₁ ρ₂ ρ₃ (S₂ ⊨⟦ reifyI₁ (S₁ ⊨⟦ t ⟧I ρ₁) ⟧I ρ₂) (S₃ ⊨⟦ t ⟧I ρ₃)
 
   Kripke^R : {M : ℕ → Set} (MM^R : M^R M) → M^R (M ∘ suc)
   Kripke^R MM^R b ρ₁ ρ₂ ρ₃ =
-    {q : ℕ} (inc : _ ⊆ q) {u₂ : E₂ q} {u₃ : E₃ q} → E₂₃^R u₂ u₃ →
-    MM^R b (S₁.weakE extend ρ₁ ∙ S₁.fresh) (S₂.weakE inc ρ₂ ∙ u₂) (S₃.weakE inc ρ₃ ∙ u₃)
+    {q : ℕ} (inc : _ ⊆ q) {u₂ : E₂ q} {u₃ : E₃ q} →
+    FusionRel.t E₂₃^R zero (S₁.lift ρ₁) (S₂.weakE inc ρ₂ ∙ u₂) (S₃.weakE inc ρ₃ ∙ u₃) u₂ u₃ →
+    MM^R b (S₁.lift ρ₁) (S₂.weakE inc ρ₂ ∙ u₂) (S₃.weakE inc ρ₃ ∙ u₃)
     
   field
     -- Env
     _⟦∙⟧^R_  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
-               E^R ρ₁ ρ₂ ρ₃ → {u₂ : E₂ p} {u₃ : E₃ p} → E₂₃^R u₂ u₃ → E^R (S₁.lift ρ₁) (ρ₂ ∙ u₂) (ρ₃ ∙ u₃)
+               E^R ρ₁ ρ₂ ρ₃ → {u₂ : E₂ p} {u₃ : E₃ p} →
+               FusionRel.t E₂₃^R zero (S₁.lift ρ₁) (ρ₂ ∙ u₂) (ρ₃ ∙ u₃) u₂ u₃ → E^R (S₁.lift ρ₁) (ρ₂ ∙ u₂) (ρ₃ ∙ u₃)
     ⟦wk⟧^R   : {m n p q : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
                (inc : p ⊆ q) → E^R ρ₁ ρ₂ ρ₃ → E^R ρ₁ (S₂.weakE inc ρ₂) (S₃.weakE inc ρ₃)
     -- Type
@@ -109,11 +121,11 @@ module fusion
   {S₁     : Semantics E₁ MC₁ MT₁ MI₁}
   {S₂     : Semantics E₂ MC₂ MT₂ MI₂}
   {S₃     : Semantics E₃ MC₃ MT₃ MI₃}
-  {E₂₃^R  : Rel E₂ E₃}
+  {E₂₃^R  : FusionRel Fin E₁ E₂ E₃ E₂ E₃}
   {E^R    : {m n p : ℕ} → Var m =>[ E₁ ] n → Var n =>[ E₂ ] p → Var m =>[ E₃ ] p → Set}
-  {MC₂₃^R : Rel MC₂ MC₃}
-  {MT₂₃^R : Rel MT₂ MT₃}
-  {MI₂₃^R : Rel MI₂ MI₃}
+  {MC₂₃^R : FusionRel Check E₁ E₂ E₃  MC₂ MC₃}
+  {MT₂₃^R : FusionRel Type  E₁ E₂ E₃  MT₂ MT₃}
+  {MI₂₃^R : FusionRel Infer E₁ E₂ E₃  MI₂ MI₃}
   (φ : Fusion S₁ S₂ S₃ E₂₃^R E^R MC₂₃^R MT₂₃^R MI₂₃^R)
   where
 
@@ -159,12 +171,13 @@ module fusion
   lemmaI (`snd t)        ρ^R = ⟦snd⟧^R t (lemmaI t ρ^R) ρ^R
   lemmaI (`ind p z s m)  ρ^R = ⟦ind⟧^R p (lemmaC p ρ^R) z (lemmaC z ρ^R) s (lemmaC s ρ^R) m (lemmaI m ρ^R) ρ^R
 
+
 record SyntacticFusion 
   {E₁ E₂ E₃ : ℕ → Set}
   (S₁     : SyntacticSemantics E₁)
   (S₂     : SyntacticSemantics E₂)
   (S₃     : SyntacticSemantics E₃)
-  (E₂₃^R  : Rel E₂ E₃)
+  (E₂₃^R  : FusionRel Fin E₁ E₂ E₃ E₂ E₃)
   (E^R    : {m n p : ℕ} → Var m =>[ E₁ ] n → Var n =>[ E₂ ] p → Var m =>[ E₃ ] p → Set)
   : Set where
 
@@ -184,39 +197,41 @@ record SyntacticFusion
   field
     -- Env
     _⟦∙⟧^R_   : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
-                E^R ρ₁ ρ₂ ρ₃ → {u₂ : E₂ p} {u₃ : E₃ p} → E₂₃^R u₂ u₃ → E^R (S₁.lift ρ₁) (ρ₂ ∙ u₂) (ρ₃ ∙ u₃)
+                E^R ρ₁ ρ₂ ρ₃ → {u₂ : E₂ p} {u₃ : E₃ p} →
+                FusionRel.t E₂₃^R zero (S₁.lift ρ₁) (ρ₂ ∙ u₂) (ρ₃ ∙ u₃) u₂ u₃ → E^R (S₁.lift ρ₁) (ρ₂ ∙ u₂) (ρ₃ ∙ u₃)
     ⟦wk⟧^R    : {m n p q : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
                 (inc : p ⊆ q) → E^R ρ₁ ρ₂ ρ₃ → E^R ρ₁ (S₂.weakE inc ρ₂) (S₃.weakE inc ρ₃)
     -- var
     ⟦var⟧^R   : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p}
                 (k : Fin m) (ρ^R : E^R ρ₁ ρ₂ ρ₃) → MI^R (`var k) ρ₁ ρ₂ ρ₃
-    ⟦fresh⟧^R : {m : ℕ} → E₂₃^R {suc m} S₂.fresh S₃.fresh
+    ⟦fresh⟧^R : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p} →
+                E^R ρ₁ ρ₂ ρ₃ → FusionRel.t E₂₃^R zero (S₁.lift ρ₁) (S₂.lift ρ₂) (S₃.lift ρ₃) S₂.fresh S₃.fresh
 
 module syntacticFusion
   {E₁ E₂ E₃ : ℕ → Set}
   {S₁     : SyntacticSemantics E₁}
   {S₂     : SyntacticSemantics E₂}
   {S₃     : SyntacticSemantics E₃}
-  {E₂₃^R  : Rel E₂ E₃}
+  {E₂₃^R  : FusionRel Fin E₁ E₂ E₃ E₂ E₃}
   {E^R    : {m n p : ℕ} → Var m =>[ E₁ ] n → Var n =>[ E₂ ] p → Var m =>[ E₃ ] p → Set}
   (φ : SyntacticFusion S₁ S₂ S₃ E₂₃^R E^R) where
 
   open SyntacticFusion φ
   open import Data.Product using (_,_ ; uncurry ; proj₁ ; proj₂)
 
-  lemma : Fusion SS₁.lemma SS₂.lemma SS₃.lemma E₂₃^R E^R _≡_ _≡_ _≡_
+  lemma : Fusion SS₁.lemma SS₂.lemma SS₃.lemma E₂₃^R E^R (lift _≡_) (lift _≡_) (lift _≡_)
   lemma = record
     { reifyC₁  = id
     ; reifyT₁  = id
     ; reifyI₁  = id
     ; _⟦∙⟧^R_  = _⟦∙⟧^R_
     ; ⟦wk⟧^R   = ⟦wk⟧^R
-    ; ⟦sig⟧^R  = λ _ hA _ hB _ → cong₂ `sig hA (hB extend ⟦fresh⟧^R)
-    ; ⟦pi⟧^R   = λ _ hA _ hB _ → cong₂ `pi hA (hB extend ⟦fresh⟧^R)
+    ; ⟦sig⟧^R  = λ _ hA _ hB ρ^R → cong₂ `sig hA (hB extend (⟦fresh⟧^R ρ^R))
+    ; ⟦pi⟧^R   = λ _ hA _ hB ρ^R → cong₂ `pi hA (hB extend (⟦fresh⟧^R ρ^R))
     ; ⟦nat⟧^R  = λ _ → PEq.refl
     ; ⟦set⟧^R  = λ _ _ → PEq.refl
     ; ⟦elt⟧^R  = λ _ he _ → cong `elt he
-    ; ⟦lam⟧^R  = λ _ hT _ → cong `lam (hT extend ⟦fresh⟧^R)
+    ; ⟦lam⟧^R  = λ _ hT ρ^R → cong `lam (hT extend (⟦fresh⟧^R ρ^R))
     ; ⟦per⟧^R  = λ _ ha _ hb _ → cong₂ `per ha hb
     ; ⟦zro⟧^R  = λ _ → PEq.refl
     ; ⟦suc⟧^R  = λ _ hm _ → cong `suc hm
@@ -232,21 +247,22 @@ module syntacticFusion
                  in cong₂ patt (cong₂ _,_ hp hz) (cong₂ _,_ hs hm)
     }
 
-RenRen : Fusion Renaming Renaming Renaming _≡_ (λ ρ₁ ρ₂ → ∀[ _≡_ ] (trans ρ₁ ρ₂)) _≡_ _≡_ _≡_
+RenRen : Fusion Renaming Renaming Renaming (lift _≡_) (λ ρ₁ ρ₂ → ∀[ _≡_ ] (trans ρ₁ ρ₂)) _ _ _
 RenRen = syntacticFusion.lemma $ record
   { _⟦∙⟧^R_   = λ ρ^R u^R → λ { zero → u^R ; (suc k) → ρ^R k }
   ; ⟦wk⟧^R    = λ inc ρ^R k → cong (lookup inc) (ρ^R k)
   ; ⟦var⟧^R   = λ k ρ^R → cong `var (ρ^R k)
-  ; ⟦fresh⟧^R = PEq.refl }
+  ; ⟦fresh⟧^R = λ _ → PEq.refl }
 
-RenSub : Fusion Renaming Substitution Substitution _≡_ (λ ρ₁ ρ₂ → ∀[ _≡_ ] (trans ρ₁ ρ₂)) _≡_ _≡_ _≡_
+RenSub : Fusion Renaming Substitution Substitution (lift _≡_) (λ ρ₁ ρ₂ → ∀[ _≡_ ] (trans ρ₁ ρ₂)) _ _ _
 RenSub = syntacticFusion.lemma $ record
   { _⟦∙⟧^R_   = λ ρ^R u^R → λ { zero → u^R ; (suc k) → ρ^R k }
   ; ⟦wk⟧^R    = λ inc ρ^R k → cong (weakI inc) (ρ^R k)
   ; ⟦var⟧^R   = λ k ρ^R → ρ^R k
-  ; ⟦fresh⟧^R = PEq.refl }
+  ; ⟦fresh⟧^R = λ _ → PEq.refl }
   
-SubRen : Fusion Substitution Renaming Substitution (_≡_ ∘ `var) (λ ρ₁ ρ₂ → ∀[ _≡_ ] (wk[ weakI ] ρ₂ ρ₁)) _≡_ _≡_ _≡_
+SubRen : Fusion Substitution Renaming Substitution
+         (lift $ _≡_ ∘ `var) (λ ρ₁ ρ₂ → ∀[ _≡_ ] (wk[ weakI ] ρ₂ ρ₁)) _ _ _
 SubRen = syntacticFusion.lemma $ record
   { _⟦∙⟧^R_   = λ {_} {_} {_} {ρ₁} ρ^R u^R →
                 λ { zero    → u^R
@@ -255,11 +271,11 @@ SubRen = syntacticFusion.lemma $ record
                 PEq.trans (PEq.sym (Ren^2.lemmaI (lookup ρ₁ k) (λ _ → PEq.refl)))
                           (cong (weakI inc) (ρ^R k))
   ; ⟦var⟧^R   = λ k ρ^R → ρ^R k
-  ; ⟦fresh⟧^R = PEq.refl }
+  ; ⟦fresh⟧^R = λ _ → PEq.refl }
 
   where module Ren^2 = fusion RenRen
 
-SubSub : Fusion Substitution Substitution Substitution _≡_ (λ ρ₁ ρ₂ → ∀[ _≡_ ] _) _≡_ _≡_ _≡_
+SubSub : Fusion Substitution Substitution Substitution (lift _≡_) (λ ρ₁ ρ₂ → ∀[ _≡_ ] _) _ _ _
 SubSub = syntacticFusion.lemma $ record
   { _⟦∙⟧^R_   = λ {_} {_} {_} {ρ₁} ρ^R u^R →
                 λ { zero    → u^R
@@ -268,4 +284,4 @@ SubSub = syntacticFusion.lemma $ record
                 PEq.trans (PEq.sym $ fusion.lemmaI SubRen (lookup ρ₁ k) (λ _ → PEq.refl))
                           (cong (weakI inc) (ρ^R k))
   ; ⟦var⟧^R   = λ k ρ^R → ρ^R k
-  ; ⟦fresh⟧^R = PEq.refl }
+  ; ⟦fresh⟧^R = λ _ → PEq.refl }
