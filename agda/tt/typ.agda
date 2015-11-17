@@ -124,6 +124,12 @@ module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
              -----------
              Γ ⊢ A ∋ `emb e
 
+      `set : {A : Type n} {ℓ : ℕ} →
+
+             Γ ⊢set ℓ ∋ A →
+             ---------------
+             Γ ⊢ set ℓ ∋ unEl A
+
       `red : {t : Check n} {A B : Type n} →
 
              A ↝ B → Γ ⊢ B ∋ t →

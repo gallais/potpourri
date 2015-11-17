@@ -135,11 +135,14 @@ module syntacticSemantics {E : ℕ → Set} (Syn : SyntacticSemantics E) where
 -- EXAMPLES OF SYNTACTIC SEMANTICS
 -----------------------------------------------------------
 
-Renaming : Semantics Fin Check Type Infer
-Renaming = syntacticSemantics.lemma $ record
+SyntacticRenaming : SyntacticSemantics Fin
+SyntacticRenaming = record
   { ⟦wk⟧   = lookup
   ; ⟦diag⟧ = pack id
   ; ⟦var⟧  = `var }
+
+Renaming : Semantics Fin Check Type Infer
+Renaming = syntacticSemantics.lemma SyntacticRenaming
 
 weakI : Weakening Infer
 weakI = flip $ Renaming ⊨⟦_⟧I_
@@ -150,11 +153,14 @@ weakT = flip $ Renaming ⊨⟦_⟧T_
 weakC : Weakening Check
 weakC = flip $ Renaming ⊨⟦_⟧C_
 
-Substitution : Semantics Infer Check Type Infer
-Substitution = syntacticSemantics.lemma $ record
+SyntacticSubstitution : SyntacticSemantics Infer
+SyntacticSubstitution = record
   { ⟦wk⟧   = weakI
   ; ⟦diag⟧ = pack `var
   ; ⟦var⟧  = id }
+
+Substitution : Semantics Infer Check Type Infer
+Substitution = syntacticSemantics.lemma SyntacticSubstitution
 
 substI : Substituting Infer Infer
 substI = Substitution ⊨⟦_⟧I_
