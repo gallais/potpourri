@@ -7,47 +7,65 @@ open import Function
 open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; cong ; cong₂)
 
 open import tt.raw
-open import tt.env
+open import tt.env hiding (∀[_])
 open import tt.sem
+
+-- Once more it's quite convenient to guide the type inference
+-- by using a record to package this definition.
+
+record RelatedRel (Tm E₁ E₂ R₁ R₂ : ℕ → Set) : Set₁ where
+  constructor T
+  field t : {m n : ℕ} → Tm m → Var m =>[ E₁ ] n → Var m =>[ E₂ ] n → R₁ n → R₂ n → Set
+
+lift : {Tm E₁ E₂ R₁ R₂ : ℕ → Set} → Rel R₁ R₂ → RelatedRel Tm E₁ E₂ R₁ R₂
+lift R = T $ λ _ _ _ → R
 
 record Related 
   {E₁ E₂ MC₁ MC₂ MT₁ MT₂ MI₁ MI₂ : ℕ → Set}
   (S₁   : Semantics E₁ MC₁ MT₁ MI₁)
   (S₂   : Semantics E₂ MC₂ MT₂ MI₂)
-  (E₁₂^R  : Rel E₁ E₂)
-  (MC₁₂^R : Rel MC₁ MC₂)
-  (MT₁₂^R : Rel MT₁ MT₂)
-  (MI₁₂^R : Rel MI₁ MI₂)
+  (E₁₂^R  : RelatedRel Fin   E₁ E₂ E₁ E₂)
+  (MC₁₂^R : RelatedRel Check E₁ E₂ MC₁ MC₂)
+  (MT₁₂^R : RelatedRel Type  E₁ E₂ MT₁ MT₂)
+  (MI₁₂^R : RelatedRel Infer E₁ E₂ MI₁ MI₂)
   : Set where
 
   M^R : (M : ℕ → Set) → Set₁
   M^R M = {m n : ℕ} (t : M m) (ρ₁ : Var m =>[ E₁ ] n) (ρ₂ : Var m =>[ E₂ ] n) → Set
 
+  ∀[_] : M^R Fin → {m : ℕ} → Rel (Var m =>[ E₁ ]_) (Var m =>[ E₂ ]_)
+  ∀[_] R ρ₁ ρ₂ = (k : Fin _) → R k ρ₁ ρ₂
+
   E^R : {m : ℕ} → Rel (Var m =>[ E₁ ]_) (Var m =>[ E₂ ]_)
-  E^R = ∀[ E₁₂^R ]
+  E^R = ∀[ (λ k ρ₁ ρ₂ → RelatedRel.t E₁₂^R k ρ₁ ρ₂ (lookup ρ₁ k) (lookup ρ₂ k)) ]
 
   MC^R : M^R Check
-  MC^R t ρ₁ ρ₂ = MC₁₂^R (S₁ ⊨⟦ t ⟧C ρ₁) (S₂ ⊨⟦ t ⟧C ρ₂)
+  MC^R t ρ₁ ρ₂ = RelatedRel.t MC₁₂^R t ρ₁ ρ₂ (S₁ ⊨⟦ t ⟧C ρ₁) (S₂ ⊨⟦ t ⟧C ρ₂)
   
   MT^R : M^R Type
-  MT^R t ρ₁ ρ₂ = MT₁₂^R (S₁ ⊨⟦ t ⟧T ρ₁) (S₂ ⊨⟦ t ⟧T ρ₂)
+  MT^R t ρ₁ ρ₂ = RelatedRel.t MT₁₂^R t ρ₁ ρ₂ (S₁ ⊨⟦ t ⟧T ρ₁) (S₂ ⊨⟦ t ⟧T ρ₂)
 
   MI^R : M^R Infer
-  MI^R t ρ₁ ρ₂ = MI₁₂^R (S₁ ⊨⟦ t ⟧I ρ₁) (S₂ ⊨⟦ t ⟧I ρ₂)
+  MI^R t ρ₁ ρ₂ = RelatedRel.t MI₁₂^R t ρ₁ ρ₂ (S₁ ⊨⟦ t ⟧I ρ₁) (S₂ ⊨⟦ t ⟧I ρ₂)
   
   module S₁ = Semantics S₁
   module S₂ = Semantics S₂
 
   Kripke^R : {M : ℕ → Set} (MM^R : M^R M) → M^R (M ∘ suc)
   Kripke^R MM^R b ρ₁ ρ₂ =
-    {q : ℕ} (inc : _ ⊆ q) {u₁ : E₁ q} {u₂ : E₂ q} → E₁₂^R u₁ u₂ →
+    {q : ℕ} (inc : _ ⊆ q) {u₁ : E₁ q} {u₂ : E₂ q} →
+    RelatedRel.t E₁₂^R zero (S₁.weakE inc ρ₁ ∙ u₁) (S₂.weakE inc ρ₂ ∙ u₂) u₁ u₂ →
     MM^R b (S₁.weakE inc ρ₁ ∙ u₁) (S₂.weakE inc ρ₂ ∙ u₂)
-
 
   field
     -- Env
-    ⟦wk⟧^R   : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
-               (inc : n ⊆ p) → E^R ρ₁ ρ₂ → E^R (S₁.weakE inc ρ₁) (S₂.weakE inc ρ₂)
+    ⟦wk⟧^R   : {m n p : ℕ} {k : Fin m} {u₁ : E₁ n} {u₂ : E₂ n} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
+               (inc : n ⊆ p) → RelatedRel.t E₁₂^R k ρ₁ ρ₂ u₁ u₂ →
+               RelatedRel.t E₁₂^R k (S₁.weakE inc ρ₁) (S₂.weakE inc ρ₂) (S₁.⟦wk⟧ inc u₁) (S₂.⟦wk⟧ inc u₂)
+    -- Vars
+    ⟦varS⟧^R  : {m n : ℕ} {k : Fin m} {u₁ : E₁ n} {u₂ : E₂ n} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
+                {v₁ : E₁ n} {v₂ : E₂ n} → RelatedRel.t E₁₂^R k ρ₁ ρ₂ u₁ u₂ →
+                RelatedRel.t E₁₂^R (suc k) (ρ₁ ∙ v₁) (ρ₂ ∙ v₂) u₁ u₂
     -- Type
     ⟦sig⟧^R  : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
                (A : Type m) → MT^R A ρ₁ ρ₂ →
@@ -98,15 +116,14 @@ record Related
                (s : Check m) → MC^R s ρ₁ ρ₂ →
                (m : Infer m) → MI^R m ρ₁ ρ₂ → E^R ρ₁ ρ₂ → MI^R (`ind p z s m) ρ₁ ρ₂ 
 
-
 module related
   {E₁ E₂ MC₁ MC₂ MT₁ MT₂ MI₁ MI₂ : ℕ → Set}
   {S₁     : Semantics E₁ MC₁ MT₁ MI₁}
   {S₂     : Semantics E₂ MC₂ MT₂ MI₂}
-  {E₁₂^R  : Rel E₁ E₂}
-  {MC₁₂^R : Rel MC₁ MC₂}
-  {MT₁₂^R : Rel MT₁ MT₂}
-  {MI₁₂^R : Rel MI₁ MI₂}
+  {E₁₂^R  : RelatedRel Fin   E₁ E₂ E₁ E₂}
+  {MC₁₂^R : RelatedRel Check E₁ E₂ MC₁ MC₂}
+  {MT₁₂^R : RelatedRel Type  E₁ E₂ MT₁ MT₂}
+  {MI₁₂^R : RelatedRel Infer E₁ E₂ MI₁ MI₂}
   (Rel    : Related S₁ S₂ E₁₂^R MC₁₂^R MT₁₂^R MI₁₂^R)
   where
 
@@ -117,7 +134,7 @@ module related
                      E^R ρ₁ ρ₂ → MM^R t ρ₁ ρ₂
 
   abs^R : {M : ℕ → Set} (MM^R : M^R M) (lemmaM : lemmaTy MM^R) → lemmaTy (Kripke^R MM^R)
-  abs^R MM^R lemmaM t ρ^R inc u^R = lemmaM t $ λ { zero → u^R ; (suc k) → ⟦wk⟧^R inc ρ^R k }
+  abs^R MM^R lemmaM t ρ^R inc u^R = lemmaM t $ λ { zero → u^R ; (suc k) → ⟦varS⟧^R (⟦wk⟧^R inc (ρ^R k)) }
 
   -- In the following definition, using `abs^R` prevents Agda from
   -- noticing that the mutual definitions are perfectly structural.
@@ -155,7 +172,7 @@ record SyntacticRelated
   {E₁ E₂ : ℕ → Set}
   (S₁   : SyntacticSemantics E₁)
   (S₂   : SyntacticSemantics E₂)
-  (E₁₂^R  : Rel E₁ E₂)
+  (E₁₂^R  : RelatedRel Fin E₁ E₂ E₁ E₂)
   : Set where
 
   module SS₁ = syntacticSemantics S₁
@@ -163,74 +180,87 @@ record SyntacticRelated
   module S₁  = Semantics SS₁.lemma
   module S₂  = Semantics SS₂.lemma
 
-  E^R : {m : ℕ} → Rel (Var m =>[ E₁ ]_) (Var m =>[ E₂ ]_)
-  E^R = ∀[ E₁₂^R ]
-  
   M^R : (M : ℕ → Set) → Set₁
   M^R M = {m n : ℕ} (t : M m) (ρ₁ : Var m =>[ E₁ ] n) (ρ₂ : Var m =>[ E₂ ] n) → Set
+
+  ∀[_] : M^R Fin → {m : ℕ} → Rel (Var m =>[ E₁ ]_) (Var m =>[ E₂ ]_)
+  ∀[_] R ρ₁ ρ₂ = (k : Fin _) → R k ρ₁ ρ₂
+
+  E^R : {m : ℕ} → Rel (Var m =>[ E₁ ]_) (Var m =>[ E₂ ]_)
+  E^R = ∀[ (λ k ρ₁ ρ₂ → RelatedRel.t E₁₂^R k ρ₁ ρ₂ (lookup ρ₁ k) (lookup ρ₂ k)) ]
 
   MI^R : M^R Infer
   MI^R t ρ₁ ρ₂ = SS₁.lemma ⊨⟦ t ⟧I ρ₁ ≡ SS₂.lemma ⊨⟦ t ⟧I ρ₂
 
   field
     -- Env
-    ⟦wk⟧^R   : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
-               (inc : n ⊆ p) → E^R ρ₁ ρ₂ → E^R (S₁.weakE inc ρ₁) (S₂.weakE inc ρ₂)
+    ⟦wk⟧^R    : {m n p : ℕ} {k : Fin m} {u₁ : E₁ n} {u₂ : E₂ n} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
+                (inc : n ⊆ p) → RelatedRel.t E₁₂^R k ρ₁ ρ₂ u₁ u₂ →
+                RelatedRel.t E₁₂^R k (S₁.weakE inc ρ₁) (S₂.weakE inc ρ₂) (S₁.⟦wk⟧ inc u₁) (S₂.⟦wk⟧ inc u₂)
+    ⟦varS⟧^R  : {m n : ℕ} {k : Fin m} {u₁ : E₁ n} {u₂ : E₂ n} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} →
+                {v₁ : E₁ n} {v₂ : E₂ n} → RelatedRel.t E₁₂^R k ρ₁ ρ₂ u₁ u₂ →
+                RelatedRel.t E₁₂^R (suc k) (ρ₁ ∙ v₁) (ρ₂ ∙ v₂) u₁ u₂
     -- var
     ⟦var⟧^R   : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n}
                 (k : Fin m) (ρ^R : E^R ρ₁ ρ₂) → MI^R (`var k) ρ₁ ρ₂
-    ⟦fresh⟧^R : {m : ℕ} → E₁₂^R {suc m} S₁.fresh S₂.fresh
+    ⟦fresh⟧^R : {m n : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var m =>[ E₂ ] n} → E^R ρ₁ ρ₂ →
+                let ρ₁′ = S₁.weakE extend ρ₁
+                    ρ₂′ = S₂.weakE extend ρ₂
+                in RelatedRel.t E₁₂^R zero (ρ₁′ ∙ S₁.fresh) (ρ₂′ ∙ S₂.fresh) S₁.fresh S₂.fresh
 
 
 module syntacticRelated
   {E₁ E₂ : ℕ → Set}
   {S₁     : SyntacticSemantics E₁}
   {S₂     : SyntacticSemantics E₂}
-  {E₁₂^R  : Rel E₁ E₂}
+  {E₁₂^R  : RelatedRel Fin E₁ E₂ E₁ E₂}
   (Rel    : SyntacticRelated S₁ S₂ E₁₂^R)
   where
 
   open SyntacticRelated Rel
 
-  lemma : Related SS₁.lemma SS₂.lemma E₁₂^R _≡_ _≡_ _≡_
+  lemma : Related SS₁.lemma SS₂.lemma E₁₂^R (lift _≡_) (lift _≡_) (lift _≡_)
   lemma = record
-    { ⟦wk⟧^R  = ⟦wk⟧^R
-    ; ⟦sig⟧^R = λ _ hA _ hB _ → cong₂ `sig hA (hB extend ⟦fresh⟧^R)
-    ; ⟦pi⟧^R  = λ _ hA _ hB _ → cong₂ `pi  hA (hB extend ⟦fresh⟧^R)
-    ; ⟦nat⟧^R = λ _ → PEq.refl
-    ; ⟦set⟧^R = λ _ _ → PEq.refl
-    ; ⟦elt⟧^R = λ _ hE _ → cong `elt hE
-    ; ⟦lam⟧^R = λ _ hb _ → cong `lam (hb extend ⟦fresh⟧^R)
-    ; ⟦per⟧^R = λ _ ha _ hb _ → cong₂ `per ha hb
-    ; ⟦zro⟧^R = λ _ → PEq.refl
-    ; ⟦suc⟧^R = λ _ hm _ → cong `suc hm
-    ; ⟦typ⟧^R = λ _ hA _ → cong `typ hA
-    ; ⟦emb⟧^R = λ _ he _ → cong `emb he
-    ; ⟦var⟧^R = ⟦var⟧^R
-    ; ⟦ann⟧^R = λ _ ht _ hA _ → cong₂ `ann ht hA
-    ; ⟦app⟧^R = λ _ ht _ hu _ → cong₂ `app ht hu
-    ; ⟦fst⟧^R = λ _ ht _ → cong `fst ht
-    ; ⟦snd⟧^R = λ _ ht _ → cong `snd ht
-    ; ⟦ind⟧^R = λ _ hp _ hz _ hs _ hm _ →
-                 let patt = uncurry $ λ p q r → `ind p q (proj₁ r) (proj₂ r)
-                 in cong₂ patt (cong₂ _,_ hp hz) (cong₂ _,_ hs hm)
+    { ⟦wk⟧^R   = ⟦wk⟧^R
+    ; ⟦varS⟧^R = ⟦varS⟧^R
+    ; ⟦sig⟧^R  = λ _ hA _ hB ρ^R → cong₂ `sig hA (hB extend (⟦fresh⟧^R ρ^R))
+    ; ⟦pi⟧^R   = λ _ hA _ hB ρ^R → cong₂ `pi  hA (hB extend (⟦fresh⟧^R ρ^R))
+    ; ⟦nat⟧^R  = λ _ → PEq.refl
+    ; ⟦set⟧^R  = λ _ _ → PEq.refl
+    ; ⟦elt⟧^R  = λ _ hE _ → cong `elt hE
+    ; ⟦lam⟧^R  = λ _ hb ρ^R → cong `lam (hb extend (⟦fresh⟧^R ρ^R))
+    ; ⟦per⟧^R  = λ _ ha _ hb _ → cong₂ `per ha hb
+    ; ⟦zro⟧^R  = λ _ → PEq.refl
+    ; ⟦suc⟧^R  = λ _ hm _ → cong `suc hm
+    ; ⟦typ⟧^R  = λ _ hA _ → cong `typ hA
+    ; ⟦emb⟧^R  = λ _ he _ → cong `emb he
+    ; ⟦var⟧^R  = ⟦var⟧^R
+    ; ⟦ann⟧^R  = λ _ ht _ hA _ → cong₂ `ann ht hA
+    ; ⟦app⟧^R  = λ _ ht _ hu _ → cong₂ `app ht hu
+    ; ⟦fst⟧^R  = λ _ ht _ → cong `fst ht
+    ; ⟦snd⟧^R  = λ _ ht _ → cong `snd ht
+    ; ⟦ind⟧^R  = λ _ hp _ hz _ hs _ hm _ →
+                  let patt = uncurry $ λ p q r → `ind p q (proj₁ r) (proj₂ r)
+                  in cong₂ patt (cong₂ _,_ hp hz) (cong₂ _,_ hs hm)
     }
 
-RenSubVar : Related Renaming Substitution (_≡_ ∘ `var) _≡_ _≡_ _≡_
+RenSubVar : Related Renaming Substitution (lift $ _≡_ ∘ `var) _ _ _
 RenSubVar = syntacticRelated.lemma $ record
-  { ⟦wk⟧^R    = λ inc ρ^R → cong (weakI inc) ∘ ρ^R
+  { ⟦wk⟧^R    = λ inc eq → cong (weakI inc) eq
+  ; ⟦varS⟧^R  = id
   ; ⟦var⟧^R   = λ k ρ^R → ρ^R k
-  ; ⟦fresh⟧^R = PEq.refl }
+  ; ⟦fresh⟧^R = λ _ → PEq.refl }
 
-RenExt : Related Renaming Renaming _≡_ _≡_ _≡_ _≡_
+RenExt : Related Renaming Renaming (lift _≡_) _ _ _
 RenExt = syntacticRelated.lemma $ record
-  { ⟦wk⟧^R    = λ inc ρ^R → cong (lookup inc) ∘ ρ^R
+  { ⟦wk⟧^R    = λ inc eq → cong (lookup inc) eq
+  ; ⟦varS⟧^R  = id
   ; ⟦var⟧^R   = λ k ρ^R → cong `var (ρ^R k)
-  ; ⟦fresh⟧^R = PEq.refl }
+  ; ⟦fresh⟧^R = λ _ → PEq.refl }
 
-SubExt : Related Substitution Substitution _≡_ _≡_ _≡_ _≡_
+SubExt : Related Substitution Substitution (lift _≡_) _ _ _
 SubExt = syntacticRelated.lemma $ record
-  { ⟦wk⟧^R    = λ inc ρ^R → cong (weakI inc) ∘ ρ^R
+  { ⟦wk⟧^R    = λ inc eq → cong (weakI inc) eq
+  ; ⟦varS⟧^R  = id
   ; ⟦var⟧^R   = λ k ρ^R → ρ^R k
-  ; ⟦fresh⟧^R = PEq.refl }
-
+  ; ⟦fresh⟧^R = λ _ → PEq.refl }
