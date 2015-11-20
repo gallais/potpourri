@@ -36,35 +36,6 @@ data _⊢var_∈_ : {n : ℕ} → Context n → Fin n → Type n → Set where
          Γ ⊢var k ∈ B →
          ----------------------------------
          Γ ∙⟩ A ⊢var suc k ∈ weakT extend B
-           
-record [_]_⇒_ {m n : ℕ} (inc : m ⊆ n) (Γ : Context m) (Δ : Context n) : Set where
-  constructor pack
-  field weakVar : {k : Fin m} {A : Type m} → Γ ⊢var k ∈ A → Δ ⊢var lookup inc k ∈ weakT inc A
-open [_]_⇒_ public
-
-POP! : {m n : ℕ} {inc : m ⊆ n} {Γ : Context m} {Δ : Context n} →
-       [ inc ] Γ ⇒ Δ → (A : Type m) → [ pop! inc ] Γ ∙⟩ A ⇒ (Δ ∙⟩ weakT inc A)
-weakVar (POP! {inc = inc} {Δ = Δ} ren A) zro =
-
-  let eq : weakT extend (weakT inc A)
-         ≡ weakT (pop! inc) (weakT extend A)
-      eq = PEq.trans (fusion.lemmaT RenRen A (λ _ → PEq.refl))
-         $ PEq.sym $ fusion.lemmaT RenRen A (λ _ → PEq.refl)
-
-  in subst (Δ ∙⟩ weakT inc A ⊢var zero ∈_) eq zro
-
-weakVar (POP! {inc = inc} {Δ = Δ} ren A) (suc {B = B} {k} Hk) =
-  
-  let ih : Δ ∙⟩ weakT inc A ⊢var lookup (pop! inc) (suc k) ∈ weakT extend (weakT inc B)
-      ih = suc (weakVar ren Hk)
-
-      eq : weakT extend (weakT inc B)
-         ≡ weakT (pop! inc) (weakT extend B)
-      eq = PEq.trans (fusion.lemmaT RenRen B (λ _ → PEq.refl))
-         $ PEq.sym $  fusion.lemmaT RenRen B (λ _ → PEq.refl)
-        
-  in subst (Δ ∙⟩ weakT inc A ⊢var lookup (pop! inc) (suc k) ∈_) eq ih
-
 
 module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
 

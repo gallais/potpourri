@@ -80,5 +80,5 @@ RenId : Identity SyntacticRenaming
 RenId = record { ⟦var⟧^R = λ _ → refl ; ⟦wk⟧^R = λ _ → refl }
 
 
-SubId : Identity SyntacticRenaming
+SubId : Identity SyntacticSubstitution
 SubId = record { ⟦var⟧^R = λ k → identity.lemmaI RenId (`var k) ; ⟦wk⟧^R = λ _ → refl }

@@ -251,16 +251,17 @@ RenSubVar = syntacticRelated.lemma $ record
   ; ⟦var⟧^R   = λ k ρ^R → ρ^R k
   ; ⟦fresh⟧^R = λ _ → PEq.refl }
 
-RenExt : Related Renaming Renaming (lift _≡_) _ _ _
-RenExt = syntacticRelated.lemma $ record
-  { ⟦wk⟧^R    = λ inc eq → cong (lookup inc) eq
+SynExt : {E : ℕ → Set} (Syn : SyntacticSemantics E) →
+         let S = syntacticSemantics.lemma Syn in Related S S (lift _≡_) _ _ _
+SynExt Syn = syntacticRelated.lemma $ record
+  { ⟦wk⟧^R    = λ inc → cong (⟦wk⟧ inc)
   ; ⟦varS⟧^R  = id
-  ; ⟦var⟧^R   = λ k ρ^R → cong `var (ρ^R k)
+  ; ⟦var⟧^R   = λ k ρ^R → cong ⟦var⟧ (ρ^R k)
   ; ⟦fresh⟧^R = λ _ → PEq.refl }
+  where open SyntacticSemantics Syn
+
+RenExt : Related Renaming Renaming (lift _≡_) _ _ _
+RenExt = SynExt SyntacticRenaming
 
 SubExt : Related Substitution Substitution (lift _≡_) _ _ _
-SubExt = syntacticRelated.lemma $ record
-  { ⟦wk⟧^R    = λ inc eq → cong (weakI inc) eq
-  ; ⟦varS⟧^R  = id
-  ; ⟦var⟧^R   = λ k ρ^R → ρ^R k
-  ; ⟦fresh⟧^R = λ _ → PEq.refl }
+SubExt = SynExt SyntacticSubstitution
