@@ -1,5 +1,3 @@
-{-# OPTIONS --copatterns #-}
-
 module tt.raw where
 
 open import Data.Nat as ℕ
@@ -10,7 +8,6 @@ open import Relation.Binary.PropositionalEquality
 -----------------------------------------------------------
 -- SYNTAX
 -----------------------------------------------------------
-
 
 mutual
 
@@ -62,4 +59,29 @@ appT t T u = `elt (`app (`ann t T) u)
 
 `var-inj : {m : ℕ} {k l : Fin m} → `var k ≡ `var l → k ≡ l
 `var-inj refl = refl
+
+
+mutual
+
+  data Type_≡^Con_ {n : ℕ} : (A B : Type n) → Set where
+    `sig : {A₁ A₂ : Type n} {B₁ B₂ : Type (suc n)} → Type `sig A₁ B₁ ≡^Con `sig A₂ B₂
+    `pi  : {A₁ A₂ : Type n} {B₁ B₂ : Type (suc n)} → Type `pi  A₁ B₁ ≡^Con `pi  A₂ B₂
+    `nat :                                           Type `nat       ≡^Con `nat
+    `set : (ℓ : ℕ)                                 → Type `set ℓ     ≡^Con `set ℓ
+    ̀elt : {e f : Infer n} → Infer e ≡^Con f       → Type `elt e     ≡^Con `elt f 
+
+  data Check_≡^Con_ {n : ℕ} : (A B : Check n) → Set where
+    `typ : {A B : Type n} → Type A ≡^Con B   → Check `typ A   ≡^Con `typ B
+    `lam : {b c : Check (suc n)}             → Check `lam b   ≡^Con `lam c
+    `per : {a b c d : Check n}               → Check `per a b ≡^Con `per c d
+    `zro :                                     Check `zro     ≡^Con `zro
+    `suc : {l m : Check n}                   → Check `suc l   ≡^Con `suc m
+    `emb : {e f : Infer n} → Infer e ≡^Con f → Check `emb e   ≡^Con `emb f
+
+  data Infer_≡^Con_ {n : ℕ} : (A B : Infer n) → Set where
+    `var : {k : Fin n}                                       → Infer `var k   ≡^Con `var k
+    `app : {s t : Infer n} {u v : Check n} → Infer s ≡^Con t → Infer `app s u ≡^Con `app t v
+    `fst : {s t : Infer n} → Infer s ≡^Con t                 → Infer `fst s   ≡^Con `fst t
+    `snd : {s t : Infer n} → Infer s ≡^Con t                 → Infer `snd s   ≡^Con `snd t
+    `ind : {p q z a s t : Check n} {l m : Infer n} → Infer l ≡^Con m → Infer `ind p z s l ≡^Con `ind q a t m
 

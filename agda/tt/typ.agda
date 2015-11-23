@@ -8,7 +8,6 @@ open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; subst)
 open import tt.raw
 open import tt.env
 open import tt.sem
-open import tt.sem.fus
 
 
 infixr 5 _`→_
