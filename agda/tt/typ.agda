@@ -1,13 +1,13 @@
 module tt.typ where
 
 open import Data.Nat
-open import Data.Fin hiding (_<_)
+open import Data.Fin
 open import Function
-open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; subst)
 
 open import tt.raw
 open import tt.env
 open import tt.sem
+open import tt.red
 
 
 infixr 5 _`→_
@@ -36,7 +36,7 @@ data _⊢var_∈_ : {n : ℕ} → Context n → Fin n → Type n → Set where
          ----------------------------------
          Γ ∙⟩ A ⊢var suc k ∈ weakT extend B
 
-module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
+module Typing (_↝_ : Red Type) where
 
   infix 3 _⊢_∋_ _⊢_∈_ _⊢set_∋_
   
@@ -165,3 +165,16 @@ module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
              A ↝ B → Γ ⊢ e ∈ A →
              -------------------
              Γ ⊢ e ∈ B
+
+
+  -- Coercions
+  
+  reduceInfer : {n : ℕ} {A B : Type n} (red : A [ _↝_ ⟩* B) {Γ : Context n} {e : Infer n} →
+                Γ ⊢ e ∈ A → Γ ⊢ e ∈ B
+  reduceInfer done         typ = typ
+  reduceInfer (more r red) typ = reduceInfer red (`red r typ)
+
+  expandCheck : {n : ℕ} {A B : Type n} (red : B [ _↝_ ⟩* A) {Γ : Context n} {a : Check n} →
+                Γ ⊢ A ∋ a → Γ ⊢ B ∋ a
+  expandCheck done         typ = typ
+  expandCheck (more r red) typ = `red r (expandCheck red typ)

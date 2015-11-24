@@ -1,33 +1,21 @@
 module tt.typ.dec where
 
 open import Data.Nat
-open import Data.Fin hiding (_<_)
-open import Data.Product as P
-open import Data.Maybe
+open import Data.Fin
+open import Data.Product
 open import Function
 open import Relation.Nullary
-open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; subst)
 
 open import tt.raw
+open import tt.red
 open import tt.env
 open import tt.sem
 open import tt.typ
-
-infix 1 _[_⟩*_ _⟨_⟩*_
-
-data _[_⟩*_ {A : Set} (a : A) (R : A → A → Set) : (b : A) → Set where
-  done  : a [ R ⟩* a
-  more  : {b c : A} → R a b → b [ R ⟩* c → a [ R ⟩* c
-
-data _⟨_⟩*_ {A : Set} (a : A) (R : A → A → Set) : (b : A) → Set where
-  done  : a ⟨ R ⟩* a
-  more₁  : {b c : A} → R a b → b ⟨ R ⟩* c → a ⟨ R ⟩* c
-  more₂  : {b c : A} → R b a → b ⟨ R ⟩* c → a ⟨ R ⟩* c
-
-
+open import tt.typ.inv
 
 module typeCheck
        (_↝_        : {n : ℕ} (t u : Type n) → Set)
+       (eltAnn↝    : {n : ℕ} {A B : Type n} {ℓ : ℕ} → `elt (`ann (`typ A) B) [ _↝_ ⟩* A)
        (whnf       : {n : ℕ} → Type n → Type n)
        (whnfCon    : {n : ℕ} (t : Type n) → Type whnf t ≡^Con whnf t)
        (whnfReduct : {n : ℕ} (t : Type n) → t [ _↝_ ⟩* whnf t)
@@ -37,77 +25,14 @@ module typeCheck
        where
 
   open Typing _↝_
-
-  -- Inversion lemmas
-
-  Γ⊢A∋0-inv : {n : ℕ} {Γ : Context n} {A : Type n} → Γ ⊢ A ∋ `zro → A [ _↝_ ⟩* `nat
-  Γ⊢A∋0-inv `zro         = done
-  Γ⊢A∋0-inv (`red r typ) = more r $ Γ⊢A∋0-inv typ
-  
-  Γ⊢A∋Sm-inv : {n : ℕ} {Γ : Context n} {A : Type n} {m : Check n} → Γ ⊢ A ∋ `suc m → A [ _↝_ ⟩* `nat
-  Γ⊢A∋Sm-inv (`suc _)     = done
-  Γ⊢A∋Sm-inv (`red r typ) = more r $ Γ⊢A∋Sm-inv typ
-  
-  Γ⊢A∋Sm-inv′ : {n : ℕ} {Γ : Context n} {A : Type n} {m : Check n} → Γ ⊢ A ∋ `suc m → Γ ⊢ `nat ∋ m
-  Γ⊢A∋Sm-inv′ (`suc m)     = m
-  Γ⊢A∋Sm-inv′ (`red r typ) = Γ⊢A∋Sm-inv′ typ 
-  
-  Γ⊢A∋λb-inv : {n : ℕ} {Γ : Context n} {A : Type n} {b : Check (suc n)} →
-               Γ ⊢ A ∋ `lam b → ∃ λ ST → A [ _↝_ ⟩* uncurry `pi ST
-  Γ⊢A∋λb-inv (`lam _)     = , done
-  Γ⊢A∋λb-inv (`red r typ) = P.map id (more r) $ Γ⊢A∋λb-inv typ
-  
-  Γ⊢A∋a,b-inv : {n : ℕ} {Γ : Context n} {A : Type n} {a b : Check n} →
-                Γ ⊢ A ∋ `per a b → ∃ λ ST → A [ _↝_ ⟩* uncurry `sig ST
-  Γ⊢A∋a,b-inv (`per _ _)   = , done
-  Γ⊢A∋a,b-inv (`red r typ) = P.map id (more r) $ Γ⊢A∋a,b-inv typ
-    
-  Γ⊢fste∈A-inv : {n : ℕ} {Γ : Context n} {A : Type n} {e : Infer n} → Γ ⊢ `fst e ∈ A → ∃ λ B → Γ ⊢ e ∈ B
-  Γ⊢fste∈A-inv (`fst typ)   = , typ
-  Γ⊢fste∈A-inv (`red r typ) = Γ⊢fste∈A-inv typ
-
-  Γ⊢snde∈A-inv : {n : ℕ} {Γ : Context n} {A : Type n} {e : Infer n} → Γ ⊢ `snd e ∈ A → ∃ λ B → Γ ⊢ e ∈ B
-  Γ⊢snde∈A-inv (`snd typ)   = , typ
-  Γ⊢snde∈A-inv (`red r typ) = Γ⊢snde∈A-inv typ
-
-  Γ⊢anntA∈A-inv : {n : ℕ} {Γ : Context n} {A B : Type n} {t : Check n} → Γ ⊢ `ann t A ∈ B → Γ ⊢ A ∋ t
-  Γ⊢anntA∈A-inv (`ann typ)   = typ
-  Γ⊢anntA∈A-inv (`red r typ) = Γ⊢anntA∈A-inv typ
-
-  Γ⊢appeu∈T-inv : {n : ℕ} {Γ : Context n} {A : Type n} {e : Infer n} {u : Check n} →
-                  Γ ⊢ `app e u ∈ A → ∃ λ B → Γ ⊢ e ∈ B
-  Γ⊢appeu∈T-inv (`app typ u) = , typ
-  Γ⊢appeu∈T-inv (`red r typ) = Γ⊢appeu∈T-inv typ
-
-  Γ⊢set∋set-inv : {n : ℕ} {Γ : Context n} {ℓ ℓ′ : ℕ} → Γ ⊢set ℓ ∋ `set ℓ′ → ℓ′ < ℓ
-  Γ⊢set∋set-inv (`set lt) = lt
-  
-  Γ⊢set∋ΣAB-inv : {n ℓ : ℕ} {Γ : Context n} {A : Type n} {B : Type (suc n)} →
-                  Γ ⊢set ℓ ∋ `sig A B → Γ ⊢set ℓ ∋ A × Γ ∙⟩ A ⊢set ℓ ∋ B
-  Γ⊢set∋ΣAB-inv (`sig A B) = A , B
-  
-  Γ⊢set∋ΠAB-inv : {n ℓ : ℕ} {Γ : Context n} {A : Type n} {B : Type (suc n)} →
-                  Γ ⊢set ℓ ∋ `pi A B → Γ ⊢set ℓ ∋ A × Γ ∙⟩ A ⊢set ℓ ∋ B
-  Γ⊢set∋ΠAB-inv (`pi A B) = A , B
-
-  -- Coercions
-  
-  reduceInfer : {n : ℕ} {A B : Type n} (red : A [ _↝_ ⟩* B) {Γ : Context n} {e : Infer n} →
-                Γ ⊢ e ∈ A → Γ ⊢ e ∈ B
-  reduceInfer done         typ = typ
-  reduceInfer (more r red) typ = reduceInfer red (`red r typ)
-
-  expandCheck : {n : ℕ} {A B : Type n} (red : B [ _↝_ ⟩* A) {Γ : Context n} {a : Check n} →
-                Γ ⊢ A ∋ a → Γ ⊢ B ∋ a
-  expandCheck done         typ = typ
-  expandCheck (more r red) typ = `red r (expandCheck red typ)
+  open TypingInversion _↝_
 
   -- Type Inference for variables is total: it's a simple lookup
   -- in the context!
 
   typeInferVar : {n : ℕ} (Γ : Context n) (k : Fin n) → ∃ λ A → Γ ⊢var k ∈ A
   typeInferVar (_ ∙⟩ A) zero    = , zro
-  typeInferVar (Γ ∙⟩ _) (suc k) = P.map (weakT extend) suc $ typeInferVar Γ k
+  typeInferVar (Γ ∙⟩ _) (suc k) = map (weakT extend) suc $ typeInferVar Γ k
 
   -- The decidability of Type Checking and Type Inference can then be
   -- proven by a mutual induction
@@ -143,7 +68,7 @@ module typeCheck
   typeType Γ ℓ (`elt e) | yes (A , hA) | `pi _ _  | _ | spec = {!!}
   typeType Γ ℓ (`elt e) | yes (A , hA) | `nat     | _ | spec = {!!}
   typeType Γ ℓ (`elt e) | yes (A , hA) | `elt _   | _ | spec = {!!}
-  typeType Γ ℓ (`elt e) | no p = {!!}
+  typeType Γ ℓ (`elt e) | no ¬p = no (¬p ∘ Γ⊢set∋elt-inv)
 
 
   -- TYPE CHEKING
@@ -152,7 +77,11 @@ module typeCheck
   ... | `set ℓ | A↝*set | _ with typeType Γ ℓ B
   ... | yes p = yes (expandCheck A↝*set (`typ p))
   ... | no ¬p = no {!!}
-  typeCheck Γ A (`typ B) | ty | _ | spec = {!!}
+  
+  typeCheck Γ A (`typ B) | `sig _ _ | _ | spec = no (λ p → case spec (, proj₂ (Γ⊢A∋typ-inv p) , `set _) of λ ())
+  typeCheck Γ A (`typ B) | `pi _ _  | _ | spec = no (λ p → case spec (, proj₂ (Γ⊢A∋typ-inv p) , `set _) of λ ())
+  typeCheck Γ A (`typ B) | `nat     | _ | spec = no (λ p → case spec (, proj₂ (Γ⊢A∋typ-inv p) , `set _) of λ ())
+  typeCheck Γ A (`typ B) | `elt _   | _ | spec = no (λ p → case spec (, proj₂ (Γ⊢A∋typ-inv p) , `set _) of λ ())
 
 
   typeCheck Γ A (`lam b) with whnf A | whnfReduct A | whnfSpec A
@@ -197,14 +126,16 @@ module typeCheck
 
 
 
-  typeCheck Γ A (`emb e) = {!!}
+  typeCheck Γ A (`emb e) with typeInfer Γ e
+  ... | yes p = {!!}
+  ... | no ¬p = no (¬p ∘ Γ⊢A∋emb-inv)
 
 
   -- TYPE INFERENCE
 
 
   -- Γ ⊢ `var k ∈ Γ ‼ k
-  typeInfer Γ (`var k)   = yes $ P.map id `var $ typeInferVar Γ k
+  typeInfer Γ (`var k)   = yes $ map id `var $ typeInferVar Γ k
 
   -- Γ ⊢ A ∋ t
   -------------------------------
@@ -218,19 +149,22 @@ module typeCheck
   -- Γ ⊢ `app e u ∈ T ⟨ u /0⟩
   typeInfer Γ (`app e u) with typeInfer Γ e
   ... | no ¬p = no (¬p ∘ Γ⊢appeu∈T-inv ∘ proj₂)
-  ... | yes (A , Γ⊢e∈A) with whnf A | whnfReduct A
-  ... | `pi S T | A↝*ΠST with typeCheck Γ S u
+  ... | yes (A , Γ⊢e∈A) with whnf A | whnfReduct A | whnfSpec A
+  ... | `pi S T | A↝*ΠST | _ with typeCheck Γ S u
   ... | yes prf = yes (Substitution ⊨ T ⟨ `ann u S /0⟩T , `app (reduceInfer A↝*ΠST Γ⊢e∈A) prf)
-  ... | no ầejgt = {!!}
+  ... | no ầejgt = no {!!}
 
 
-  typeInfer Γ (`app e u) | yes (A , e∈A) | whnfA  | A↝B = {!!}
+  typeInfer Γ (`app e u) | yes (A , e∈A) | `sig _ _  | _ | spec = no (λ p → case spec (, {!!} , `pi) of λ ())
+  typeInfer Γ (`app e u) | yes (A , e∈A) | `nat      | _ | spec = {!!}
+  typeInfer Γ (`app e u) | yes (A , e∈A) | `set _    | _ | spec = {!!}
+  typeInfer Γ (`app e u) | yes (A , e∈A) | `elt _    | _ | spec = {!!}
 
 
   typeInfer Γ (`fst e) with typeInfer Γ e
-  ... | yes (A , Γ⊢e∈A) with whnf A | whnfReduct A
-  ... | `sig S T | A↝*ΣST = yes (S , `fst (reduceInfer A↝*ΣST Γ⊢e∈A))
-  ... | _              | _     = {!!}
+  ... | yes (A , Γ⊢e∈A) with whnf A | whnfReduct A | whnfSpec A
+  ... | `sig S T | A↝*ΣST | _ = yes (S , `fst (reduceInfer A↝*ΣST Γ⊢e∈A))
+  ... |  _  | _ | spec =  {!!}
   typeInfer Γ (`fst e) | no ¬p = no (¬p ∘ Γ⊢fste∈A-inv ∘ proj₂)
 
 
