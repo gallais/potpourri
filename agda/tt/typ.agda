@@ -20,7 +20,7 @@ data Context : ℕ → Set where
   ⟨⟩    : Context 0
   _∙⟩_  : {n : ℕ} (Γ : Context n) (A : Type n) → Context (suc n)
   
-infix 1 _⊢var_∈_
+infix 3 _⊢var_∈_
   
 data _⊢var_∈_ : {n : ℕ} → Context n → Fin n → Type n → Set where
 
@@ -38,7 +38,7 @@ data _⊢var_∈_ : {n : ℕ} → Context n → Fin n → Type n → Set where
 
 module Typing (_↝_ : {n : ℕ} (a b : Type n) → Set) where
 
-  infix 1 _⊢_∋_ _⊢_∈_ _⊢set_∋_
+  infix 3 _⊢_∋_ _⊢_∈_ _⊢set_∋_
   
            
   mutual
