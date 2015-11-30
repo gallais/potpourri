@@ -8,9 +8,6 @@ open import Function
 Rel : (E F : ℕ → Set) → Set₁
 Rel E F = {n : ℕ} → E n → F n → Set
 
-_⇒_ : (E F : ℕ → Set) → Set
-E ⇒ F = {n : ℕ} → E n → F n
-
 record Var_=>[_]_ (m : ℕ) (E : ℕ → Set) (n : ℕ) : Set where
   constructor pack
   field lookup : (k : Fin m) → E n
@@ -57,4 +54,3 @@ Kripke E M n = {m : ℕ} → n ⊆ m → E m → M m
 
 abs : {E M : ℕ → Set} {n : ℕ} → E (suc n) → Kripke E M n → M (suc n)
 abs v k = k extend v
-

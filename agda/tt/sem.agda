@@ -5,6 +5,7 @@ open import Data.Fin hiding (lift)
 open import Function
 
 open import tt.raw
+open import tt.red
 open import tt.env
 
 -----------------------------------------------------------
@@ -172,3 +173,17 @@ substT = Substitution ⊨⟦_⟧T_
 substC : Substituting Infer Check
 substC = Substitution ⊨⟦_⟧C_
 
+
+-- Defining Syntaxes (as per the tt.red definition)
+
+SType : Syntax Type
+weak  SType = weakT
+subst SType = substT
+
+SInfer : Syntax Infer
+weak  SInfer = weakI
+subst SInfer = substI
+
+SCheck : Syntax Check
+weak  SCheck = weakC
+subst SCheck = substC

@@ -5,6 +5,7 @@ open import Data.Fin
 open import Function
 
 open import tt.raw
+open import tt.con
 open import tt.env
 open import tt.sem
 open import tt.red
@@ -14,36 +15,32 @@ infixr 5 _`→_
 _`→_ : {n : ℕ} (a b : Type n) → Type n
 a `→ b = `pi a $ weakT extend b
 
+ContextT = Context Type
 
-infixl 5 _∙⟩_
-data Context : ℕ → Set where
-  ⟨⟩    : Context 0
-  _∙⟩_  : {n : ℕ} (Γ : Context n) (A : Type n) → Context (suc n)
-  
 infix 3 _⊢var_∈_
   
-data _⊢var_∈_ : {n : ℕ} → Context n → Fin n → Type n → Set where
+data _⊢var_∈_ : {n : ℕ} → ContextT n → Fin n → Type n → Set where
 
-  zro  : {n : ℕ} {Γ : Context n} {A : Type n} →
+  zro  : {n : ℕ} {Γ : ContextT n} {A : Type n} →
 
          ---------------------------------
          Γ ∙⟩ A ⊢var zero ∈ weakT extend A
 
 
-  suc  : {n : ℕ} {Γ : Context n} {A B : Type n} {k : Fin n} →
+  suc  : {n : ℕ} {Γ : ContextT n} {A B : Type n} {k : Fin n} →
 
          Γ ⊢var k ∈ B →
          ----------------------------------
          Γ ∙⟩ A ⊢var suc k ∈ weakT extend B
 
-module Typing (_↝_ : Red Type) where
+module Typing (_↝_ : IRel Type) where
 
   infix 3 _⊢_∋_ _⊢_∈_ _⊢set_∋_
   
            
   mutual
 
-    data _⊢set_∋_ {n : ℕ} (Γ : Context n) : ℕ → Type n → Set where
+    data _⊢set_∋_ {n : ℕ} (Γ : ContextT n) : ℕ → Type n → Set where
       
       `sig : {s : Type n} {t : Type (suc n)} {ℓ : ℕ} →
   
@@ -71,7 +68,7 @@ module Typing (_↝_ : Red Type) where
              --------------------
              Γ ⊢set ℓ ∋ `elt e
 
-    data _⊢_∋_ {n : ℕ} (Γ : Context n) : Type n → Check n → Set where
+    data _⊢_∋_ {n : ℕ} (Γ : ContextT n) : Type n → Check n → Set where
 
       `lam : {b : Check (suc n)} {A : Type n} {B : Type (suc n)} →
     
@@ -113,7 +110,7 @@ module Typing (_↝_ : Red Type) where
              Γ ⊢ A ∋ t
          
 
-    data _⊢_∈_ {n : ℕ} (Γ : Context n) : Infer n → Type n → Set where
+    data _⊢_∈_ {n : ℕ} (Γ : ContextT n) : Infer n → Type n → Set where
   
       `var : {k : Fin n} {A : Type n} →
 
@@ -121,9 +118,9 @@ module Typing (_↝_ : Red Type) where
              --------------
              Γ ⊢ `var k ∈ A
 
-      `ann : {t : Check n} {A : Type n} →
+      `ann : {ℓ : ℕ} {t : Check n} {A : Type n} →
 
-             Γ ⊢ A ∋ t →
+             Γ ⊢set ℓ ∋ A → Γ ⊢ A ∋ t →
              ----------------
              Γ ⊢ `ann t A ∈ A
 
@@ -169,12 +166,12 @@ module Typing (_↝_ : Red Type) where
 
   -- Coercions
   
-  reduceInfer : {n : ℕ} {A B : Type n} (red : A [ _↝_ ⟩* B) {Γ : Context n} {e : Infer n} →
+  reduceInfer : {n : ℕ} {A B : Type n} (red : A [ _↝_ ⟩* B) {Γ : ContextT n} {e : Infer n} →
                 Γ ⊢ e ∈ A → Γ ⊢ e ∈ B
   reduceInfer done         typ = typ
   reduceInfer (more r red) typ = reduceInfer red (`red r typ)
 
-  expandCheck : {n : ℕ} {A B : Type n} (red : B [ _↝_ ⟩* A) {Γ : Context n} {a : Check n} →
+  expandCheck : {n : ℕ} {A B : Type n} (red : B [ _↝_ ⟩* A) {Γ : ContextT n} {a : Check n} →
                 Γ ⊢ A ∋ a → Γ ⊢ B ∋ a
   expandCheck done         typ = typ
   expandCheck (more r red) typ = `red r (expandCheck red typ)
