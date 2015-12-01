@@ -142,21 +142,18 @@ module Typing (_↝_ : IRel Type) where
              -------------------
              Γ ⊢ `snd t ∈ Substitution ⊨ B ⟨ `fst t /0⟩T
 
-      `ind : {p z s : Check n} {m : Infer n} {ℓ : ℕ} →
+      `ind : {p : Type (suc n)} {z s : Check n} {m : Infer n} {ℓ : ℕ} →
 
-             let pTy : {n : ℕ} → Type n
-                 pTy = λ {n} → `pi `nat (`set ℓ) in
-
-             Γ ⊢ pTy ∋ p →
-             Γ ⊢ appT p pTy `zro ∋ z →
+             Γ ∙⟩ `nat ⊢set ℓ ∋ p →
+             Γ ⊢ Substitution ⊨ p ⟨ `ann `zro `nat /0⟩T ∋ z →
 
              let P : {m : ℕ} → n ⊆ m → Check m → Type m
-                 P = λ inc x → appT (weakC inc p) pTy x in
+                 P = λ inc u → Substitution ⊨ weakT (pop! inc) p ⟨ `ann u `nat /0⟩T in
 
              Γ ⊢ `pi `nat (P extend var₀ `→ P extend (`suc var₀)) ∋ s →
              Γ ⊢ m ∈ `nat →
              ---------------------------
-             Γ ⊢ `ind p z s m ∈ appT p pTy (`emb m)
+             Γ ⊢ `ind p z s m ∈ Substitution ⊨ p ⟨ m /0⟩T
 
       `red : {e : Infer n} {A B : Type n} →
              A ↝ B → Γ ⊢ e ∈ A →

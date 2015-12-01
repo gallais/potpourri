@@ -8,6 +8,7 @@ open import Function
 open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; subst ; cong ; cong₂)
 
 open import tt.raw
+open import tt.con
 open import tt.env
 open import tt.sem
 open import tt.sem.idS
@@ -16,15 +17,15 @@ open import tt.sem.fus
 open import tt.typ
 
 infix 1 [_]_⇒_
-record [_]_⇒_ {m n : ℕ} (inc : m ⊆ n) (Γ : Context m) (Δ : Context n) : Set where
+record [_]_⇒_ {m n : ℕ} (inc : m ⊆ n) (Γ : ContextT m) (Δ : ContextT n) : Set where
   constructor pack
   field weakVar : {k : Fin m} {A : Type m} → Γ ⊢var k ∈ A → Δ ⊢var lookup inc k ∈ weakT inc A
 open [_]_⇒_ public
 
-REFL : {m : ℕ} {Γ : Context m} → [ refl ] Γ ⇒ Γ
+REFL : {m : ℕ} {Γ : ContextT m} → [ refl ] Γ ⇒ Γ
 weakVar (REFL {Γ = Γ}) {k} {A} Hk = subst (Γ ⊢var k ∈_) (PEq.sym $ identity.lemmaT RenId A) Hk
 
-STEP : {m n : ℕ} {inc : m ⊆ n} {Γ : Context m} {Δ : Context n} →
+STEP : {m n : ℕ} {inc : m ⊆ n} {Γ : ContextT m} {Δ : ContextT n} →
        [ inc ] Γ ⇒ Δ → (A : Type m) → [ step inc ] Γ ⇒ (Δ ∙⟩ weakT inc A)
 weakVar (STEP {inc = inc} {Δ = Δ} ren A) {k} {B} Hk =
 
@@ -33,10 +34,10 @@ weakVar (STEP {inc = inc} {Δ = Δ} ren A) {k} {B} Hk =
 
   in subst (Δ ∙⟩ weakT inc A ⊢var lookup (step inc) k ∈_) eq (suc (weakVar ren Hk))
 
-EXTEND : {m : ℕ} {Γ : Context m} {A : Type m} → [ extend ] Γ ⇒ Γ ∙⟩ A
+EXTEND : {m : ℕ} {Γ : ContextT m} {A : Type m} → [ extend ] Γ ⇒ Γ ∙⟩ A
 EXTEND {Γ = Γ} {A = A} = subst (λ A → [ extend ] Γ ⇒ Γ ∙⟩ A) (identity.lemmaT RenId A) $ STEP REFL A
 
-POP! : {m n : ℕ} {inc : m ⊆ n} {Γ : Context m} {Δ : Context n} →
+POP! : {m n : ℕ} {inc : m ⊆ n} {Γ : ContextT m} {Δ : ContextT n} →
        [ inc ] Γ ⇒ Δ → (A : Type m) → [ pop! inc ] Γ ∙⟩ A ⇒ (Δ ∙⟩ weakT inc A)
 weakVar (POP! {inc = inc} {Δ = Δ} ren A) zro =
 
@@ -80,50 +81,55 @@ module TypingWeak
 
   open Typing _↝_
 
-  weak∈ : {m n : ℕ} {Γ : Context m} {Δ : Context n} {i : Infer m} {A : Type m}
+  weak∈ : {m n : ℕ} {Γ : ContextT m} {Δ : ContextT n} {i : Infer m} {A : Type m}
           (m⊆n : m ⊆ n) (ren : [ m⊆n ] Γ ⇒ Δ) (t : Γ ⊢ i ∈ A) → Δ ⊢ weakI m⊆n i ∈ weakT m⊆n A
-  weakSet : {m n : ℕ} {Γ : Context m} {Δ : Context n} {ℓ : ℕ} {A : Type m}
+  weakSet : {m n : ℕ} {Γ : ContextT m} {Δ : ContextT n} {ℓ : ℕ} {A : Type m}
             (m⊆n : m ⊆ n) (ren : [ m⊆n ] Γ ⇒ Δ) → Γ ⊢set ℓ ∋ A → Δ ⊢set ℓ ∋ weakT m⊆n A
-  weak∋ : {m n : ℕ} {Γ : Context m} {Δ : Context n} {c : Check m} {A : Type m}
+  weak∋ : {m n : ℕ} {Γ : ContextT m} {Δ : ContextT n} {c : Check m} {A : Type m}
           (m⊆n : m ⊆ n) (ren : [ m⊆n ] Γ ⇒ Δ) → Γ ⊢ A ∋ c → Δ ⊢ weakT m⊆n A ∋ weakC m⊆n c
 
 
   weak∈ m⊆n ren (`var v)       = `var (weakVar ren v)
-  weak∈ m⊆n ren (`ann t)       = `ann (weak∋ m⊆n ren t)
+  weak∈ m⊆n ren (`ann A t)     = `ann (weakSet m⊆n ren A) (weak∋ m⊆n ren t)
   weak∈ m⊆n ren (`fst t)       = `fst (weak∈ m⊆n ren t)
   weak∈ {n = n} {Δ = Δ} m⊆n ren (`ind {p} {z} {s} {m} {ℓ} Hp Hz Hs Hm) =
-    
-    let pTy : {n : ℕ} → Type n
-        pTy = λ {n} → `pi `nat (`set ℓ)
-        ihS : Δ ⊢ weakT m⊆n (`pi `nat (appT (weakC extend p) pTy var₀
-                                    `→ appT (weakC extend p) pTy (`suc var₀)))
-                ∋ weakC m⊆n s
-        ihS = weak∋ m⊆n ren Hs
 
-        wkS : Δ ⊢ `pi `nat (appT (weakC extend (weakC m⊆n p)) pTy var₀
-                         `→ appT (weakC extend (weakC m⊆n p)) pTy (`suc var₀))
-              ∋ weakC m⊆n s
-        wkS = let patt = λ u vw → `pi `nat (`pi (appT u pTy var₀) (appT (proj₁ vw) pTy (`suc (proj₂ vw))))
+    let eq^pm : (m : Infer _) →
+                weakT m⊆n (Substitution ⊨ p ⟨ m /0⟩T) ≡ Substitution ⊨ weakT (pop! m⊆n) p ⟨ weakI m⊆n m /0⟩T
+        eq^pm = λ m → PEq.trans (fusion.lemmaT SubRen p (λ _ → PEq.refl))
+                      $ PEq.sym (fusion.lemmaT RenSub p (λ { zero → PEq.refl ; (suc k) → PEq.refl }))
 
-                  ↑    = Semantics.lift Renaming
+        ihP0 = subst (Δ ⊢_∋ _) (eq^pm (`ann `zro `nat)) $ weak∋ m⊆n ren Hz
 
-                  eq₁ : weakC (↑ m⊆n) (weakC extend p) ≡ weakC extend (weakC m⊆n p)
-                  eq₁ = PEq.trans (fusion.lemmaC RenRen p (λ _ → PEq.refl))
-                       $ PEq.sym $ fusion.lemmaC RenRen p (λ _ → PEq.refl)
+        P : {m : ℕ} → _ ⊆ m → Check m → Type m
+        P = λ inc u → Substitution ⊨ weakT (pop! inc) p ⟨ `ann u `nat /0⟩T
 
-                  eq₂ : weakC (↑ (↑ m⊆n)) (weakC extend (weakC extend p))
-                      ≡ weakC extend (weakC extend $ weakC m⊆n p)
-                  eq₂ = PEq.trans (fusion.lemmaC RenRen (weakC extend p) (λ _ → PEq.refl)) $
-                        PEq.trans (fusion.lemmaC RenRen p (λ _ → PEq.refl)) $ PEq.sym $
-                        PEq.trans (fusion.lemmaC RenRen (weakC m⊆n p) (λ _ → PEq.refl)) $
-                        (fusion.lemmaC RenRen p (λ _ → PEq.refl))
+        ↑    = Semantics.lift Renaming
+        
+        eq₁ : weakT (↑ m⊆n) (Substitution ⊨ weakT (pop! extend) p ⟨ `ann var₀ `nat /0⟩T)
+            ≡ Substitution ⊨ weakT (pop! extend) (weakT (pop! m⊆n) p) ⟨ `ann var₀ `nat /0⟩T
+        eq₁ = PEq.trans (cong (weakT (↑ m⊆n)) (fusion.lemmaT RenSub p (λ _ → PEq.refl)))
+            $ PEq.trans (fusion.lemmaT SubRen p (λ _ → PEq.refl)) $ PEq.sym
+            $ PEq.trans (cong (Substitution ⊨_⟨ `ann var₀ `nat /0⟩T) (fusion.lemmaT RenRen p $ λ _ → PEq.refl))
+            $ fusion.lemmaT RenSub p (λ { zero → PEq.refl ; (suc k) → PEq.refl })
+        
+        eq₂ : weakT (↑ (↑ m⊆n)) (weakT extend (Substitution ⊨ weakT (pop! extend) p ⟨ `ann (`suc var₀) `nat /0⟩T))
+            ≡ weakT extend (Substitution ⊨ weakT (pop! extend) (weakT (pop! m⊆n) p) ⟨ `ann (`suc var₀) `nat /0⟩T)
+        eq₂ = PEq.trans (cong (weakT (↑ (↑ m⊆n)) ∘ weakT extend) (fusion.lemmaT RenSub p $ λ _ → PEq.refl))
+            $ PEq.trans (cong (weakT (↑ (↑ m⊆n))) (fusion.lemmaT SubRen p $ λ _ → PEq.refl))
+            $ PEq.trans (fusion.lemmaT SubRen p $ λ _ → PEq.refl) $ PEq.sym
+            $ PEq.trans (cong (weakT extend ∘ Substitution ⊨_⟨ _ /0⟩T) (fusion.lemmaT RenRen p $ λ _ → PEq.refl))
+            $ PEq.trans (cong (weakT extend) (fusion.lemmaT RenSub p $ λ _ → PEq.refl))
+            $ fusion.lemmaT SubRen p (λ { zero → PEq.refl ; (suc k) → PEq.refl })
 
-                  eq₃ : weakC (↑ (↑ m⊆n)) (weakC extend var₀) ≡ weakC extend var₀
-                  eq₃ = fusion.lemmaC RenRen var₀ {extend} {↑ (↑ m⊆n)} (λ _ → PEq.refl)
+        ihPS : Δ ⊢ `pi `nat ((Substitution ⊨ weakT (pop! extend) (weakT (pop! m⊆n) p) ⟨ `ann var₀ `nat /0⟩T)
+                          `→ (Substitution ⊨ weakT (pop! extend) (weakT (pop! m⊆n) p) ⟨ `ann (`suc var₀) `nat /0⟩T))
+                 ∋ weakC m⊆n s
+        ihPS = PEq.subst₂ (λ P Q → Δ ⊢ `pi `nat (`pi P Q) ∋ _) eq₁ eq₂ (weak∋ m⊆n ren Hs)
+       
+    in subst (Δ ⊢ weakI m⊆n (`ind p z s m) ∈_) (PEq.sym $ eq^pm m)
+       $ `ind (weakSet (pop! m⊆n) (POP! ren `nat) Hp) ihP0 ihPS (weak∈ m⊆n ren Hm)
 
-              in subst (Δ ⊢_∋ weakC m⊆n s) (cong₂ patt eq₁ $ cong₂ _,_ eq₂ eq₃) ihS
-
-    in `ind (weak∋ m⊆n ren Hp) (weak∋ m⊆n ren Hz) wkS (weak∈ m⊆n ren Hm)
 
   weak∈ m⊆n ren (`red red t)   = `red (weak↝ m⊆n red) (weak∈ m⊆n ren t)
   weak∈ m⊆n ren (`snd {t} {A} {B} Ht)       =

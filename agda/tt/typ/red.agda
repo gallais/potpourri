@@ -14,7 +14,7 @@ open import tt.typ
 
 open import Relation.Binary.PropositionalEquality as PEq hiding ([_])
 
-module ExpandCongtextTyping
+module ExpandContextTyping
        (_↝_ : IRel Type)
        (weak↝ : {m n : ℕ} {a b : Type m} (inc : m ⊆ n) → a ↝ b → weakT inc a ↝ weakT inc b) where
 
@@ -41,7 +41,7 @@ module ExpandCongtextTyping
   lemma∈ redΓΔ (`app f t)     = `app (lemma∈ redΓΔ f)   $ lemma∋ redΓΔ t
   lemma∈ redΓΔ (`fst t)       = `fst $ lemma∈ redΓΔ t
   lemma∈ redΓΔ (`snd t)       = `snd $ lemma∈ redΓΔ t
-  lemma∈ redΓΔ (`ind p z s m) = `ind (lemma∋ redΓΔ p) (lemma∋ redΓΔ z) (lemma∋ redΓΔ s) (lemma∈ redΓΔ m)
+  lemma∈ redΓΔ (`ind p z s m) = `ind (lemmaSet (redΓΔ , done) p) (lemma∋ redΓΔ z) (lemma∋ redΓΔ s) (lemma∈ redΓΔ m)
   lemma∈ redΓΔ (`red r t)     = `red r $ lemma∈ redΓΔ t
 
   lemma∋ redΓΔ (`lam t)   = `lam $ lemma∋ (redΓΔ , done) t
@@ -58,7 +58,7 @@ module ExpandCongtextTyping
   lemmaSet redΓΔ (`set lt)  = `set lt
   lemmaSet redΓΔ (`elt i)   = `elt $ lemma∈ redΓΔ i
   
-module ReduceCongtextTyping
+module ReduceContextTyping
        (_↝_       : IRel Type)
        (red       : Reduction SType _↝_)
        (β↝*       : {m : ℕ} (T : Type (suc m)) {u : Check m} {U U′ : Type m} →
@@ -117,7 +117,7 @@ module ReduceCongtextTyping
   lemma∈ redΓΔ (`ind p z s m) =
 
     let (B , red , typ) = lemma∈ redΓΔ m
-    in , done , `ind (lemma∋ redΓΔ done p) (lemma∋ redΓΔ done z) (lemma∋ redΓΔ done s)
+    in , done , `ind (lemmaSet (redΓΔ , done) p) (lemma∋ redΓΔ done z) (lemma∋ redΓΔ done s)
                      (PEq.subst (_ ⊢ _ ∈_) (`nat↝-inv red) typ)
     
   lemma∈ redΓΔ (`red r t)     =

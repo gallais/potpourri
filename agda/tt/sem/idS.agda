@@ -71,8 +71,12 @@ module identity {E : ℕ → Set} {Syn : SyntacticSemantics E} (Id : Identity Sy
   lemmaI (`app t u)     = cong₂ `app (lemmaI t) (lemmaC u)
   lemmaI (`fst t)       = cong `fst (lemmaI t)
   lemmaI (`snd t)       = cong `snd (lemmaI t)
-  lemmaI (`ind p z s t) = cong₂ (λ p → uncurry (`ind (proj₁ p) (proj₂ p)))
-                                (cong₂ _,_ (lemmaC p) (lemmaC z)) (cong₂ _,_ (lemmaC s) (lemmaI t))
+  lemmaI (`ind p z s t) =
+  
+    let ihP : S ⊨⟦ p ⟧T (S.weakE extend S.⟦diag⟧ ∙ S.fresh) ≡ p
+        ihP = trans (related.lemmaT (SynExt Syn) p (λ { zero → refl ; (suc k) → ⟦wk⟧^R k })) $ lemmaT p
+    in cong₂ (λ p → uncurry (`ind (proj₁ p) (proj₂ p)))
+             (cong₂ _,_ ihP (lemmaC z)) (cong₂ _,_ (lemmaC s) (lemmaI t))
 
 
 

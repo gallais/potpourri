@@ -6,6 +6,7 @@ open import Function
 open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; cong ; cong₂)
 
 open import tt.raw
+open import tt.con
 open import tt.env
 open import tt.sem
 
@@ -111,7 +112,7 @@ record Fusion
     ⟦snd⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p}
                (t : Infer m) → MI^R t ρ₁ ρ₂ ρ₃ → E^R ρ₁ ρ₂ ρ₃ → MI^R (`snd t) ρ₁ ρ₂ ρ₃ 
     ⟦ind⟧^R  : {m n p : ℕ} {ρ₁ : Var m =>[ E₁ ] n} {ρ₂ : Var n =>[ E₂ ] p} {ρ₃ : Var m =>[ E₃ ] p}
-               (p : Check m) → MC^R p ρ₁ ρ₂ ρ₃ →
+               (p : Type (suc m)) → Kripke^R MT^R p ρ₁ ρ₂ ρ₃ →
                (z : Check m) → MC^R z ρ₁ ρ₂ ρ₃ →
                (s : Check m) → MC^R s ρ₁ ρ₂ ρ₃ →
                (m : Infer m) → MI^R m ρ₁ ρ₂ ρ₃ → E^R ρ₁ ρ₂ ρ₃ → MI^R (`ind p z s m) ρ₁ ρ₂ ρ₃ 
@@ -169,7 +170,7 @@ module fusion
   lemmaI (`app t u)      ρ^R = ⟦app⟧^R t (lemmaI t ρ^R) u (lemmaC u ρ^R) ρ^R
   lemmaI (`fst t)        ρ^R = ⟦fst⟧^R t (lemmaI t ρ^R) ρ^R
   lemmaI (`snd t)        ρ^R = ⟦snd⟧^R t (lemmaI t ρ^R) ρ^R
-  lemmaI (`ind p z s m)  ρ^R = ⟦ind⟧^R p (lemmaC p ρ^R) z (lemmaC z ρ^R) s (lemmaC s ρ^R) m (lemmaI m ρ^R) ρ^R
+  lemmaI (`ind p z s m)  ρ^R = ⟦ind⟧^R p (abs^R MT^R lemmaT p ρ^R) z (lemmaC z ρ^R) s (lemmaC s ρ^R) m (lemmaI m ρ^R) ρ^R
 
 
 record SyntacticFusion 
@@ -242,9 +243,9 @@ module syntacticFusion
     ; ⟦app⟧^R  = λ _ ht _ hu _ → cong₂ `app ht hu
     ; ⟦fst⟧^R  = λ _ ht _ → cong `fst ht
     ; ⟦snd⟧^R  = λ _ ht _ → cong `snd ht
-    ; ⟦ind⟧^R  = λ _ hp _ hz _ hs _ hm _ →
+    ; ⟦ind⟧^R  = λ _ hp _ hz _ hs _ hm ρ^R →
                  let patt = uncurry $ λ p q r → `ind p q (proj₁ r) (proj₂ r)
-                 in cong₂ patt (cong₂ _,_ hp hz) (cong₂ _,_ hs hm)
+                 in cong₂ patt (cong₂ _,_ (hp extend (⟦fresh⟧^R ρ^R)) hz) (cong₂ _,_ hs hm)
     }
 
 RenRen : Fusion Renaming Renaming Renaming (lift _≡_) (λ ρ₁ ρ₂ → ∀[ _≡_ ] (trans ρ₁ ρ₂)) _ _ _

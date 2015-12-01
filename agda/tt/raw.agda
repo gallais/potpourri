@@ -2,6 +2,7 @@ module tt.raw where
 
 open import Data.Nat as ℕ
 open import Data.Fin hiding (_<_)
+open import Data.Product
 open import Function
 open import Relation.Binary.PropositionalEquality
 
@@ -32,13 +33,13 @@ mutual
 
   data Infer (n : ℕ) : Set where
     -- head symbol
-    `var : (k : Fin n)                                → Infer n
-    `ann : (t : Check n) (A : Type n)                 → Infer n
+    `var : (k : Fin n)                                       → Infer n
+    `ann : (t : Check n) (A : Type n)                        → Infer n
     -- eliminators
-    `app : (t : Infer n) (u : Check n)                → Infer n
-    `fst : (t : Infer n)                              → Infer n
-    `snd : (t : Infer n)                              → Infer n
-    `ind : (p z s : Check n) (m : Infer n) → Infer n
+    `app : (t : Infer n) (u : Check n)                       → Infer n
+    `fst : (t : Infer n)                                     → Infer n
+    `snd : (t : Infer n)                                     → Infer n
+    `ind : (p : Type (suc n)) (z s : Check n) (m : Infer n) → Infer n
 
 -----------------------------------------------------------
 -- SMART CONSTRUCTORS
@@ -54,12 +55,25 @@ appT : {n : ℕ} → Check n → Type n → Check n → Type n
 appT t T u = `elt (`app (`ann t T) u)
 
 -----------------------------------------------------------
--- INVERSION LEMMAS
+-- CONSTRUCTORS ARE INJECTIVE
 -----------------------------------------------------------
 
 `var-inj : {m : ℕ} {k l : Fin m} → `var k ≡ `var l → k ≡ l
 `var-inj refl = refl
 
+`set-inj : {m : ℕ} {ℓ ℓ′ : ℕ} → `set {m} ℓ ≡ `set ℓ′ → ℓ ≡ ℓ′
+`set-inj refl = refl
+
+`pi-inj : {m : ℕ} {A₁ A₂ : Type m} {B₁ B₂ : Type (suc m)} → `pi A₁ B₁ ≡ `pi A₂ B₂ → A₁ ≡ A₂ × B₁ ≡ B₂
+`pi-inj refl = refl , refl
+
+`sig-inj : {m : ℕ} {A₁ A₂ : Type m} {B₁ B₂ : Type (suc m)} → `sig A₁ B₁ ≡ `sig A₂ B₂ → A₁ ≡ A₂ × B₁ ≡ B₂
+`sig-inj refl = refl , refl
+
+
+-----------------------------------------------------------
+-- WEAK HEAD NORMAL FORMS
+-----------------------------------------------------------
 
 mutual
 
@@ -83,5 +97,6 @@ mutual
     `app : {s t : Infer n} {u v : Check n} → Infer s ≡^Con t → Infer `app s u ≡^Con `app t v
     `fst : {s t : Infer n} → Infer s ≡^Con t                 → Infer `fst s   ≡^Con `fst t
     `snd : {s t : Infer n} → Infer s ≡^Con t                 → Infer `snd s   ≡^Con `snd t
-    `ind : {p q z a s t : Check n} {l m : Infer n} → Infer l ≡^Con m → Infer `ind p z s l ≡^Con `ind q a t m
+    `ind : {p q : Type (suc n)} {z a s t : Check n} {l m : Infer n} →
+           Infer l ≡^Con m → Infer `ind p z s l ≡^Con `ind q a t m
 

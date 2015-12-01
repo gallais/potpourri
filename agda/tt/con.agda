@@ -25,3 +25,7 @@ infix 3 _[_]_
 _[_]_ : {E : ℕ → Set} {m : ℕ} (Γ : Context E m) (R : IRel E) (Δ : Context E m) → Set
 ⟨⟩     [ R ] ⟨⟩     = ⊤
 Γ ∙⟩ γ [ R ] Δ ∙⟩ δ = Γ [ R ] Δ × R γ δ
+
+pure : {E : ℕ → Set} {m : ℕ} (Γ : Context E m) {R : IRel E} (prf : {m : ℕ} (γ : E m) → R γ γ) → Γ [ R ] Γ
+pure ⟨⟩       prf = tt
+pure (Γ ∙⟩ γ) prf = pure Γ prf , prf γ

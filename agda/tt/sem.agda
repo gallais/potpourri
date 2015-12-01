@@ -37,7 +37,7 @@ record Semantics (E MC MT MI : ℕ → Set) : Set where
     ⟦app⟧  : {n : ℕ} (t : MI n) (u : MC n) → MI n
     ⟦fst⟧  : {n : ℕ} (t : MI n) → MI n
     ⟦snd⟧  : {n : ℕ} (t : MI n) → MI n
-    ⟦ind⟧  : {n : ℕ} (p z s : MC n) (m : MI n) → MI n
+    ⟦ind⟧  : {n : ℕ} (p : Kripke E MT n) (z s : MC n) (m : MI n) → MI n
 
   fresh : {n : ℕ} → E (suc n)
   fresh = lookup ⟦diag⟧ zero
@@ -74,7 +74,7 @@ module semantics {E MC MT MI : ℕ → Set} (Sem : Semantics E MC MT MI) where
   lemmaI (`app i u)     ρ = ⟦app⟧ (lemmaI i ρ) $ lemmaC u ρ
   lemmaI (`fst i)       ρ = ⟦fst⟧ $ lemmaI i ρ
   lemmaI (`snd i)       ρ = ⟦snd⟧ $ lemmaI i ρ
-  lemmaI (`ind p z s i) ρ = ⟦ind⟧ (lemmaC p ρ) (lemmaC z ρ) (lemmaC s ρ) $ lemmaI i ρ
+  lemmaI (`ind p z s i) ρ = ⟦ind⟧ (λ inc u → lemmaT p $ weakE inc ρ ∙ u) (lemmaC z ρ) (lemmaC s ρ) $ lemmaI i ρ
 
   _⊨⟦_⟧C_ = lemmaC
   _⊨⟦_⟧T_ = lemmaT
@@ -128,7 +128,7 @@ module syntacticSemantics {E : ℕ → Set} (Syn : SyntacticSemantics E) where
   Semantics.⟦app⟧  lemma = `app
   Semantics.⟦fst⟧  lemma = `fst
   Semantics.⟦snd⟧  lemma = `snd
-  Semantics.⟦ind⟧  lemma = `ind
+  Semantics.⟦ind⟧  lemma = `ind ∘ abs fresh
 
 -----------------------------------------------------------
 -- EXAMPLES OF SYNTACTIC SEMANTICS
