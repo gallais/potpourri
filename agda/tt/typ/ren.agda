@@ -7,6 +7,7 @@ open import Data.Product using (_,_ ; proj₁ ; proj₂)
 open import Function
 open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; subst ; cong ; cong₂)
 
+open import tt.Data.NatOmega
 open import tt.raw
 open import tt.con
 open import tt.env
@@ -83,7 +84,7 @@ module TypingWeak
 
   weak∈ : {m n : ℕ} {Γ : ContextT m} {Δ : ContextT n} {i : Infer m} {A : Type m}
           (m⊆n : m ⊆ n) (ren : [ m⊆n ] Γ ⇒ Δ) (t : Γ ⊢ i ∈ A) → Δ ⊢ weakI m⊆n i ∈ weakT m⊆n A
-  weakSet : {m n : ℕ} {Γ : ContextT m} {Δ : ContextT n} {ℓ : ℕ} {A : Type m}
+  weakSet : {m n : ℕ} {Γ : ContextT m} {Δ : ContextT n} {ℓ : ℕω} {A : Type m}
             (m⊆n : m ⊆ n) (ren : [ m⊆n ] Γ ⇒ Δ) → Γ ⊢set ℓ ∋ A → Δ ⊢set ℓ ∋ weakT m⊆n A
   weak∋ : {m n : ℕ} {Γ : ContextT m} {Δ : ContextT n} {c : Check m} {A : Type m}
           (m⊆n : m ⊆ n) (ren : [ m⊆n ] Γ ⇒ Δ) → Γ ⊢ A ∋ c → Δ ⊢ weakT m⊆n A ∋ weakC m⊆n c
@@ -92,7 +93,7 @@ module TypingWeak
   weak∈ m⊆n ren (`var v)       = `var (weakVar ren v)
   weak∈ m⊆n ren (`ann A t)     = `ann (weakSet m⊆n ren A) (weak∋ m⊆n ren t)
   weak∈ m⊆n ren (`fst t)       = `fst (weak∈ m⊆n ren t)
-  weak∈ {n = n} {Δ = Δ} m⊆n ren (`ind {p} {z} {s} {m} {ℓ} Hp Hz Hs Hm) =
+  weak∈ {n = n} {Δ = Δ} m⊆n ren (`ind {p} {z} {s} {m} Hp Hz Hs Hm) =
 
     let eq^pm : (m : Infer _) →
                 weakT m⊆n (Substitution ⊨ p ⟨ m /0⟩T) ≡ Substitution ⊨ weakT (pop! m⊆n) p ⟨ weakI m⊆n m /0⟩T
@@ -104,19 +105,19 @@ module TypingWeak
         P : {m : ℕ} → _ ⊆ m → Check m → Type m
         P = λ inc u → Substitution ⊨ weakT (pop! inc) p ⟨ `ann u `nat /0⟩T
 
-        ↑    = Semantics.lift Renaming
+        ↑↑    = Semantics.lift Renaming
         
-        eq₁ : weakT (↑ m⊆n) (Substitution ⊨ weakT (pop! extend) p ⟨ `ann var₀ `nat /0⟩T)
+        eq₁ : weakT (↑↑ m⊆n) (Substitution ⊨ weakT (pop! extend) p ⟨ `ann var₀ `nat /0⟩T)
             ≡ Substitution ⊨ weakT (pop! extend) (weakT (pop! m⊆n) p) ⟨ `ann var₀ `nat /0⟩T
-        eq₁ = PEq.trans (cong (weakT (↑ m⊆n)) (fusion.lemmaT RenSub p (λ _ → PEq.refl)))
+        eq₁ = PEq.trans (cong (weakT (↑↑ m⊆n)) (fusion.lemmaT RenSub p (λ _ → PEq.refl)))
             $ PEq.trans (fusion.lemmaT SubRen p (λ _ → PEq.refl)) $ PEq.sym
             $ PEq.trans (cong (Substitution ⊨_⟨ `ann var₀ `nat /0⟩T) (fusion.lemmaT RenRen p $ λ _ → PEq.refl))
             $ fusion.lemmaT RenSub p (λ { zero → PEq.refl ; (suc k) → PEq.refl })
         
-        eq₂ : weakT (↑ (↑ m⊆n)) (weakT extend (Substitution ⊨ weakT (pop! extend) p ⟨ `ann (`suc var₀) `nat /0⟩T))
+        eq₂ : weakT (↑↑ (↑↑ m⊆n)) (weakT extend (Substitution ⊨ weakT (pop! extend) p ⟨ `ann (`suc var₀) `nat /0⟩T))
             ≡ weakT extend (Substitution ⊨ weakT (pop! extend) (weakT (pop! m⊆n) p) ⟨ `ann (`suc var₀) `nat /0⟩T)
-        eq₂ = PEq.trans (cong (weakT (↑ (↑ m⊆n)) ∘ weakT extend) (fusion.lemmaT RenSub p $ λ _ → PEq.refl))
-            $ PEq.trans (cong (weakT (↑ (↑ m⊆n))) (fusion.lemmaT SubRen p $ λ _ → PEq.refl))
+        eq₂ = PEq.trans (cong (weakT (↑↑ (↑↑ m⊆n)) ∘ weakT extend) (fusion.lemmaT RenSub p $ λ _ → PEq.refl))
+            $ PEq.trans (cong (weakT (↑↑ (↑↑ m⊆n))) (fusion.lemmaT SubRen p $ λ _ → PEq.refl))
             $ PEq.trans (fusion.lemmaT SubRen p $ λ _ → PEq.refl) $ PEq.sym
             $ PEq.trans (cong (weakT extend ∘ Substitution ⊨_⟨ _ /0⟩T) (fusion.lemmaT RenRen p $ λ _ → PEq.refl))
             $ PEq.trans (cong (weakT extend) (fusion.lemmaT RenSub p $ λ _ → PEq.refl))

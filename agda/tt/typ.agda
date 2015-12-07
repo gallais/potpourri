@@ -1,9 +1,10 @@
 module tt.typ where
 
-open import Data.Nat
-open import Data.Fin
+open import Data.Nat hiding (_<_)
+open import Data.Fin hiding (_<_)
 open import Function
 
+open import tt.Data.NatOmega
 open import tt.raw
 open import tt.con
 open import tt.env
@@ -40,25 +41,25 @@ module Typing (_↝_ : IRel Type) where
            
   mutual
 
-    data _⊢set_∋_ {n : ℕ} (Γ : ContextT n) : ℕ → Type n → Set where
+    data _⊢set_∋_ {n : ℕ} (Γ : ContextT n) : ℕω → Type n → Set where
       
-      `sig : {s : Type n} {t : Type (suc n)} {ℓ : ℕ} →
+      `sig : {s : Type n} {t : Type (suc n)} {ℓ : ℕω} →
   
              Γ ⊢set ℓ ∋ s → Γ ∙⟩ s ⊢set ℓ ∋ t →
              --------------------------------------
              Γ ⊢set ℓ ∋ `sig s t
 
-      `pi  : {s : Type n} {t : Type (suc n)} {ℓ : ℕ} →
+      `pi  : {s : Type n} {t : Type (suc n)} {ℓ : ℕω} →
    
              Γ ⊢set ℓ ∋ s → Γ ∙⟩ s ⊢set ℓ ∋ t →
              --------------------------------------
              Γ ⊢set ℓ ∋ `pi s t
 
-      `nat : Γ ⊢set 0 ∋ `nat
+      `nat : {ℓ : ℕ} → Γ ⊢set ↑ ℓ ∋ `nat
 
-      `set : {ℓ ℓ′ : ℕ} →
+      `set : {ℓ : ℕω} {ℓ′ : ℕ} →
 
-             ℓ > ℓ′ →
+             ↑ ℓ′ < ℓ →
              --------------------
              Γ ⊢set ℓ ∋ `set ℓ′
 
@@ -66,7 +67,7 @@ module Typing (_↝_ : IRel Type) where
 
              Γ ⊢ e ∈ `set ℓ →
              --------------------
-             Γ ⊢set ℓ ∋ `elt e
+             Γ ⊢set ↑ ℓ ∋ `elt e
 
     data _⊢_∋_ {n : ℕ} (Γ : ContextT n) : Type n → Check n → Set where
 
@@ -99,7 +100,7 @@ module Typing (_↝_ : IRel Type) where
 
       `typ : {A : Type n} {ℓ : ℕ} →
 
-             Γ ⊢set ℓ ∋ A →
+             Γ ⊢set ↑ ℓ ∋ A →
              ---------------
              Γ ⊢ `set ℓ ∋ `typ A
 
@@ -118,9 +119,9 @@ module Typing (_↝_ : IRel Type) where
              --------------
              Γ ⊢ `var k ∈ A
 
-      `ann : {ℓ : ℕ} {t : Check n} {A : Type n} →
+      `ann : {t : Check n} {A : Type n} →
 
-             Γ ⊢set ℓ ∋ A → Γ ⊢ A ∋ t →
+             Γ ⊢set ω ∋ A → Γ ⊢ A ∋ t →
              ----------------
              Γ ⊢ `ann t A ∈ A
 
@@ -142,9 +143,9 @@ module Typing (_↝_ : IRel Type) where
              -------------------
              Γ ⊢ `snd t ∈ Substitution ⊨ B ⟨ `fst t /0⟩T
 
-      `ind : {p : Type (suc n)} {z s : Check n} {m : Infer n} {ℓ : ℕ} →
+      `ind : {p : Type (suc n)} {z s : Check n} {m : Infer n} →
 
-             Γ ∙⟩ `nat ⊢set ℓ ∋ p →
+             Γ ∙⟩ `nat ⊢set ω ∋ p →
              Γ ⊢ Substitution ⊨ p ⟨ `ann `zro `nat /0⟩T ∋ z →
 
              let P : {m : ℕ} → n ⊆ m → Check m → Type m

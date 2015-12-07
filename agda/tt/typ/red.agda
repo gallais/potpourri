@@ -5,6 +5,7 @@ open import Data.Fin
 open import Data.Product
 open import Function
 
+open import tt.Data.NatOmega
 open import tt.raw
 open import tt.con
 open import tt.env
@@ -31,7 +32,7 @@ module ExpandContextTyping
              Γ [ _[ _↝_ ⟩*_ ] Δ → Δ ⊢ i ∈ B → Γ ⊢ i ∈ B
   lemma∋   : {m : ℕ} {Γ Δ : ContextT m} {t : Check m} {B : Type m} →
              Γ [ _[ _↝_ ⟩*_ ] Δ → Δ ⊢ B ∋ t → Γ ⊢ B ∋ t
-  lemmaSet : {m : ℕ} {Γ Δ : ContextT m} {A : Type m} {ℓ : ℕ} →
+  lemmaSet : {m : ℕ} {Γ Δ : ContextT m} {A : Type m} {ℓ : ℕω} →
              Γ [ _[ _↝_ ⟩*_ ] Δ → Δ ⊢set ℓ ∋ A → Γ ⊢set ℓ ∋ A
 
 
@@ -84,7 +85,7 @@ module ReduceContextTyping
              Γ [ _[ _↝_ ⟩*_ ] Δ → Γ ⊢ i ∈ A → ∃ λ B → A [ _↝_ ⟩* B × Δ ⊢ i ∈ B
   lemma∋   : {m : ℕ} {Γ Δ : ContextT m} {t : Check m} {A B : Type m} →
              Γ [ _[ _↝_ ⟩*_ ] Δ → A [ _↝_ ⟩* B → Γ ⊢ A ∋ t → Δ ⊢ B ∋ t
-  lemmaSet : {m : ℕ} {Γ Δ : ContextT m} {A : Type m} {ℓ : ℕ} →
+  lemmaSet : {m : ℕ} {Γ Δ : ContextT m} {A : Type m} {ℓ : ℕω} →
              Γ [ _[ _↝_ ⟩*_ ] Δ → Γ ⊢set ℓ ∋ A → Δ ⊢set ℓ ∋ A
 
 

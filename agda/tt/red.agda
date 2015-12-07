@@ -2,6 +2,7 @@ module tt.red where
 
 open import Data.Nat
 open import Data.Product
+open import Function
 
 open import tt.raw
 open import tt.con
@@ -43,6 +44,12 @@ record Reduction {E : ℕ → Set} (SE : Syntax E) (_↝_ : IRel E) : Set where
     subst↝      : {m n : ℕ} {a b : E m} (ρ : Var m =>[ Infer ] n) → a ↝ b → SE.subst a ρ ↝ SE.subst b ρ
     confluence  : {m : ℕ} {a b c : E m} → a [ _↝_ ⟩* b → a [ _↝_ ⟩* c →
                   ∃ λ d → b [ _↝_ ⟩* d × c [ _↝_ ⟩* d
+
+  weak↝* : {m n : ℕ} {a b : E m} (inc : m ⊆ n) → a [ _↝_ ⟩* b → SE.weak inc a [ _↝_ ⟩* SE.weak inc b
+  weak↝* inc = map[ E , E , SE.weak inc , _↝_ , _↝_ , weak↝ inc ⟩*
+
+  subst↝* : {m n : ℕ} {a b : E m} (ρ : Var m =>[ Infer ] n) → a [ _↝_ ⟩* b → SE.subst a ρ [ _↝_ ⟩* SE.subst b ρ
+  subst↝* ρ = map[ E , E , flip SE.subst ρ , _↝_ , _↝_ , subst↝ ρ ⟩*
 
 record WeakHead (f : Type ⇒ Type) (_↝_ : IRel Type) : Set where
   field

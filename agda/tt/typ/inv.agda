@@ -1,10 +1,11 @@
 module tt.typ.inv where
 
-open import Data.Nat
+open import Data.Nat hiding (_<_)
 open import Data.Fin hiding (_<_)
 open import Data.Product
 open import Function
 
+open import tt.Data.NatOmega
 open import tt.raw
 open import tt.con
 open import tt.env
@@ -39,7 +40,7 @@ module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_)
   Γ⊢A∋Sm-inv′ (`red r typ) = Γ⊢A∋Sm-inv′ typ 
 
   Γ⊢A∋typ-inv : {n : ℕ} {Γ : ContextT n} {A B : Type n} → Γ ⊢ A ∋ `typ B →
-                Σ[ ℓ ∈ ℕ ] A [ _↝_ ⟩* `set ℓ × Γ ⊢set ℓ ∋ B
+                Σ[ ℓ ∈ ℕ ] A [ _↝_ ⟩* `set ℓ × Γ ⊢set ↑ ℓ ∋ B
   Γ⊢A∋typ-inv (`typ A)     = , done , A
   Γ⊢A∋typ-inv (`red r typ) = map id (map (more r) id) $ Γ⊢A∋typ-inv typ
   
@@ -54,37 +55,43 @@ module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_)
   
   Γ⊢A∋a,b-inv : {n : ℕ} {Γ : ContextT n} {A : Type n} {a b : Check n} →
                 Γ ⊢ A ∋ `per a b → ∃ λ ST → A [ _↝_ ⟩* uncurry `sig ST
-  Γ⊢A∋a,b-inv (`per _ _)   = , done
-  Γ⊢A∋a,b-inv (`red r typ) = map id (more r) $ Γ⊢A∋a,b-inv typ
+                                          × Γ ⊢ proj₁ ST ∋ a
+                                          × Γ ⊢ Substitution ⊨ proj₂ ST ⟨ `ann a (proj₁ ST) /0⟩T ∋ b
+  Γ⊢A∋a,b-inv (`per a b)   = , done , a , b
+  Γ⊢A∋a,b-inv (`red r typ) = map id (map (more r) id) $ Γ⊢A∋a,b-inv typ
     
-  Γ⊢fste∈A-inv : {n : ℕ} {Γ : ContextT n} {A : Type n} {e : Infer n} → Γ ⊢ `fst e ∈ A → ∃ λ B → Γ ⊢ e ∈ B
+  Γ⊢fste∈A-inv : {n : ℕ} {Γ : ContextT n} {A : Type n} {e : Infer n} →
+                 Γ ⊢ `fst e ∈ A → ∃ λ ST → Γ ⊢ e ∈ uncurry `sig ST
   Γ⊢fste∈A-inv (`fst typ)   = , typ
   Γ⊢fste∈A-inv (`red r typ) = Γ⊢fste∈A-inv typ
 
-  Γ⊢snde∈A-inv : {n : ℕ} {Γ : ContextT n} {A : Type n} {e : Infer n} → Γ ⊢ `snd e ∈ A → ∃ λ B → Γ ⊢ e ∈ B
+  Γ⊢snde∈A-inv : {n : ℕ} {Γ : ContextT n} {A : Type n} {e : Infer n} →
+                 Γ ⊢ `snd e ∈ A → ∃ λ AB → Γ ⊢ e ∈ uncurry `sig AB
   Γ⊢snde∈A-inv (`snd typ)   = , typ
   Γ⊢snde∈A-inv (`red r typ) = Γ⊢snde∈A-inv typ
 
-  Γ⊢anntA∈A-inv : {n : ℕ} {Γ : ContextT n} {A B : Type n} {t : Check n} → Γ ⊢ `ann t A ∈ B → Γ ⊢ A ∋ t
-  Γ⊢anntA∈A-inv (`ann _ typ) = typ
+  Γ⊢anntA∈A-inv : {n : ℕ} {Γ : ContextT n} {A B : Type n} {t : Check n} →
+                  Γ ⊢ `ann t A ∈ B → Γ ⊢set ω ∋ A × Γ ⊢ A ∋ t
+  Γ⊢anntA∈A-inv (`ann A t)   = A , t
   Γ⊢anntA∈A-inv (`red r typ) = Γ⊢anntA∈A-inv typ
 
   Γ⊢appeu∈T-inv : {n : ℕ} {Γ : ContextT n} {A : Type n} {e : Infer n} {u : Check n} →
-                  Γ ⊢ `app e u ∈ A → ∃ λ B → Γ ⊢ e ∈ B
-  Γ⊢appeu∈T-inv (`app typ u) = , typ
+                  Γ ⊢ `app e u ∈ A → ∃ λ ST → Γ ⊢ e ∈ uncurry `pi ST × Γ ⊢ proj₁ ST ∋ u
+  Γ⊢appeu∈T-inv (`app typ u) = , typ , u
   Γ⊢appeu∈T-inv (`red r typ) = Γ⊢appeu∈T-inv typ
   
-  Γ⊢set∋set-inv : {n : ℕ} {Γ : ContextT n} {ℓ ℓ′ : ℕ} → Γ ⊢set ℓ ∋ `set ℓ′ → ℓ′ < ℓ
+  Γ⊢set∋set-inv : {n : ℕ} {Γ : ContextT n} {ℓ : ℕω} {ℓ′ : ℕ} → Γ ⊢set ℓ ∋ `set ℓ′ → ↑ ℓ′ < ℓ
   Γ⊢set∋set-inv (`set lt) = lt
   
-  Γ⊢set∋elt-inv : {n : ℕ} {Γ : ContextT n} {ℓ : ℕ} {e : Infer n} → Γ ⊢set ℓ ∋ `elt e → Γ ⊢ e ∈ `set ℓ
-  Γ⊢set∋elt-inv (`elt e) = e
+  Γ⊢set∋elt-inv : {n : ℕ} {Γ : ContextT n} {ℓ : ℕω} {e : Infer n} →
+                  Γ ⊢set ℓ ∋ `elt e → Σ[ ℓ′ ∈ ℕ ] ℓ ≡ ↑ ℓ′ × Γ ⊢ e ∈ `set ℓ′
+  Γ⊢set∋elt-inv (`elt e) = , PEq.refl , e
     
-  Γ⊢set∋ΣAB-inv : {n ℓ : ℕ} {Γ : ContextT n} {A : Type n} {B : Type (suc n)} →
+  Γ⊢set∋ΣAB-inv : {n : ℕ} {ℓ : ℕω} {Γ : ContextT n} {A : Type n} {B : Type (suc n)} →
                   Γ ⊢set ℓ ∋ `sig A B → Γ ⊢set ℓ ∋ A × Γ ∙⟩ A ⊢set ℓ ∋ B
   Γ⊢set∋ΣAB-inv (`sig A B) = A , B
   
-  Γ⊢set∋ΠAB-inv : {n ℓ : ℕ} {Γ : ContextT n} {A : Type n} {B : Type (suc n)} →
+  Γ⊢set∋ΠAB-inv : {n : ℕ} {ℓ : ℕω} {Γ : ContextT n} {A : Type n} {B : Type (suc n)} →
                   Γ ⊢set ℓ ∋ `pi A B → Γ ⊢set ℓ ∋ A × Γ ∙⟩ A ⊢set ℓ ∋ B
   Γ⊢set∋ΠAB-inv (`pi A B) = A , B
 
@@ -107,13 +114,13 @@ module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_)
     let (ΠST , redf , redg)             = Γ⊢e∈-unique f g
         ((A , B) , eq₁ , red₁₁ , red₁₂) = `pi↝-inv redf
         ((C , D) , eq₂ , red₂₁ , red₂₂) = `pi↝-inv redg
-        (eqAC , eqBD)                   = `pi-inj $ PEq.trans (sym eq₁) eq₂
+        (eqAC , eqBD) = `pi-inj $ PEq.trans (sym eq₁) eq₂
+        patt          = λ A B → Substitution ⊨ D ⟨ _ /0⟩T [ _↝_ ⟩* Substitution ⊨ B ⟨ `ann _ A /0⟩T
+        coerce        = PEq.subst₂ patt (sym eqAC) (sym eqBD)
         open Semantics Substitution
     in Substitution ⊨ B ⟨ `ann _ A /0⟩T
-     , mores (map[ Type , Type , flip substT (⟦diag⟧ ∙ _) , _↝_ , _↝_ , subst↝ (⟦diag⟧ ∙ _) ⟩* red₁₂) (β↝* B red₁₁)
-     , mores (map[ Type , Type , flip substT (⟦diag⟧ ∙ _) , _↝_ , _↝_ , subst↝ (⟦diag⟧ ∙ _) ⟩* red₂₂)
-             (PEq.subst₂ (λ A B → Substitution ⊨ D ⟨ _ /0⟩T [ _↝_ ⟩* Substitution ⊨ B ⟨ `ann _ A /0⟩T)
-                         (sym eqAC) (sym eqBD) (β↝* D red₂₁))
+     , mores (subst↝* _ red₁₂) (β↝* B red₁₁)
+     , mores (subst↝* _ red₂₂) (coerce $ β↝* D red₂₁)
     
   Γ⊢e∈-unique (`fst t)       (`fst u)       =
 
@@ -129,11 +136,11 @@ module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_)
         ((A , B) , eq₁ , red₁₁ , red₁₂) = `sig↝-inv redt
         ((C , D) , eq₂ , red₂₁ , red₂₂) = `sig↝-inv redu
         (_ , eqBD)                      = `sig-inj $ PEq.trans (sym eq₁) eq₂
+        coerce                          = PEq.subst (_ [ _↝_ ⟩*_) (sym eqBD)
         open Semantics Substitution
     in Substitution ⊨ B ⟨ `fst _ /0⟩T
-       , map[ Type , Type , flip substT (⟦diag⟧ ∙ _) , _↝_ , _↝_ , subst↝ (⟦diag⟧ ∙ _) ⟩* red₁₂
-       , map[ Type , Type , flip substT (⟦diag⟧ ∙ _) , _↝_ , _↝_ , subst↝ (⟦diag⟧ ∙ _) ⟩*
-           (PEq.subst (_ [ _↝_ ⟩*_) (sym eqBD) red₂₂)
+       , subst↝* _ red₁₂
+       , subst↝* _ (coerce red₂₂)
 
   Γ⊢e∈-unique (`ind p z s m) (`ind q a t n) = , done , done
 
