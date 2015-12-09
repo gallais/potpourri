@@ -387,6 +387,52 @@ module typeCheck
   typeInfer Γ (`snd e) | no ¬p = no (¬p ∘ map (uncurry `sig) id ∘ Γ⊢snde∈A-inv ∘ proj₂)
 
 
-  typeInfer Γ (`ind p z s e) with typeInfer Γ e
-  ... | yes q = {!!}
-  ... | no ¬p = {!!}
+  typeInfer Γ (`ind p z s e)
+    with typeType (Γ ∙⟩ `nat) ω p
+       | typeCheck Γ (Substitution ⊨ p ⟨ `ann `zro `nat /0⟩T) z
+       | typeCheck Γ (IH p) s
+       | typeInfer Γ e
+       
+  ... | yes Hp | yes Hz | yes Hs | yes (A , Γ⊢e∈A) with whnf A | yieldsReduct A | uncoversHead A
+  ... | `nat     | A↝ℕ   | spec = yes (, `ind Hp Hz Hs (reduceInfer A↝ℕ Γ⊢e∈A))
+  ... | `pi _ _  | A↝ΠST | spec =
+
+    no $ uncurry $ λ B Γ⊢ind∈B →
+       let (_ , _ , _ , Γ⊢e∈ℕ) = Γ⊢ind∈-inv Γ⊢ind∈B
+           (R , A↝R , ℕ↝R)     = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ℕ
+           eq                  = `nat↝-inv ℕ↝R
+           coerce              = PEq.subst (A [ _↝T_ ⟩*_) eq
+       in case spec (`nat , coerce A↝R , `nat) of λ ()
+    
+  ... | `sig _ _ | A↝ΣST | spec =
+
+    no $ uncurry $ λ B Γ⊢ind∈B →
+       let (_ , _ , _ , Γ⊢e∈ℕ) = Γ⊢ind∈-inv Γ⊢ind∈B
+           (R , A↝R , ℕ↝R)     = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ℕ
+           eq                  = `nat↝-inv ℕ↝R
+           coerce              = PEq.subst (A [ _↝T_ ⟩*_) eq
+       in case spec (`nat , coerce A↝R , `nat) of λ ()
+
+  ... | `set _   | A↝set | spec =
+
+    no $ uncurry $ λ B Γ⊢ind∈B →
+       let (_ , _ , _ , Γ⊢e∈ℕ) = Γ⊢ind∈-inv Γ⊢ind∈B
+           (R , A↝R , ℕ↝R)     = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ℕ
+           eq                  = `nat↝-inv ℕ↝R
+           coerce              = PEq.subst (A [ _↝T_ ⟩*_) eq
+       in case spec (`nat , coerce A↝R , `nat) of λ ()
+
+  ... | `elt _   | A↝elt | spec =
+
+    no $ uncurry $ λ B Γ⊢ind∈B →
+       let (_ , _ , _ , Γ⊢e∈ℕ) = Γ⊢ind∈-inv Γ⊢ind∈B
+           (R , A↝R , ℕ↝R)     = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ℕ
+           eq                  = `nat↝-inv ℕ↝R
+           coerce              = PEq.subst (A [ _↝T_ ⟩*_) eq
+       in case spec (`nat , coerce A↝R , `nat) of λ ()
+
+
+  typeInfer Γ (`ind p z s e) | no ¬Hp | _ | _ | _ = no (¬Hp ∘ proj₁ ∘ Γ⊢ind∈-inv ∘ proj₂)
+  typeInfer Γ (`ind p z s e) | _ | no ¬Hz | _ | _ = no (¬Hz ∘ proj₁ ∘ proj₂ ∘ Γ⊢ind∈-inv ∘ proj₂)
+  typeInfer Γ (`ind p z s e) | _ | _ | no ¬Hs | _ = no (¬Hs ∘ proj₁ ∘ proj₂ ∘ proj₂ ∘ Γ⊢ind∈-inv ∘ proj₂)
+  typeInfer Γ (`ind p z s e) | _ | _ | _ | no ¬Hq = no (¬Hq ∘ ,_ ∘ proj₂ ∘ proj₂ ∘ proj₂ ∘ Γ⊢ind∈-inv ∘ proj₂)
