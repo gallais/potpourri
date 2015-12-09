@@ -147,11 +147,7 @@ module Typing (_↝_ : IRel Type) where
 
              Γ ∙⟩ `nat ⊢set ω ∋ p →
              Γ ⊢ Substitution ⊨ p ⟨ `ann `zro `nat /0⟩T ∋ z →
-
-             let P : {m : ℕ} → n ⊆ m → Check m → Type m
-                 P = λ inc u → Substitution ⊨ weakT (pop! inc) p ⟨ `ann u `nat /0⟩T in
-
-             Γ ⊢ `pi `nat (P extend var₀ `→ P extend (`suc var₀)) ∋ s →
+             Γ ⊢ IH p ∋ s →
              Γ ⊢ m ∈ `nat →
              ---------------------------
              Γ ⊢ `ind p z s m ∈ Substitution ⊨ p ⟨ m /0⟩T
@@ -161,6 +157,9 @@ module Typing (_↝_ : IRel Type) where
              -------------------
              Γ ⊢ e ∈ B
 
+    IH : {m : ℕ} (P : Type (suc m)) → Type m
+    IH P = `pi `nat ((Substitution ⊨ weakT extend P ⟨ `ann var₀ `nat /0⟩T)
+                  `→ (Substitution ⊨ weakT extend P ⟨ `ann (`suc var₀) `nat /0⟩T))
 
   -- Coercions
   

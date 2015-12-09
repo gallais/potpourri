@@ -14,16 +14,11 @@ open import tt.sem
 open import tt.typ
 open import Relation.Binary.PropositionalEquality as PEq
 
-module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_)
-       (β↝*       : {m : ℕ} (T : Type (suc m)) {u : Check m} {U U′ : Type m} →
-                    U [ _↝_ ⟩* U′ → Substitution ⊨ T ⟨ `ann u U /0⟩T [ _↝_ ⟩* Substitution ⊨ T ⟨ `ann u U′ /0⟩T) 
-       (`pi↝-inv  : {m : ℕ} {A R : Type m} {B : Type (suc m)} →
-                    `pi A B [ _↝_ ⟩* R → ∃ λ ST → R ≡ uncurry `pi ST × A [ _↝_ ⟩* proj₁ ST × B [ _↝_ ⟩* proj₂ ST)
-       (`sig↝-inv : {m : ℕ} {A R : Type m} {B : Type (suc m)} →
-                    `sig A B [ _↝_ ⟩* R → ∃ λ ST → R ≡ uncurry `sig ST × A [ _↝_ ⟩* proj₁ ST × B [ _↝_ ⟩* proj₂ ST) where
+module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_) (TRed : TypeReduction _↝_) where
 
   open Typing _↝_
   open Reduction Red
+  open TypeReduction TRed
 
   -- Inversion lemmas
 
@@ -79,7 +74,15 @@ module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_)
                   Γ ⊢ `app e u ∈ A → ∃ λ ST → Γ ⊢ e ∈ uncurry `pi ST × Γ ⊢ proj₁ ST ∋ u
   Γ⊢appeu∈T-inv (`app typ u) = , typ , u
   Γ⊢appeu∈T-inv (`red r typ) = Γ⊢appeu∈T-inv typ
-  
+
+  Γ⊢ind∈-inv : {n : ℕ} {Γ : ContextT n} {A : Type n} {p : Type (suc n)} {z s : Check n} {m : Infer n} →
+               Γ ⊢ `ind p z s m ∈ A → Γ ∙⟩ `nat ⊢set ω ∋ p
+                                    × Γ ⊢ Substitution ⊨ p ⟨ `ann `zro `nat /0⟩T ∋ z
+                                    × Γ ⊢ IH p ∋ s
+                                    × Γ ⊢ m ∈ `nat
+  Γ⊢ind∈-inv (`ind p z s m) = p , z , s , m
+  Γ⊢ind∈-inv (`red r typ)   = Γ⊢ind∈-inv typ
+
   Γ⊢set∋set-inv : {n : ℕ} {Γ : ContextT n} {ℓ : ℕω} {ℓ′ : ℕ} → Γ ⊢set ℓ ∋ `set ℓ′ → ↑ ℓ′ < ℓ
   Γ⊢set∋set-inv (`set lt) = lt
   
@@ -112,8 +115,8 @@ module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_)
   Γ⊢e∈-unique (`app f t)     (`app g u)     =
 
     let (ΠST , redf , redg)             = Γ⊢e∈-unique f g
-        ((A , B) , eq₁ , red₁₁ , red₁₂) = `pi↝-inv redf
-        ((C , D) , eq₂ , red₂₁ , red₂₂) = `pi↝-inv redg
+        ((A , B) , eq₁ , red₁₁ , red₁₂) = `pi↝*-inv redf
+        ((C , D) , eq₂ , red₂₁ , red₂₂) = `pi↝*-inv redg
         (eqAC , eqBD) = `pi-inj $ PEq.trans (sym eq₁) eq₂
         patt          = λ A B → Substitution ⊨ D ⟨ _ /0⟩T [ _↝_ ⟩* Substitution ⊨ B ⟨ `ann _ A /0⟩T
         coerce        = PEq.subst₂ patt (sym eqAC) (sym eqBD)
@@ -125,16 +128,16 @@ module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_)
   Γ⊢e∈-unique (`fst t)       (`fst u)       =
 
     let (ΣST , redt , redu) = Γ⊢e∈-unique t u
-        ((A , B) , eq₁ , red₁₁ , red₁₂) = `sig↝-inv redt
-        ((C , D) , eq₂ , red₂₁ , red₂₂) = `sig↝-inv redu
+        ((A , B) , eq₁ , red₁₁ , red₁₂) = `sig↝*-inv redt
+        ((C , D) , eq₂ , red₂₁ , red₂₂) = `sig↝*-inv redu
         (eqAC , _)                      = `sig-inj $ PEq.trans (sym eq₁) eq₂
     in A , red₁₁ , PEq.subst (_ [ _↝_ ⟩*_) (sym eqAC) red₂₁
     
   Γ⊢e∈-unique (`snd t)       (`snd u)       = 
 
     let (ΣST , redt , redu) = Γ⊢e∈-unique t u
-        ((A , B) , eq₁ , red₁₁ , red₁₂) = `sig↝-inv redt
-        ((C , D) , eq₂ , red₂₁ , red₂₂) = `sig↝-inv redu
+        ((A , B) , eq₁ , red₁₁ , red₁₂) = `sig↝*-inv redt
+        ((C , D) , eq₂ , red₂₁ , red₂₂) = `sig↝*-inv redu
         (_ , eqBD)                      = `sig-inj $ PEq.trans (sym eq₁) eq₂
         coerce                          = PEq.subst (_ [ _↝_ ⟩*_) (sym eqBD)
         open Semantics Substitution

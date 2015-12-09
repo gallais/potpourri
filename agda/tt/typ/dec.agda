@@ -18,25 +18,18 @@ open import tt.typ.inv
 open import tt.typ.red
 
 module typeCheck
-       (_↝T_  : IRel Type)   (Red : Reduction SType _↝T_)
-       (open Typing _↝T_)
-       (_↝C_  : IRel Check)
-       (whnf  : Type ⇒ Type) (wh  : WeakHead whnf _↝T_)
-       (β↝*       : {m : ℕ} (T : Type (suc m)) {u : Check m} {U U′ : Type m} →
-                    U [ _↝T_ ⟩* U′ → Substitution ⊨ T ⟨ `ann u U /0⟩T [ _↝T_ ⟩* Substitution ⊨ T ⟨ `ann u U′ /0⟩T) 
-       (`set↝-inv : {m : ℕ} {ℓ : ℕ} {R : Type m} → `set ℓ [ _↝T_ ⟩* R → R ≡ `set ℓ)
-       (`nat↝-inv : {m : ℕ} {R : Type m} → `nat [ _↝T_ ⟩* R → R ≡ `nat)
-       (`pi↝-inv  : {m : ℕ} {A R : Type m} {B : Type (suc m)} →
-                    `pi A B [ _↝T_ ⟩* R → ∃ λ ST → R ≡ uncurry `pi ST × A [ _↝T_ ⟩* proj₁ ST × B [ _↝T_ ⟩* proj₂ ST)
-       (`sig↝-inv : {m : ℕ} {A R : Type m} {B : Type (suc m)} →
-                    `sig A B [ _↝T_ ⟩* R → ∃ λ ST → R ≡ uncurry `sig ST × A [ _↝T_ ⟩* proj₁ ST × B [ _↝T_ ⟩* proj₂ ST)
+       (_↝_  : IRel Type) (Red : Reduction SType _↝_) (TRed : TypeReduction _↝_)
+       (whnf  : Type ⇒ Type) (wh  : WeakHead whnf _↝_)
        where
 
+  open Typing _↝_
   open WeakHead wh
   open Reduction Red
-  open TypingInversion _↝T_ Red β↝* `pi↝-inv `sig↝-inv
-  module ExpandTyping = ExpandContextTyping _↝T_ weak↝
-  module ReduceTyping = ReduceContextTyping _↝T_ Red β↝* `set↝-inv `nat↝-inv `pi↝-inv `sig↝-inv
+  open TypeReduction TRed
+
+  open TypingInversion _↝_ Red β↝* `pi↝*-inv `sig↝*-inv
+  module ExpandTyping = ExpandContextTyping _↝_ weak↝
+  module ReduceTyping = ReduceContextTyping _↝_ Red β↝* `set↝*-inv `nat↝*-inv `pi↝*-inv `sig↝*-inv
 
   -- Type Inference for variables is total: it's a simple lookup
   -- in the context!
@@ -80,8 +73,8 @@ module typeCheck
        let (ℓ′′ , ℓ≡ℓ′′ , Γ⊢e∈set) = Γ⊢set∋elt-inv p
            (R , A↝R , set↝R)       = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈set
            (U , R↝U , set↝U)       = confluence A↝R A↝*setℓ′
-           U≡set                   = `set↝-inv set↝U
-           U≡set′                  = `set↝-inv $ mores set↝R R↝U
+           U≡set                   = `set↝*-inv set↝U
+           U≡set′                  = `set↝*-inv $ mores set↝R R↝U
        in ¬p $ PEq.trans ℓ≡ℓ′′ $ PEq.cong ↑_ $ `set-inj $ PEq.trans (PEq.sym U≡set′) U≡set
 
   typeType Γ ℓ (`elt e) | yes (A , Γ⊢e∈A) | `sig _ _ | _ | spec =
@@ -89,7 +82,7 @@ module typeCheck
     no $ λ p →
        let (_ , _ , Γ⊢e∈set)  = Γ⊢set∋elt-inv p
            (R  , A↝R , set↝R) = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈set
-           R≡set              = `set↝-inv set↝R
+           R≡set              = `set↝*-inv set↝R
            coerce₁            = PEq.subst (Type _ ≡^Con_) R≡set
            coerce₂            = PEq.subst (λ p → Type p ≡^Con p) (PEq.sym R≡set)
        in case coerce₁ (spec (R , A↝R , coerce₂ (`set _))) of λ ()
@@ -99,7 +92,7 @@ module typeCheck
     no $ λ p →
        let (_ , _ , Γ⊢e∈set)  = Γ⊢set∋elt-inv p
            (R  , A↝R , set↝R) = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈set
-           R≡set              = `set↝-inv set↝R
+           R≡set              = `set↝*-inv set↝R
            coerce₁            = PEq.subst (Type _ ≡^Con_) R≡set
            coerce₂            = PEq.subst (λ p → Type p ≡^Con p) (PEq.sym R≡set)
        in case coerce₁ (spec (R , A↝R , coerce₂ (`set _))) of λ ()
@@ -109,7 +102,7 @@ module typeCheck
     no $ λ p →
        let (_ , _ , Γ⊢e∈set)  = Γ⊢set∋elt-inv p
            (R  , A↝R , set↝R) = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈set
-           R≡set              = `set↝-inv set↝R
+           R≡set              = `set↝*-inv set↝R
            coerce₁            = PEq.subst (Type _ ≡^Con_) R≡set
            coerce₂            = PEq.subst (λ p → Type p ≡^Con p) (PEq.sym R≡set)
        in case coerce₁ (spec (R , A↝R , coerce₂ (`set _))) of λ ()
@@ -119,7 +112,7 @@ module typeCheck
     no $ λ p →
        let (_ , _ , Γ⊢e∈set)  = Γ⊢set∋elt-inv p
            (R  , A↝R , set↝R) = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈set
-           R≡set              = `set↝-inv set↝R
+           R≡set              = `set↝*-inv set↝R
            coerce₁            = PEq.subst (Type _ ≡^Con_) R≡set
            coerce₂            = PEq.subst (λ p → Type p ≡^Con p) (PEq.sym R≡set)
        in case coerce₁ (spec (R , A↝R , coerce₂ (`set _))) of λ ()
@@ -137,7 +130,7 @@ module typeCheck
     no $ λ Γ⊢A∋typB →
        let (ℓ′ , A↝set , Γ⊢set∋B) = Γ⊢A∋typ-inv Γ⊢A∋typB
            (R , set↝R , set′↝R)   = confluence A↝set A↝*set
-           ℓ≡ℓ′                   = `set-inj $ PEq.trans (PEq.sym $ `set↝-inv set↝R) (`set↝-inv set′↝R)
+           ℓ≡ℓ′                   = `set-inj $ PEq.trans (PEq.sym $ `set↝*-inv set↝R) (`set↝*-inv set′↝R)
            coerce                 = PEq.subst (Γ ⊢set_∋ B) $ PEq.cong ↑_ ℓ≡ℓ′
        in ¬p (coerce Γ⊢set∋B)
 
@@ -153,8 +146,8 @@ module typeCheck
   ... | no ¬p = no $ λ p →
                      let ((P , Q) , A↝*ΠPQ , Γ∙⟩P⊢Q∋b)      = Γ⊢A∋λb-inv p
                          (B , (ΠST↝*B , ΠPQ↝*B))            = confluence A↝*ΠST A↝*ΠPQ
-                         ((E , F) , eqEF , redEF₁ , redEF₂) = `pi↝-inv ΠPQ↝*B
-                         ((G , H) , eqGH , redGH₁ , redGH₂) = `pi↝-inv ΠST↝*B
+                         ((E , F) , eqEF , redEF₁ , redEF₂) = `pi↝*-inv ΠPQ↝*B
+                         ((G , H) , eqGH , redGH₁ , redGH₂) = `pi↝*-inv ΠST↝*B
                      in ¬p $ ExpandTyping.lemma∋ (pure _ (λ _ → done) , redGH₁)
                            $ expandCheck redGH₂
                            $ uncurry (PEq.subst₂ (λ S T → _ ∙⟩ S ⊢ T ∋ _)) (`pi-inj $ PEq.trans (sym eqEF) eqGH)
@@ -173,8 +166,8 @@ module typeCheck
     no $ λ p → 
          let ((P  , Q) , red , typa , typb)      = Γ⊢A∋a,b-inv p
              (R , ΣST↝R , ΣPQ↝R)                 = confluence A↝*ΣST red
-             ((U₁ , V₁) , R≡ΣU₁V₁ , S↝U₁ , T↝V₁) = `sig↝-inv ΣST↝R
-             ((U₂ , V₂) , R≡ΣU₂V₂ , P↝U₂ , Q↝V₂) = `sig↝-inv ΣPQ↝R
+             ((U₁ , V₁) , R≡ΣU₁V₁ , S↝U₁ , T↝V₁) = `sig↝*-inv ΣST↝R
+             ((U₂ , V₂) , R≡ΣU₂V₂ , P↝U₂ , Q↝V₂) = `sig↝*-inv ΣPQ↝R
              U₁≡U₂                               = proj₁ $ `sig-inj $ PEq.trans (PEq.sym R≡ΣU₁V₁) R≡ΣU₂V₂
              coerce                              = PEq.subst (_ ⊢_∋ _) (PEq.sym U₁≡U₂) 
          in ¬p₁ $ expandCheck S↝U₁ $ coerce
@@ -184,8 +177,8 @@ module typeCheck
     no $ λ p → 
          let ((P  , Q) , red , typa , typb)      = Γ⊢A∋a,b-inv p
              (R , ΣST↝R , ΣPQ↝R)                 = confluence A↝*ΣST red
-             ((U₁ , V₁) , R≡ΣU₁V₁ , S↝U₁ , T↝V₁) = `sig↝-inv ΣST↝R
-             ((U₂ , V₂) , R≡ΣU₂V₂ , P↝U₂ , Q↝V₂) = `sig↝-inv ΣPQ↝R
+             ((U₁ , V₁) , R≡ΣU₁V₁ , S↝U₁ , T↝V₁) = `sig↝*-inv ΣST↝R
+             ((U₂ , V₂) , R≡ΣU₂V₂ , P↝U₂ , Q↝V₂) = `sig↝*-inv ΣPQ↝R
              (U₂≡U₁ , V₂≡V₁)                     = `sig-inj $ PEq.trans (PEq.sym R≡ΣU₂V₂) R≡ΣU₁V₁
              patt                                = λ U V → _ ⊢ Substitution ⊨ V ⟨ `ann a U /0⟩T ∋ _
              coerce                              = PEq.subst₂ patt U₂≡U₁ V₂≡V₁
@@ -249,10 +242,10 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢app∈B →
        let ((P , Q) , Γ⊢e∈ΠPQ , Γ⊢Q∋u)           = Γ⊢appeu∈T-inv Γ⊢app∈B
            (ΠUV , A↝ΠUV , ΠPQ↝ΠUV)               = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΠPQ
-           ((U , V) , ΠUV≡ΠUV , P↝U , Q↝V)       = `pi↝-inv ΠPQ↝ΠUV
+           ((U , V) , ΠUV≡ΠUV , P↝U , Q↝V)       = `pi↝*-inv ΠPQ↝ΠUV
            (ΠXY , ΠST↝ΠXY , ΠUV↝ΠXY)             = confluence A↝*ΠST A↝ΠUV
-           ((X₁ , Y₁) , ΠXY≡ΠX₁Y₁ , S↝X₁ , T↝Y₁) = `pi↝-inv ΠST↝ΠXY
-           ((X₂ , Y₂) , ΠXY≡ΠX₂Y₂ , U↝X₂ , V↝Y₂) = `pi↝-inv $ PEq.subst (_[ _↝T_ ⟩* ΠXY) ΠUV≡ΠUV ΠUV↝ΠXY
+           ((X₁ , Y₁) , ΠXY≡ΠX₁Y₁ , S↝X₁ , T↝Y₁) = `pi↝*-inv ΠST↝ΠXY
+           ((X₂ , Y₂) , ΠXY≡ΠX₂Y₂ , U↝X₂ , V↝Y₂) = `pi↝*-inv $ PEq.subst (_[ _↝_ ⟩* ΠXY) ΠUV≡ΠUV ΠUV↝ΠXY
            (X₂≡X₁ , Y₂≡Y₁)                       = `pi-inj $ PEq.trans (PEq.sym ΠXY≡ΠX₂Y₂) ΠXY≡ΠX₁Y₁
            coerce                                = PEq.subst (_ ⊢_∋ _) X₂≡X₁
        in ¬prf $ expandCheck S↝X₁ $ coerce
@@ -265,8 +258,8 @@ module typeCheck
        let ((P , Q) , Γ⊢e∈ΠPQ , Γ⊢Q∋u)    = Γ⊢appeu∈T-inv Γ⊢app∈B
            (ΠUV , A↝ΠUV , ΠPQ↝ΠUV)        = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΠPQ
            (R , ΣST↝R , ΠUV↝R)            = confluence A↝ΣST A↝ΠUV
-           ((X₁ , Y₁) , R≡ΠX₁Y₁ , _ , _ ) = `pi↝-inv (mores ΠPQ↝ΠUV ΠUV↝R)
-           ((X₂ , Y₂) , R≡ΣX₂Y₂ , _ , _ ) = `sig↝-inv ΣST↝R
+           ((X₁ , Y₁) , R≡ΠX₁Y₁ , _ , _ ) = `pi↝*-inv (mores ΠPQ↝ΠUV ΠUV↝R)
+           ((X₂ , Y₂) , R≡ΣX₂Y₂ , _ , _ ) = `sig↝*-inv ΣST↝R
        in case PEq.trans (PEq.sym R≡ΠX₁Y₁) R≡ΣX₂Y₂ of λ ()
     
   typeInfer Γ (`app e u) | yes (A , Γ⊢e∈A) | `nat      | A↝ℕ | spec =
@@ -275,8 +268,8 @@ module typeCheck
        let ((P , Q) , Γ⊢e∈ΠPQ , Γ⊢Q∋u)    = Γ⊢appeu∈T-inv Γ⊢app∈B
            (ΠUV , A↝ΠUV , ΠPQ↝ΠUV)        = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΠPQ
            (R , ℕ↝R , ΠUV↝R)              = confluence A↝ℕ A↝ΠUV
-           ((X₁ , Y₁) , R≡ΠX₁Y₁ , _ , _ ) = `pi↝-inv (mores ΠPQ↝ΠUV ΠUV↝R)
-           R≡ℕ                            = `nat↝-inv ℕ↝R
+           ((X₁ , Y₁) , R≡ΠX₁Y₁ , _ , _ ) = `pi↝*-inv (mores ΠPQ↝ΠUV ΠUV↝R)
+           R≡ℕ                            = `nat↝*-inv ℕ↝R
        in case PEq.trans (PEq.sym R≡ΠX₁Y₁) R≡ℕ of λ ()
        
   typeInfer Γ (`app e u) | yes (A , Γ⊢e∈A) | `set _    | A↝Set | spec =
@@ -285,8 +278,8 @@ module typeCheck
        let ((P , Q) , Γ⊢e∈ΠPQ , Γ⊢Q∋u)    = Γ⊢appeu∈T-inv Γ⊢app∈B
            (ΠUV , A↝ΠUV , ΠPQ↝ΠUV)        = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΠPQ
            (R , Set↝R , ΠUV↝R)            = confluence A↝Set A↝ΠUV
-           ((X₁ , Y₁) , R≡ΠX₁Y₁ , _ , _ ) = `pi↝-inv (mores ΠPQ↝ΠUV ΠUV↝R)
-           R≡Set                            = `set↝-inv Set↝R
+           ((X₁ , Y₁) , R≡ΠX₁Y₁ , _ , _ ) = `pi↝*-inv (mores ΠPQ↝ΠUV ΠUV↝R)
+           R≡Set                            = `set↝*-inv Set↝R
        in case PEq.trans (PEq.sym R≡ΠX₁Y₁) R≡Set of λ ()
        
   typeInfer Γ (`app e u) | yes (A , Γ⊢e∈A) | `elt _    | A↝elt | spec =
@@ -294,8 +287,8 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢app∈B →
        let ((P , Q) , Γ⊢e∈ΠPQ , Γ⊢Q∋u) = Γ⊢appeu∈T-inv Γ⊢app∈B
            (ΠUV , A↝ΠUV , ΠPQ↝ΠUV)     = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΠPQ
-           ((X , Y) , R≡ΠXY , _ , _ )  = `pi↝-inv ΠPQ↝ΠUV
-           coerce                      = PEq.subst (A [ _↝T_ ⟩*_) R≡ΠXY
+           ((X , Y) , R≡ΠXY , _ , _ )  = `pi↝*-inv ΠPQ↝ΠUV
+           coerce                      = PEq.subst (A [ _↝_ ⟩*_) R≡ΠXY
        in case spec (`pi X Y , coerce A↝ΠUV , `pi) of λ ()
        
 
@@ -308,8 +301,8 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢fste∈B →
        let ((P , Q) , Γ⊢e∈ΣPQ)       = Γ⊢fste∈A-inv Γ⊢fste∈B
            (R , A↝R , ΣPQ↝R)         = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΣPQ
-           ((U , V) , R≡ΣPQ , _ , _) = `sig↝-inv ΣPQ↝R
-           coerce                    = PEq.subst (A [ _↝T_ ⟩*_) R≡ΣPQ
+           ((U , V) , R≡ΣPQ , _ , _) = `sig↝*-inv ΣPQ↝R
+           coerce                    = PEq.subst (A [ _↝_ ⟩*_) R≡ΣPQ
        in case spec (, coerce A↝R , `sig) of λ ()
   
   typeInfer Γ (`fst e) | yes (A , Γ⊢e∈A) | `set _   | _ | spec =
@@ -317,8 +310,8 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢fste∈B →
        let ((P , Q) , Γ⊢e∈ΣPQ)       = Γ⊢fste∈A-inv Γ⊢fste∈B
            (R , A↝R , ΣPQ↝R)         = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΣPQ
-           ((U , V) , R≡ΣPQ , _ , _) = `sig↝-inv ΣPQ↝R
-           coerce                    = PEq.subst (A [ _↝T_ ⟩*_) R≡ΣPQ
+           ((U , V) , R≡ΣPQ , _ , _) = `sig↝*-inv ΣPQ↝R
+           coerce                    = PEq.subst (A [ _↝_ ⟩*_) R≡ΣPQ
        in case spec (, coerce A↝R , `sig) of λ ()
 
   typeInfer Γ (`fst e) | yes (A , Γ⊢e∈A) | `nat     | _ | spec = 
@@ -326,8 +319,8 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢fste∈B →
        let ((P , Q) , Γ⊢e∈ΣPQ)       = Γ⊢fste∈A-inv Γ⊢fste∈B
            (R , A↝R , ΣPQ↝R)         = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΣPQ
-           ((U , V) , R≡ΣPQ , _ , _) = `sig↝-inv ΣPQ↝R
-           coerce                    = PEq.subst (A [ _↝T_ ⟩*_) R≡ΣPQ
+           ((U , V) , R≡ΣPQ , _ , _) = `sig↝*-inv ΣPQ↝R
+           coerce                    = PEq.subst (A [ _↝_ ⟩*_) R≡ΣPQ
        in case spec (, coerce A↝R , `sig) of λ ()
 
   typeInfer Γ (`fst e) | yes (A , Γ⊢e∈A) | `elt _   | _ | spec =
@@ -335,8 +328,8 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢fste∈B →
        let ((P , Q) , Γ⊢e∈ΣPQ)       = Γ⊢fste∈A-inv Γ⊢fste∈B
            (R , A↝R , ΣPQ↝R)         = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΣPQ
-           ((U , V) , R≡ΣPQ , _ , _) = `sig↝-inv ΣPQ↝R
-           coerce                    = PEq.subst (A [ _↝T_ ⟩*_) R≡ΣPQ
+           ((U , V) , R≡ΣPQ , _ , _) = `sig↝*-inv ΣPQ↝R
+           coerce                    = PEq.subst (A [ _↝_ ⟩*_) R≡ΣPQ
        in case spec (, coerce A↝R , `sig) of λ ()
 
   typeInfer Γ (`fst e) | no ¬p = no (¬p ∘ map (uncurry `sig) id ∘ Γ⊢fste∈A-inv ∘ proj₂)
@@ -351,8 +344,8 @@ module typeCheck
        let ((P , Q) , Γ⊢e∈ΣPQ)             = Γ⊢snde∈A-inv Γ⊢snde∈B
            (R , A↝R , ΣPQ↝R)               = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΣPQ
            (ΠUV , R↝ΠUV , ΠST↝ΠUV)         = confluence A↝R red
-           ((U , V) , ΠUV≡ΠUV , S↝U , T↝V) = `pi↝-inv ΠST↝ΠUV
-           ((U , V) , ΠUV≡ΣUV , P↝U , Q↝V) = `sig↝-inv (mores ΣPQ↝R R↝ΠUV)
+           ((U , V) , ΠUV≡ΠUV , S↝U , T↝V) = `pi↝*-inv ΠST↝ΠUV
+           ((U , V) , ΠUV≡ΣUV , P↝U , Q↝V) = `sig↝*-inv (mores ΣPQ↝R R↝ΠUV)
        in case PEq.trans (PEq.sym ΠUV≡ΠUV) ΠUV≡ΣUV of λ ()
    
   ... | `nat     | red | spec =
@@ -361,8 +354,8 @@ module typeCheck
        let ((P , Q) , Γ⊢e∈ΣPQ)           = Γ⊢snde∈A-inv Γ⊢snde∈B
            (R , A↝R , ΣPQ↝R)             = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΣPQ
            (ℕ , R↝ℕ , ℕ↝ℕ)               = confluence A↝R red
-           ℕ≡ℕ                           = `nat↝-inv ℕ↝ℕ
-           ((U , V) , ℕ≡ΣUV , P↝U , Q↝V) = `sig↝-inv (mores ΣPQ↝R R↝ℕ)
+           ℕ≡ℕ                           = `nat↝*-inv ℕ↝ℕ
+           ((U , V) , ℕ≡ΣUV , P↝U , Q↝V) = `sig↝*-inv (mores ΣPQ↝R R↝ℕ)
        in case PEq.trans (PEq.sym ℕ≡ℕ) ℕ≡ΣUV of λ ()
        
   ... | `set _   | red | spec =
@@ -371,8 +364,8 @@ module typeCheck
        let ((P , Q) , Γ⊢e∈ΣPQ)           = Γ⊢snde∈A-inv Γ⊢snde∈B
            (R , A↝R , ΣPQ↝R)             = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΣPQ
            (S , R↝S , set↝S)             = confluence A↝R red
-           S≡set                         = `set↝-inv set↝S
-           ((U , V) , S≡ΣUV , P↝U , Q↝V) = `sig↝-inv (mores ΣPQ↝R R↝S)
+           S≡set                         = `set↝*-inv set↝S
+           ((U , V) , S≡ΣUV , P↝U , Q↝V) = `sig↝*-inv (mores ΣPQ↝R R↝S)
        in case PEq.trans (PEq.sym S≡set) S≡ΣUV of λ ()
 
   ... | `elt _   | red | spec =
@@ -380,8 +373,8 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢fste∈B →
        let ((P , Q) , Γ⊢e∈ΣPQ)       = Γ⊢snde∈A-inv Γ⊢fste∈B
            (R , A↝R , ΣPQ↝R)         = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ΣPQ
-           ((U , V) , R≡ΣPQ , _ , _) = `sig↝-inv ΣPQ↝R
-           coerce                    = PEq.subst (A [ _↝T_ ⟩*_) R≡ΣPQ
+           ((U , V) , R≡ΣPQ , _ , _) = `sig↝*-inv ΣPQ↝R
+           coerce                    = PEq.subst (A [ _↝_ ⟩*_) R≡ΣPQ
        in case spec (, coerce A↝R , `sig) of λ ()
   
   typeInfer Γ (`snd e) | no ¬p = no (¬p ∘ map (uncurry `sig) id ∘ Γ⊢snde∈A-inv ∘ proj₂)
@@ -400,8 +393,8 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢ind∈B →
        let (_ , _ , _ , Γ⊢e∈ℕ) = Γ⊢ind∈-inv Γ⊢ind∈B
            (R , A↝R , ℕ↝R)     = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ℕ
-           eq                  = `nat↝-inv ℕ↝R
-           coerce              = PEq.subst (A [ _↝T_ ⟩*_) eq
+           eq                  = `nat↝*-inv ℕ↝R
+           coerce              = PEq.subst (A [ _↝_ ⟩*_) eq
        in case spec (`nat , coerce A↝R , `nat) of λ ()
     
   ... | `sig _ _ | A↝ΣST | spec =
@@ -409,8 +402,8 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢ind∈B →
        let (_ , _ , _ , Γ⊢e∈ℕ) = Γ⊢ind∈-inv Γ⊢ind∈B
            (R , A↝R , ℕ↝R)     = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ℕ
-           eq                  = `nat↝-inv ℕ↝R
-           coerce              = PEq.subst (A [ _↝T_ ⟩*_) eq
+           eq                  = `nat↝*-inv ℕ↝R
+           coerce              = PEq.subst (A [ _↝_ ⟩*_) eq
        in case spec (`nat , coerce A↝R , `nat) of λ ()
 
   ... | `set _   | A↝set | spec =
@@ -418,8 +411,8 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢ind∈B →
        let (_ , _ , _ , Γ⊢e∈ℕ) = Γ⊢ind∈-inv Γ⊢ind∈B
            (R , A↝R , ℕ↝R)     = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ℕ
-           eq                  = `nat↝-inv ℕ↝R
-           coerce              = PEq.subst (A [ _↝T_ ⟩*_) eq
+           eq                  = `nat↝*-inv ℕ↝R
+           coerce              = PEq.subst (A [ _↝_ ⟩*_) eq
        in case spec (`nat , coerce A↝R , `nat) of λ ()
 
   ... | `elt _   | A↝elt | spec =
@@ -427,8 +420,8 @@ module typeCheck
     no $ uncurry $ λ B Γ⊢ind∈B →
        let (_ , _ , _ , Γ⊢e∈ℕ) = Γ⊢ind∈-inv Γ⊢ind∈B
            (R , A↝R , ℕ↝R)     = Γ⊢e∈-unique Γ⊢e∈A Γ⊢e∈ℕ
-           eq                  = `nat↝-inv ℕ↝R
-           coerce              = PEq.subst (A [ _↝T_ ⟩*_) eq
+           eq                  = `nat↝*-inv ℕ↝R
+           coerce              = PEq.subst (A [ _↝_ ⟩*_) eq
        in case spec (`nat , coerce A↝R , `nat) of λ ()
 
 

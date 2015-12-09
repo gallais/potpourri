@@ -5,7 +5,6 @@ open import Data.Fin hiding (lift)
 open import Function
 
 open import tt.raw
-open import tt.red
 open import tt.env
 
 -----------------------------------------------------------
@@ -79,6 +78,13 @@ module semantics {E MC MT MI : ℕ → Set} (Sem : Semantics E MC MT MI) where
   _⊨⟦_⟧C_ = lemmaC
   _⊨⟦_⟧T_ = lemmaT
   _⊨⟦_⟧I_ = lemmaI
+  
+  _⊨evalC_ : {m : ℕ} → Check m → MC m  
+  _⊨evalC_ = λ c → lemmaC c ⟦diag⟧ 
+  _⊨evalT_ : {m : ℕ} → Type m  → MT m
+  _⊨evalT_ = λ t → lemmaT t ⟦diag⟧
+  _⊨evalI_ : {m : ℕ} → Infer m → MI m
+  _⊨evalI_ = λ i → lemmaI i ⟦diag⟧
 
   _⊨_⟨_/0⟩C : {n : ℕ} → Check (suc n) → E n → MC n
   _⊨_⟨_/0⟩C b u = lemmaC b (⟦diag⟧ ∙ u)
@@ -172,18 +178,3 @@ substT = Substitution ⊨⟦_⟧T_
 
 substC : Substituting Infer Check
 substC = Substitution ⊨⟦_⟧C_
-
-
--- Defining Syntaxes (as per the tt.red definition)
-
-SType : Syntax Type
-weak  SType = weakT
-subst SType = substT
-
-SInfer : Syntax Infer
-weak  SInfer = weakI
-subst SInfer = substI
-
-SCheck : Syntax Check
-weak  SCheck = weakC
-subst SCheck = substC

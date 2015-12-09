@@ -43,6 +43,9 @@ extend = step refl
 Weakening : (X : ℕ → Set) → Set
 Weakening X = {m n : ℕ} → m ⊆ n → X m → X n
 
+wk^∈ : Weakening Fin
+wk^∈ = lookup
+
 wk[_] : {E : ℕ → Set} {m : ℕ} → Weakening E → Weakening (Var m =>[ E ]_)
 lookup (wk[ wk ] inc ρ) k = wk inc (lookup ρ k)
 
@@ -51,6 +54,9 @@ Substituting X Y = {m n : ℕ} → Y m → Var m =>[ X ] n → Y n
 
 Kripke : (E M : ℕ → Set) (n : ℕ) → Set
 Kripke E M n = {m : ℕ} → n ⊆ m → E m → M m
+
+wk^Kripke : {E M : ℕ → Set} {m n : ℕ} → m ⊆ n → Kripke E M m → Kripke E M n
+wk^Kripke inc k = k ∘ trans inc
 
 abs : {E M : ℕ → Set} {n : ℕ} → E (suc n) → Kripke E M n → M (suc n)
 abs v k = k extend v
