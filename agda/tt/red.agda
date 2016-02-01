@@ -60,13 +60,15 @@ SCheck : Syntax Check
 weak  SCheck = weakC
 subst SCheck = substC
 
-record Reduction {E : ℕ → Set} (SE : Syntax E) (_↝_ : IRel E) : Set where
+record Reduction {E : ℕ → Set} (SE : Syntax E) (_↝_ _≅_ : IRel E) : Set where
   module SE = Syntax SE
   field
     weak↝       : {m n : ℕ} {a b : E m} (inc : m ⊆ n) → a ↝ b → SE.weak inc a ↝ SE.weak inc b
     subst↝      : {m n : ℕ} {a b : E m} (ρ : Var m =>[ Infer ] n) → a ↝ b → SE.subst a ρ ↝ SE.subst b ρ
     confluence  : {m : ℕ} {a b c : E m} → a [ _↝_ ⟩* b → a [ _↝_ ⟩* c →
                   ∃ λ d → b [ _↝_ ⟩* d × c [ _↝_ ⟩* d
+    expansion   : {m : ℕ} {a b c d : E m} → a [ _↝_ ⟩* c → b [ _↝_ ⟩* d → c ≅ d → a ≅ b
+    compatible  : {m : ℕ} {a b d : E m} → a ≅ b → b [ _↝_ ⟩* d → ∃ λ c → a [ _↝_ ⟩* c × c ≅ d
 
   weak↝* : {m n : ℕ} {a b : E m} (inc : m ⊆ n) → a [ _↝_ ⟩* b → SE.weak inc a [ _↝_ ⟩* SE.weak inc b
   weak↝* inc = map[ E , E , SE.weak inc , _↝_ , _↝_ , weak↝ inc ⟩*

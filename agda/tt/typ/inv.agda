@@ -14,9 +14,14 @@ open import tt.sem
 open import tt.typ
 open import Relation.Binary.PropositionalEquality as PEq
 
-module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_) (TRed : TypeReduction _↝_) where
+module TypingInversion
+       (_↝_ : IRel Type)
+       (_≅_ : IRel Type)
+       (Red : Reduction SType _↝_ _≅_)
+       (TRed : TypeReduction _↝_)
+       where
 
-  open Typing _↝_
+  open Typing _↝_ _≅_
   open Reduction Red
   open TypeReduction TRed
 
@@ -39,9 +44,10 @@ module TypingInversion (_↝_ : IRel Type) (Red : Reduction SType _↝_) (TRed :
   Γ⊢A∋typ-inv (`typ A)     = , done , A
   Γ⊢A∋typ-inv (`red r typ) = map id (map (more r) id) $ Γ⊢A∋typ-inv typ
   
-  Γ⊢A∋emb-inv : {n : ℕ} {Γ : ContextT n} {A : Type n} {e : Infer n} → Γ ⊢ A ∋ `emb e → ∃ λ B → Γ ⊢ e ∈ B
-  Γ⊢A∋emb-inv (`emb e)     = , e
-  Γ⊢A∋emb-inv (`red r typ) = Γ⊢A∋emb-inv typ
+  Γ⊢A∋emb-inv : {n : ℕ} {Γ : ContextT n} {A : Type n} {e : Infer n} → Γ ⊢ A ∋ `emb e →
+                ∃ $ uncurry $ λ B C → A [ _↝_ ⟩* C × B ≅ C × Γ ⊢ e ∈ B
+  Γ⊢A∋emb-inv (`emb e eq)  = , done , eq , e
+  Γ⊢A∋emb-inv (`red r typ) = map id (map (more r) id) $ Γ⊢A∋emb-inv typ
   
   Γ⊢A∋λb-inv : {n : ℕ} {Γ : ContextT n} {A : Type n} {b : Check (suc n)} →
                Γ ⊢ A ∋ `lam b → ∃ λ ST → A [ _↝_ ⟩* uncurry `pi ST × Γ ∙⟩ proj₁ ST ⊢ proj₂ ST ∋ b

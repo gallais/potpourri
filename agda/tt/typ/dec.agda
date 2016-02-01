@@ -18,18 +18,25 @@ open import tt.typ.inv
 open import tt.typ.red
 
 module typeCheck
-       (_↝_  : IRel Type) (Red : Reduction SType _↝_) (TRed : TypeReduction _↝_)
-       (whnf  : Type ⇒ Type) (wh  : WeakHead whnf _↝_)
+       (_↝_  : IRel Type)
+       (_≅_  : IRel Type)
+       (IEq  : IEquivalence Type _≅_)
+       (_≅?_ : {m : ℕ} (A B : Type m) → Dec (A ≅ B))
+       (Red  : Reduction SType _↝_ _≅_)
+       (TRed : TypeReduction _↝_)
+       (whnf : Type ⇒ Type)
+       (wh   : WeakHead whnf _↝_)
        where
 
-  open Typing _↝_
+  open IEquivalence IEq
+  open Typing _↝_ _≅_
   open WeakHead wh
   open Reduction Red
   open TypeReduction TRed
 
-  open TypingInversion _↝_ Red β↝* `pi↝*-inv `sig↝*-inv
-  module ExpandTyping = ExpandContextTyping _↝_ weak↝
-  module ReduceTyping = ReduceContextTyping _↝_ Red β↝* `set↝*-inv `nat↝*-inv `pi↝*-inv `sig↝*-inv
+  open TypingInversion _↝_ _≅_ Red TRed
+  module ExpandTyping = ExpandContextTyping _↝_ _≅_ weak↝
+  module ReduceTyping = ReduceContextTyping _↝_ _≅_ IEq Red TRed
 
   -- Type Inference for variables is total: it's a simple lookup
   -- in the context!
@@ -211,8 +218,16 @@ module typeCheck
 
 
   typeCheck Γ A (`emb e) with typeInfer Γ e
-  ... | yes p = {!!}
-  ... | no ¬p = no (¬p ∘ Γ⊢A∋emb-inv)
+  ... | yes (B , Γ⊢e∈B) with B ≅? A
+  ... | yes eq = yes (`emb Γ⊢e∈B eq)
+  ... | no ¬eq = no $ λ Γ⊢A∋e →
+
+    let ((C , D) , A↝D , C≅D , Γ⊢e∈C) = Γ⊢A∋emb-inv Γ⊢A∋e
+        (E , B↝E , C↝E)               = Γ⊢e∈-unique Γ⊢e∈B Γ⊢e∈C
+        (F , D↝F , F≅E)               = compatible (isym C≅D) C↝E
+    in ¬eq (expansion B↝E (mores A↝D D↝F) (isym F≅E))
+  
+  typeCheck Γ A (`emb e) | no ¬p = no (¬p ∘ (,_ ∘ proj₂ ∘ proj₂ ∘ proj₂) ∘ Γ⊢A∋emb-inv)
 
 
   -- TYPE INFERENCE
@@ -221,7 +236,7 @@ module typeCheck
   -- Γ ⊢ `var k ∈ Γ ‼ k
   typeInfer Γ (`var k)   = yes $ map id `var $ typeInferVar Γ k
 
-  -- Γ ⊢ A ∋ t
+  -- Γ ⊢ A TYPE    Γ ⊢ A ∋ t
   -------------------------------
   -- Γ ⊢ `ann t A ∈ A
   typeInfer Γ (`ann t A) with typeType Γ ω A | typeCheck Γ A t
@@ -292,6 +307,9 @@ module typeCheck
        in case spec (`pi X Y , coerce A↝ΠUV , `pi) of λ ()
        
 
+  -- Γ ⊢ e ∈ A    A ↝* `sig S T
+  -------------------------------
+  -- Γ ⊢ `fst e ∈ S
   typeInfer Γ (`fst e) with typeInfer Γ e
   ... | yes (A , Γ⊢e∈A) with whnf A | yieldsReduct A | uncoversHead A
   ... | `sig S T | A↝*ΣST | _ = yes (S , `fst (reduceInfer A↝*ΣST Γ⊢e∈A))
@@ -335,6 +353,9 @@ module typeCheck
   typeInfer Γ (`fst e) | no ¬p = no (¬p ∘ map (uncurry `sig) id ∘ Γ⊢fste∈A-inv ∘ proj₂)
 
 
+  -- Γ ⊢ e ∈ A    A ↝* `sig S T
+  -------------------------------
+  -- Γ ⊢ `snd e ∈ T ⟨ `fst e /0⟩
   typeInfer Γ (`snd e)    with typeInfer Γ e
   ... | yes (A , Γ⊢e∈A) with whnf A | yieldsReduct A | uncoversHead A
   ... | `sig S T | A↝*ΣST | _ = yes (Substitution ⊨ T ⟨ `fst e /0⟩T , `snd (reduceInfer A↝*ΣST Γ⊢e∈A))

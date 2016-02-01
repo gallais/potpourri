@@ -17,9 +17,10 @@ open import Relation.Binary.PropositionalEquality as PEq hiding ([_])
 
 module ExpandContextTyping
        (_↝_ : IRel Type)
+       (_≅_ : IRel Type)
        (weak↝ : {m n : ℕ} {a b : Type m} (inc : m ⊆ n) → a ↝ b → weakT inc a ↝ weakT inc b) where
 
-  open Typing _↝_
+  open Typing _↝_ _≅_
 
   lemmaVar : {m : ℕ} (Γ Δ : ContextT m) {k : Fin m} {B : Type m} →
              Γ [ _[ _↝_ ⟩*_ ] Δ → Δ ⊢var k ∈ B → ∃ λ A → A [ _↝_ ⟩* B × Γ ⊢var k ∈ A
@@ -45,13 +46,13 @@ module ExpandContextTyping
   lemma∈ redΓΔ (`ind p z s m) = `ind (lemmaSet (redΓΔ , done) p) (lemma∋ redΓΔ z) (lemma∋ redΓΔ s) (lemma∈ redΓΔ m)
   lemma∈ redΓΔ (`red r t)     = `red r $ lemma∈ redΓΔ t
 
-  lemma∋ redΓΔ (`lam t)   = `lam $ lemma∋ (redΓΔ , done) t
-  lemma∋ redΓΔ (`per a b) = `per (lemma∋ redΓΔ a) (lemma∋ redΓΔ b)
-  lemma∋ redΓΔ `zro       = `zro
-  lemma∋ redΓΔ (`suc m)   = `suc $ lemma∋ redΓΔ m
-  lemma∋ redΓΔ (`emb i)   = `emb $ lemma∈ redΓΔ i
-  lemma∋ redΓΔ (`typ A)   = `typ $ lemmaSet redΓΔ A
-  lemma∋ redΓΔ (`red r t) = `red r $ lemma∋ redΓΔ t
+  lemma∋ redΓΔ (`lam t)    = `lam $ lemma∋ (redΓΔ , done) t
+  lemma∋ redΓΔ (`per a b)  = `per (lemma∋ redΓΔ a) (lemma∋ redΓΔ b)
+  lemma∋ redΓΔ `zro        = `zro
+  lemma∋ redΓΔ (`suc m)    = `suc $ lemma∋ redΓΔ m
+  lemma∋ redΓΔ (`emb i eq) = `emb (lemma∈ redΓΔ i) eq
+  lemma∋ redΓΔ (`typ A)    = `typ $ lemmaSet redΓΔ A
+  lemma∋ redΓΔ (`red r t)  = `red r $ lemma∋ redΓΔ t
 
   lemmaSet redΓΔ (`sig A B) = `sig (lemmaSet redΓΔ A) $ lemmaSet (redΓΔ , done) B
   lemmaSet redΓΔ (`pi A B)  = `pi  (lemmaSet redΓΔ A) $ lemmaSet (redΓΔ , done) B
@@ -61,19 +62,16 @@ module ExpandContextTyping
   
 module ReduceContextTyping
        (_↝_       : IRel Type)
-       (red       : Reduction SType _↝_)
-       (β↝*       : {m : ℕ} (T : Type (suc m)) {u : Check m} {U U′ : Type m} →
-                    U [ _↝_ ⟩* U′ → Substitution ⊨ T ⟨ `ann u U /0⟩T [ _↝_ ⟩* Substitution ⊨ T ⟨ `ann u U′ /0⟩T) 
-       (`set↝-inv : {m : ℕ} {ℓ : ℕ} {R : Type m} → `set ℓ [ _↝_ ⟩* R → R ≡ `set ℓ)
-       (`nat↝-inv : {m : ℕ} {R : Type m} → `nat [ _↝_ ⟩* R → R ≡ `nat)
-       (`pi↝-inv  : {m : ℕ} {A R : Type m} {B : Type (suc m)} →
-                    `pi A B [ _↝_ ⟩* R → ∃ λ ST → R ≡ uncurry `pi ST × A [ _↝_ ⟩* proj₁ ST × B [ _↝_ ⟩* proj₂ ST)
-       (`sig↝-inv : {m : ℕ} {A R : Type m} {B : Type (suc m)} →
-                    `sig A B [ _↝_ ⟩* R → ∃ λ ST → R ≡ uncurry `sig ST × A [ _↝_ ⟩* proj₁ ST × B [ _↝_ ⟩* proj₂ ST)
+       (_≅_       : IRel Type)
+       (IEq       : IEquivalence Type _≅_)
+       (Red       : Reduction SType _↝_ _≅_)
+       (TRed      : TypeReduction _↝_)
        where
 
-  open Typing _↝_
-  open Reduction red
+  open IEquivalence IEq
+  open Typing _↝_ _≅_
+  open Reduction Red
+  open TypeReduction TRed
 
   lemmaVar : {m : ℕ} (Γ Δ : ContextT m) {k : Fin m} {A : Type m} →
              Γ [ _[ _↝_ ⟩*_ ] Δ → Γ ⊢var k ∈ A → ∃ λ B → A [ _↝_ ⟩* B × Δ ⊢var k ∈ B
@@ -94,7 +92,7 @@ module ReduceContextTyping
   lemma∈ redΓΔ (`app f t)     =
   
     let (B , red , typ)              = lemma∈ redΓΔ f
-        ((S , T) , eq , red₁ , red₂) = `pi↝-inv red
+        ((S , T) , eq , red₁ , red₂) = `pi↝*-inv red
         open Semantics Substitution
     in Substitution ⊨ T ⟨ `ann _ S /0⟩T
      , mores (map[ Type , Type , flip substT (⟦diag⟧ ∙ _) , _↝_ , _↝_ , subst↝ (⟦diag⟧ ∙ _) ⟩* red₂) (β↝* T red₁)
@@ -103,13 +101,13 @@ module ReduceContextTyping
   lemma∈ redΓΔ (`fst t)       =
 
     let (B , red , typ)              = lemma∈ redΓΔ t
-        ((S , T) , eq , red₁ , red₂) = `sig↝-inv red
+        ((S , T) , eq , red₁ , red₂) = `sig↝*-inv red
     in S , red₁ , `fst (PEq.subst (_ ⊢ _ ∈_) eq typ)
 
   lemma∈ redΓΔ (`snd t)       = 
 
     let (B , red , typ)              = lemma∈ redΓΔ t
-        ((S , T) , eq , red₁ , red₂) = `sig↝-inv red
+        ((S , T) , eq , red₁ , red₂) = `sig↝*-inv red
         open Semantics Substitution
     in Substitution ⊨ T ⟨ `fst _ /0⟩T
      , map[ Type , Type , flip substT (⟦diag⟧ ∙ _) , _↝_ , _↝_ , subst↝ (⟦diag⟧ ∙ _) ⟩* red₂
@@ -119,7 +117,7 @@ module ReduceContextTyping
 
     let (B , red , typ) = lemma∈ redΓΔ m
     in , done , `ind (lemmaSet (redΓΔ , done) p) (lemma∋ redΓΔ done z) (lemma∋ redΓΔ done s)
-                     (PEq.subst (_ ⊢ _ ∈_) (`nat↝-inv red) typ)
+                     (PEq.subst (_ ⊢ _ ∈_) (`nat↝*-inv red) typ)
     
   lemma∈ redΓΔ (`red r t)     =
   
@@ -129,25 +127,27 @@ module ReduceContextTyping
   
   lemma∋ redΓΔ redAB (`lam b)     =
 
-    let ((S , T) , eq , red₁ , red₂) = `pi↝-inv redAB
+    let ((S , T) , eq , red₁ , red₂) = `pi↝*-inv redAB
     in PEq.subst (_ ⊢_∋ _) (sym eq) $ `lam $ lemma∋ (redΓΔ , red₁) red₂ b
 
   lemma∋ redΓΔ redAB (`per a b)   =
 
-    let ((S , T) , eq , red₁ , red₂) = `sig↝-inv redAB
+    let ((S , T) , eq , red₁ , red₂) = `sig↝*-inv redAB
         open Semantics Substitution
         redb = mores (map[ Type , Type , flip substT (⟦diag⟧ ∙ _) , _↝_ , _↝_ , subst↝ _ ⟩* red₂) (β↝* T red₁)
     in PEq.subst (_ ⊢_∋ _) (sym eq) $ `per (lemma∋ redΓΔ red₁ a) (lemma∋ redΓΔ redb b)
     
-  lemma∋ redΓΔ redAB `zro         = PEq.subst (_ ⊢_∋ _) (sym $ `nat↝-inv redAB) `zro
-  lemma∋ redΓΔ redAB (`suc m)     = PEq.subst (_ ⊢_∋ _) (sym $ `nat↝-inv redAB) $ `suc $ lemma∋ redΓΔ done m
-  lemma∋ redΓΔ redAB (`emb e)     =
+  lemma∋ redΓΔ redAB `zro         = PEq.subst (_ ⊢_∋ _) (sym $ `nat↝*-inv redAB) `zro
+  lemma∋ redΓΔ redAB (`suc m)     = PEq.subst (_ ⊢_∋ _) (sym $ `nat↝*-inv redAB) $ `suc $ lemma∋ redΓΔ done m
+  lemma∋ redΓΔ redAB (`emb e eq)  =
   
-    let (C , red , typ)   = lemma∈ redΓΔ e
-        (R , red₁ , red₂) = confluence redAB red
-    in expandCheck red₁ (`emb (reduceInfer red₂ typ))
+    let (C , A′↝C , typ) = lemma∈ redΓΔ e
+        (D , A′↝D , D≅B) = compatible eq redAB
+        (E , C↝E , D↝E)  = confluence A′↝C A′↝D
+        (F , B↝F , F≅E)  = compatible (isym D≅B) D↝E
+    in expandCheck B↝F (`emb (reduceInfer C↝E typ) (isym F≅E))
 
-  lemma∋ redΓΔ redAB (`typ A)     = PEq.subst (_ ⊢_∋ _) (sym $ `set↝-inv redAB) $ `typ (lemmaSet redΓΔ A)
+  lemma∋ redΓΔ redAB (`typ A)     = PEq.subst (_ ⊢_∋ _) (sym $ `set↝*-inv redAB) $ `typ (lemmaSet redΓΔ A)
   lemma∋ redΓΔ redAB (`red r typ) =
 
     let (R , red₁ , red₂) = confluence (more r done) redAB
@@ -160,4 +160,4 @@ module ReduceContextTyping
   lemmaSet redΓΔ (`elt e)   =
 
     let (B , red , typ) = lemma∈ redΓΔ e
-    in `elt (PEq.subst (_ ⊢ _ ∈_) (`set↝-inv red) typ)
+    in `elt (PEq.subst (_ ⊢ _ ∈_) (`set↝*-inv red) typ)

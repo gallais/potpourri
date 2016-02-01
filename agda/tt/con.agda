@@ -21,6 +21,12 @@ cmap f (Γ ∙⟩ e) = cmap f Γ ∙⟩ f e
 IRel : {A : Set} (E : A → Set) → Set₁
 IRel {A} E = {a : A} (e f : E a) → Set
 
+record IEquivalence {A : Set} (E : A → Set) (R : IRel E) : Set where
+  field
+    irefl  : {a : A} {e : E a} → R e e
+    isym   : {a : A} {e f : E a} → R e f → R f e
+    itrans : {a : A} {e f g : E a} → R e f → R f g → R e g
+
 infix 3 _[_]_
 _[_]_ : {E : ℕ → Set} {m : ℕ} (Γ : Context E m) (R : IRel E) (Δ : Context E m) → Set
 ⟨⟩     [ R ] ⟨⟩     = ⊤

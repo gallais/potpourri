@@ -34,7 +34,7 @@ data _⊢var_∈_ : {n : ℕ} → ContextT n → Fin n → Type n → Set where
          ----------------------------------
          Γ ∙⟩ A ⊢var suc k ∈ weakT extend B
 
-module Typing (_↝_ : IRel Type) where
+module Typing (_↝_ : IRel Type) (_≅_ : IRel Type) where
 
   infix 3 _⊢_∋_ _⊢_∈_ _⊢set_∋_
   
@@ -92,11 +92,11 @@ module Typing (_↝_ : IRel Type) where
              -----------------
              Γ ⊢ `nat ∋ `suc m
 
-      `emb : {e : Infer n} {A : Type n} →
+      `emb : {e : Infer n} {A B : Type n} →
 
-             Γ ⊢ e ∈ A →
-             -----------
-             Γ ⊢ A ∋ `emb e
+             Γ ⊢ e ∈ A → A ≅ B →
+             ---------------------
+             Γ ⊢ B ∋ `emb e
 
       `typ : {A : Type n} {ℓ : ℕ} →
 
