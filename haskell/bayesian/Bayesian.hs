@@ -6,11 +6,22 @@ import Data.Ratio
 
 newtype Bayesian a = Bayesian { unsafeRunBayesian :: [(Rational, a)] }
 
-runBayesian :: Bayesian a -> [(Rational, a)]
+
+-- Here we group together the outcomes which are equal by summing their
+-- probability. This is necessary because we may get the same outcome
+-- from different runs.
+runBayesian :: Eq a => Bayesian a -> [(Rational, a)]
 runBayesian b = xs where
-  -- yay circular programs!
+
   (s, xs) = norm $ unsafeRunBayesian b
-  norm    = foldr (\ (p, a) (s', ih) -> (p + s', (p / s, a) : ih)) (0, [])
+  norm    = foldr (\ (p, a) (s', ih) -> (p + s', insert (p / s) a ih)) (0, [])
+
+  insert :: Eq a => Rational -> a -> [(Rational, a)] -> [(Rational, a)]
+  insert p a [] = [(p, a)]
+  insert p a (x@(q, b) : xs)
+    | a == b    = (p + q , a) : xs
+    | otherwise = x : insert p a xs
+
 
 checkBayesian :: Eq a => a -> Bayesian a -> [(Rational, a)]
 checkBayesian a  = filter ((a ==) . snd) . runBayesian
@@ -50,3 +61,22 @@ noTwoTails = do
   heads2 <- bernouilli (1 % 2)
   observe (heads1 || heads2)
   return (heads1, heads2)
+
+alarmRinging :: Bayesian Bool
+alarmRinging = do
+  burglar    <- bernouilli (1 % 1000)
+  earthquake <- bernouilli (1 % 500)
+  alarm      <- rings burglar earthquake
+  observe =<< johnCalls alarm
+  return burglar
+
+  where
+
+    johnCalls alarm = bernouilli $ if alarm then 9 % 10 else 1 % 20
+    maryCalls alarm = bernouilli $ if alarm then 7 % 10 else 1 % 100
+
+    rings b e = bernouilli $ case (b , e) of
+      (True , True)  -> 95 % 100
+      (True , False) -> 94 % 100
+      (False, True)  -> 29 % 100
+      (False, False) -> 1 % 1000
