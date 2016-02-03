@@ -3,6 +3,7 @@
 module Bayesian where
 
 import Data.Ratio
+import Data.Tuple (swap)
 
 ------------------------------------------------------------------------
 -- BAYESIAN EXPERIMENTS
@@ -28,7 +29,7 @@ newtype Bayesian a = Bayesian { unsafeRunBayesian :: [(Rational, a)] }
 --   is a subdistribution composed of the outcomes of the valid runs.
 
 runBayesian :: Eq a => Bayesian a -> [(Rational, a)]
-runBayesian b = xs where
+runBayesian b = reverse xs where
 
   (s, xs) = norm $ unsafeRunBayesian b
   norm    = foldr (\ (p, a) (s', ih) -> (p + s', insert (p / s) a ih)) (0, [])
@@ -44,8 +45,8 @@ runBayesian b = xs where
 -- are interested in the probability that the person is indeed sick
 -- (i.e. that the returned `hasDisease` is equal to `True`).
 
-checkBayesian :: Eq a => a -> Bayesian a -> [(Rational, a)]
-checkBayesian a  = filter ((a ==) . snd) . runBayesian
+checkBayesian :: Eq a => a -> Bayesian a -> Rational
+checkBayesian a = maybe 0 id . lookup a . fmap swap . runBayesian
 
 -- We can define the expected `Functor`, `Applicative` and `Monad`
 -- instances for `Bayesian`
@@ -72,6 +73,12 @@ instance Monad Bayesian where
 -- `p` and `False` otherwise.
 bernouilli :: Rational -> Bayesian Bool
 bernouilli p = Bayesian [ (p, True), (1-p, False) ]
+
+-- The usual `uniform` distribution: each value has the same probability
+-- of being selected.
+uniform :: [a] -> Bayesian a
+uniform xs = Bayesian $ (1 % n,) <$> xs
+  where n = fromIntegral $ length xs
 
 -- `observe` states that an observation must be `True`. If it is not
 -- then the corresponding run is considered invalid an simply thrown
