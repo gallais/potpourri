@@ -1,7 +1,7 @@
 module ptt.Language where
 
 open import Data.Nat
-open import Data.List hiding (_∷ʳ_)
+open import ptt.Context as C hiding (Context)
 
 infixr 5 _`+_ _`⊗_
 data Type : Set where
@@ -12,37 +12,7 @@ data Type : Set where
   -- tensor type
   _`⊗_ : (A B : Type) → Type
 
-Context = List Type
-
--- Variable in a context
-infix 1 _∈_
-data _∈_ (A : Type) : (Γ : Context) → Set where
-  z : {Γ : Context} → A ∈ A ∷ Γ
-  s : {Γ : Context} {B : Type} (m : A ∈ Γ) → A ∈ B ∷ Γ
-
--- Context interleaving
-infix 1 _⋈_≡_
-data _⋈_≡_ : (Γ Δ θ : Context) → Set where
-  []   : [] ⋈ [] ≡ []
-  _∷ˡ_ : (A : Type) {Γ Δ θ : Context} (tl : Γ ⋈ Δ ≡ θ) → A ∷ Γ ⋈ Δ     ≡ A ∷ θ
-  _∷ʳ_ : (A : Type) {Γ Δ θ : Context} (tl : Γ ⋈ Δ ≡ θ) → Γ     ⋈ A ∷ Δ ≡ A ∷ θ
-
-induction :
-  (P : Context → Set)
-  (p[] : P [])
-  (p∷  : (A : Type) (Γ : Context) → P Γ → P (A ∷ Γ)) →
-  (Γ : Context) → P Γ
-induction P p[] p∷ []      = p[]
-induction P p[] p∷ (A ∷ Γ) = p∷ A Γ (induction P p[] p∷ Γ)
-
-⋈[] : {Γ : Context} → Γ ⋈ [] ≡ Γ
-⋈[] {Γ} = induction (λ Γ → Γ ⋈ [] ≡ Γ) [] (λ A _ ih → A ∷ˡ ih) Γ
-
-[]⋈ : {Γ : Context} → [] ⋈ Γ ≡ Γ
-[]⋈ {Γ} = induction (λ Γ → [] ⋈ Γ ≡ Γ) [] (λ A _ ih → A ∷ʳ ih) Γ
-
-_₁⋈₂_ : (Γ Δ : Context) → Γ ⋈ Δ ≡ Γ ++ Δ
-Γ ₁⋈₂ Δ = induction (λ Γ → Γ ⋈ Δ ≡ Γ ++ Δ) []⋈ (λ A _ ih → A ∷ˡ ih) Γ
+Context = C.Context Type
 
 -- Terms
 infix 1 _⊢_
@@ -84,7 +54,7 @@ mutual
     _⊨`let_`in_ :
   
       {A B C : Type} {Γ Δ : Context} →
-      Γ ⋈ Δ ≡ θ → Γ ⊢ A `⊗ B → B ∷ A ∷ Δ ⊢ C →
+      Γ ⋈ Δ ≡ θ → Γ ⊢ A `⊗ B → Δ ∙ A ∙ B ⊢ C →
       ----------------------------------------- (let)
                       θ ⊢ C
             
@@ -101,7 +71,7 @@ mutual
 
     _⊨`case_of_%%_ :
       {A B C : Type} {Γ Δ : Context} →
-      Γ ⋈ Δ ≡ θ → Γ ⊢ A `+ B → A ∷ Δ ⊢ C → B ∷ Δ ⊢ C →
+      Γ ⋈ Δ ≡ θ → Γ ⊢ A `+ B → Δ ∙ A ⊢ C → Δ ∙ B ⊢ C →
       ------------------------------------------------- (case)
                             θ ⊢ C
 
@@ -116,13 +86,13 @@ mutual
 
 swap⊗ : [ `ℕ `⊗ `ℝ ] ⊢ `ℝ `⊗ `ℕ
 swap⊗ =
-  ⋈[]               ⊨`let var z `in
+  ⋈ε               ⊨`let var z `in
   [ `ℝ ] ₁⋈₂ [ `ℕ ] ⊨`⟨ var z , var z ⟩
 
 
 swap+ : [ `ℕ `+ `ℝ ] ⊢ `ℝ `+ `ℕ
 swap+ =
-  ⋈[] ⊨`case var z
+  ⋈ε ⊨`case var z
       of `inr (var z)
       %% `inl (var z)
 
