@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE PolyKinds              #-}
@@ -213,10 +214,44 @@ type family LE (g :: Context) (h :: Context) where
 
 -- SYNTAX EXAMPLES
 
-add :: Nf Null (TyFun TyNat (TyFun TyNat TyNat))
-add = lam $ \ m ->
-      lam $ \ n ->
-      NfEmb $ NeRec STyNat (varNf n) (lam $ \ _ -> lam $ \ ih -> NfSucc $ varNf ih) (varNe m)
+addARGH :: Nf g (TyFun TyNat (TyFun TyNat TyNat))
+addARGH =
+  NfLam {- m -} $
+  NfLam {- n -} $
+  NfEmb $ NeRec STyNat
+                (NfEmb $ NeVar Here)
+                (NfLam $ NfLam $ NfSucc (NfEmb $ NeVar Here))
+                (NeVar $ There Here)
+
+mulARGH :: Nf g (TyFun TyNat (TyFun TyNat TyNat))
+mulARGH =
+  NfLam {- m -} $
+  NfLam {- n -} $
+  NfEmb $ NeRec STyNat
+                NfZero
+                (NfLam $ NfLam $
+                let m = There $ There Here in
+                NfEmb $ NeApp STyNat (NeApp STyNat (NeCut addARGH) (NfEmb $ NeVar m)) (NfEmb $ NeVar Here))
+                (NeVar $ There Here)
+
+add :: Nf g (TyFun TyNat (TyFun TyNat TyNat))
+add =
+  lam $ \ m ->
+  lam $ \ n ->
+  NfEmb $ NeRec STyNat
+                (varNf n)
+                (lam $ \ _ -> lam $ \ ih -> NfSucc $ varNf ih)
+                (varNe m)
+
+mul :: Nf g (TyFun TyNat (TyFun TyNat TyNat))
+mul =
+  lam $ \ m ->
+  lam $ \ n ->
+  NfEmb $ NeRec STyNat
+                NfZero
+                (lam $ \ _ -> lam $ \ ih ->
+                NfEmb $ NeApp STyNat (NeApp STyNat (NeCut add) (varNf n)) (varNf ih))
+                (varNe m)
 
 
 two :: Nf Null TyNat
