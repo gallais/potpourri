@@ -2,14 +2,12 @@ module ptt.Context where
 
 open import Data.Product
 open import Function
+open import Relation.Binary.PropositionalEquality using (_≡_ ; refl)
 
 infixl 10 _∙_
 data Context (A : Set) : Set where
   ε   : Context A
   _∙_ : (Γ : Context A) (a : A) → Context A
-
-[_] : {A : Set} (a : A) → Context A
-[ a ] = ε ∙ a
 
 -- Variable in a context
 infix 1 _∈_
@@ -64,3 +62,12 @@ _++_ : {A : Set} (Γ Δ : Context A) → Context A
 
 _₁⋈₂_ : {A : Set} (Γ Δ : Context A) → Γ ⋈ Δ ≡ Γ ++ Δ
 Γ ₁⋈₂ Δ = induction (λ Γ → Γ ⋈ Δ ≡ Γ ++ Δ) ε⋈ (λ A _ ih → ih ∙ˡ A) Γ
+
+-- Properties of inline
+inlineʳ-⋈ε : {A : Set} {Γ Δ θ : Context A} (inc : Γ ⋈ Δ ≡ θ) →
+             inlineʳ inc ⋈ε ≡ (Δ , inc , ε⋈)
+inlineʳ-⋈ε ε          = refl
+inlineʳ-⋈ε (inc ∙ˡ a) with inlineʳ inc ⋈ε | inlineʳ-⋈ε inc
+inlineʳ-⋈ε (inc ∙ˡ a) | Δ , .inc , ._ | refl = refl
+inlineʳ-⋈ε (inc ∙ʳ a) with inlineʳ inc ⋈ε | inlineʳ-⋈ε inc
+... | Δ , .inc , ._ | refl = refl

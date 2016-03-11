@@ -2,30 +2,10 @@ module ptt.Language where
 
 open import Data.Nat
 open import Data.Product
+open import ptt.Type
 open import ptt.Context as C hiding (Context)
-
-infixr 5 _`+_ _`⊗_
-data Type : Set where
-  -- base types
-  `𝔹 `ℕ `ℝ `0 `1 : Type
-  -- sum type
-  _`+_ : (A B : Type) → Type
-  -- tensor type
-  _`⊗_ : (A B : Type) → Type
-
-`2 : Type
-`2 = `1 `+ `1
-
-`[_]∙_ : ℕ → Type → Type
-`[ 0     ]∙ A = `0
-`[ 1     ]∙ A = A
-`[ suc n ]∙ A = A `+ `[ n ]∙ A
-
-`[_] : ℕ → Type
-`[ n ] = `[ n ]∙ `1
-
-_# : Type → Type
-A # = A `+ `1
+open import ptt.Environment as E
+open import Relation.Binary.PropositionalEquality using (_≡_ ; refl ; cong)
 
 Context = C.Context Type
 
@@ -106,8 +86,8 @@ mutual
   -- INSTRUMENT
 
     `instr :
-      {A : Type} (n : ℕ) → [ A ] ⊢ `[ n ] → θ ⊢ A →
-      -------------------------------------- (instr)
+      {A : Type} (n : ℕ) → ε ∙ A ⊢ `[ n ] → θ ⊢ A →
+      -------------------------------------------- (instr)
                  θ ⊢ `[ n ]∙ A
 
   -- RATIO
@@ -141,12 +121,23 @@ mutual
       ------------------------------------------------
             Γ ⊢ A ∋ s ≤ t
 
+  Subst : (θ Γ : Context) → Set
+  Subst θ Γ = Env θ _⊢_ Γ
+  
+  var₀ : {θ : Context} (A : Type) → θ ∙ A ⊢ A
+  var₀ A = var z
+
+  _∙var₀ : {θ Γ : Context} {A : Type} → Subst θ Γ → Subst (θ ∙ A) (Γ ∙ A)
+  ρ ∙var₀ = extend var₀ ρ _
+
+
   data _⊢_∋_↝_ (θ : Context) : (A : Type) (s t : θ ⊢ A) → Set where
     `β⊗ :
       {A B C : Type} {Γ₁ Γ₂ Γ Δ : Context}
       {pr : Γ ⋈ Δ ≡ θ} {prΓ : Γ₁ ⋈ Γ₂ ≡ Γ} {t₁ : Γ₁ ⊢  A} {t₂ : Γ₂ ⊢ B}
       {u : Δ ∙ A ∙ B ⊢ C} →
-      θ ⊢ C ∋ pr ⊨`let prΓ ⊨`⟨ t₁ , t₂ ⟩ `in u ↝ {!!}
+      let (Γ′ , pr₁ , pr₂) = inlineˡ pr prΓ in
+      θ ⊢ C ∋ pr ⊨`let prΓ ⊨`⟨ t₁ , t₂ ⟩ `in u ↝ subst u (pr₁ ⊨ symmetry pr₂ ⊨ idEnv var₀ Δ ∙ t₁ ∙ t₂)
 
   data _⊢_∋_≡_ (Γ : Context) : (A : Type) (s t : Γ ⊢ A) → Set where
 
@@ -219,36 +210,38 @@ mutual
   weaken inc (`nrm n t le) = `nrm n t le
   weaken inc (t `⊕ u [ b , eqt , equ ]) = weaken inc t `⊕ weaken inc u [ weaken inc b , {!!} , {!!} ]
 
+  weaken-⋈ε : {θ : Context} {A : Type} (t : θ ⊢ A) → weaken ⋈ε t ≡ t
+  weaken-⋈ε (var x) = {!!}
+  weaken-⋈ε (`¡ t) = cong `¡ (weaken-⋈ε t)
+  weaken-⋈ε `* = refl
+  weaken-⋈ε (x ⊨`⟨ t , t₁ ⟩) = {!!}
+  weaken-⋈ε (x ⊨`let t `in t₁) = {!!}
+  weaken-⋈ε (`inl t) = {!!}
+  weaken-⋈ε (`inr t) = {!!}
+  weaken-⋈ε (x ⊨`case t of t₁ %% t₂) = {!!}
+  weaken-⋈ε (`inlr t t₁ x) = {!!}
+  weaken-⋈ε (`left t x) = {!!}
+  weaken-⋈ε (`instr n t t₁) = {!!}
+  weaken-⋈ε (`1/ n) = {!!}
+  weaken-⋈ε (`nrm n t x) = {!!}
+  weaken-⋈ε (t `⊕ t₁ [ t₂ , x , x₁ ]) = {!!}
+
+  weaken-↓ : {θ Γ Δ : Context} {A : Type} (inc : Γ ⋈ Δ ≡ θ) (t : Γ ⊢ A #) → weaken inc (t ↓) ≡ (weaken inc t) ↓
+  weaken-↓ inc t = {!!} where -- lemma inc t (`inl `*) (`inr `*) where
+
+    lemma : {θ Γ Δ : Context} {A B C : Type} (inc : Γ ⋈ Δ ≡ θ) (t : Γ ⊢ A `+ B) (l : ε ∙ A  ⊢ C) (r : ε ∙ B  ⊢ C) →
+            weaken inc (⋈ε ⊨`case t of l %% r) ≡ inc ⊨`case t of weaken (ε⋈ ∙ˡ A) l %% weaken (ε⋈ ∙ˡ B) r
+    lemma inc t l r rewrite inlineʳ-⋈ε inc | weaken-⋈ε l | weaken-⋈ε r = refl
+
   weaken-eq : {θ Γ Δ : Context} {A : Type} (inc : Γ ⋈ Δ ≡ θ) {t u : Γ ⊢ A} →
               Γ ⊢ A ∋ t ≡ u → θ ⊢ A ∋ weaken inc t ≡ weaken inc u
   weaken-eq = {!!}
 
-  infix 5 _⊨_∙_
-  data Env (θ : Context) : (Γ : Context) → Set where
-    ε     : Env θ ε
-    _⊨_∙_ : {Γ θ₁ θ₂ : Context} {A : Type} →
-            θ₁ ⋈ θ₂ ≡ θ → Env θ₁ Γ → θ₂ ⊢ A → Env θ (Γ ∙ A)
-
-  split-Env : (θ Γ Γ₁ Γ₂ : Context) → Γ₁ ⋈ Γ₂ ≡ Γ → Env θ Γ →
-              ∃ λ θ₁ → ∃ λ θ₂ → θ₁ ⋈ θ₂ ≡ θ × Env θ₁ Γ₁ × Env θ₂ Γ₂
-  split-Env θ .ε .ε .ε ε ρ = θ , ε , ⋈ε , ε , ε
-  split-Env θ (Γ ∙ .a) (Γ₁ ∙ .a) Γ₂ (j ∙ˡ a) (pr ⊨ ρ ∙ t) =
-    let (θ₁ , θ₂ , pr₂ , ρ₁ , ρ₂) = split-Env _ Γ Γ₁ Γ₂ j ρ
-        (Γ′ , p , j)              = inlineˡ pr pr₂
-    in , , p , j ⊨ ρ₁ ∙ t , ρ₂
-  split-Env θ (Γ ∙ .a) Γ₁ (Γ₂ ∙ .a) (j ∙ʳ a) (pr ⊨ ρ ∙ t) =
-    let (θ₁ , θ₂ , pr₂ , ρ₁ , ρ₂) = split-Env _ Γ Γ₁ Γ₂ j ρ
-        (Γ′ , p , j)              = inlineʳ pr pr₂
-    in , , p , ρ₁ , j ⊨ ρ₂ ∙ t
-
-  ⟨_⟩_ : {θ Γ : Context} {A : Type} (ρ : Env θ Γ) (x : A ∈ Γ) → θ ⊢ A
+  ⟨_⟩_ : {θ Γ : Context} {A : Type} (ρ : Subst θ Γ) (x : A ∈ Γ) → θ ⊢ A
   ⟨ pr ⊨ ρ ∙ t ⟩ z   = weaken (symmetry pr) t
   ⟨ pr ⊨ ρ ∙ t ⟩ s x = weaken pr (⟨ ρ ⟩ x)
 
-  extend : {A : Type} {θ Γ : Context} → Env θ Γ → Env (θ ∙ A) (Γ ∙ A)
-  extend {A} ρ = ⋈ε ∙ʳ A ⊨ ρ ∙ var z
-
-  subst : {θ Γ : Context} {A : Type} (t : Γ ⊢ A) (ρ : Env θ Γ) → θ ⊢ A
+  subst : {θ Γ : Context} {A : Type} (t : Γ ⊢ A) (ρ : Subst θ Γ) → θ ⊢ A
   subst (var x)                     ρ = ⟨ ρ ⟩ x
   subst (`¡ t)                      ρ = `¡ (subst t ρ)
   subst `*                          ρ = `*
@@ -257,12 +250,12 @@ mutual
     in pr′ ⊨`⟨ subst t ρ₁ , subst u ρ₂ ⟩
   subst (pr ⊨`let t `in u)         ρ =
     let (_ , _ , pr′ , ρ₁ , ρ₂) = split-Env _ _ _ _ pr ρ
-    in pr′ ⊨`let subst t ρ₁ `in subst u (extend (extend ρ₂))
+    in pr′ ⊨`let subst t ρ₁ `in subst u (ρ₂ ∙var₀ ∙var₀)
   subst (`inl t)                   ρ = `inl (subst t ρ)
   subst (`inr t)                   ρ = `inr (subst t ρ)
   subst (pr ⊨`case t of l %% r)    ρ =
     let (_ , _ , pr′ , ρ₁ , ρ₂) = split-Env _ _ _ _ pr ρ
-    in pr′ ⊨`case subst t ρ₁ of subst l (extend ρ₂) %% subst r (extend ρ₂)
+    in pr′ ⊨`case subst t ρ₁ of subst l (ρ₂ ∙var₀) %% subst r (ρ₂ ∙var₀)
   subst (`inlr t u eq)             ρ = `inlr (subst t ρ) (subst u ρ) {!!}
   subst (`left t eq)               ρ = `left (subst t ρ) {!!}
   subst (`instr n p t)             ρ = `instr n p (subst t ρ)
@@ -270,17 +263,17 @@ mutual
   subst (`nrm n t le)              ρ = `nrm n t le
   subst (t `⊕ u [ b , eqt , equ ]) ρ = subst t ρ `⊕ subst u ρ [ subst b ρ , {!!} , {!!} ]
 
-  subst-eq : {θ Γ : Context} {A : Type} {t u : Γ ⊢ A} (eq : Γ ⊢ A ∋ t ≡ u) (ρ : Env θ Γ) →
+  subst-eq : {θ Γ : Context} {A : Type} {t u : Γ ⊢ A} (eq : Γ ⊢ A ∋ t ≡ u) (ρ : Subst θ Γ) →
              θ ⊢ A ∋ subst t ρ ≡ subst u ρ
   subst-eq eq ρ = {!!}
 
-swap⊗ : [ `ℕ `⊗ `ℝ ] ⊢ `ℝ `⊗ `ℕ
+swap⊗ : ε ∙ (`ℕ `⊗ `ℝ) ⊢ `ℝ `⊗ `ℕ
 swap⊗ =
-  ⋈ε               ⊨`let var z `in
-  [ `ℝ ] ₁⋈₂ [ `ℕ ] ⊨`⟨ var z , var z ⟩
+  ⋈ε                    ⊨`let var z `in
+  (ε ∙ `ℝ) ₁⋈₂ (ε ∙ `ℕ) ⊨`⟨ var z , var z ⟩
 
 
-swap+ : [ `ℕ `+ `ℝ ] ⊢ `ℝ `+ `ℕ
+swap+ : ε ∙ (`ℕ `+ `ℝ) ⊢ `ℝ `+ `ℕ
 swap+ =
   ⋈ε ⊨`case var z
       of `inr (var z)
