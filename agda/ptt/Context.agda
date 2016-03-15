@@ -1,7 +1,6 @@
 module ptt.Context where
 
 open import Data.Product
-open import Function
 open import Relation.Binary.PropositionalEquality using (_≡_ ; refl)
 
 infixl 10 _∙_
@@ -9,17 +8,38 @@ data Context (A : Set) : Set where
   ε   : Context A
   _∙_ : (Γ : Context A) (a : A) → Context A
 
+-- Contexts with one hole. Rather than representing them as
+-- Contexts (with ε playing the role of the hole), we opt
+-- for a different representation with explicit composition
+-- which allows us to get rid of the green slime that would
+-- be introduced by using `_++_`
+
+infixl 10 _∘_
+data Holey (A : Set) : Set where
+  []  : Holey A
+  _∙_ : (Γ : Holey A) (a : A) → Holey A
+  _∘_ : (Γ Δ : Holey A) → Holey A
+
+-- Given a Holey context, we can plug the hole using another
+-- context.
+
+infixr 6 _⇐_
+_⇐_ : {A : Set} (h : Holey A) (Γ : Context A) → Context A
+[]    ⇐ Γ = Γ
+h ∙ a ⇐ Γ = (h ⇐ Γ) ∙ a
+g ∘ h ⇐ Γ = g ⇐ (h ⇐ Γ)
+
 -- Variable in a context
 infix 1 _∈_
 data _∈_ {A : Set} (a : A) : (Γ : Context A) → Set where
   z : {Γ : Context A} → a ∈ Γ ∙ a
   s : {Γ : Context A} {b : A} (m : a ∈ Γ) → a ∈ Γ ∙ b
 
--- Context A interleaving
+-- Context interleaving
 infix 5 _⋈_≡_
 infixl 10 _∙ˡ_ _∙ʳ_
 data _⋈_≡_ {A : Set} : (Γ Δ θ : Context A) → Set where
-  ε   : ε ⋈ ε ≡ ε
+  ε    : ε ⋈ ε ≡ ε
   _∙ˡ_ : {Γ Δ θ : Context A} (tl : Γ ⋈ Δ ≡ θ) (a : A) → Γ ∙ a ⋈ Δ     ≡ θ ∙ a
   _∙ʳ_ : {Γ Δ θ : Context A} (tl : Γ ⋈ Δ ≡ θ) (a : A) → Γ     ⋈ Δ ∙ a ≡ θ ∙ a
 

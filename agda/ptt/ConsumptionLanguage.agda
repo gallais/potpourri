@@ -24,14 +24,32 @@
 
 module ptt.ConsumptionLanguage where
 
-open import ptt.Context as C hiding (Context)
+open import ptt.Context as C hiding (Context ; Holey)
 open import ptt.Usage
 open import ptt.Type
 
 
 Context = C.Context Type
+Holey   = C.Holey   Type
 
 infix 1 _⊢_⊠_
+
+infixr 10 _,_
+data Pattern : (A : Type) → Holey → Set where
+  _,_ : {A B : Type} {Γ Δ : Holey} → Pattern A Γ → Pattern B Δ → Pattern (A `⊗ B) (Γ ∘ Δ)
+  `v  : {A : Type} → Pattern A ([] ∙ A) -- a variable we are going to use
+  `─  : {A : Type} → Pattern A ([] ∙ A) -- one we'll do away with
+
+pre : {A : Type} {h : Holey} {γ : Context} (p : Pattern A h) → Usages γ → Usages (h ⇐ γ)
+pre     (p , q) Γ = pre p (pre q Γ)
+pre {A} `v      Γ = Γ ∙ [ A ]
+pre {A} `─      Γ = Γ ∙ [ A ]
+
+post : {A : Type} {h : Holey} {γ : Context} (p : Pattern A h) → Usages γ → Usages (h ⇐ γ)
+post     (p , q) Γ = post p (post q Γ)
+post {A} `v      Γ = Γ ∙ ] A [
+post {A} `─      Γ = Γ ∙ [ A ]
+
 data _⊢_⊠_ {γ : Context} (Γ : Usages γ) : (A : Type) (Δ : Usages γ) → Set where
 
   -- VARIABLE
@@ -62,12 +80,12 @@ data _⊢_⊠_ {γ : Context} (Γ : Usages γ) : (A : Type) (Δ : Usages γ) →
       ------------------------- (⊗)
             Γ ⊢ A `⊗ B ⊠ θ
 
-    `let_`in_ :
+    `let_∷=_`in_ :
   
-      {A B C : Type} {Δ θ : Usages γ} {a : Usage A} {b : Usage B} →
-         Γ ⊢ A `⊗ B ⊠ Δ → Δ ∙ [ A ] ∙ [ B ] ⊢ C ⊠ θ ∙ a ∙ b →
+      {A B : Type} {h : Holey} {Δ θ : Usages γ} →
+         (p : Pattern A h) → Γ ⊢ A ⊠ Δ → pre p Δ ⊢ B ⊠ post p θ →
       ----------------------------------------------------------- (let)
-                     Γ ⊢ C ⊠ θ
+                     Γ ⊢ B ⊠ θ
 
   -- SUM
     `inl :
@@ -88,15 +106,33 @@ data _⊢_⊠_ {γ : Context} (Γ : Usages γ) : (A : Type) (Δ : Usages γ) →
       ----------------------------------------------------------------- (case)
                             Γ ⊢ C ⊠ θ
 
-
 infix 1 _⊢_
 _⊢_ : (γ : Context) (A : Type) → Set
 γ ⊢ A = [[ γ ]] ⊢ A ⊠ ]] γ [[
 
+fst⊗ : {A B : Type} → ε ∙ (A `⊗ B) ⊢ A
+fst⊗ =
+  `let (`v , `─) ∷= var z
+  `in var z
+
 swap⊗ : ε ∙ (`ℕ `⊗ `ℝ) ⊢ `ℝ `⊗ `ℕ
 swap⊗ =
-  `let var z `in
-  `⟨ var z , var (s z) ⟩
+  `let (`v , `v) ∷= var z `in
+  `⟨ var (s z) , var z ⟩
+
+rotate₅ : {A B C D E : Type} → ε ∙ (A `⊗ B `⊗ C `⊗ D `⊗ E) ⊢ B `⊗ C `⊗ D `⊗ E `⊗ A
+rotate₅ =
+  `let (`v , `v , `v , `v , `v) ∷= var z `in
+  `⟨ var (s z) , `⟨ var (s (s z)) , `⟨ var (s (s (s z))) , `⟨ var (s (s (s (s z)))) , var z ⟩ ⟩ ⟩ ⟩
+
+middle⊗₁ : {A B C : Type} → ε ∙ ((A `⊗ B) `⊗ C) ⊢ B
+middle⊗₁ =
+  `let (`v , `─) ∷= var z `in
+  `let (`─ , `v) ∷= var z `in var (s z)
+  
+middle⊗₂ : {A B C : Type} → ε ∙ ((A `⊗ B) `⊗ C) ⊢ B
+middle⊗₂ =
+  `let ((`─ , `v) , `─) ∷= var z `in var (s z)
 
 swap+ : ε ∙ (`ℕ `+ `ℝ) ⊢ `ℝ `+ `ℕ
 swap+ =
