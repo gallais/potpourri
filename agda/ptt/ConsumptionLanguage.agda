@@ -27,7 +27,7 @@ module ptt.ConsumptionLanguage where
 open import ptt.Context as C hiding (Context ; Holey)
 open import ptt.Usage
 open import ptt.Type
-
+open import Data.Nat
 
 Context = C.Context Type
 Holey   = C.Holey   Type
@@ -38,17 +38,17 @@ infixr 10 _,_
 data Pattern : (A : Type) → Holey → Set where
   _,_ : {A B : Type} {Γ Δ : Holey} → Pattern A Γ → Pattern B Δ → Pattern (A `⊗ B) (Γ ∘ Δ)
   `v  : {A : Type} → Pattern A ([] ∙ A) -- a variable we are going to use
-  `─  : {A : Type} → Pattern A ([] ∙ A) -- one we'll do away with
+  `─  : {A : Type} → Pattern A []       -- one we'll do away with
 
 pre : {A : Type} {h : Holey} {γ : Context} (p : Pattern A h) → Usages γ → Usages (h ⇐ γ)
 pre     (p , q) Γ = pre p (pre q Γ)
 pre {A} `v      Γ = Γ ∙ [ A ]
-pre {A} `─      Γ = Γ ∙ [ A ]
+pre {A} `─      Γ = Γ
 
 post : {A : Type} {h : Holey} {γ : Context} (p : Pattern A h) → Usages γ → Usages (h ⇐ γ)
 post     (p , q) Γ = post p (post q Γ)
 post {A} `v      Γ = Γ ∙ ] A [
-post {A} `─      Γ = Γ ∙ [ A ]
+post {A} `─      Γ = Γ
 
 data _⊢_⊠_ {γ : Context} (Γ : Usages γ) : (A : Type) (Δ : Usages γ) → Set where
 
@@ -106,6 +106,22 @@ data _⊢_⊠_ {γ : Context} (Γ : Usages γ) : (A : Type) (Δ : Usages γ) →
       ----------------------------------------------------------------- (case)
                             Γ ⊢ C ⊠ θ
 
+  -- INSTRUMENT
+
+    `instr :
+      {A : Type} {a : Usages (ε ∙ A)} {Δ : Usages γ}
+          (n : ℕ) → ε ∙ [ A ] ⊢ `[ n ] ⊠ a → Γ ⊢ A ⊠ Δ →
+      --------------------------------------------------- (instr)
+                 Γ ⊢ `[ n ]∙ A ⊠ Δ
+
+  -- RATIO
+
+    `1/_ :
+          (n : ℕ) →
+       --------------- (1/2+n)
+         Γ ⊢ `2 ⊠ Γ
+
+
 infix 1 _⊢_
 _⊢_ : (γ : Context) (A : Type) → Set
 γ ⊢ A = [[ γ ]] ⊢ A ⊠ ]] γ [[
@@ -128,11 +144,10 @@ rotate₅ =
 middle⊗₁ : {A B C : Type} → ε ∙ ((A `⊗ B) `⊗ C) ⊢ B
 middle⊗₁ =
   `let (`v , `─) ∷= var z `in
-  `let (`─ , `v) ∷= var z `in var (s z)
+  `let (`─ , `v) ∷= var z `in var z
   
 middle⊗₂ : {A B C : Type} → ε ∙ ((A `⊗ B) `⊗ C) ⊢ B
-middle⊗₂ =
-  `let ((`─ , `v) , `─) ∷= var z `in var (s z)
+middle⊗₂ = `let ((`─ , `v) , `─) ∷= var z `in var z
 
 swap+ : ε ∙ (`ℕ `+ `ℝ) ⊢ `ℝ `+ `ℕ
 swap+ =
