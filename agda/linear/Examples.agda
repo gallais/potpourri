@@ -14,12 +14,12 @@ var v = `neu `var v
 
 ⊢swap⊗ : {σ τ : Type} → [] ⊢ (σ ⊗ τ) ─o (τ ⊗ σ) ∋ _ ⊠ []
 ⊢swap⊗ =
-  `lam `let (`v , `v) ∷= `var z `in
+  `lam `let (`v ,, `v) ∷= `var z `in
        `prd (var (s z)) (var z)
 
 ⊗⊕-distr : (σ τ ν : Type) → [] ⊢ (σ ⊗ (τ ⊕ ν)) ─o (σ ⊗ τ) ⊕ (σ ⊗ ν) ∋ _ ⊠ []
 ⊗⊕-distr σ τ ν =
-  `lam `let (`v , `v) ∷= `var z `in
+  `lam `let (`v ,, `v) ∷= `var z `in
        `neu `case `var (s z) return (σ ⊗ τ) ⊕ (σ ⊗ ν)
             of `inl (`prd (var (s z)) (var z))
             %% `inr (`prd (var (s z)) (var z))

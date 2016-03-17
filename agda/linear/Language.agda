@@ -25,8 +25,8 @@ mutual
     `cut                : (t : Check n) (σ : Type) → Infer n
 
   data Pattern : (m : ℕ) → Set where
-    `v  : Pattern 1
-    _,_ : {m n : ℕ} (p : Pattern m) (q : Pattern n) → Pattern (m ℕ.+ n)
+    `v   : Pattern 1
+    _,,_ : {m n : ℕ} (p : Pattern m) (q : Pattern n) → Pattern (m ℕ.+ n)
 
 
 infix 4 _⊢_∋_⊠_ _⊢_∈_⊠_ _∋_↝_
@@ -101,7 +101,8 @@ mutual
            Γ ⊢ `cut t σ ∈ σ ⊠ Δ
 
   data _∋_↝_ : (A : Type) {m : ℕ} (p : Pattern m) (Δ : Vec Type m) → Set where
-    `v  : {σ : Type} → σ ∋ `v ↝ σ ∷ []
-    _,_ : {σ τ : Type} {m n : ℕ} {p : Pattern m} {q : Pattern n} {Δ₁ : Context m} {Δ₂ : Context n} →
-          σ ∋ p ↝ Δ₁ → τ ∋ q ↝ Δ₂ → σ ⊗ τ ∋ p , q ↝ Δ₁ ++ Δ₂
+    `v   : {σ : Type} → σ ∋ `v ↝ σ ∷ []
+    _,,_ : {σ τ : Type} {m n : ℕ} {p : Pattern m} {q : Pattern n} {Δ₁ : Context m} {Δ₂ : Context n} →
+          σ ∋ p ↝ Δ₁ → τ ∋ q ↝ Δ₂ → σ ⊗ τ ∋ p ,, q ↝ Δ₁ ++ Δ₂
+
 
