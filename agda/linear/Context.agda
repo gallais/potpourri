@@ -5,6 +5,7 @@ open import Data.Fin
 open import Data.Vec hiding (_++_)
 
 open import linear.Type
+open import linear.Scope as Sc hiding (Mergey)
 
 Context : ℕ → Set
 Context = Vec Type
@@ -20,6 +21,17 @@ data Holey (m : ℕ) : ℕ → Set where
   []  : Holey m m
   _∷_ : {n : ℕ} (a : Type) (Γ : Holey m n) → Holey m (suc n)
   _∙_ : {n o : ℕ} (Γ : Holey m n) (Δ : Holey n o) → Holey m o
+
+data Mergey : {k l : ℕ} (m : Sc.Mergey k l) → Set where
+  finish : {k : ℕ} → Mergey (finish {k})
+  copy   : {k l : ℕ} {m : Sc.Mergey k l} → Mergey m → Mergey (copy m)
+  insert : {k l : ℕ} {m : Sc.Mergey k l} → Type → Mergey m → Mergey (insert m)
+
+infixl 4 _⋈_
+_⋈_ : {k l : ℕ} (Γ : Context k) {m : Sc.Mergey k l} (M : Mergey m) → Context l
+Γ     ⋈ finish     = Γ
+a ∷ Γ ⋈ copy M     = a ∷ (Γ ⋈ M)
+Γ     ⋈ insert a M = a ∷ (Γ ⋈ M)
 
 -- Given a Holey context, we can plug the hole using another
 -- context.
