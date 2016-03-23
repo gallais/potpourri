@@ -5,8 +5,9 @@ open import Data.Fin
 open import Data.Vec hiding ([_])
 
 open import linear.Type
-open import linear.Context
-open import linear.Language
+open import linear.Scope as Sc hiding (Mergey ; copys)
+open import linear.Context as C hiding (Mergey ; _⋈_ ; copys ; _⇐_)
+open import linear.Language hiding (patternSize)
 open import linear.Usage
 
 infix 3 _⊢_∋_⊠_ _⊢_∈_⊠_ _∋_↝_
@@ -23,7 +24,7 @@ mutual
     `let_∷=_`in_ : {σ τ : Type} {o : ℕ} {p : Pattern o} {δ : Vec Type o} {t : Infer n}
                   {Δ θ : Usages γ} {u : Check (o ℕ.+ n)} →
 
-              σ ∋ p ↝ δ → Γ ⊢ t ∈ σ ⊠ Δ → [[ δ ]]++ Δ ⊢ τ ∋ u ⊠ ]] δ [[++ Δ →
+              σ ∋ p ↝ δ → Γ ⊢ t ∈ σ ⊠ Δ → [[ δ ]] ⇐ Δ ⊢ τ ∋ u ⊠ ]] δ [[ ⇐ Δ →
             -----------------------------------------------------------------
                  Γ ⊢ τ ∋ `let p ∷= t `in u ⊠ θ
 
@@ -33,13 +34,13 @@ mutual
            ---------------------------------
              Γ ⊢ σ ⊗ τ ∋ `prd a b ⊠ θ
 
-    `inl : {σ τ : Type} {t : Check n} {Δ : Usages γ} →
+    `inl_ : {σ τ : Type} {t : Check n} {Δ : Usages γ} →
 
                   Γ ⊢ σ ∋ t ⊠ Δ →
            ---------------------------------
                Γ ⊢ σ ⊕ τ ∋ `inl t ⊠ Δ
 
-    `inr : {σ τ : Type} {t : Check n} {Δ : Usages γ} →
+    `inr_ : {σ τ : Type} {t : Check n} {Δ : Usages γ} →
 
                   Γ ⊢ τ ∋ t ⊠ Δ →
            ---------------------------------
@@ -84,3 +85,33 @@ mutual
     `v   : {σ : Type} → σ ∋ `v ↝ σ ∷ []
     _,,_ : {σ τ : Type} {m n : ℕ} {p : Pattern m} {q : Pattern n} {Δ₁ : Context m} {Δ₂ : Context n} →
           σ ∋ p ↝ Δ₁ → τ ∋ q ↝ Δ₂ → σ ⊗ τ ∋ p ,, q ↝ Δ₁ ++ Δ₂
+
+
+patternSize : {o : ℕ} {p : Pattern o} {σ : Type} {γ : Context o} (p : σ ∋ p ↝ γ) → ℕ
+patternSize {o} _ = o
+
+mutual
+
+  weak⊢∈ : {k l : ℕ} {γ : Context k} {m : Sc.Mergey k l} {M : C.Mergey m}
+           {Γ Δ : Usages γ} {σ : Type} {t : Infer k}
+           (𝓜 : Mergey M) → Γ ⊢ t ∈ σ ⊠ Δ → Γ ⋈ 𝓜 ⊢ weakInfer m t ∈ σ ⊠ Δ ⋈ 𝓜
+  weak⊢∈ 𝓜 (`var k)                     = `var {!!}
+  weak⊢∈ 𝓜 (`app t u)                   = `app (weak⊢∈ 𝓜 t) (weak⊢∋ 𝓜 u)
+  weak⊢∈ 𝓜 (`case t return σ of l %% r) = `case weak⊢∈ 𝓜 t return σ of weak⊢∋ (copy 𝓜) l %% weak⊢∋ (copy 𝓜) r
+  weak⊢∈ 𝓜 (`cut t)                     = `cut (weak⊢∋ 𝓜 t)
+
+  weak⊢∋ : {k l : ℕ} {γ : Context k} {m : Sc.Mergey k l} {M : C.Mergey m}
+           {Γ Δ : Usages γ} {σ : Type} {t : Check k}
+           (𝓜 : Mergey M) → Γ ⊢ σ ∋ t ⊠ Δ → Γ ⋈ 𝓜 ⊢ σ ∋ weakCheck m t ⊠ Δ ⋈ 𝓜
+  weak⊢∋ 𝓜 (`lam t)            = `lam weak⊢∋ (copy 𝓜) t
+  weak⊢∋ 𝓜 (`let p ∷= t `in u) = `let p ∷= weak⊢∈ 𝓜 t `in {! weak∋↝ 𝓜 p u !}
+  weak⊢∋ 𝓜 (`prd t u)          = {!!}
+  weak⊢∋ 𝓜 (`inl t)            = {!!}
+  weak⊢∋ 𝓜 (`inr t)            = {!!}
+  weak⊢∋ 𝓜 (`neu t)            = {!!}
+
+  weak∋↝ : {k l o : ℕ} {γ : Context k} (δ : Context o) {m : Sc.Mergey k l} {M : C.Mergey m}
+           {Γ Δ : Usages γ} {σ : Type} {t : Check (o ℕ.+ k)}
+           (𝓜 : Mergey M) → [[ δ ]] ⇐ Γ ⊢ σ ∋ t ⊠ ]] δ [[ ⇐ Δ →
+           ([[ δ ]] ⇐ Γ) ⋈ copys o 𝓜 ⊢ σ ∋ weakCheck (Sc.copys o m) t ⊠ (]] δ [[ ⇐ Δ) ⋈ copys o 𝓜
+  weak∋↝ = {!!}

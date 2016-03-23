@@ -6,7 +6,7 @@ open import Data.Vec hiding ([_])
 
 open import linear.Type
 open import linear.Scope
-open import linear.Context hiding (Mergey)
+open import linear.Context hiding (Mergey ; copys)
 
 mutual
 
