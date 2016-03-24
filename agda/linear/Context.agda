@@ -1,14 +1,18 @@
 module linear.Context where
 
+open import Function
 open import Data.Nat as ℕ
 open import Data.Fin
-open import Data.Vec hiding (_++_)
+open import Data.Vec as V hiding (_++_)
 
 open import linear.Type
 open import linear.Scope as Sc hiding (Mergey ; copys)
+open import Relation.Binary.PropositionalEquality
 
 Context : ℕ → Set
 Context = Vec Type
+
+_++_ = V._++_
 
 -- Induction principle
 induction :
@@ -19,6 +23,7 @@ induction :
 induction P pε p∷ []      = pε
 induction P pε p∷ (a ∷ Γ) = p∷ a Γ (induction P pε p∷ Γ)
 
+{-
 -- Contexts with one hole. Rather than representing them as
 -- Contexts (with ε playing the role of the hole), we opt
 -- for a different representation with explicit composition
@@ -31,14 +36,12 @@ data Holey (m : ℕ) : ℕ → Set where
   _∷_ : {n : ℕ} (a : Type) (Γ : Holey m n) → Holey m (suc n)
   _∙_ : {n o : ℕ} (Γ : Holey m n) (Δ : Holey n o) → Holey m o
 
-_++ : {m n : ℕ} (δ : Context n) → Holey m (n ℕ.+ m)
-δ ++ = induction (λ {n} _ → Holey _ (n ℕ.+ _)) [] (λ a _ → a ∷_) δ
-
 infixr 4 _⇐_
 _⇐_ : {m n : ℕ} (h : Holey m n) (Γ : Context m) → Context n
 []    ⇐ Γ = Γ
 a ∷ h ⇐ Γ = a ∷ (h ⇐ Γ)
 g ∙ h ⇐ Γ = h ⇐ (g ⇐ Γ)
+-}
 
 data Mergey : {k l : ℕ} (m : Sc.Mergey k l) → Set where
   finish : {k : ℕ} → Mergey (finish {k})
@@ -54,3 +57,9 @@ _⋈_ : {k l : ℕ} (Γ : Context k) {m : Sc.Mergey k l} (M : Mergey m) → Cont
 Γ     ⋈ finish     = Γ
 a ∷ Γ ⋈ copy M     = a ∷ (Γ ⋈ M)
 Γ     ⋈ insert a M = a ∷ (Γ ⋈ M)
+
+++copys-elim : {k l o : ℕ} {m : Sc.Mergey k l} (P : Context (o ℕ.+ l) → Set)
+               (δ : Context o) (γ : Context k) (M : Mergey m) →
+               P ((δ ++ γ) ⋈ copys o M) → P (δ ++ (γ ⋈ M))
+++copys-elim P []      γ M p = p
+++copys-elim P (a ∷ δ) γ M p = ++copys-elim (P ∘ (a ∷_)) δ γ M p

@@ -2,11 +2,11 @@ module linear.Typing where
 
 open import Data.Nat as ℕ
 open import Data.Fin
-open import Data.Vec hiding ([_])
+open import Data.Vec hiding ([_] ; _++_)
 
 open import linear.Type
 open import linear.Scope as Sc hiding (Mergey ; copys)
-open import linear.Context as C hiding (Mergey ; _⋈_ ; copys ; _⇐_)
+open import linear.Context as C hiding (Mergey ; _⋈_ ; copys ; _++_ ; ++copys-elim)
 open import linear.Language hiding (patternSize)
 open import linear.Usage
 
@@ -24,7 +24,7 @@ mutual
     `let_∷=_`in_ : {σ τ : Type} {o : ℕ} {p : Pattern o} {δ : Vec Type o} {t : Infer n}
                   {Δ θ : Usages γ} {u : Check (o ℕ.+ n)} →
 
-              σ ∋ p ↝ δ → Γ ⊢ t ∈ σ ⊠ Δ → [[ δ ]] ⇐ Δ ⊢ τ ∋ u ⊠ ]] δ [[ ⇐ Δ →
+              σ ∋ p ↝ δ → Γ ⊢ t ∈ σ ⊠ Δ → [[ δ ]] ++ Δ ⊢ τ ∋ u ⊠ ]] δ [[ ++ θ →
             -----------------------------------------------------------------
                  Γ ⊢ τ ∋ `let p ∷= t `in u ⊠ θ
 
@@ -84,12 +84,13 @@ mutual
   data _∋_↝_ : (A : Type) {m : ℕ} (p : Pattern m) (Δ : Vec Type m) → Set where
     `v   : {σ : Type} → σ ∋ `v ↝ σ ∷ []
     _,,_ : {σ τ : Type} {m n : ℕ} {p : Pattern m} {q : Pattern n} {Δ₁ : Context m} {Δ₂ : Context n} →
-          σ ∋ p ↝ Δ₁ → τ ∋ q ↝ Δ₂ → σ ⊗ τ ∋ p ,, q ↝ Δ₁ ++ Δ₂
+          σ ∋ p ↝ Δ₁ → τ ∋ q ↝ Δ₂ → σ ⊗ τ ∋ p ,, q ↝ Δ₁ C.++ Δ₂
 
 
 patternSize : {o : ℕ} {p : Pattern o} {σ : Type} {γ : Context o} (p : σ ∋ p ↝ γ) → ℕ
 patternSize {o} _ = o
 
+{-
 mutual
 
   weak⊢∈ : {k l : ℕ} {γ : Context k} {m : Sc.Mergey k l} {M : C.Mergey m}
@@ -104,14 +105,13 @@ mutual
            {Γ Δ : Usages γ} {σ : Type} {t : Check k}
            (𝓜 : Mergey M) → Γ ⊢ σ ∋ t ⊠ Δ → Γ ⋈ 𝓜 ⊢ σ ∋ weakCheck m t ⊠ Δ ⋈ 𝓜
   weak⊢∋ 𝓜 (`lam t)            = `lam weak⊢∋ (copy 𝓜) t
-  weak⊢∋ 𝓜 (`let p ∷= t `in u) = `let p ∷= weak⊢∈ 𝓜 t `in {! weak∋↝ 𝓜 p u !}
+  weak⊢∋ {m = m} 𝓜 (`let_∷=_`in_ {σ} {τ} {o} {rp} {δ} {rt} {Δ} {θ} {ru} p t u) =
+    let P    = λ {γ} (Γ Γ′ : Usages γ) → Γ ⊢ τ ∋ weakCheck (Sc.copys o m) ru ⊠ Γ′
+        ih   = weak⊢∋ (copys o 𝓜) u
+        cast = ++copys-elim₂ P [[ δ ]] ]] δ [[ Δ θ 𝓜
+    in `let p ∷= weak⊢∈ 𝓜 t `in cast ih
   weak⊢∋ 𝓜 (`prd t u)          = {!!}
   weak⊢∋ 𝓜 (`inl t)            = {!!}
   weak⊢∋ 𝓜 (`inr t)            = {!!}
   weak⊢∋ 𝓜 (`neu t)            = {!!}
-
-  weak∋↝ : {k l o : ℕ} {γ : Context k} (δ : Context o) {m : Sc.Mergey k l} {M : C.Mergey m}
-           {Γ Δ : Usages γ} {σ : Type} {t : Check (o ℕ.+ k)}
-           (𝓜 : Mergey M) → [[ δ ]] ⇐ Γ ⊢ σ ∋ t ⊠ ]] δ [[ ⇐ Δ →
-           ([[ δ ]] ⇐ Γ) ⋈ copys o 𝓜 ⊢ σ ∋ weakCheck (Sc.copys o m) t ⊠ (]] δ [[ ⇐ Δ) ⋈ copys o 𝓜
-  weak∋↝ = {!!}
+-}
