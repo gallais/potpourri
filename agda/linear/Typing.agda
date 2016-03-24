@@ -90,13 +90,19 @@ mutual
 patternSize : {o : ℕ} {p : Pattern o} {σ : Type} {γ : Context o} (p : σ ∋ p ↝ γ) → ℕ
 patternSize {o} _ = o
 
-{-
+weakVar : {k l : ℕ} {γ : Context k} {m : Sc.Mergey k l} {M : C.Mergey m} {Γ Δ : Usages γ} {σ : Type}
+          {k : Fin k} (𝓜 : Mergey M) → Γ ⊢ k ∈[ σ ]⊠ Δ → Γ ⋈ 𝓜 ⊢ weakFin m k ∈[ σ ]⊠ Δ ⋈ 𝓜
+weakVar finish        k    = k
+weakVar (insert A 𝓜) k     = s (weakVar 𝓜 k)
+weakVar (copy 𝓜)     z     = z
+weakVar (copy 𝓜)     (s k) = s (weakVar 𝓜 k)
+
 mutual
 
   weak⊢∈ : {k l : ℕ} {γ : Context k} {m : Sc.Mergey k l} {M : C.Mergey m}
            {Γ Δ : Usages γ} {σ : Type} {t : Infer k}
            (𝓜 : Mergey M) → Γ ⊢ t ∈ σ ⊠ Δ → Γ ⋈ 𝓜 ⊢ weakInfer m t ∈ σ ⊠ Δ ⋈ 𝓜
-  weak⊢∈ 𝓜 (`var k)                     = `var {!!}
+  weak⊢∈ 𝓜 (`var k)                     = `var (weakVar 𝓜 k)
   weak⊢∈ 𝓜 (`app t u)                   = `app (weak⊢∈ 𝓜 t) (weak⊢∋ 𝓜 u)
   weak⊢∈ 𝓜 (`case t return σ of l %% r) = `case weak⊢∈ 𝓜 t return σ of weak⊢∋ (copy 𝓜) l %% weak⊢∋ (copy 𝓜) r
   weak⊢∈ 𝓜 (`cut t)                     = `cut (weak⊢∋ 𝓜 t)
@@ -110,8 +116,7 @@ mutual
         ih   = weak⊢∋ (copys o 𝓜) u
         cast = ++copys-elim₂ P [[ δ ]] ]] δ [[ Δ θ 𝓜
     in `let p ∷= weak⊢∈ 𝓜 t `in cast ih
-  weak⊢∋ 𝓜 (`prd t u)          = {!!}
-  weak⊢∋ 𝓜 (`inl t)            = {!!}
-  weak⊢∋ 𝓜 (`inr t)            = {!!}
-  weak⊢∋ 𝓜 (`neu t)            = {!!}
--}
+  weak⊢∋ 𝓜 (`prd t u)          = `prd (weak⊢∋ 𝓜 t) (weak⊢∋ 𝓜 u)
+  weak⊢∋ 𝓜 (`inl t)            = `inl weak⊢∋ 𝓜 t
+  weak⊢∋ 𝓜 (`inr t)            = `inr weak⊢∋ 𝓜 t
+  weak⊢∋ 𝓜 (`neu t)            = `neu weak⊢∈ 𝓜 t
