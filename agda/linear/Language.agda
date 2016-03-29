@@ -5,7 +5,7 @@ open import Data.Fin
 open import Data.Vec hiding ([_])
 
 open import linear.Type
-open import linear.Scope
+open import linear.Scope as Sc hiding (Env ; weakEnv)
 open import linear.Context hiding (Mergey ; copys)
 
 mutual
@@ -34,7 +34,7 @@ patternSize {m} _ = m
 
 mutual
 
-  weakCheck : {n m : ℕ} (inc : Mergey m n) → Check m → Check n
+  weakCheck : Weakening Check
   weakCheck inc (`lam b)            = `lam weakCheck (copy inc) b
   weakCheck inc (`let p ∷= t `in u) = `let p ∷= weakInfer inc t `in weakCheck (copys (patternSize p) inc) u
   weakCheck inc (`prd a b)          = `prd (weakCheck inc a) (weakCheck inc b)
@@ -42,7 +42,7 @@ mutual
   weakCheck inc (`inr t)            = `inr weakCheck inc t
   weakCheck inc (`neu t)            = `neu weakInfer inc t
 
-  weakInfer : {m n : ℕ} (inc : Mergey m n) → Infer m → Infer n
+  weakInfer : Weakening Infer
   weakInfer inc (`var k)                     = `var (weakFin inc k)
   weakInfer inc (`app i u)                   = `app (weakInfer inc i) (weakCheck inc u)
   weakInfer inc (`case i return σ of l %% r) = `case weakInfer inc i return σ of weakCheck (copy inc) l
@@ -50,29 +50,17 @@ mutual
   weakInfer inc (`cut t σ)                   = `cut (weakCheck inc t) σ
 
 
-data Subst (l : ℕ) : (k : ℕ) → Set where
-  []  : Subst l 0
-  _∷_ : {k : ℕ} (t : Infer l) (ρ : Subst l k) → Subst l (suc k)
+Env = Sc.Env Infer
+weakEnv = Sc.weakEnv weakInfer
 
-weakSubst : {k l o : ℕ} (inc : Mergey l o) → Subst l k → Subst o k
-weakSubst inc []      = []
-weakSubst inc (t ∷ ρ) = weakInfer inc t ∷ weakSubst inc ρ
+fresheyInfer : Freshey Infer
+fresheyInfer = record { fresh = `var zero ; weak = weakInfer }
 
-substFin : {k l : ℕ} (ρ : Subst l k) → Fin k → Infer l
-substFin (t ∷ ρ) zero    = t
-substFin (t ∷ ρ) (suc v) = substFin ρ v
-
-withFreshVars : {k l : ℕ} (o : ℕ) → Subst l k → Subst (o ℕ.+ l) (o ℕ.+ k)
-withFreshVars zero    ρ = ρ
-withFreshVars (suc o) ρ = `var zero ∷ weakSubst (insert finish) (withFreshVars o ρ)
-
-
-withFreshVar : {k l : ℕ} → Subst l k → Subst (suc l) (suc k)
-withFreshVar = withFreshVars 1
+open module WithFreshInfer = WithFreshVars fresheyInfer
 
 mutual
 
-  substCheck : {k l : ℕ} (ρ : Subst l k) → Check k → Check l
+  substCheck : Substituting Infer Check
   substCheck ρ (`lam b)            = `lam substCheck (withFreshVar ρ) b
   substCheck ρ (`let p ∷= t `in u) = `let p ∷= substInfer ρ t `in substCheck (withFreshVars (patternSize p) ρ) u
   substCheck ρ (`prd a b)          = `prd (substCheck ρ a) (substCheck ρ b)
@@ -80,7 +68,7 @@ mutual
   substCheck ρ (`inr t)            = `inr substCheck ρ t
   substCheck ρ (`neu t)            = `neu substInfer ρ t
   
-  substInfer : {k l : ℕ} (ρ : Subst l k) → Infer k → Infer l
+  substInfer : Substituting Infer Infer
   substInfer ρ (`var k)                     = substFin ρ k
   substInfer ρ (`app i u)                   = `app (substInfer ρ i) (substCheck ρ u)
   substInfer ρ (`case i return σ of l %% r) = `case substInfer ρ i return σ
