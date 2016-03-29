@@ -6,7 +6,7 @@ open import Data.Vec hiding ([_] ; _++_)
 open import Function
 
 open import linear.Type
-open import linear.Scope as Sc hiding (Mergey ; copys)
+open import linear.Scope as Sc hiding (Mergey ; copys ; Weakening ; weakFin ; Env ; Substituting)
 open import linear.Context as C hiding (Mergey ; _⋈_ ; copys ; _++_ ; ++copys-elim)
 open import Relation.Binary.PropositionalEquality
 
@@ -31,19 +31,6 @@ data _⊢_∈[_]⊠_ : {n : ℕ} {γ : Context n} (Γ : Usages γ) (k : Fin n) (
   s_ : {n : ℕ} {γ : Context n} {k : Fin n} {Γ Δ : Usages γ} {a b : Type} {u : Usage b} →
        Γ ⊢ k ∈[ a ]⊠ Δ → u ∷ Γ ⊢ suc k ∈[ a ]⊠ u ∷ Δ
 
-{-
-data Holey {m : ℕ} : {n : ℕ} (h : C.Holey m n) → Set where
-  []  : Holey []
-  _∷_ : {n : ℕ} {h : C.Holey m n} {a : Type} → Usage a → Holey h → Holey (a ∷ h)
-  _∙_ : {n o : ℕ} {g : C.Holey m n} {h : C.Holey n o} → Holey g → Holey h → Holey (g ∙ h)
-
-infixr 4 _⇐_
-_⇐_ : {m n : ℕ} {h : C.Holey m n} (H : Holey h) {γ : Context m} → Usages γ → Usages (h C.⇐ γ)
-[]    ⇐ Γ = Γ
-a ∷ h ⇐ Γ = a ∷ (h ⇐ Γ)
-g ∙ h ⇐ Γ = h ⇐ (g ⇐ Γ)
--}
-
 [[_]] : {m  : ℕ} (δ : Context m) → Usages δ
 [[ δ ]] = induction Usages [] (λ a _ → [ a ] ∷_) δ
 
@@ -67,7 +54,6 @@ _⋈_ : {k l : ℕ} {γ : Context k} {m : Sc.Mergey k l} {M : C.Mergey m}
 A ∷ Γ ⋈ copy M     = A ∷ (Γ ⋈ M)
 Γ     ⋈ insert A M = A ∷ (Γ ⋈ M)
 
-
 ++copys-elim₂ :
   {k l o : ℕ} {m : Sc.Mergey k l} {M : C.Mergey m} {δ : Context o} {γ : Context k}
   (P : {γ : Context (o ℕ.+ l)} → Usages γ → Usages γ → Set)
@@ -75,3 +61,30 @@ A ∷ Γ ⋈ copy M     = A ∷ (Γ ⋈ M)
   P ((Δ ++ Γ) ⋈ copys o 𝓜) ((Δ′ ++ Γ′) ⋈ copys o 𝓜) → P (Δ ++ (Γ ⋈ 𝓜)) (Δ′ ++ (Γ′ ⋈ 𝓜))
 ++copys-elim₂ P []      []        Γ Γ′ 𝓜 p = p
 ++copys-elim₂ P (A ∷ Δ) (A′ ∷ Δ′) Γ Γ′ 𝓜 p = ++copys-elim₂ (λ θ θ′ → P (A ∷ θ) (A′ ∷ θ′)) Δ Δ′ Γ Γ′ 𝓜 p
+
+
+-- We can give an abstract interface to describe these relations
+-- by introducing the notion of `Typing`. It exists for `Fin`,
+-- `Check` and `Infer`:
+Typing : (T : ℕ → Set) → Set₁
+Typing T = {n : ℕ} {γ : Context n} (Γ : Usages γ) (t : T n) (A : Type) (Δ : Usages γ) → Set
+
+-- The notion of 'Usage Weakening' (resp. 'Usage Substituting') can
+-- be expressed for a `Typing` of `T` if it enjoys `Scope Weakening`
+-- (resp. 'Scope Substituting').
+Weakening : (T : ℕ → Set) (Wk : Sc.Weakening T) (𝓣 : Typing T) → Set
+Weakening T Wk 𝓣 =
+  {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {m : Sc.Mergey k l} {M : C.Mergey m} {σ : Type}
+  {t : T k} (𝓜 : Mergey M) → 𝓣 Γ t σ Δ → 𝓣 (Γ ⋈ 𝓜) (Wk m t) σ (Δ ⋈ 𝓜)
+
+-- A first example of a Typing enjoying Usage Weakening: Fin.
+TFin : Typing Fin
+TFin = _⊢_∈[_]⊠_
+
+weakFin : Weakening Fin Sc.weakFin TFin
+weakFin finish        k    = k
+weakFin (insert A 𝓜) k     = s (weakFin 𝓜 k)
+weakFin (copy 𝓜)     z     = z
+weakFin (copy 𝓜)     (s k) = s (weakFin 𝓜 k)
+
+

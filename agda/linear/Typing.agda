@@ -5,7 +5,7 @@ open import Data.Fin
 open import Data.Vec hiding ([_] ; _++_)
 
 open import linear.Type
-open import linear.Scope as Sc hiding (Mergey ; copys ; Weakening ; Substituting)
+open import linear.Scope as Sc hiding (Mergey ; copys ; Weakening ; weakFin ; Substituting)
 open import linear.Context as C hiding (Mergey ; _⋈_ ; copys ; _++_ ; ++copys-elim)
 open import linear.Language hiding (patternSize)
 open import linear.Usage
@@ -90,40 +90,16 @@ mutual
 patternSize : {o : ℕ} {p : Pattern o} {σ : Type} {γ : Context o} (p : σ ∋ p ↝ γ) → ℕ
 patternSize {o} _ = o
 
--- We can give an abstract interface to describe these relations
--- by introducing the notion of `Typing`. It exists for `Fin`,
--- `Check` and `Infer`:
-
-Typing : (T : ℕ → Set) → Set₁
-Typing T = {n : ℕ} {γ : Context n} (Γ : Usages γ) (t : T n) (A : Type) (Δ : Usages γ) → Set
-
-TFin : Typing Fin
-TFin = _⊢_∈[_]⊠_
-
 TCheck : Typing Check
 TCheck = λ Γ t A Δ → Γ ⊢ A ∋ t ⊠ Δ
 
 TInfer : Typing Infer
 TInfer = _⊢_∈_⊠_
 
--- The notion of 'Usage Weakening' can be expressed for `Typing`s of
--- `T` if it enjoys `Scope Weakening`.
-
-Weakening : (T : ℕ → Set) (Wk : Sc.Weakening T) (𝓣 : Typing T) → Set
-Weakening T Wk 𝓣 =
-  {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {m : Sc.Mergey k l} {M : C.Mergey m} {σ : Type}
-  {t : T k} (𝓜 : Mergey M) → 𝓣 Γ t σ Δ → 𝓣 (Γ ⋈ 𝓜) (Wk m t) σ (Δ ⋈ 𝓜)
-
-weakVar : Weakening Fin weakFin TFin
-weakVar finish        k    = k
-weakVar (insert A 𝓜) k     = s (weakVar 𝓜 k)
-weakVar (copy 𝓜)     z     = z
-weakVar (copy 𝓜)     (s k) = s (weakVar 𝓜 k)
-
 mutual
 
   weak⊢∈ : Weakening Infer weakInfer TInfer
-  weak⊢∈ 𝓜 (`var k)                     = `var (weakVar 𝓜 k)
+  weak⊢∈ 𝓜 (`var k)                     = `var (weakFin 𝓜 k)
   weak⊢∈ 𝓜 (`app t u)                   = `app (weak⊢∈ 𝓜 t) (weak⊢∋ 𝓜 u)
   weak⊢∈ 𝓜 (`case t return σ of l %% r) = `case weak⊢∈ 𝓜 t return σ of weak⊢∋ (copy 𝓜) l %% weak⊢∋ (copy 𝓜) r
   weak⊢∈ 𝓜 (`cut t)                     = `cut (weak⊢∋ 𝓜 t)
