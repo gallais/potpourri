@@ -49,3 +49,41 @@ mutual
                                                                               %% weakCheck (copy inc) r
   weakInfer inc (`cut t σ)                   = `cut (weakCheck inc t) σ
 
+
+data Subst (l : ℕ) : (k : ℕ) → Set where
+  []  : Subst l 0
+  _∷_ : {k : ℕ} (t : Infer l) (ρ : Subst l k) → Subst l (suc k)
+
+weakSubst : {k l o : ℕ} (inc : Mergey l o) → Subst l k → Subst o k
+weakSubst inc []      = []
+weakSubst inc (t ∷ ρ) = weakInfer inc t ∷ weakSubst inc ρ
+
+substFin : {k l : ℕ} (ρ : Subst l k) → Fin k → Infer l
+substFin (t ∷ ρ) zero    = t
+substFin (t ∷ ρ) (suc v) = substFin ρ v
+
+withFreshVars : {k l : ℕ} (o : ℕ) → Subst l k → Subst (o ℕ.+ l) (o ℕ.+ k)
+withFreshVars zero    ρ = ρ
+withFreshVars (suc o) ρ = `var zero ∷ weakSubst (insert finish) (withFreshVars o ρ)
+
+
+withFreshVar : {k l : ℕ} → Subst l k → Subst (suc l) (suc k)
+withFreshVar = withFreshVars 1
+
+mutual
+
+  substCheck : {k l : ℕ} (ρ : Subst l k) → Check k → Check l
+  substCheck ρ (`lam b)            = `lam substCheck (withFreshVar ρ) b
+  substCheck ρ (`let p ∷= t `in u) = `let p ∷= substInfer ρ t `in substCheck (withFreshVars (patternSize p) ρ) u
+  substCheck ρ (`prd a b)          = `prd (substCheck ρ a) (substCheck ρ b)
+  substCheck ρ (`inl t)            = `inl substCheck ρ t
+  substCheck ρ (`inr t)            = `inr substCheck ρ t
+  substCheck ρ (`neu t)            = `neu substInfer ρ t
+  
+  substInfer : {k l : ℕ} (ρ : Subst l k) → Infer k → Infer l
+  substInfer ρ (`var k)                     = substFin ρ k
+  substInfer ρ (`app i u)                   = `app (substInfer ρ i) (substCheck ρ u)
+  substInfer ρ (`case i return σ of l %% r) = `case substInfer ρ i return σ
+                                                 of substCheck (withFreshVar ρ) l
+                                                 %% substCheck (withFreshVar ρ) r
+  substInfer ρ (`cut t σ)                   = `cut (substCheck ρ t) σ
