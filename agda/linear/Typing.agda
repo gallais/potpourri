@@ -2,12 +2,14 @@ module linear.Typing where
 
 open import Data.Nat as ℕ
 open import Data.Fin
-open import Data.Vec hiding ([_] ; _++_)
+open import Data.Product
+open import Data.Vec hiding ([_] ; _++_ ; map)
+open import Function
 
 open import linear.Type
-open import linear.Scope as Sc hiding (Mergey ; copys ; Weakening ; weakFin ; Substituting)
-open import linear.Context as C hiding (Mergey ; _⋈_ ; copys ; _++_ ; ++copys-elim)
-open import linear.Language hiding (patternSize)
+open import linear.Scope    as Sc hiding (Mergey ; copys ; Weakening ; weakFin ; Substituting ; substFin ; Env)
+open import linear.Context  as C hiding (Mergey ; _⋈_ ; copys ; _++_ ; ++copys-elim)
+open import linear.Language as L hiding (patternSize ; weakInfer ; weakCheck ; substInfer ; substCheck ; Env)
 open import linear.Usage
 
 infix 3 _⊢_∋_⊠_ _⊢_∈_⊠_ _∋_↝_
@@ -96,22 +98,32 @@ TCheck = λ Γ t A Δ → Γ ⊢ A ∋ t ⊠ Δ
 TInfer : Typing Infer
 TInfer = _⊢_∈_⊠_
 
+substFin : 
+  {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {σ : Type} {v : Fin k} {ρ : Sc.Env Infer l k}
+  {θ : Context l} {Τ₁ Τ₂ : Usages θ} →
+  Env TInfer Τ₁ ρ Τ₂ Γ → Γ ⊢ v ∈[ σ ]⊠ Δ → ∃ λ Τ₃ → Τ₁ ⊢ Sc.substFin ρ v ∈ σ ⊠ Τ₃ × Env TInfer Τ₃ ρ Τ₂ Δ
+substFin (t ∷ ρ) z     = , t , ─∷ ρ
+substFin (T ∷ ρ) (s v) = map {!!} (map {!!} {!T ∷_!}) $ substFin ρ v -- argh!
+substFin (─∷ ρ)  (s v) = map id (map id ─∷_) $ substFin ρ v
+
 mutual
 
-  weak⊢∈ : Weakening Infer weakInfer TInfer
-  weak⊢∈ 𝓜 (`var k)                     = `var (weakFin 𝓜 k)
-  weak⊢∈ 𝓜 (`app t u)                   = `app (weak⊢∈ 𝓜 t) (weak⊢∋ 𝓜 u)
-  weak⊢∈ 𝓜 (`case t return σ of l %% r) = `case weak⊢∈ 𝓜 t return σ of weak⊢∋ (copy 𝓜) l %% weak⊢∋ (copy 𝓜) r
-  weak⊢∈ 𝓜 (`cut t)                     = `cut (weak⊢∋ 𝓜 t)
+  weakInfer : Weakening Infer L.weakInfer TInfer
+  weakInfer 𝓜 (`var k)                     = `var (weakFin 𝓜 k)
+  weakInfer 𝓜 (`app t u)                   = `app (weakInfer 𝓜 t) (weakCheck 𝓜 u)
+  weakInfer 𝓜 (`case t return σ of l %% r) = `case weakInfer 𝓜 t return σ
+                                                of weakCheck (copy 𝓜) l
+                                                %% weakCheck (copy 𝓜) r
+  weakInfer 𝓜 (`cut t)                     = `cut (weakCheck 𝓜 t)
 
-  weak⊢∋ : Weakening Check weakCheck TCheck
-  weak⊢∋ 𝓜 (`lam t)            = `lam weak⊢∋ (copy 𝓜) t
-  weak⊢∋ {m = m} 𝓜 (`let_∷=_`in_ {σ} {τ} {o} {rp} {δ} {rt} {Δ} {θ} {ru} p t u) =
-    let P    = λ {γ} (Γ Γ′ : Usages γ) → Γ ⊢ τ ∋ weakCheck (Sc.copys o m) ru ⊠ Γ′
-        ih   = weak⊢∋ (copys o 𝓜) u
+  weakCheck : Weakening Check L.weakCheck TCheck
+  weakCheck 𝓜 (`lam t)            = `lam weakCheck (copy 𝓜) t
+  weakCheck {m = m} 𝓜 (`let_∷=_`in_ {σ} {τ} {o} {rp} {δ} {rt} {Δ} {θ} {ru} p t u) =
+    let P    = λ {γ} (Γ Γ′ : Usages γ) → Γ ⊢ τ ∋ L.weakCheck (Sc.copys o m) ru ⊠ Γ′
+        ih   = weakCheck (copys o 𝓜) u
         cast = ++copys-elim₂ P [[ δ ]] ]] δ [[ Δ θ 𝓜
-    in `let p ∷= weak⊢∈ 𝓜 t `in cast ih
-  weak⊢∋ 𝓜 (`prd t u)          = `prd (weak⊢∋ 𝓜 t) (weak⊢∋ 𝓜 u)
-  weak⊢∋ 𝓜 (`inl t)            = `inl weak⊢∋ 𝓜 t
-  weak⊢∋ 𝓜 (`inr t)            = `inr weak⊢∋ 𝓜 t
-  weak⊢∋ 𝓜 (`neu t)            = `neu weak⊢∈ 𝓜 t
+    in `let p ∷= weakInfer 𝓜 t `in cast ih
+  weakCheck 𝓜 (`prd t u)          = `prd (weakCheck 𝓜 t) (weakCheck 𝓜 u)
+  weakCheck 𝓜 (`inl t)            = `inl weakCheck 𝓜 t
+  weakCheck 𝓜 (`inr t)            = `inr weakCheck 𝓜 t
+  weakCheck 𝓜 (`neu t)            = `neu weakInfer 𝓜 t

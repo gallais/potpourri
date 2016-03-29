@@ -2,6 +2,7 @@ module linear.Usage where
 
 open import Data.Nat as ℕ
 open import Data.Fin
+open import Data.Product
 open import Data.Vec hiding ([_] ; _++_)
 open import Function
 
@@ -69,9 +70,8 @@ A ∷ Γ ⋈ copy M     = A ∷ (Γ ⋈ M)
 Typing : (T : ℕ → Set) → Set₁
 Typing T = {n : ℕ} {γ : Context n} (Γ : Usages γ) (t : T n) (A : Type) (Δ : Usages γ) → Set
 
--- The notion of 'Usage Weakening' (resp. 'Usage Substituting') can
--- be expressed for a `Typing` of `T` if it enjoys `Scope Weakening`
--- (resp. 'Scope Substituting').
+-- The notion of 'Usage Weakening' can be expressed for a `Typing`
+-- of `T` if it enjoys `Scope Weakening`
 Weakening : (T : ℕ → Set) (Wk : Sc.Weakening T) (𝓣 : Typing T) → Set
 Weakening T Wk 𝓣 =
   {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {m : Sc.Mergey k l} {M : C.Mergey m} {σ : Type}
@@ -88,3 +88,19 @@ weakFin (copy 𝓜)     z     = z
 weakFin (copy 𝓜)     (s k) = s (weakFin 𝓜 k)
 
 
+-- Similarly to 'Usage Weakening', the notion of 'Usage Substituting'
+-- can be expressed for a `Typing` of `T` if it enjoys `Scope Substituting`
+
+data Env {E : ℕ → Set} (𝓔 : Typing E) {l : ℕ} {θ : Context l} (T₁ : Usages θ) :
+  {k : ℕ} (ρ : Sc.Env E l k) (Τ₂ : Usages θ) {γ : Context k} (Γ : Usages γ) → Set where
+  []  : Env 𝓔 T₁ [] T₁ []
+  _∷_ : {a : Type} {k : ℕ} {ρ : Sc.Env E l k} {t : E l} {Τ₂ Τ₃ : Usages θ} {γ : Context k} {Γ : Usages γ} →
+        (T : 𝓔 T₁ t a Τ₂) (R : Env 𝓔 Τ₂ ρ Τ₃ Γ) → Env 𝓔 T₁ (t ∷ ρ) Τ₃ ([ a ] ∷ Γ)
+  ─∷_ : {a : Type} {k : ℕ} {ρ : Sc.Env E l k} {t : E l} {Τ₂ : Usages θ} {γ : Context k} {Γ : Usages γ} →
+        (R : Env 𝓔 T₁ ρ Τ₂ Γ) → Env 𝓔 T₁ (t ∷ ρ) Τ₂ (] a [ ∷ Γ)
+
+Substituting : (E T : ℕ → Set) ([_]_ : Sc.Substituting E T) (𝓔 : Typing E) (𝓣 : Typing T) → Set
+Substituting E T subst 𝓔 𝓣 =
+  {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {σ : Type} {t : T k} {ρ : Sc.Env E l k}
+  {θ : Context l} {Τ₁ Τ₂ : Usages θ} →
+  Env 𝓔 Τ₁ ρ Τ₂ Γ → 𝓣 Γ t σ Δ → ∃ λ Τ₃ → 𝓣 Τ₁ (subst ρ t) σ Τ₃ × Env 𝓔 Τ₃ ρ Τ₂ Δ
