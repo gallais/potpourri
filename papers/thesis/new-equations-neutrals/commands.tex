@@ -1,0 +1,199 @@
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%% Command definitions %%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newenvironment{definition}[1][Definition]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Example]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+\newcommand{\agda}[0]{Agda}
+\newcommand{\coq}[0]{Coq}
+\newcommand{\lego}[0]{Lego}
+\newcommand{\epigram}[0]{Epigram}
+
+%%%%%%%%%%%%%%%%%%%%%%%% Agda stuff %%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\set}[0]{{\color{NavyBlue}\mathtt{Set}}}
+\newcommand{\fin}[1][n]{{\color{NavyBlue}\mathtt{Fin}}~n}
+\DeclareMathOperator{\tyind}{\mathtt{type-induction}}
+
+\newcommandx*\lcni[2][1=\Delta, 2=\Gamma]{#1 ~{\color{NavyBlue}\supseteq}~ #2}
+\newcommandx*\incl[2][1=\Gamma, 2=\Delta]{#1 ~{\color{NavyBlue}\subseteq}~ #2}
+\DeclareMathOperator{\bni}{~{\color{NavyBlue}\ni}~}
+\DeclareMathOperator{\piun}{\pi_1}
+\DeclareMathOperator{\pide}{\pi_2}
+\DeclareMathOperator{\injun}{\iota_1}
+\DeclareMathOperator{\injde}{\iota_2}
+\DeclareMathOperator{\teunit}{{\color{ForestGreen}\mathtt{tt}}}
+
+\newcommand{\idinc}[1][\Gamma]{{\color{NavyBlue}\subseteq\hspace{-3pt}-refl}~#1}
+\DeclareMathOperator{\gramdecl}{:\hspace{-2pt}:\hspace{-2pt}=~}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% Types %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\context}[1][\type]{{\color{NavyBlue}\mathtt{Con}}(#1)}
+\newcommand{\type}[1][n]{{\color{NavyBlue}\mathtt{type}}_{#1}}
+
+\newcommand{\tybase}[1][k]{{\color{ForestGreen}\mathtt{`b}}~#1}
+\newcommand{\tyunit}[0]{{\color{ForestGreen}\mathtt{`1}}}
+\newcommandx*\typrod[2][1=\sigma, 2=\tau]{#1 ~{\color{ForestGreen}\mathtt{`}\hspace{-2pt}\times}~ #2}
+\newcommandx*\tyarrow[2][1=\sigma, 2=\tau]{#1 ~{\color{ForestGreen}\mathtt{`}\hspace{-3pt}\rightarrow}~ #2}
+\newcommand{\tylist}[1][\sigma]{{\color{ForestGreen}\mathtt{`list}}~ #1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% Terms %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommandx*\typingrule[3][1=t, 2=\sigma, 3=\Gamma]{#3 ~{\color{NavyBlue}\vdash}~ #1 ~{\color{NavyBlue}\colon} #2}
+
+\newcommandx*\term[2][1=\sigma, 2=\Gamma]{#2 ~{\color{NavyBlue}\vdash}~ #1}
+\newcommandx*\subst[2][1=\Gamma, 2=\Delta]{#2 ~{\color{NavyBlue}\vdash\hspace{-3pt}\varepsilon}~ #1}
+\newcommand{\idsubst}[1][\Gamma]{{\color{NavyBlue}\mathtt{id}}_{#1}}
+
+\DeclareMathOperator{\base}{{\color{ForestGreen}\mathtt{base}}}
+\DeclareMathOperator{\pop}{{\color{ForestGreen}\mathtt{pop!}}}
+\DeclareMathOperator{\step}{{\color{ForestGreen}\mathtt{step}}}
+\DeclareMathOperator{\ConEmpty}{{\color{ForestGreen}\varepsilon}}
+\newcommandx*\ConExtend[2][1=\Gamma, 2=\sigma]{#1~{\color{ForestGreen}\cdot}~#2}
+
+\newcommandx*\whneutral[2][1=\sigma, 2=\Gamma]{#2 ~{\color{NavyBlue}\vdash_{\mathit{whne}}}~ #1}
+\newcommandx*\whnormal[2][1=\sigma, 2=\Gamma]{#2 ~{\color{NavyBlue}\vdash_{\mathit{whnf}}}~ #1}
+\newcommandx*\neutral[2][1=\sigma, 2=\Gamma]{#2 ~{\color{NavyBlue}\vdash_{\mathit{ne}}}~ #1}
+\newcommandx*\normal[2][1=\sigma, 2=\Gamma]{#2 ~{\color{NavyBlue}\vdash_{\mathit{nf}}}~ #1}
+
+\newcommand{\weaken}[1][inc]{{\color{NavyBlue}\mathtt{wk}}_{\mathit{#1}}}
+\newcommand{\weakene}[1][inc]{{\color{NavyBlue}\mathtt{wk}\hspace{-2pt}\varepsilon}_{\mathit{#1}}}
+
+\DeclareMathOperator{\tecomp}{{\color{NavyBlue}\cdot}}
+\DeclareMathOperator{\tevar}{{\color{ForestGreen}\mathtt{`v}}}
+\DeclareMathOperator{\tepair}{~{\color{ForestGreen}\mathtt{`,}}~}
+\DeclareMathOperator{\telam}{{\color{ForestGreen}\mathtt{`}\lambda}}
+\newcommand{\telamclosure}[1][\rho]{{\color{ForestGreen}\mathtt{`}\lambda[}#1{\color{ForestGreen}]}}
+\DeclareMathOperator{\teapp}{{\color{ForestGreen}\mathtt{`\$}}}
+\DeclareMathOperator{\tett}{{\color{ForestGreen}\mathtt{`\langle\rangle}}}
+\DeclareMathOperator{\tepiun}{{\color{ForestGreen}\mathtt{`\hspace{-2pt}\piun}}}
+\DeclareMathOperator{\tepide}{{\color{ForestGreen}\mathtt{`\hspace{-2pt}\pide}}}
+\DeclareMathOperator{\temap}{{\color{ForestGreen}\mathtt{`map}}}
+\DeclareMathOperator{\teappend}{~{\color{ForestGreen}\mathtt{`\hspace{-3pt}+\hspace{-5pt}+}}~}
+\DeclareMathOperator{\tefold}{{\color{ForestGreen}\mathtt{`fold}}}
+\DeclareMathOperator{\tenil}{{\color{ForestGreen}\mathtt{`[]}}}
+\DeclareMathOperator{\tecons}{~{\color{ForestGreen}\mathtt{`:\hspace{-2pt}:}}~}
+\DeclareMathOperator{\telift}{{\color{ForestGreen}`\hspace{-3pt}\uparrow}}
+\newcommandx*\temappend[3][1=v_1, 2=n, 3=v_2]
+{\temap{\hspace{-2pt}\color{ForestGreen}\langle}#1{~\color{ForestGreen},~}#2{\color{ForestGreen}\rangle\hspace{-5pt}\teappend}#3}
+
+\DeclareMathOperator{\teinjun}{{\color{ForestGreen}`\hspace{-2pt}\injun}}
+\DeclareMathOperator{\teinjde}{{\color{ForestGreen}`\hspace{-2pt}\injde}}
+\DeclareMathOperator{\tesumelim}{{\color{ForestGreen}\mathtt{`\hspace{-2pt}+\hspace{-2pt}-elim}}}
+
+\DeclareMathOperator{\vappend}{{\color{NavyBlue}\NBE\hspace{-3pt}\mathtt{+\hspace{-5pt}+}}}
+\DeclareMathOperator{\vmap}{{\color{NavyBlue}\NBE\hspace{-2pt}\mathtt{map}}}
+\DeclareMathOperator{\vcomp}{{\color{NavyBlue}\NBE\hspace{-2pt}\circ}}
+\DeclareMathOperator{\vfold}{{\color{NavyBlue}\NBE\hspace{-3pt}\mathtt{fold}}}
+\DeclareMathOperator{\lookup}{~{\color{NavyBlue}\mathtt{!!}}~}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% Reductions %%%%%%%%%%%%%%%%%%%%%%%%
+
+\DeclareMathOperator{\rules}{\beta\delta\iota\eta\nu}
+
+\DeclareMathOperator{\betared}{{\color{NavyBlue}\leadsto_{\beta}}}
+\DeclareMathOperator{\betareds}{{\color{NavyBlue}\leadsto_{\beta}^*}}
+\DeclareMathOperator{\iotared}{{\color{NavyBlue}\leadsto_{\iota}}}
+\DeclareMathOperator{\nured}{{\color{NavyBlue}\leadsto_{\nu}}}
+\DeclareMathOperator{\etared}{{\color{NavyBlue}\leadsto_{\eta}}}
+\DeclareMathOperator{\etareds}{{\color{NavyBlue}\leadsto_{\eta}^*}}
+\DeclareMathOperator{\reduce}{{\color{NavyBlue}\leadsto_{\rules}}}
+\DeclareMathOperator{\reduces}{{\color{NavyBlue}\leadsto_{\rules}^*}}
+
+\DeclareMathOperator{\conv}{{\color{NavyBlue}\cong_{\rules{}}}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% Models %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\NBE}[0]{{\color{NavyBlue}\mathcal{M}}}
+\newcommand{\NBEL}[0]{{\color{NavyBlue}\mathcal{L}}}
+\newcommand{\NBEE}[0]{{\color{NavyBlue}\mathcal{M}\varepsilon}}
+
+\newcommand{\WHNF}[0]{{\color{NavyBlue}\NBE_{wh}}}
+\newcommand{\AWHNF}[0]{{\color{NavyBlue}\NBE^{\star}_{wh}}}
+\newcommand{\AWHNFL}[0]{{\color{NavyBlue}\NBEL^{\star}_{wh}}}
+\newcommand{\WHNFE}[0]{{\color{NavyBlue}\NBEE_{wh}}}
+
+\newcommandx*\whmodel[2][1=\sigma, 2=\Gamma]{{\color{NavyBlue}\WHNF}(#2 , #1)}
+\newcommandx*\gluer[3][1=\sigma, 2=\whmodel, 3=\Gamma]{{\color{NavyBlue}\langle} #3 ~{\color{NavyBlue},}~ #1 {\color{NavyBlue}\rangle\hspace{-4pt}\lefttorightarrow} #2}
+\newcommandx*\awhmodel[2][1=\sigma, 2=\Gamma]{{\color{NavyBlue}\AWHNF}(#2 , #1)}
+\newcommandx*\awhmodellist[3][1=\sigma, 2=\Vdash_{\sigma}, 3=\Gamma]{{\color{NavyBlue}\AWHNFL}(#3 , #1, #2)}
+\newcommand{\awhmodellistfun}[1][\sigma]{\lambda \Gamma \rightarrow \whmodel[{#1}]}
+
+\newcommandx*\model[2][1=\sigma, 2=\Gamma]{{\color{NavyBlue}\NBE}(#2 , #1)}
+\newcommandx*\modellist[3][1=\sigma, 2=\modellistfunabs, 3=\Gamma]{{\color{NavyBlue}\NBEL}(#3 , #1, #2)}
+\newcommand{\modellistfunabs}[1][\sigma]{\mathtt{M}_{#1}}
+\newcommand{\modellistfun}[1][\sigma]{\model[#1][.~]}
+
+\newcommandx*\whmodele[2][1=\Gamma, 2=\Delta]{{\color{NavyBlue}\WHNFE}(#2 , #1)}
+\newcommandx*\modele[2][1=\Gamma, 2=\Delta]{{\color{NavyBlue}\NBEE}(#2 , #1)}
+
+\newcommand{\idmodele}[1][\Gamma]{{\color{NavyBlue}\mathtt{id}}_{\NBEE ~ #1}}
+
+\newcommand{\reify}[1][\sigma]{{\color{NavyBlue}\uparrow\hspace{-1pt}}_{#1}}
+\newcommand{\listreify}[1][\sigma]{{\color{NavyBlue}\uparrow\hspace{-3pt}\uparrow\hspace{-1pt}}_{#1}}
+\newcommand{\reflect}[1][\sigma]{{\color{NavyBlue}\downarrow\hspace{-1pt}}_{#1}}
+\newcommand{\listreflect}[1][\sigma]{{\color{NavyBlue}\downarrow\hspace{-3pt}\downarrow\hspace{-1pt}}_{#1}}
+
+\DeclareMathOperator{\norm}{{\color{NavyBlue}norm}}
+\DeclareMathOperator{\termeval}{{\color{NavyBlue}eval}}
+
+%%%%%%%%%%%%%%%%%%%%% Logical Relation %%%%%%%%%%%%%%%%%%%%%%
+
+\newcommandx*\awhrelation[4][1=\sigma, 2=t, 3=T, 4=\Gamma]{\awhmodel[#1][#4]
+     ~{\color{NavyBlue}\ni}~ #2 ~{\color{NavyBlue}\lightning^{\star}_{wh}}~ #3}
+\newcommandx*\whrelation[3][1=\sigma, 2=T, 3=\Gamma]{{\color{NavyBlue}\lightning_{wh}}(#1)(#2)}
+\newcommand{\whrelationlist}[1][\sigma]{\Vdash_{{#1}}\hspace{-5pt}\lightning_{wh}}
+
+\newcommandx*\sound[4][1=\sigma, 2=t, 3=T, 4=\Gamma]{\model[#1][#4]
+     ~{\color{NavyBlue}\ni}~ #2 ~{\color{NavyBlue}\lightning}~ #3}
+\newcommandx*\soundlist[6][1=\mathit{xs}, 2=\mathit{XS}, 3=\Gamma, 4=\sigma, 5=\modellistfunabs, 6=\protect{\soundlistfunabs[.][.]}]
+{\modellist[#4][#5,#6][#3] ~{\color{NavyBlue}\ni}~ #1 ~{\color{NavyBlue}\lightning}~ #2}
+\newcommandx*\soundlistfunabs[3][1=t, 2=T, 3=\sigma]{\modellistfunabs[#3]~#1~\lightning~#2}
+
+\newcommandx*\sounde[4][1=\rho, 2=R, 3=\Gamma, 4=\Delta]{\modele[#3][#4]
+     ~{\color{NavyBlue}\ni}~ #1 ~{\color{NavyBlue}\lightning\hspace{-3pt}\lightning}~ #2}
+
+
+\newcommandx*\exteq[3][1=\sigma, 2=T, 3=U]{#2 ~{\color{NavyBlue}\equiv}_{#1}~ #3}
+\newcommandx*\exteqlist[3][1=\sigma, 2=T, 3=U]{#2 ~{\color{NavyBlue}\equiv}_{#1}^{{\color{NavyBlue}\mathtt{`list}}}~ #3}
+\newcommandx*\uniform[2][1=\sigma, 2=T]{{\color{NavyBlue}\mathtt{Uni}}_{#1}~ #2}
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%% Unicode characters %%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

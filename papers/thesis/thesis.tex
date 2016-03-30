@@ -1,0 +1,48 @@
+\documentclass{report}
+
+\usepackage{amstext,amsmath,amssymb,amsthm,mathabx,stmaryrd}
+\usepackage{xargs}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage[english]{babel}
+\usepackage[references]{agda}
+\usepackage{hyperref}
+\bibliographystyle{plain}
+\usepackage{mathpartir,fancyvrb,empheq}
+
+
+
+%\usepackage{fullpage}
+
+% This command increase the interline thus making the document comply
+% with university standards.
+\renewcommand{\baselinestretch}{1.5}
+
+% This command counters the fact that code blocks are usually overly
+% indented.
+\setlength\mathindent{0em}
+
+% We use `catchfilebetweentags` to capture code in .lagda files. This way
+% we avoid interleaving the .tex content and the code which also allows us
+% to cache the .tex generated from .lagda files for faster recompilation.
+\usepackage{catchfilebetweentags}
+
+% This mostly provides us with shortcuts for the common \Agda* commands.
+\include{type-scope-semantics/commands}
+\include{new-equations-neutrals/commands}
+
+\author{Guillaume ALLAIS}
+\begin{document}
+
+
+
+% This chapter is based on the paper `Type and Scope Preserving Semantics`
+% co-authored with James Chapman and Conor McBride.
+\include{type-scope-semantics}
+
+% This chapter is based on the paper `New equations for Neutral Terms`
+% co-authored with Pierre Boutillier and Conor McBride.
+\include{new-equations-neutrals}
+
+\bibliography{new-equations-neutrals,type-scope-semantics}
+
+\end{document}

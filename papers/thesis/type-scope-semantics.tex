@@ -1,0 +1,1135 @@
+
+\chapter{Type and Scope Preserving Semantics}
+
+\section*{Introduction}
+
+In order to implement an embedded Domain Specific Language (eDSL)~\cite{hudak1996building},
+a developer can opt for either a shallow or a deep
+embedding~\cite{svenningsson2013combining,gill2014domain}. In the shallow approach, she
+will use the host language's own types and term constructs to model the domain
+specific language's building blocks. This will allow her to rely on any and all
+of the host's libraries when writing programs in the eDSL. Should she decide
+to use a deep embedding, representing expressions directly as their abstract
+syntax tree will allow her to inspect, optimise, and compile terms as she sees
+fit. This ability to inspect the tree comes at the cost of having to reimplement
+basic notions such as renaming or substitution with the risk of introducing
+bugs. Trying to get the compiler to detect these bugs leads to a further
+distinction between different kinds of deep embeddings: she may either prove type
+and scope safety on paper and use an inductive \emph{type} to describe an \emph{untyped}
+syntax, follow Carette, Kiselyov, and Shan~\cite{carette2009finally} and rely on
+parametric polymorphism to guarantee the existence of an underlying type and scope
+safe term, or use an inductive \emph{family} to represent the term itself whilst
+enforcing these invariants in its indices.
+
+Goguen and McKinna's Candidates for Substitution~\cite{goguen1997candidates}
+begot work by McBride~\cite{mcbride2005type} in Epigram~\cite{mcbride2004view}
+and Benton, Hur, Kennedy and McBride~\cite{benton2012strongly} in Coq~\cite{Coq:manual}
+showing how to alleviate the programmer's burden when she opts for the strongly-typed
+approach based on inductive families. They both define a traversal generic enough to
+be instantiated to renaming first and then substitution. In Benton et al., the bulk
+of the work has to be repeated when defining Normalisation by Evaluation. Reasoning
+about these definitions is still mostly done in an ad-hoc manner: Coq's tactics
+do help them to discharge the four fusion lemmas involving renaming and substitution,
+but the same work has to be repeated when studying the evaluation function. They
+choose to prove the evaluation function correct by using propositional equality and
+assuming function extensionality rather than resorting to the traditional Partial
+Equivalence Relation approach we use.
+
+We build on these insights and define an abstract notion of \AR{Semantics}
+encompassing these two important operations as well as others Carette et al.
+could represent (e.g. measuring the size of a term) and even Normalisation
+by Evaluation~\cite{berger1991inverse}. By highlighting the common structure
+of all of these algorithms, we get the opportunity to not only implement
+them but also prove their properties generically.
+
+\paragraph{Outline} We shall start by defining the simple calculus we will use
+as a running example. We will then introduce a notion of environments as well
+as one well-known instance: the preorder of renamings. This will lead
+us to defining a generic notion of type and scope-preserving \AR{Semantics}
+together with a generic evaluation function. We will then showcase the
+ground covered by these \AR{Semantics}: from the syntactic ones corresponding
+to renaming and substitution to printing with names or some variations on Normalisation
+by Evaluation. Finally, we will demonstrate how, the definition of \AR{Semantics}
+being generic enough, we can prove fundamental lemmas about these evaluation
+functions: we characterise the semantics which are synchronisable and give an
+abstract treatment of composition yielding compaction and reuse of proofs
+compared to Benton et al.~\cite{benton2012strongly}
+
+\paragraph{Notations} This article is a literate Agda file typeset using the
+\LaTeX{} backend with as little post-processing as possible: we simply hide
+telescopes of implicit arguments as well as \APT{Set} levels and properly display (super / sub)-scripts
+as well as special operators such as \AF{>>=} or \AF{++}. As such, a lot of
+the notations have a meaning in Agda: \AIC{green} identifiers are data constructors,
+\ARF{pink} names refer to record fields, and \AF{blue} is characteristic of
+defined symbols. Underscores have a special status: when defining mixfix
+identifiers~\cite{danielsson2011parsing}, they mark positions where arguments
+may be inserted; our using the development version of Agda means that we have
+access to Haskell-style sections i.e. one may write \AF{\_+} \AN{5} for the partial
+application of \AF{\_+\_} corresponding to \AS{λ} \AB{x} \AS{→} \AB{x} \AF{+} \AN{5}
+or, to mention something that we will use later on, \AF{Renaming} \AF{⊨⟦\_⟧\_}
+for the partial application of \AF{\_⊨⟦\_⟧\_} to \AF{Renaming}.
+
+\paragraph{Formalisation} This whole development has been checked by Agda~\cite{norell2009dependently}
+which guarantees that all constructions are indeed well-typed, and all functions are
+total. Nonetheless, it should be noted that the generic model constructions and the
+various examples of \AR{Semantics} given here can be fully replicated in Haskell using
+type families, higher rank polymorphism and generalised algebraic data types to build
+singletons~\cite{eisenberg2013dependently} providing the user with the runtime descriptions
+of their types or their contexts' shapes. This yields, to the best of our knowledge, the
+first tagless and typeful implementation of Normalisation by Evaluation in Haskell. The
+subtleties of working with dependent types in Haskell~\cite{lindley2014hasochism} are
+outside the scope of this paper but we do provide a (commented) Haskell module containing
+all the translated definitions. It should be noted that Danvy, Keller and Puech have achieved
+a similar goal in OCaml~\cite{danvytagless} but their formalisation uses parametric higher
+order abstract syntax~\cite{chlipala2008parametric} which frees them from having to deal
+with variable binding, contexts and use models à la Kripke. However we consider these to be
+primordial: they can still guide the implementation of more complex type theories where,
+until now, being typeful is still out of reach. Type-level guarantees about scope preservation
+can help root out bugs related to fresh name generation, name capture or arithmetic on de
+Bruijn levels to recover de Bruijn indices.
+
+\section{The Calculus}
+
+We are going to define and study various semantics for a simply-typed λ-calculus
+with \AIC{`Bool} and \AIC{`Unit} as base types. This serves as a minimal example
+of a system with a sum type and a record type equipped with an η-rule.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{ty}
+
+In order to be able to talk about the types of the variables in scope, we
+need a notion of contexts. We choose to represent them as snoc lists of
+types; \AIC{ε} denotes the empty context and \AB{Γ} \AIC{∙} \AB{σ} the
+context \AB{Γ} extended with a fresh variable of type \AB{σ}. Variables
+are then positions in such a context represented as typed de Bruijn
+indices~\cite{de1972lambda}.
+
+\begin{minipage}[t]{0.5\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{context}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{var}
+\end{minipage}
+
+The syntax for this calculus is designed to guarantee that terms are
+well-scoped and well-typed by construction. This presentation due to
+Altenkirch and Reus~\cite{altenkirch1999monadic} relies heavily on
+Dybjer's inductive families~\cite{dybjer1991inductive}. Rather than
+having untyped pre-terms and a typing relation assigning a type to
+them, the typing rules are here enforced in the syntax: we can see for
+example that the \AIC{`var} constructor takes a typed de Bruijn index;
+that application (\AIC{\_`\$\_}) ensures that the domain of the function
+coincides with the type of its argument; that the body of a λ-abstraction
+(\AIC{`λ}) is defined in a context extended with a fresh variable whose
+type corresponds to the domain of the function; or that the two branches
+of a conditional (\AIC{`ifte}) need to have the same type.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{term}
+
+\section{A Generic Notion of Environment}
+
+All the semantics we are interested in defining associate to a term \AB{t}
+of type \AB{Γ} \AD{⊢} \AB{σ}, a value of type \AB{𝓜} \AB{Γ} \AB{σ} given
+an interpretation \AB{𝓔} \AB{Δ} {τ} for each one of its free variables
+\AB{τ} in \AB{Γ}. We call the collection of these interpretations an
+\AB{𝓔}-(evaluation) environment. We leave out \AB{𝓔} when it can easily
+be inferred from the context.
+
+The content of environments may vary wildly between different semantics:
+when defining renaming, the environments will carry variables whilst the
+ones used for normalisation by evaluation contain elements of the model.
+But their structure stays the same which prompts us to define the notion
+generically. Formally, this translates to \AB{𝓔}-environments being the
+pointwise lifting of the relation \AB{𝓔} between contexts and types to a
+relation between two contexts. Rather than using a datatype to represent
+such a lifting, we choose to use a function space. This decision is based
+on Jeffrey's observation that one can obtain associativity of append for
+free by using difference lists~\cite{jeffrey2011assoc}. In our case the
+interplay between various combinators (e.g. \AF{refl} and \AF{trans})
+defined later on is vastly simplified by this rather simple decision.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{environment}
+
+For a fixed context \AB{Δ} and relation \AB{𝓔}, these environments can
+be built step by step by noticing that the environment corresponding to
+an empty context is trivial and that one may extend an already existing
+environment provided a proof of the right type. In concrete cases, there
+will be no sensible way to infer \AB{𝓔} when using the second combinator
+hence our decision to make it possible to tell Agda which relation we are
+working with.
+
+\noindent\begin{minipage}[t]{0.25\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{empty-env}
+\end{minipage}
+\begin{minipage}[t]{0.75\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{cons-env}
+\end{minipage}
+
+\paragraph{The Preorder of Renamings}\label{preorder}
+A key instance of environments playing a predominant role in this paper
+is the notion of renaming. The reader may be accustomed to the more
+restrictive notion of context inclusions as described by Order Preserving
+Embeddings~\cite{altenkirch1995categorical}. Writing non-injective or
+non-order preserving renamings would take perverse effort given that we
+only implement generic interpretations. In practice, the only combinators
+we use do guarantee that all the renamings we generate are context inclusions.
+As a consequence, we will use the two expressions interchangeably from now
+on.
+
+A context inclusion \AB{Γ} \AF{⊆} \AB{Δ} is an environment pairing each
+variable of type \AB{σ} in \AB{Γ} to one of the same type in \AB{Δ}.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{inclusion}
+
+Context inclusions allow for the formulation of weakening principles
+explaining how to transport properties along inclusions. By a ``weakening
+principle'', we mean that if \AB{P} holds of \AB{Γ} and \AB{Γ} \AF{⊆} \AB{Δ}
+then \AB{P} holds for \AB{Δ} too.
+In the case of variables, weakening merely corresponds to applying the
+renaming function in order to obtain a new variable. The environments'
+case is also quite simple: being a pointwise lifting of a relation \AB{𝓔}
+between contexts and types, they enjoy weakening if \AB{𝓔} does.
+
+\noindent\begin{minipage}[t]{0.4\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{weak-var}
+\end{minipage}
+\begin{minipage}[t]{0.60\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{weak-env}
+\end{minipage}
+
+These simple observations allow us to prove that context inclusions
+form a preorder which, in turn, lets us provide the user with the
+constructors Altenkirch, Hofmann and Streicher's ``Category of
+Weakenings"~\cite{altenkirch1995categorical} is based on.
+
+\noindent\begin{minipage}[t]{0.3\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{inclusion-refl}
+\end{minipage}
+\begin{minipage}[t]{0.7\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{inclusion-trans}
+\end{minipage}
+
+\noindent\begin{minipage}[t]{0.5\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{inclusion-step}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{inclusion-pop}
+\end{minipage}
+
+Now that we are equipped with the notion of inclusion, we have all
+the pieces necessary to describe the Kripke structure of our models
+of the simply-typed λ-calculus.
+
+\section{Semantics and Generic Evaluation Functions}
+
+The upcoming sections are dedicated to demonstrating that renaming,
+substitution, printing with names, and normalisation by evaluation all
+share the same structure. We start by abstracting away a notion of
+\AR{Semantics} encompassing all these constructions. This approach
+will make it possible for us to implement a generic traversal
+parametrised by such a \AR{Semantics} once and for all and to focus
+on the interesting model constructions instead of repeating the same
+pattern over and over again.
+
+A \AR{Semantics} is indexed by two relations \AB{𝓔} and \AB{𝓜}
+describing respectively the values in the environment and the ones
+in the model. In cases such as substitution or normalisation by
+evaluation, \AB{𝓔} and \AB{𝓜} will happen to coincide but keeping
+these two relations distinct is precisely what makes it possible
+to go beyond these and also model renaming or printing with names.
+The record packs the properties of these relations necessary to
+define the evaluation function.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{semantics-record}
+
+The first two methods of a \AR{Semantics} are dealing with environment
+values. These values need to come with a notion of weakening (\ARF{wk})
+so that the traversal may introduce fresh variables when going under a
+binder and keep the environment well-scoped. We also need to be able to
+manufacture environment values given a variable in scope (\ARF{embed})
+in order to be able to craft a diagonal environment to evaluate an open
+term.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{semantics-wkemb}
+
+The structure of the model is quite constrained: each constructor
+in the language needs a semantic counterpart. We start with the
+two most interesting cases: \ARF{⟦var⟧} and \ARF{⟦λ⟧}. The variable
+case corresponds to the intuition that the environment attaches
+interpretations to the variables in scope: it guarantees that one
+can turn a value from the environment into a model one. The traversal
+will therefore be able to, when hitting a variable, lookup the
+corresponding value in the environment and return it.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{semantics-var}
+
+The semantic λ-abstraction is notable for two reasons: first, following
+Mitchell and Moggi~\cite{mitchell1991kripke}, its structure is typical
+of models à la Kripke allowing arbitrary extensions of the context; and
+second, instead of being a function in the host language taking values
+in the model as arguments, it is a function that takes \emph{environment}
+values. Indeed, the body of a λ-abstraction exposes one extra free variable
+thus prompting us to extend the evaluation environment with an additional
+value. This slight variation in the type of semantic λ-abstraction
+guarantees that such an argument will be provided to us.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{semantics-kripke}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{semantics-lam}
+
+The remaining fields' types are a direct translation of the types
+of the constructor they correspond to where the type constructor
+characterising typing derivations (\AD{\_⊢\_}) has been replaced
+with the one corresponding to model values (\AB{𝓜}).
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{semantics-rest}
+
+The fundamental lemma of semantics is then proven in a module indexed by
+a \AF{Semantics}, which would correspond to using a Section in Coq. It is
+defined by structural recursion on the term. Each constructor is replaced
+by its semantic counterpart in order to combine the induction hypotheses
+for its subterms. In the λ-abstraction case, the type of \ARF{⟦λ⟧} guarantees,
+in a fashion reminiscent of Normalisation by Evaluation, that the semantic
+argument can be stored in the environment which will have been weakened
+beforehand.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{evaluation-module}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{evaluation}
+
+
+We introduce \AF{\_⊨⟦\_⟧\_} as an alternative name for the fundamental
+lemma and \AF{\_⊨eval\_} for the special case where we use \ARF{embed}
+to generate a diagonal environment of type \AB{Γ} \AF{[} \AB{𝓔} \AF{]}
+\AB{Γ}. We open the module \AM{Eval} unapplied thus discharging (λ-lifting)
+its members over the \AR{Semantics} parameter. This means that a partial
+application of \AF{\_⊨⟦\_⟧\_} will correspond to the specialisation of the
+fundamental lemma to a given semantics. \AB{𝓢} \AF{⊨⟦} \AB{t} \AF{⟧} \AB{ρ}
+is meant to convey the idea that the semantics \AB{𝓢} is used to evaluate
+the term \AB{t} in the environment \AB{ρ}. Similarly, \AB{𝓢} \AF{⊨eval}
+\AB{t} is meant to denote the evaluation of the term \AB{t} in the semantics
+\AB{𝓢} (using a diagonal environment).
+
+\noindent\begin{minipage}[t]{0.55\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{evaluation-alias}
+\end{minipage}
+\begin{minipage}[t]{0.45\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{evaluation-dummy}
+\end{minipage}
+
+The diagonal environment generated using \ARF{embed} when defining the
+\AF{\_⊨eval\_} function lets us kickstart the evaluation of arbitrary
+\emph{open} terms. In the case of printing with names, this corresponds to
+picking a naming scheme for free variables whilst in the usual model
+construction used to perform normalisation by evaluation, it corresponds
+to η-expanding the variables.
+
+\section{Syntax is the Identity Semantics}
+
+As we have explained earlier, this work has been directly influenced by
+McBride's manuscript~\cite{mcbride2005type}. It seems appropriate
+to start our exploration of \AR{Semantics} with the two operations he
+implements as a single traversal. We call these operations syntactic
+because the values in the model are actual terms and almost all term
+constructors are kept as their own semantic counterpart. As observed by
+McBride, it is enough to provide three operations describing the properties
+of the values in the environment to get a full-blown \AR{Semantics}. This
+fact is witnessed by our simple \AR{Syntactic} record type together with
+the \AF{syntactic} function turning its inhabitants into associated
+\AR{Semantics}.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{syntactic-record}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{syntactic}
+
+The shape of \ARF{⟦λ⟧} or \ARF{⟦⟨⟩⟧} should not trick the reader
+into thinking that this definition performs some sort of η-expansion:
+\AF{lemma} indeed only ever uses one of these when the evaluated term's
+head constructor is already respectively a \AIC{`λ} or a \AIC{`⟨⟩}.
+It is therefore absolutely possible to define renaming or substitution
+using this approach. We can now port McBride's definitions to our
+framework.
+
+\paragraph{Functoriality, also known as Renaming}
+Our first example of a \AR{Syntactic} operation works with variables as
+environment values. As a consequence, embedding is trivial; we have already
+defined weakening earlier (see Section \ref{preorder}) and we can turn
+a variable into a term by using the \AIC{`var} constructor.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{syntactic-renaming}
+
+We obtain a rather involved definition of the identity of type \AB{Γ}
+\AD{⊢} \AB{σ} \AS{→} \AB{Γ} \AD{⊢} \AB{σ} as \AF{Renaming} \AF{⊨eval\_}.
+But this construction is not at all useless: indeed, the more general
+\AF{Renaming} \AF{⊨⟦\_⟧\_} function has type \AB{Γ} \AD{⊢} \AB{σ} \AS{→}
+\AB{Γ} \AF{⊆} \AB{Δ} \AS{→} \AB{Δ} \AD{⊢} \AB{σ} which turns out to be
+precisely the notion of weakening for terms we need once its arguments
+have been flipped.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{weak-term}
+
+\paragraph{Simultaneous Substitution}
+Our second example of a semantics is another spin on the syntactic model:
+the environment values are now terms. We can embed variables into environment
+values by using the \AIC{`var} constructor and we inherit weakening for terms
+from the previous example.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{syntactic-substitution}
+
+Because the diagonal environment used by \AF{Substitution} \AF{⊨eval\_}
+is obtained by \ARF{embed}ding membership proofs into terms using the
+\AIC{`var} constructor, we get yet another definition of the identity
+function on terms. The semantic function \AF{Substitution} \AF{⊨⟦\_⟧\_}
+is once again more interesting: it is an implementation of simultaneous
+substitution.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{subst-term}
+
+\section{Printing with Names}
+\label{prettyprint}
+
+Before considering the various model constructions involved in defining
+normalisation functions deciding different equational theories, let us
+make a detour to a perhaps slightly more surprising example of a
+\AF{Semantics}: printing with names. A user-facing project would naturally
+avoid directly building a \AD{String} and rather construct an inhabitant of
+a more sophisticated datatype in order to generate a prettier output~\cite{hughes1995design,wadler2003prettier}.
+But we stick to the simpler setup as pretty printing is not our focus here.
+
+
+This example is quite interesting for two reasons. Firstly, the distinction
+between the type of values in the environment and the ones in the model is
+once more instrumental in giving the procedure a precise type guiding our
+implementation. Indeed, the environment carries \emph{names} for the variables
+currently in scope whilst the inhabitants of the model are \emph{computations}
+threading a stream to be used as a source of fresh names every time a new variable
+is introduced by a λ-abstraction. If the values in the environment were allowed
+to be computations too, we would not root out all faulty implementations: the
+typechecker would for instance quite happily accept a program picking a new
+name every time a variable appears in the term.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{name-record}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{printer-record}
+
+Secondly, the fact that values in the model are computations and that this
+poses no problem whatsoever in this framework means it is appropriate for
+handling languages with effects~\cite{moggi1991notions}, or effectful
+semantics e.g. logging the various function calls. Here is the full definition
+of the printer assuming the existence of \AF{formatλ}, \AF{format\$}, and
+\AF{formatIf} picking a way to display these constructors.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{printer}
+
+Our definition of \ARF{embed} erases the membership proofs to
+recover the corresponding de Bruijn indices which are then turned
+into strings using \AF{show}, defined in Agda's standard library.
+This means that, using \AF{Printing} \AF{⊨eval\_}, the free
+variables will be displayed as numbers whilst the bound ones will
+be given names taken from the name supply. This is quite clearly
+a rather crude name generation strategy and our approach to naming
+would naturally be more sophisticated in a user-facing language.
+We can for instance imagine that the binders arising from a user
+input would carry naming hints based on the name the user picked
+and that binders manufactured by the machine would be following
+a type-based scheme: functions would be \AB{f}s or \AB{g}s, natural
+numbers \AB{m}s, \AB{n}s, etc.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{printer-debruijn}
+
+We still need to provide a \AD{Stream} of fresh
+names to this computation in order to run it. Given that \ARF{embed} erases
+free variables to numbers, we'd rather avoid using numbers if we want to
+avoid capture. We define \AF{names} (not shown here) as the stream
+cycling through the letters of the alphabet and keeping the identifiers
+unique by appending a natural number incremented by 1 each time we are
+back to the beginning of the cycle.
+
+Before defining \AF{print}, we introduce \AF{nameContext} (implementation
+omitted here) which is a function delivering a stateful computation using
+the provided stream of fresh names to generate an environment of names
+for a given context. This means that we are now able to define a printing
+function using names rather than numbers for the variables appearing free
+in a term.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{name-context}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{print}
+
+We can observe \AF{print}'s behaviour by writing a test.
+If we state this test as a propositional equality and prove it using \AIC{refl},
+the typechecker will have to check that both expressions indeed compute
+to the same value. Here we display a term corresponding to the η-expansion
+of the first free variable in the context \AIC{ε} \AIC{∙} (\AB{σ} \AIC{`→} \AB{τ}).
+As we can see, it receives the name \AStr{"a"} whilst the binder introduced by
+the η-expansion is called \AStr{"b"}.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{pretty-test}
+
+\section{Normalisation by Evaluation}
+
+Normalisation by Evaluation is a technique exploiting the computational
+power of a host language in order to normalise expressions of a deeply
+embedded one. The process is based on a model construction describing a
+family of types \AB{𝓜} indexed by a context \AB{Γ} and a type \AB{σ}. Two
+procedures are then defined: the first one (\AF{eval}) constructs an element
+of \AB{𝓜} \AB{Γ} \AB{σ} provided a well-typed term of the corresponding
+\AB{Γ} \AD{⊢} \AB{σ} type whilst the second one (\AF{reify}) extracts, in
+a type-directed manner, normal forms \AB{Γ} \AD{⊢^{nf}} \AB{σ} from elements
+of the model \AB{𝓜} \AB{Γ} \AB{σ}. Normalisation is achieved by composing
+the two procedures. The definition of this \AF{eval} function is a natural
+candidate for our \AF{Semantics} framework. Normalisation is always defined
+for a given equational theory so we are going to start by recalling the
+various rules a theory may satisfy.
+
+Thanks to \AF{Renaming} and \AF{Substitution} respectively, we can formally
+define η-expansion and β-reduction. The η-rules are saying that for some types,
+terms have a canonical form: functions will all be λ-headed whilst record will
+be a collection of fields which translates here to all the elements of the
+\AIC{`Unit} type being equal to \AIC{`⟨⟩}.
+
+\noindent\begin{minipage}[t]{0.50\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{eta}
+\end{minipage}
+\begin{minipage}[t]{0.50\textwidth}
+\begin{mathpar}
+\inferrule{
+  }{\text{\AB{t} ↝ \AF{eta} \AB{t}}
+  }{η_1}
+\and \inferrule{\text{\AB{t} \AgdaSymbol{:} \AB{Γ} \AD{⊢} \AIC{`Unit}}
+  }{\text{\AB{t} ↝ \AIC{`⟨⟩}}
+  }{η_2}
+\end{mathpar}
+\end{minipage}
+
+\noindent\begin{minipage}[t]{0.55\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{beta-red}
+\end{minipage}
+\begin{minipage}[t]{0.45\textwidth}
+\begin{mathpar}
+\inferrule{
+  }{\text{(\AIC{`λ} \AB{t}) \AIC{`\$} \AB{u} ↝ \AB{t} \AF{⟨} \AB{u} \AF{/var₀⟩}}
+  }{β}
+\end{mathpar}
+\end{minipage}
+
+The β-rule is the main driving force when it comes to actually computing
+but the presence of an inductive data type (\AIC{`Bool}) and its eliminator
+(\AIC{`ifte}) means we have an extra opportunity for redexes: whenever the
+boolean the eliminator is branching over is in canonical form, we may apply
+a ι-rule. Finally, the ξ-rule is the one making it possible to reduce under
+λ-abstractions which is the distinction between weak-head normalisation and
+strong normalisation.
+\begin{mathpar}
+\inferrule{
+  }{\text{\AIC{`ifte} \AIC{`tt} \AB{l} \AB{r} ↝ \AB{l}}
+  }{ι_1}
+\and
+\inferrule{
+  }{\text{\AIC{`ifte} \AIC{`ff} \AB{l} \AB{r} ↝ \AB{r}}
+  }{ι_2}
+\and
+\inferrule{\text{\AB{t} ↝ \AB{u}}
+  }{\text{\AIC{`λ} \AB{t} ↝ \AIC{`λ} \AB{u}}
+  }{ξ}
+\end{mathpar}
+
+Now that we have recalled all these rules, we can talk precisely
+about the sort of equational theory decided by the model construction
+we choose to perform. We start with the usual definition of Normalisation
+by Evaluation which goes under λs and produces η-long βι-short normal
+forms.
+
+\subsection{Normalisation by Evaluation for βιξη}
+\label{nbe}
+
+In the case of Normalisation by Evaluation, the elements of the model
+and the ones carried by the environment will both have the same type:
+\AF{\_⊨^{βιξη}\_}, defined by induction on its second argument. In
+order to formally describe this construction, we need to have a precise
+notion of normal forms. Indeed if the η-rules guarantee that we can
+represent functions (respectively inhabitants of \AIC{`Unit}) in the
+source language as function spaces (respectively \AR{⊤}) in Agda, there
+are no such rules for \AIC{`Bool}ean values which will be represented
+as normal forms of the right type i.e. as either \AIC{`tt}, \AIC{`ff}
+or a neutral expression.
+
+These normal forms can be formally described by two mutually defined
+inductive families: \AD{\_⊢[\_]^{ne}\_} is the type of stuck terms made
+up of a variable to which a spine of eliminators in normal forms is
+applied; and \AD{\_⊢[\_]^{nf}\_} describes the normal forms. These
+families are parametrised by a predicate \AB{R} characterising the
+types at which the user is allowed to turn a neutral expression into a
+normal form as demonstrated by the constructor \AIC{`embed}'s first argument.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{neutral}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{normal}
+
+Once more, context inclusions induce the expected notions of weakening \AF{wk^{ne}}
+and \AF{wk^{nf}}. We omit their purely structural implementation here and would
+thoroughly enjoy doing so in the source file too: our constructions so far have
+been syntax-directed and could hopefully be leveraged by a generic account of syntaxes
+with binding.
+
+We now come to the definition of the model. We introduce the predicate
+\AF{R^{βιξη}} characterising the types for which we may turn a neutral
+expression into a normal form. It is equivalent to the unit type \AR{⊤}
+for \AIC{`Bool} and to the empty type \AD{⊥} otherwise. This effectively
+guarantees that we use the η-rules eagerly: all inhabitants of
+\AB{Γ} \AF{⊢[} \AF{R^{βιξη}} \AF{]^{nf}} \AIC{`Unit} and
+\AB{Γ} \AF{⊢[} \AF{R^{βιξη}} \AF{]^{nf}} (\AB{σ} \AIC{`→} \AB{τ}) are
+equal to \AIC{`⟨⟩} and a \AIC{`λ}-headed term respectively.
+
+The model construction then follows the usual pattern pioneered by
+Berger~\cite{berger1993program} and formally analysed and thoroughly
+explained by Catarina Coquand~\cite{coquand2002formalised} in the case
+of a simply-typed lambda calculus with explicit substitutions. We proceed by
+induction on the type and make sure that η-expansion is applied eagerly: all
+inhabitants of \AB{Γ} \AF{⊨^{βιξη}} \AIC{`Unit} are indeed equal and all elements
+of \AB{Γ} \AF{⊨^{βιξη}} (\AB{σ} \AIC{`→} \AB{τ}) are functions in Agda.
+
+\begin{minipage}[t]{0.3\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{rel-betaiotaxieta}
+\end{minipage}
+\begin{minipage}[t]{0.7\textwidth}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sem-betaiotaxieta}
+\end{minipage}
+
+
+Normal forms may be weakened, and context inclusions may be composed hence
+the rather simple definition of weakening for inhabitants of the model.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{weak-betaiotaxieta}
+
+The semantic counterpart of application combines two elements of the model:
+a functional part of type \AB{Γ} \AF{⊨^{βιξη}} \AS{(}\AB{σ} \AIC{`→} \AB{τ}\AS{)}
+and its argument of type \AB{Γ} \AF{⊨^{βιξη}} \AB{σ} which can be fed to the
+functional given a proof that \AB{Γ} \AF{⊆} \AB{Γ}. But we already have
+proven that \AF{\_⊆\_} is a preorder (see Section ~\ref{preorder}) so this
+is not at all an issue.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{apply-betaiotaxieta}
+
+Conditional Branching on the other hand is a bit more subtle: because the boolean
+value \AIC{`ifte} is branching over may be a neutral term, we are forced to define
+the reflection and reification mechanisms first. These functions, also known as
+unquote and quote respectively, are showing the interplay between neutral terms,
+model values and normal forms. \AF{reflect^{βιξη}} performs a form of semantical
+η-expansion: all stuck \AIC{`Unit} terms have the same image and all stuck functions
+are turned into functions in the host language.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{var0-betaiotaxieta}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{reflect-betaiotaxieta}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{reify-betaiotaxieta}
+
+The semantic counterpart of \AIC{`ifte} can then be defined: if the boolean
+is a value, the appropriate branch is picked; if it is stuck the whole expression
+is reflected in the model.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{ifte-betaiotaxieta}
+
+The \AF{Semantics} corresponding to Normalisation by Evaluation for βιξη-rules
+uses \AF{\_⊨^{βιξη}\_} for values in the environment as well as the ones in the
+model. The semantic counterpart of a λ-abstraction is simply the identity: the
+structure of the functional case in the definition of the model matches precisely
+the shape expected in a \AF{Semantics}. Because the environment carries model values,
+the variable case is trivial.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{normalise-betaiotaxieta}
+
+The diagonal environment built up in \AF{Normalise^{βιξη}} \AF{⊨eval\_}
+consists of η-expanded variables. Normalisation is obtained by reifying
+the result of evaluation.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{norm-betaiotaxieta}
+
+\subsection{Normalisation by Evaluation for βιξ}
+
+As we have just seen, the traditional typed model construction leads to a
+normalisation procedure outputting βι-normal η-long terms. However evaluation
+strategies implemented in actual proof systems tend to avoid applying η-rules
+as much as possible: unsurprisingly, it is a rather bad idea to η-expand proof
+terms which are already large when typechecking complex developments. Garillot
+and colleagues~\cite{garillot2009packaging} report that common mathematical
+structures packaged in records can lead to terms of such a size that theorem
+proving becomes impractical.
+
+In these systems, normal forms are neither η-long nor η-short: the η-rule is
+actually never considered except when comparing two terms for equality, one of
+which is neutral whilst the other is constructor-headed. Instead of declaring
+them distinct, the algorithm will perform one step of η-expansion on the
+neutral term and compare their subterms structurally. The conversion test
+will only fail when confronted with two neutral terms with distinct head
+variables or two normal forms with different head constructors.
+
+To reproduce this behaviour, the normalisation procedure needs to be amended.
+It is possible to alter the model definition described earlier so that it
+avoids unnecessary η-expansions. We proceed by enriching the traditional
+model with extra syntactical artefacts in a manner reminiscent of Coquand
+and Dybjer's approach to defining a Normalisation by Evaluation procedure
+for the SK combinator calculus~\cite{CoqDybSK}. Their resorting to glueing
+terms to elements of the model was dictated by the sheer impossibily to write
+a sensible reification procedure but, in hindsight, it provides us with a
+powerful technique to build models internalizing alternative equational
+theories. This leads us to mutually defining the model (\AF{\_⊨^{βιξ}\_})
+together with the \emph{acting} model (\AF{\_⊨^{βιξ⋆}\_}):
+
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sem-betaiotaxi}
+
+These mutual definitions allow us to make a careful distinction between values
+arising from (non expanded) stuck terms and the ones wich are constructor headed
+and have a computational behaviour associated to them. The values in the acting
+model are storing these behaviours be it either actual proofs of \AF{⊤}, actual
+\AF{Bool}eans or actual Agda functions depending on the type of the term. It is
+important to note that the functions in the acting model have the model as both
+domain and codomain: there is no reason to exclude the fact that both the argument
+or the body may or may not be stuck.
+
+Weakening for these structures is rather straightforward
+albeit slightly more complex than for the usual definition of Normalisation
+by Evaluation seen in Section ~\ref{nbe}.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{weak-betaiotaxi}
+
+What used to be called reflection in the previous model is now trivial:
+stuck terms are indeed perfectly valid model values. Reification becomes
+quite straightforward too because no η-expansion is needed. When facing
+a stuck term, we simply embed it in the set of normal forms. Even though
+\AF{reify^{βιξ⋆}} may look like it is performing some η-expansions, it
+is not the case: all the values in the acting model are notionally obtained
+from constructor-headed terms.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{reflect-betaiotaxi}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{reify-betaiotaxi}
+
+Semantic application is slightly more interesting: we have to dispatch
+depending on whether the function is a stuck term or not. In case it is,
+we can reify its argument and grow the spine of the stuck term. Otherwise
+we have an Agda function ready to be applied. We proceed similarly for
+the definition of the semantical ``if then else''.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{apply-betaiotaxi}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{ifte-betaiotaxi}
+
+Finally, we have all the necessary components to show that evaluating
+the term whilst not η-expanding all stuck terms is a perfectly valid
+\AR{Semantics}. As usual, normalisation is defined by composing
+reification and evaluation on the diagonal environment.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{normalise-betaiotaxi}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{norm-betaiotaxi}
+
+\subsection{Normalisation by Evaluation for βι}
+
+The decision to lazily apply the η-rule can be pushed even further: one may
+forgo using the ξ-rule too and simply perform weak-head normalisation. This
+leads to pursuing the computation only when absolutely necessary e.g.
+when two terms compared for equality have matching head constructors
+and one needs to inspect these constructors' arguments to conclude. For
+that purpose, we introduce an inductive family describing terms in weak-head
+normal forms. Naturally, it is possible to define the corresponding weakenings
+\AF{wk^{whne}} and \AF{wk^{whnf}} as well as erasure functions \AF{erase^{whnf}}
+and \AF{erase^{whne}} with codomain \AD{\_⊢\_} (we omit their simple definitions here).
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{whneutral}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{whnormal}
+
+The model construction is quite similar to the previous one except
+that source terms are now stored in the model too. This means that
+from an element of the model, one can pick either the reduced version
+of the original term (i.e. a stuck term or the term's computational
+content) or the original term itself. We exploit this ability most
+notably at reification time where once we have obtained either a
+head constructor (respectively a head variable), none of the subterms
+need to be evaluated.
+
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sem-betaiota}
+
+Weakening, reflection, and reification can all be defined rather
+straightforwardly based on the template provided by the previous
+section. The application and conditional branching rules are more
+interesting: one important difference with respect to the previous
+subsection is that we do not grow the spine of a stuck term using
+reified versions of its arguments but rather the corresponding
+\emph{source} term thus staying true to the idea that we only head
+reduce enough to expose either a constructor or a variable.
+
+We can finally put together all of these semantic counterpart to
+obtain a \AR{Semantics} corresponding to weak-head normalisation.
+We omit the now self-evident definition of \AF{norm^{βι}} as the
+composition of evaluation and reification.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{normalise-betaiotaxi}
+
+
+\section{Proving Properties of Semantics}
+\label{properties}
+
+Thanks to the introduction of \AF{Semantics}, we have already saved
+quite a bit of work by not reimplementing the same traversals over
+and over again. But this disciplined approach to building models and
+defining the associated evaluation functions can also help us refactor
+the process of proving some properties of these semantics.
+
+Instead of using proof scripts as Benton et al.~\cite{benton2012strongly}
+do, we describe abstractly the constraints the logical relations~\cite{reynolds1983types}
+defined on model (and environment) values have to respect for us to be
+able to conclude that the evaluation of a term in related environments
+produces related outputs. This gives us a generic proof framework to
+state and prove, in one go, properties about all of these semantics.
+
+Our first example of such a framework will stay simple on purpose.
+However this does not entail that it is a meaningless exercise: the
+result proven here will actually be useful in the following subsections
+when considering more complex properties.
+
+\subsection{The Synchronisation Relation}
+
+This first example is basically describing the relational interpretation
+of the terms. It should give the reader a good idea of the structure of
+this type of setup before we move on to a more complex one. The types
+involved might look a bit scary because of the level of generality that
+we adopt but the idea is rather simple: two \AR{Semantics} are said to
+be \emph{synchronisable} if, when evaluating a term in related environments,
+they output related values. The bulk of the work is to make this intuition
+formal.
+
+The evidence that two \AR{Semantics} are \AR{Synchronisable} is
+packaged in a record. The record is indexed by the two semantics
+as well as two relations. The first relation (\AB{𝓔^R})
+characterises the elements of the (respective) environment types
+which are to be considered synchronised, and the second one (\AB{𝓜^R})
+describes what synchronisation means in the model. We can lift
+\AB{𝓔^R} in a pointwise manner to talk about entire environments
+using the \AF{`∀[\_,\_]} predicate transformer omitted here.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-record}
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-sync}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-kripke}
+
+The record's fields are describing the structure these relations
+need to have. \ARF{𝓔^R‿wk} states that two synchronised environments
+can be weakened whilst staying synchronised.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-env}
+
+We then have the relational counterparts of the term constructors.
+To lighten the presentation, we will focus on the most interesting
+ones and give only one example quite characteristic of the remaining
+ones. Our first interesting case is the relational counterpart of
+\AIC{`var}: it states that given two synchronised environments, we
+indeed get synchronised values in the model by applying \ARF{⟦var⟧}
+to the looked up values.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-var}
+
+The second, and probably most interesting case, is the relational counterpart
+to the \ARF{⟦λ⟧} combinator. The ability to evaluate the body of a \AIC{`λ} in
+weakened environments, each extended by related values, and deliver synchronised
+values is enough to guarantee that evaluating the lambdas in the original
+environments will produce synchronised values.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-lam}
+
+All the remaining cases are similar. We show here the relational
+counterpart of the application constructor: it states that given
+two induction hypotheses (and the knowledge that the two environment
+used are synchronised), one can combine them to obtain a proof
+about the evaluation of an application-headed term.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-app}
+
+For this specification to be useful, we need to verify that we can indeed
+benefit from its introduction. This is witnessed by two facts. First, our
+ability to prove a fundamental lemma stating that given relations satisfying
+this specification, the evaluation of a term in related environments yields
+related values; second, our ability to find with various instances of such
+synchronised semantics. Let us start with the fundamental lemma.
+
+\paragraph{Fundamental Lemma of Synchronisable Semantics}
+The fundamental lemma is indeed provable. We introduce a \AM{Synchronised}
+module parametrised by a record packing the evidence that two semantics are
+\AR{Synchronisable}. This allows us to bring all of the corresponding relational
+counterpart of term constructors into scope by \AK{open}ing the record. The
+traversal then uses them to combine the induction hypotheses arising structurally.
+We use \AF{\_∙^R\_} as the counterpart of \AF{\_`∙\_} for relations on environments.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-cons}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{synced-record}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-lemma}
+
+\paragraph{Examples of Synchronisable Semantics}
+
+Our first example of two synchronisable semantics is proving the
+fact that \AF{Renaming} and \AF{Substitution} have precisely the
+same behaviour whenever the environment we use for \AF{Substitution}
+is only made up of variables. The (mundane) proofs which mostly
+consist of using the congruence of propositional equality are
+left out.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-rensub}
+
+We show with the lemma \AF{RenamingIsASubstitution} how the result
+we meant to prove is derived directly from the fundamental lemma of
+\AR{Synchronisable} semantics:
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-renissub}
+
+Another example of a synchronisable semantics is Normalisation by Evaluation
+which can be synchronised with itself. This may appear like mindless symbol
+pushing but it is actually crucial to prove such a theorem: we can only
+define a Partial Equivalence Relation~\cite{mitchell1996foundations} (PER)
+on the model used to implement Normalisation by Evaluation. The proofs of
+the more complex properties of the procedure will rely heavily on the fact
+that the exotic elements that may exist in the host language are actually
+never produced by the evaluation function run on a term as long as all the
+elements of the environment used were, themselves, not exotic i.e. equal to
+themselves according to the PER.
+
+We start with the definition of the PER for the model. It is constructed
+by induction on the type and ensures that terms which behave the same
+extensionally are declared equal. Two values of type \AIC{`Unit} are
+always trivially equal;  values of type \AIC{`Bool} are normal forms
+and are declared equal when they are effectively syntactically the same;
+finally functions are equal whenever given equal inputs they yield equal
+outputs.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{eqrel}
+
+It is indeed a PER as witnessed by the (omitted here) \AF{symEQREL} and
+\AF{transEQREL} functions and it respects weakening as \AF{wk^{EQREL}} shows.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{eqrel-sym}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{eqrel-trans}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{eqrel-weak}
+
+The interplay of reflect and reify with this notion of equality has
+to be described in one go because of their being mutually defined.
+It confirms our claim that \AF{EQREL} is indeed an appropriate notion
+of semantic equality: values related by \AF{EQREL} are reified to
+propositionally equal normal forms whilst propositionally equal neutral
+terms are reflected to values related by \AF{EQREL}.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{eqrel-reify-reflect}
+
+And that's enough to prove that evaluating a term in two
+environments related in a pointwise manner by \AF{EQREL}
+yields two semantic objects themselves related by \AF{EQREL}.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{sync-normalise}
+
+We omit the details of the easy proof but still recall the type
+of the corollary of the fundamental lemma one obtains in this
+case:
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{refl-normalise}
+
+We can now move on to the more complex example of a proof
+framework built generically over our notion of \AF{Semantics}
+
+\subsection{Fusions of Evaluations}
+
+When studying the meta-theory of a calculus, one systematically
+needs to prove fusion lemmas for various semantics. For instance,
+Benton et al.~\cite{benton2012strongly} prove six such lemmas
+relating renaming, substitution and a typeful semantics embedding
+their calculus into Coq. This observation naturally led us to
+defining a fusion framework describing how to relate three semantics:
+the pair we want to run sequentially and the third one they correspond
+to. The fundamental lemma we prove can then be instantiated six times
+to derive the corresponding corollaries.
+
+The evidence that \AB{𝓢^A}, \AB{𝓢^B} and \AB{𝓢^C} are such
+that \AB{𝓢^A} followed by \AB{𝓢^B} can be said to be equivalent
+to \AB{𝓢^C} (e.g. think \AF{Substitution} followed by \AF{Renaming}
+can be reduced to \AF{Substitution}) is packed in a record
+\AR{Fusable} indexed by the three semantics but also three
+relations. The first one (\AB{𝓔^R_{BC}}) states what it means
+for two environment values of \AB{𝓢^B} and \AB{𝓢^C} respectively
+to be related. The second one (\AB{𝓔^R}) characterises the triples
+of environments (one for each one of the semantics) which are
+compatible. Finally, the last one (\AB{𝓜^R}) relates values
+in \AB{𝓢^B} and \AB{𝓢^C}'s respective models.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusable-record}
+
+Similarly to the previous section, most of the fields of this
+record describe what structure these relations need to have.
+However, we start with something slightly different: given that
+we are planing to run the \AR{Semantics} \AB{𝓢^B} \emph{after}
+having run \AB{𝓢^A}, we need a way to extract a term from an
+element of \AB{𝓢^A}'s model. Our first field is therefore
+\ARF{reify^A}:
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusable-reify}
+
+Then come two constraints dealing with the relations talking
+about evaluation environments. \ARF{𝓔^R‿∙} tells us how to
+extend related environments: one should be able to push related
+values onto the environments for \AB{𝓢^B} and \AB{𝓢^C} whilst
+merely extending the one for \AB{𝓢^A} with a token value generated
+using \ARF{embed}.
+
+\ARF{𝓔^R‿wk} guarantees that it is always possible to weaken
+the environments for \AB{𝓢^B} and \AB{𝓢^C} in a \AB{𝓔^R}
+preserving manner.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusable-cons}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusable-weak}
+
+Then we have the relational counterpart of the various term
+constructors. As with the previous section, only a handful of
+them are out of the ordinary. We will start with the \AIC{`var}
+case. It states that fusion indeed happens when evaluating a
+variable using related environments.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusable-var}
+
+The \AIC{`λ}-case puts some rather strong restrictions on the way
+the λ-abstraction's body may be used by \AB{𝓢^A}: we assume it
+is evaluated in an environment weakened by one variable and extended
+using \AB{𝓢^A}'s \ARF{embed}. But it is quite natural to have these
+restrictions: given that \ARF{reify^A} quotes the result back, we are
+expecting this type of evaluation in an extended context (i.e. under
+one lambda). And it turns out that this is indeed enough for all of
+our examples.
+The evaluation environments used by the semantics \AB{𝓢^B} and \AB{𝓢^C}
+on the other hand can be arbitrarily weakened before being extended with
+related values to be substituted for the variable bound by the \AIC{`λ}.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusable-lam}
+
+The other cases are just a matter of stating that, given the
+expected induction hypotheses, one can deliver a proof that
+fusion can happen on the compound expression.
+
+\paragraph{Fundamental Lemma of Fusable Semantics}
+
+As with synchronisation, we measure the usefulness of this framework
+by the fact that we can prove its fundamental lemma first and that
+we get useful theorems out of it second. Once again, having carefully
+identified what the constraints should be, proving the fundamental
+lemma turns out to amount to a simple traversal we choose to omit here.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusion-module}
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusion-lemma}
+
+\paragraph{The Special Case of Syntactic Semantics}
+
+Given that \AR{Syntactic} semantics use a lot of constructors
+as their own semantic counterpart, it is possible to generate
+evidence of them being fusable with much fewer assumptions.
+We isolate them and prove the result generically in order to
+avoid repeating ourselves.
+A \AR{SyntacticFusable} record packs the evidence necessary to
+prove that the \AR{Syntactic} semantics \AB{syn^A} and \AB{syn^B}
+can be fused using the \AR{Syntactic} semantics \AB{syn^C}. It
+is indexed by these three \AR{Syntactic}s as well as two relations
+corresponding to the \AB{𝓔^R_{BC}} and \AB{𝓔^R} ones of the
+\AR{Fusable} framework.
+
+It contains the same \ARF{𝓔^R‿∙}, \ARF{𝓔^R‿wk} and \ARF{R⟦var⟧}
+fields as a \AR{Fusable} as well as a fourth one (\ARF{embed^{BC}})
+saying that \AB{syn^B} and \AB{syn^C}'s respective \ARF{embed}s are
+producing related values.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusion-embed}
+
+The important result is that given a \AR{SyntacticFusable} relating
+three \AR{Syntactic} semantics, one can deliver a \AR{Fusable} relating
+the corresponding \AR{Semantics} where \AB{𝓜^R} is the propositional
+equality.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{syntactic-fusion}
+
+It is then trivial to prove that \AR{Renaming} can be fused with itself
+to give rise to another renaming (obtained by composing the two context
+inclusions): \ARF{𝓔^R‿∙} uses \AF{[\_,\_]}, a case-analysis combinator
+for \AB{σ} \AD{∈} (\AB{Γ} \AIC{∙} τ) distinguishing the case where \AB{σ}
+\AD{∈} \AB{Γ} and the one where \AB{σ} equals \AB{τ}, whilst the other connectives
+are either simply combining induction hypotheses using the congruence of
+propositional equality or even simply its reflexivity (the two \ARF{embed}s
+we use are identical: they are both the one of \AF{syntacticRenaming} hence
+why \ARF{embed^{BC}} is so simple).
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusion-renren}
+
+Similarly, a \AR{Substitution} following a \AR{Renaming} is equivalent to
+a \AR{Substitution} where the evaluation environment is the composition of
+the two previous ones.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusion-rensub}
+
+Using the newly established fact about fusing two \AR{Renamings} together,
+we can establish that a \AR{Substitution} followed by a \AR{Renaming} is
+equivalent to a \AR{Substitution} where the elements in the evaluation
+environment have been renamed.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusion-subren}
+
+Finally, using the fact that we now know how to fuse a \AR{Substitution}
+and a \AR{Renaming} together no matter in which order they are performed,
+we can prove that two \AR{Substitution}s can be fused together to give
+rise to another \AR{Substitution}.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusion-subsub}
+
+These four lemmas are usually painfully proven one after the other. Here
+we managed to discharge them by simply instantiating our framework four
+times in a row, using the former instances to discharge the constraints
+arising in the later ones. But we are not at all limited to proving
+statements about \AR{Syntactic}s only.
+
+\paragraph{Examples of Fusable Semantics}
+
+The most simple example of \AR{Fusable} \AR{Semantics} involving a non
+\AR{Syntactic} one is probably the proof that \AR{Renaming} followed
+by \AR{Normalise^{βιξη}} is equivalent to Normalisation by Evaluation
+where the environment has been tweaked.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusion-rennorm}
+
+Then, we use the framework to prove that to \AR{Normalise^{βιξη}} by
+Evaluation after a \AR{Substitution} amounts to normalising the original
+term where the substitution has been evaluated first. The constraints
+imposed on the environments might seem quite restrictive but they are
+actually similar to the Uniformity condition described by C. Coquand~\cite{coquand2002formalised}
+in her detailed account of Normalisation by Evaluation for a simply-typed
+λ-calculus with explicit substitution.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusion-subnorm}
+
+Finally, we may use the notion of \AR{Fusable} to prove that our
+definition of pretty-printing ignores \AR{Renamings}. In other
+words, as long as the names provided for the free variables are
+compatible after the renaming and as long as the name supplies
+are equal then the string produced, as well as the state of the
+name supply at the end of the process, are equal.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{fusion-renpretty}
+
+A direct corollary is that pretty printing a weakened closed term
+amounts to pretty printing the term itself in a dummy environment.
+
+\ExecuteMetaData[type-scope-semantics/latex/models.tex]{pretty-renaming}
+
+\section{Conclusion}
+
+We have explained how to make using an inductive family to only represent
+the terms of an eDSL which are well-scoped and well-typed by construction
+more tractable. We proceeded by factoring out a common notion of \AR{Semantics}
+encompassing a wide range of type and scope preserving traversals such as
+renaming and substitution, which were already handled by the state of the
+art~\cite{mcbride2005type,benton2012strongly}, but also pretty printing, or
+various variations on normalisation by evaluation.
+Our approach crucially relied on the careful distinction we made between
+values in the environment and values in the model, as well as the slight
+variation on the structure typical of Kripke-style models. Indeed, in our
+formulation, the domain of a binder's interpretation is an environment
+value rather than a model one.
+
+We have then demonstrated that, having this shared structure, one could
+further alleviate the implementer's pain by tackling the properties of
+these \AR{Semantics} in a similarly abstract approach. We characterised,
+using a first logical relation, the traversals which were producing
+related outputs provided they were fed related inputs. A more involved
+second logical relation gave us a general description of triples of
+\AR{Fusable} semantics such that composing the two first ones would
+yield an instance of the third one.
