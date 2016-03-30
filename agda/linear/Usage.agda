@@ -7,7 +7,12 @@ open import Data.Vec hiding ([_] ; _++_)
 open import Function
 
 open import linear.Type
-open import linear.Scope as Sc hiding (Mergey ; copys ; Weakening ; weakFin ; Env ; Substituting)
+open import linear.Scope as Sc
+  hiding (Mergey ; copys
+        ; Extending
+        ; Weakening ; weakFin ; weakEnv
+        ; Env ; Substituting
+        ; Freshey ; module WithFreshVars)
 open import linear.Context as C hiding (Mergey ; _⋈_ ; copys ; _++_ ; ++copys-elim)
 open import Relation.Binary.PropositionalEquality
 
@@ -68,7 +73,7 @@ A ∷ Γ ⋈ copy M     = A ∷ (Γ ⋈ M)
 -- by introducing the notion of `Typing`. It exists for `Fin`,
 -- `Check` and `Infer`:
 Typing : (T : ℕ → Set) → Set₁
-Typing T = {n : ℕ} {γ : Context n} (Γ : Usages γ) (t : T n) (A : Type) (Δ : Usages γ) → Set
+Typing T = {n : ℕ} {γ : Context n} (Γ : Usages γ) (t : T n) (σ : Type) (Δ : Usages γ) → Set
 
 -- The notion of 'Usage Weakening' can be expressed for a `Typing`
 -- of `T` if it enjoys `Scope Weakening`
@@ -99,8 +104,44 @@ data Env {E : ℕ → Set} (𝓔 : Typing E) {l : ℕ} {θ : Context l} (T₁ : 
   ─∷_ : {a : Type} {k : ℕ} {ρ : Sc.Env E l k} {t : E l} {Τ₂ : Usages θ} {γ : Context k} {Γ : Usages γ} →
         (R : Env 𝓔 T₁ ρ Τ₂ Γ) → Env 𝓔 T₁ (t ∷ ρ) Τ₂ (] a [ ∷ Γ)
 
+weakEnv :
+  {E : ℕ → Set} {𝓔 : Typing E} {Wk : Sc.Weakening E} (weakE : Weakening E Wk 𝓔) →
+  {o : ℕ} {θ : Context o} (Τ : Usages θ) →
+-- Basically `Weakening (flip (Sc.Env E) k) (Sc.weakEnv Wk) (λ Γ ρ _ Δ → Env 𝓔 Γ ρ Δ Τ)`
+-- except that the fact that `Env` does not take a ̀Type` causes trouble...
+  {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {m : Sc.Mergey k l} {M : C.Mergey m}
+  {ρ : Sc.Env E k o} (𝓜 : Mergey M) → Env 𝓔 Γ ρ Δ Τ → Env 𝓔 (Γ ⋈ 𝓜) (Sc.weakEnv Wk m ρ) (Δ ⋈ 𝓜) Τ
+weakEnv weakE .[]     𝓜 []      = []
+weakEnv weakE (_ ∷ Γ) 𝓜 (T ∷ ρ) = weakE 𝓜 T ∷ weakEnv weakE Γ 𝓜 ρ
+weakEnv weakE (_ ∷ Γ) 𝓜 (─∷ ρ)  = ─∷ weakEnv weakE Γ 𝓜 ρ
+
 Substituting : (E T : ℕ → Set) ([_]_ : Sc.Substituting E T) (𝓔 : Typing E) (𝓣 : Typing T) → Set
 Substituting E T subst 𝓔 𝓣 =
   {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {σ : Type} {t : T k} {ρ : Sc.Env E l k}
   {θ : Context l} {Τ₁ Τ₂ : Usages θ} →
   Env 𝓔 Τ₁ ρ Τ₂ Γ → 𝓣 Γ t σ Δ → ∃ λ Τ₃ → 𝓣 Τ₁ (subst ρ t) σ Τ₃ × Env 𝓔 Τ₃ ρ Τ₂ Δ
+
+Extending : (E : ℕ → ℕ → Set) (Ext : Sc.Extending E) (𝓔 : {l : ℕ} {θ : Context l} (T₁ : Usages θ) {k : ℕ} (ρ : E l k) (Τ₂ : Usages θ) {γ : Context k} (Γ : Usages γ) → Set) → Set
+Extending E Ext 𝓔 =
+  {k l o : ℕ} {θ : Context l} {Τ₁ Τ₂ : Usages θ} (δ : Context o) {e : E l k} {γ : Context k} {Γ : Usages γ} →
+  𝓔 Τ₁ e Τ₂ Γ → 𝓔 ([[ δ ]] ++ Τ₁) (Ext o e) (]] δ [[ ++ Τ₂) ([[ δ ]] ++ Γ)
+
+record Freshey (E : ℕ → Set) (F : Sc.Freshey E) (𝓔 : Typing E) : Set where
+  field
+    fresh : {k : ℕ} {γ : Context k} {Γ : Usages γ} (σ : Type) →
+            𝓔 ([ σ ] ∷ Γ) (Sc.Freshey.fresh F {k}) σ (] σ [ ∷ Γ)
+    weak  : Weakening E (Sc.Freshey.weak F) 𝓔
+
+module WithFreshVars {E : ℕ → Set} {F : Sc.Freshey E} {𝓔 : Typing E} (𝓕 : Freshey E F 𝓔) where
+
+  module ScF   = Sc.Freshey F
+  module ScWFV = Sc.WithFreshVars F
+
+  withFreshVars : Extending (Sc.Env E) ScWFV.withFreshVars (Env 𝓔)
+  withFreshVars []      ρ = ρ
+  withFreshVars (a ∷ δ) ρ = fresh a ∷ weakEnv weak _ (insert ] a [ finish) (withFreshVars δ ρ)
+    where open Freshey 𝓕
+
+  withFreshVar : {k o : ℕ} {γ : Context k} {Γ Δ : Usages γ} {θ : Context o} {Τ : Usages θ} {ρ : Sc.Env E k o} 
+                 (a : Type) → Env 𝓔 Γ ρ Δ Τ → Env 𝓔 ([ a ] ∷ Γ) (ScWFV.withFreshVar ρ) (] a [ ∷ Δ) ([ a ] ∷ Τ)
+  withFreshVar a = withFreshVars (a ∷ [])

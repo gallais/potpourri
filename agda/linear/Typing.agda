@@ -7,9 +7,12 @@ open import Data.Vec hiding ([_] ; _++_ ; map)
 open import Function
 
 open import linear.Type
-open import linear.Scope    as Sc hiding (Mergey ; copys ; Weakening ; weakFin ; Substituting ; substFin ; Env)
-open import linear.Context  as C hiding (Mergey ; _⋈_ ; copys ; _++_ ; ++copys-elim)
-open import linear.Language as L hiding (patternSize ; weakInfer ; weakCheck ; substInfer ; substCheck ; Env)
+open import linear.Scope as Sc
+  hiding (Mergey ; copys ; Weakening ; weakFin ; Substituting ; substFin ; Env ; Freshey ; module WithFreshVars)
+open import linear.Context as C hiding (Mergey ; _⋈_ ; copys ; _++_ ; ++copys-elim)
+open import linear.Language as L
+  hiding (patternSize ; weakInfer ; weakCheck ; substInfer ; substCheck ; Env
+         ; fresheyInfer ; module WithFreshInfer)
 open import linear.Usage
 
 infix 3 _⊢_∋_⊠_ _⊢_∈_⊠_ _∋_↝_
@@ -92,6 +95,9 @@ mutual
 patternSize : {o : ℕ} {p : Pattern o} {σ : Type} {γ : Context o} (p : σ ∋ p ↝ γ) → ℕ
 patternSize {o} _ = o
 
+patternContext : {o : ℕ} {p : Pattern o} {σ : Type} {γ : Context o} (p : σ ∋ p ↝ γ) → Context o
+patternContext {γ = γ} _ = γ
+
 TCheck : Typing Check
 TCheck = λ Γ t A Δ → Γ ⊢ A ∋ t ⊠ Δ
 
@@ -127,3 +133,47 @@ mutual
   weakCheck 𝓜 (`inl t)            = `inl weakCheck 𝓜 t
   weakCheck 𝓜 (`inr t)            = `inr weakCheck 𝓜 t
   weakCheck 𝓜 (`neu t)            = `neu weakInfer 𝓜 t
+
+fresheyInfer : Freshey Infer L.fresheyInfer TInfer
+fresheyInfer = record { fresh = λ σ → `var z ; weak = weakInfer }
+
+open module WithFreshInfer = WithFreshVars fresheyInfer
+
+mutual
+
+  substInfer : Substituting Infer Infer L.substInfer TInfer TInfer
+  substInfer ρ (`var x)                     = substFin ρ x
+  substInfer ρ (`app t u)                   =
+    let (θ₁ , tρ , ρ₁) = substInfer ρ t
+        (θ₂ , uρ , ρ₂) = substCheck ρ₁ u
+    in θ₂ , `app tρ uρ , ρ₂
+  substInfer ρ (`case t return σ of l %% r) =
+    let (θ₁ , tρ , ρ₁) = substInfer ρ t
+        (θ₂ , lρ , ρ₂) = substCheck (withFreshVar _ ρ₁) l
+        (θ₃ , rρ , ρ₃) = substCheck (withFreshVar _ ρ₁) r
+    in {!!} , `case tρ return σ of {!!} %% {!!} , {!!}
+  substInfer ρ (`cut t)                     =
+    let (θ₁ , tρ , ρ₁) = substCheck ρ t
+    in θ₁ , `cut tρ , ρ₁
+
+  substCheck : Substituting Infer Check L.substCheck TInfer TCheck
+  substCheck ρ (`lam t) =
+    let (θ₁ , tρ , ρ₁) = substCheck (withFreshVar _ ρ) t
+    in {!!} , {!!} , {!!}
+  substCheck ρ (`let p ∷= t `in u) =
+    let (θ₁ , tρ , ρ₁) = substInfer ρ t
+        (θ₂ , uρ , ρ₂) = substCheck (withFreshVars (patternContext p) ρ₁) u
+    in {!!}
+  substCheck ρ (`prd a b) =
+    let (θ₁ , aρ , ρ₁) = substCheck ρ a
+        (θ₂ , bρ , ρ₂) = substCheck ρ₁ b
+    in θ₂ , `prd aρ bρ , ρ₂
+  substCheck ρ (`inl t) =
+    let (θ₁ , tρ , ρ₁) = substCheck ρ t
+    in θ₁ , `inl tρ , ρ₁
+  substCheck ρ (`inr t) =
+    let (θ₁ , tρ , ρ₁) = substCheck ρ t
+    in θ₁ , `inr tρ , ρ₁
+  substCheck ρ (`neu t) =
+    let (θ₁ , tρ , ρ₁) = substInfer ρ t
+    in θ₁ , `neu tρ , ρ₁
