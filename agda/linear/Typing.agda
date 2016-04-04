@@ -8,11 +8,11 @@ open import Function
 
 open import linear.Type
 open import linear.Scope as Sc
-  hiding (Mergey ; copys ; Weakening ; weakFin ; Substituting ; substFin ; Env ; Freshey ; module WithFreshVars)
+  hiding (Mergey ; copys ; Weakening ; weakFin ; Substituting ; substFin ; Env ; Freshey ; withFreshVars)
 open import linear.Context as C hiding (Mergey ; _⋈_ ; copys ; _++_ ; ++copys-elim)
 open import linear.Language as L
   hiding (patternSize ; weakInfer ; weakCheck ; substInfer ; substCheck ; Env
-         ; fresheyInfer ; module WithFreshInfer)
+         ; fresheyInfer)
 open import linear.Usage
 
 infix 3 _⊢_∋_⊠_ _⊢_∈_⊠_ _∋_↝_
@@ -104,14 +104,6 @@ TCheck = λ Γ t A Δ → Γ ⊢ A ∋ t ⊠ Δ
 TInfer : Typing Infer
 TInfer = _⊢_∈_⊠_
 
-substFin : 
-  {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {σ : Type} {v : Fin k} {ρ : Sc.Env Infer l k}
-  {θ : Context l} {Τ₁ Τ₂ : Usages θ} →
-  Env TInfer Τ₁ ρ Τ₂ Γ → Γ ⊢ v ∈[ σ ]⊠ Δ → ∃ λ Τ₃ → Τ₁ ⊢ Sc.substFin ρ v ∈ σ ⊠ Τ₃ × Env TInfer Τ₃ ρ Τ₂ Δ
-substFin (t ∷ ρ) z     = , t , ─∷ ρ
-substFin (T ∷ ρ) (s v) = map {!!} (map {!!} {!T ∷_!}) $ substFin ρ v -- argh!
-substFin (─∷ ρ)  (s v) = map id (map id ─∷_) $ substFin ρ v
-
 mutual
 
   weakInfer : Weakening Infer L.weakInfer TInfer
@@ -134,10 +126,40 @@ mutual
   weakCheck 𝓜 (`inr t)            = `inr weakCheck 𝓜 t
   weakCheck 𝓜 (`neu t)            = `neu weakInfer 𝓜 t
 
-fresheyInfer : Freshey Infer L.fresheyInfer TInfer
-fresheyInfer = record { fresh = λ σ → `var z ; weak = weakInfer }
+substFin : 
+  {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {σ : Type} {v : Fin k} {ρ : Sc.Env Infer k l}
+  {θ : Context l} {Τ₁ Τ₂ : Usages θ} →
+  Env TInfer Τ₁ ρ Τ₂ Γ → Γ ⊢ v ∈[ σ ]⊠ Δ →
+  ∃ λ Τ₃ → Τ₁ ⊢ Sc.substFin L.fresheyInfer ρ v ∈ σ ⊠ Τ₃ × Env TInfer Τ₃ ρ Τ₂ Δ
+substFin (t ∷ ρ)  z     = , t , ─∷ ρ
+substFin ([v]∷ ρ) z     = , `var z , ]v[∷ ρ
+substFin (T ∷ ρ)  (s v) = map {!!} (map {!!} {!T ∷_!}) $ substFin ρ v -- argh!
+substFin ([v]∷ ρ) (s v) = map ([ _ ] ∷_) (map (weakInfer (insert _ finish)) [v]∷_) $ substFin ρ v
+substFin (]v[∷ ρ) (s v) = map (] _ [ ∷_) (map (weakInfer (insert _ finish)) ]v[∷_) $ substFin ρ v
+substFin (─∷ ρ)   (s v) = map id (map id ─∷_) $ substFin ρ v
 
-open module WithFreshInfer = WithFreshVars fresheyInfer
+substLam :
+  {k l : ℕ} {γ : Context k} {Δ : Usages γ} {ρ : Sc.Env Infer k l}
+  {θ : Context l} {Τ₁ Τ₂ : Usages θ} {σ τ : Type} {b : Check (suc k)} →
+  Σ[ T₃ ∈ Usages (σ ∷ θ) ] [ σ ] ∷ Τ₁ ⊢ τ ∋ L.substCheck (v∷ ρ) b ⊠ T₃
+                         × Env TInfer T₃ (v∷ ρ) (] σ [ ∷ Τ₂) (] σ [ ∷ Δ) →
+  Σ[ Τ₃ ∈ Usages θ       ] Τ₁ ⊢ σ ─o τ ∋ L.substCheck ρ (`lam b) ⊠ Τ₃
+                         × Env TInfer Τ₃ ρ Τ₂ Δ
+substLam (._ , bρ , ]v[∷ ρ′) = , `lam bρ , ρ′
+
+substCase :
+  {k l : ℕ} {γ : Context k} {Δ : Usages γ} {ρ : Sc.Env Infer k l}
+  {θ : Context l} {Τ₁ Τ₂ Τ₄ : Usages θ} {σ₁ σ₂ τ : Type} {t : Infer k} {l r : Check (suc k)} →
+  Τ₁ ⊢ L.substInfer ρ t ∈ σ₁ ⊕ σ₂ ⊠ Τ₂ →
+  Σ[ T₃ ∈ Usages (σ₁ ∷ θ) ] [ σ₁ ] ∷ Τ₂ ⊢ τ ∋ L.substCheck (v∷ ρ) l ⊠ T₃
+                         × Env TInfer T₃ (v∷ ρ) (] σ₁ [ ∷ Τ₄) (] σ₁ [ ∷ Δ) →
+  Σ[ T₃ ∈ Usages (σ₂ ∷ θ) ] [ σ₂ ] ∷ Τ₂ ⊢ τ ∋ L.substCheck (v∷ ρ) r ⊠ T₃
+                         × Env TInfer T₃ (v∷ ρ) (] σ₂ [ ∷ Τ₄) (] σ₂ [ ∷ Δ) →
+  Σ[ Τ₃ ∈ Usages θ       ] Τ₁ ⊢ L.substInfer ρ (`case t return τ of l %% r) ∈ τ ⊠ Τ₃
+                         × Env TInfer Τ₃ ρ Τ₄ Δ
+substCase tρ (._ , lρ , (]v[∷ ρ′)) (._ , rρ , (]v[∷ ρ₂′)) =
+  , `case tρ return _ of lρ %% {!rρ!} , ρ′
+
 
 mutual
 
@@ -149,17 +171,13 @@ mutual
     in θ₂ , `app tρ uρ , ρ₂
   substInfer ρ (`case t return σ of l %% r) =
     let (θ₁ , tρ , ρ₁) = substInfer ρ t
-        (θ₂ , lρ , ρ₂) = substCheck (withFreshVar _ ρ₁) l
-        (θ₃ , rρ , ρ₃) = substCheck (withFreshVar _ ρ₁) r
-    in {!!} , `case tρ return σ of {!!} %% {!!} , {!!}
+    in substCase tρ (substCheck ([v]∷ ρ₁) l) (substCheck ([v]∷ ρ₁) r)
   substInfer ρ (`cut t)                     =
     let (θ₁ , tρ , ρ₁) = substCheck ρ t
     in θ₁ , `cut tρ , ρ₁
 
   substCheck : Substituting Infer Check L.substCheck TInfer TCheck
-  substCheck ρ (`lam t) =
-    let (θ₁ , tρ , ρ₁) = substCheck (withFreshVar _ ρ) t
-    in {!!} , {!!} , {!!}
+  substCheck ρ (`lam t) = substLam (substCheck ([v]∷ ρ) t) 
   substCheck ρ (`let p ∷= t `in u) =
     let (θ₁ , tρ , ρ₁) = substInfer ρ t
         (θ₂ , uρ , ρ₂) = substCheck (withFreshVars (patternContext p) ρ₁) u
@@ -177,3 +195,4 @@ mutual
   substCheck ρ (`neu t) =
     let (θ₁ , tρ , ρ₁) = substInfer ρ t
     in θ₁ , `neu tρ , ρ₁
+

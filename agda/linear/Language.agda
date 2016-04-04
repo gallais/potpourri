@@ -5,7 +5,7 @@ open import Data.Fin
 open import Data.Vec hiding ([_])
 
 open import linear.Type
-open import linear.Scope as Sc hiding (Env ; weakEnv)
+open import linear.Scope as Sc hiding (Env)
 open import linear.Context hiding (Mergey ; copys)
 
 mutual
@@ -51,17 +51,14 @@ mutual
 
 
 Env = Sc.Env Infer
-weakEnv = Sc.weakEnv weakInfer
 
 fresheyInfer : Freshey Infer
 fresheyInfer = record { fresh = `var zero ; weak = weakInfer }
 
-open module WithFreshInfer = WithFreshVars fresheyInfer
-
 mutual
 
   substCheck : Substituting Infer Check
-  substCheck ρ (`lam b)            = `lam substCheck (withFreshVar ρ) b
+  substCheck ρ (`lam b)            = `lam substCheck (v∷ ρ) b
   substCheck ρ (`let p ∷= t `in u) = `let p ∷= substInfer ρ t `in substCheck (withFreshVars (patternSize p) ρ) u
   substCheck ρ (`prd a b)          = `prd (substCheck ρ a) (substCheck ρ b)
   substCheck ρ (`inl t)            = `inl substCheck ρ t
@@ -69,9 +66,9 @@ mutual
   substCheck ρ (`neu t)            = `neu substInfer ρ t
   
   substInfer : Substituting Infer Infer
-  substInfer ρ (`var k)                     = substFin ρ k
+  substInfer ρ (`var k)                     = substFin fresheyInfer ρ k
   substInfer ρ (`app i u)                   = `app (substInfer ρ i) (substCheck ρ u)
   substInfer ρ (`case i return σ of l %% r) = `case substInfer ρ i return σ
-                                                 of substCheck (withFreshVar ρ) l
-                                                 %% substCheck (withFreshVar ρ) r
+                                                 of substCheck (v∷ ρ) l
+                                                 %% substCheck (v∷ ρ) r
   substInfer ρ (`cut t σ)                   = `cut (substCheck ρ t) σ

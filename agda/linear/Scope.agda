@@ -25,34 +25,25 @@ weakFin (copy m)   zero    = zero
 weakFin (copy m)   (suc k) = suc (weakFin m k)
 weakFin (insert m) k       = suc (weakFin m k)
 
-data Env (T : ℕ → Set) (l : ℕ) : (k : ℕ) → Set where
-  []  : Env T l 0
-  _∷_ : {k : ℕ} (t : T l) (ρ : Env T l k) → Env T l (suc k)
-
-weakEnv : {T : ℕ → Set} (weakT : Weakening T) {k : ℕ} → Weakening (flip (Env T) k)
-weakEnv weakT inc []      = []
-weakEnv weakT inc (t ∷ ρ) = weakT inc t ∷ weakEnv weakT inc ρ
+data Env (T : ℕ → Set) : (k l : ℕ) → Set where
+  []  : {l : ℕ} → Env T 0 l
+  v∷_ : {k l : ℕ} → Env T k l → Env T (suc k) (suc l)
+  _∷_ : {k l : ℕ} (t : T l) (ρ : Env T k l) → Env T (suc k) l
 
 Substituting : (E T : ℕ → Set) → Set
-Substituting E T = {k l : ℕ} (ρ : Env E l k) → T k → T l
-
-substFin : {k l : ℕ} {T : ℕ → Set} (ρ : Env T l k) → Fin k → T l
-substFin (t ∷ ρ) zero    = t
-substFin (t ∷ ρ) (suc v) = substFin ρ v
+Substituting E T = {k l : ℕ} (ρ : Env E k l) → T k → T l
 
 record Freshey (T : ℕ → Set) : Set where
   field
     fresh : {k : ℕ} → T (suc k)
     weak  : Weakening T
 
-module WithFreshVars {T : ℕ → Set} (F : Freshey T) where
+substFin : {k l : ℕ} {T : ℕ → Set} (F : Freshey T) (ρ : Env T k l) → Fin k → T l
+substFin F (v∷ ρ)  zero    = Freshey.fresh F
+substFin F (t ∷ ρ) zero    = t
+substFin F (v∷ ρ)  (suc v) = Freshey.weak F (insert finish) $ substFin F ρ v
+substFin F (t ∷ ρ) (suc v) = substFin F ρ v
 
-  open Freshey F
-
-  withFreshVars : Extending (Env T)
-  withFreshVars zero    ρ = ρ
-  withFreshVars (suc o) ρ = fresh ∷ weakEnv weak (insert finish) (withFreshVars o ρ)
-
-
-  withFreshVar : {k l : ℕ} → Env T l k → Env T (suc l) (suc k)
-  withFreshVar = withFreshVars 1
+withFreshVars : {T : ℕ → Set} → Extending (Env T)
+withFreshVars zero    ρ = ρ
+withFreshVars (suc o) ρ = v∷ withFreshVars o ρ
