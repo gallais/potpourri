@@ -5,13 +5,16 @@ open import Data.Fin
 open import Data.Vec hiding (map ; [_] ; _++_)
 open import Data.Product
 open import Function
+open import Relation.Binary.PropositionalEquality hiding ([_])
 
-open import linear.Scope as Sc hiding (Weakening ; weakFin ; Substituting ; substFin ; copys ; Env)
+open import linear.Scope as Sc hiding (Weakening ; weakFin ; Substituting ; substFin ; copys ; Env ; withFreshVars)
 open import linear.Type
 open import linear.Context as C hiding (copys ; _++_)
 open import linear.Language as L hiding (weakInfer ; weakCheck ; Env ; substInfer ; substCheck)
 open import linear.Usage
+open import linear.Usage.Functional
 open import linear.Typing
+open import linear.Typing.Functional
 
 mutual
 
@@ -66,9 +69,9 @@ substCase :
                          × Env TInfer T₃ (v∷ ρ) (] σ₂ [ ∷ Τ₄) (] σ₂ [ ∷ Δ) →
   Σ[ Τ₃ ∈ Usages θ       ] Τ₁ ⊢ L.substInfer ρ (`case t return τ of l %% r) ∈ τ ⊠ Τ₃
                          × Env TInfer Τ₃ ρ Τ₄ Δ
-substCase t tρ (._ , lρ , (]v[∷ ρ₁′)) (._ , rρ , (]v[∷ ρ₂′)) =
-  , `case tρ return _ of lρ %% {!rρ!} , ρ₁′
-
+substCase t tρ (._ , lρ , (]v[∷ ρ₁′)) (._ , rρ , (]v[∷ ρ₂′))
+  rewrite functionalEnvPre functionalInferPre _ ρ₁′ ρ₂′ =
+  , `case tρ return _ of lρ %% rρ , ρ₁′
 
 -- idea: generalise with a function f applied to each side!
 substLet :
@@ -97,9 +100,13 @@ mutual
 
   substCheck : Substituting Infer Check L.substCheck TInfer TCheck
   substCheck ρ (`lam t) = substLam (substCheck ([v]∷ ρ) t) 
-  substCheck {t = `let _ ∷= rt `in _} ρ (`let p ∷= t `in u) =
-    let (θ₁ , tρ , ρ₁) = substInfer ρ t
-    in {!!}
+  substCheck {t = `let _ ∷= rt `in ru} ρ (`let p ∷= t `in u) =
+    let δ              = patternContext p
+        (θ₁ , tρ , ρ₁) = substInfer ρ t
+        (θ₂ , uρ , ρ₂) = substCheck (withFreshVars δ ρ₁) u
+        (θ₃ , ρ)       = substLet δ (θ₂ , ρ₂)
+        eq             = functionalEnvPre functionalInferPre _ ρ₂ (withStaleVars (patternContext p) ρ)
+    in , `let p ∷= tρ `in subst (TCheck _ _ _) eq uρ , ρ
   substCheck ρ (`prd a b) =
     let (θ₁ , aρ , ρ₁) = substCheck ρ a
         (θ₂ , bρ , ρ₂) = substCheck ρ₁ b

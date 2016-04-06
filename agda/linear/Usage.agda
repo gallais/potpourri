@@ -115,10 +115,19 @@ Substituting E T subst 𝓔 𝓣 =
   {θ : Context l} {Τ₁ Τ₂ : Usages θ} →
   Env 𝓔 Τ₁ ρ Τ₂ Γ → 𝓣 Γ t σ Δ → ∃ λ Τ₃ → 𝓣 Τ₁ (subst ρ t) σ Τ₃ × Env 𝓔 Τ₃ ρ Τ₂ Δ
 
-Extending : (E : ℕ → ℕ → Set) (Ext : Sc.Extending E) (𝓔 : {k l : ℕ} {θ : Context l} (T₁ : Usages θ) (ρ : E k l) (Τ₂ : Usages θ) {γ : Context k} (Γ : Usages γ) → Set) → Set
-Extending E Ext 𝓔 =
+[Extending] : (E : ℕ → ℕ → Set) (Ext : Sc.Extending E)
+  (𝓔 : {k l : ℕ} {θ : Context l} (T₁ : Usages θ) (ρ : E k l) (Τ₂ : Usages θ) {γ : Context k} (Γ : Usages γ) → Set)
+  → Set
+[Extending] E Ext 𝓔 =
   {k l o : ℕ} {θ : Context l} {Τ₁ Τ₂ : Usages θ} (δ : Context o) {e : E k l} {γ : Context k} {Γ : Usages γ} →
   𝓔 Τ₁ e Τ₂ Γ → 𝓔 ([[ δ ]] ++ Τ₁) (Ext o e) (]] δ [[ ++ Τ₂) ([[ δ ]] ++ Γ)
+
+]Extending[ : (E : ℕ → ℕ → Set) (Ext : Sc.Extending E)
+  (𝓔 : {k l : ℕ} {θ : Context l} (T₁ : Usages θ) (ρ : E k l) (Τ₂ : Usages θ) {γ : Context k} (Γ : Usages γ) → Set)
+  → Set
+]Extending[ E Ext 𝓔 =
+  {k l o : ℕ} {θ : Context l} {Τ₁ Τ₂ : Usages θ} (δ : Context o) {e : E k l} {γ : Context k} {Γ : Usages γ} →
+  𝓔 Τ₁ e Τ₂ Γ → 𝓔 (]] δ [[ ++ Τ₁) (Ext o e) (]] δ [[ ++ Τ₂) (]] δ [[ ++ Γ)
 
 record Freshey (E : ℕ → Set) (F : Sc.Freshey E) (𝓔 : Typing E) : Set where
   field
@@ -126,6 +135,10 @@ record Freshey (E : ℕ → Set) (F : Sc.Freshey E) (𝓔 : Typing E) : Set wher
             𝓔 ([ σ ] ∷ Γ) (Sc.Freshey.fresh F {k}) σ (] σ [ ∷ Γ)
     weak  : Weakening E (Sc.Freshey.weak F) 𝓔
 
-withFreshVars : {E : ℕ → Set} {𝓔 : Typing E} → Extending (Sc.Env E) Sc.withFreshVars (Env 𝓔)
+withFreshVars : {E : ℕ → Set} {𝓔 : Typing E} → [Extending] (Sc.Env E) Sc.withFreshVars (Env 𝓔)
 withFreshVars []      ρ = ρ
 withFreshVars (a ∷ δ) ρ = [v]∷ withFreshVars δ ρ
+
+withStaleVars : {E : ℕ → Set} {𝓔 : Typing E} → ]Extending[ (Sc.Env E) Sc.withFreshVars (Env 𝓔)
+withStaleVars []      ρ = ρ
+withStaleVars (a ∷ δ) ρ = ]v[∷ withStaleVars δ ρ
