@@ -3,8 +3,9 @@ module linear.Usage where
 open import Data.Nat as ℕ
 open import Data.Fin
 open import Data.Product
-open import Data.Vec hiding ([_] ; _++_)
+open import Data.Vec hiding ([_] ; _++_ ; map ; tail)
 open import Function
+open import linear.Relation.Functional
 
 open import linear.Type
 open import linear.Scope as Sc
@@ -81,7 +82,7 @@ Weakening : (T : ℕ → Set) (Wk : Sc.Weakening T) (𝓣 : Typing T) → Set
 Weakening T Wk 𝓣 =
   {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {m : Sc.Mergey k l} {M : C.Mergey m} {σ : Type}
   {t : T k} (𝓜 : Mergey M) → 𝓣 Γ t σ Δ → 𝓣 (Γ ⋈ 𝓜) (Wk m t) σ (Δ ⋈ 𝓜)
-
+  
 -- A first example of a Typing enjoying Usage Weakening: Fin.
 TFin : Typing Fin
 TFin = _⊢_∈[_]⊠_
@@ -91,9 +92,6 @@ weakFin finish        k    = k
 weakFin (insert A 𝓜) k     = s (weakFin 𝓜 k)
 weakFin (copy 𝓜)     z     = z
 weakFin (copy 𝓜)     (s k) = s (weakFin 𝓜 k)
-
-
-
 
 -- Similarly to 'Usage Weakening', the notion of 'Usage Substituting'
 -- can be expressed for a `Typing` of `T` if it enjoys `Scope Substituting`
@@ -110,12 +108,12 @@ data Env {E : ℕ → Set} (𝓔 : Typing E) : {k l : ℕ} {θ : Context l} (T�
   ]v[∷_ : {a : Type} {k l : ℕ} {ρ : Sc.Env E k l} {θ : Context l} {Τ₁ Τ₂ : Usages θ} {γ : Context k}
           {Γ : Usages γ} → Env 𝓔 Τ₁ ρ Τ₂ Γ → Env 𝓔 (] a [ ∷ Τ₁) (v∷ ρ) (] a [ ∷ Τ₂) (] a [ ∷ Γ)
 
+       
 Substituting : (E T : ℕ → Set) ([_]_ : Sc.Substituting E T) (𝓔 : Typing E) (𝓣 : Typing T) → Set
 Substituting E T subst 𝓔 𝓣 =
   {k l : ℕ} {γ : Context k} {Γ Δ : Usages γ} {σ : Type} {t : T k} {ρ : Sc.Env E k l}
   {θ : Context l} {Τ₁ Τ₂ : Usages θ} →
   Env 𝓔 Τ₁ ρ Τ₂ Γ → 𝓣 Γ t σ Δ → ∃ λ Τ₃ → 𝓣 Τ₁ (subst ρ t) σ Τ₃ × Env 𝓔 Τ₃ ρ Τ₂ Δ
-
 
 Extending : (E : ℕ → ℕ → Set) (Ext : Sc.Extending E) (𝓔 : {k l : ℕ} {θ : Context l} (T₁ : Usages θ) (ρ : E k l) (Τ₂ : Usages θ) {γ : Context k} (Γ : Usages γ) → Set) → Set
 Extending E Ext 𝓔 =
@@ -131,4 +129,3 @@ record Freshey (E : ℕ → Set) (F : Sc.Freshey E) (𝓔 : Typing E) : Set wher
 withFreshVars : {E : ℕ → Set} {𝓔 : Typing E} → Extending (Sc.Env E) Sc.withFreshVars (Env 𝓔)
 withFreshVars []      ρ = ρ
 withFreshVars (a ∷ δ) ρ = [v]∷ withFreshVars δ ρ
-
