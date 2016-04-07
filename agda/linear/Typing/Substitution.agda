@@ -3,7 +3,7 @@ module linear.Typing.Substitution where
 open import Data.Nat
 open import Data.Fin
 open import Data.Vec hiding (map ; [_] ; _++_)
-open import Data.Product
+open import Data.Product hiding (swap)
 open import Function
 open import Relation.Binary.PropositionalEquality hiding ([_])
 
@@ -13,8 +13,10 @@ open import linear.Context as C hiding (copys ; _++_)
 open import linear.Language as L hiding (weakInfer ; weakCheck ; Env ; substInfer ; substCheck)
 open import linear.Usage
 open import linear.Usage.Functional
+open import linear.Usage.Consumption hiding (_++_)
 open import linear.Typing
 open import linear.Typing.Functional
+open import linear.Typing.Consumption
 
 mutual
 
@@ -45,7 +47,10 @@ substFin :
   ∃ λ Τ₃ → Τ₁ ⊢ Sc.substFin L.fresheyInfer ρ v ∈ σ ⊠ Τ₃ × Env TInfer Τ₃ ρ Τ₂ Δ
 substFin (t ∷ ρ)  z     = , t , ─∷ ρ
 substFin ([v]∷ ρ) z     = , `var z , ]v[∷ ρ
-substFin (T ∷ ρ)  (s v) = map {!!} (map {!!} {!T ∷_!}) $ substFin ρ v -- argh!
+substFin (T ∷ ρ)  (s v) =
+  let (θ , val , ρ′) = substFin ρ v
+      (_ , c₁ , c₂)  = swap (consumptionInfer T) (consumptionInfer val)
+  in , framingInfer c₂ val , framingInfer c₁ T ∷ ρ′
 substFin ([v]∷ ρ) (s v) = map ([ _ ] ∷_) (map (weakInfer (insert _ finish)) [v]∷_) $ substFin ρ v
 substFin (]v[∷ ρ) (s v) = map (] _ [ ∷_) (map (weakInfer (insert _ finish)) ]v[∷_) $ substFin ρ v
 substFin (─∷ ρ)   (s v) = map id (map id ─∷_) $ substFin ρ v
