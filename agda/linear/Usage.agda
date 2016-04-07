@@ -69,7 +69,6 @@ A ∷ Γ ⋈ copy M     = A ∷ (Γ ⋈ M)
 ++copys-elim₂ P []      []        Γ Γ′ 𝓜 p = p
 ++copys-elim₂ P (A ∷ Δ) (A′ ∷ Δ′) Γ Γ′ 𝓜 p = ++copys-elim₂ (λ θ θ′ → P (A ∷ θ) (A′ ∷ θ′)) Δ Δ′ Γ Γ′ 𝓜 p
 
-
 -- We can give an abstract interface to describe these relations
 -- by introducing the notion of `Typing`. It exists for `Fin`,
 -- `Check` and `Infer`:
