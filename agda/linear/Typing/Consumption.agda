@@ -39,7 +39,7 @@ mutual
   framingInfer c (`case t return σ of l %% r) =
     let (_ , c₁ , c₂) = divide c (consumptionInfer t) (truncate [ _ ] (consumptionCheck l))
     in `case framingInfer c₁ t return σ of framingCheck (_ ∷ c₂) l %% framingCheck (_ ∷ c₂) r
-  framingInfer c (`cut t)                     = `cut framingCheck c t
+  framingInfer c (`cut t)                     = `cut (framingCheck c t)
 
   framingCheck : Framing TCheck
   framingCheck c (`lam t)            = `lam framingCheck (_ ∷ c) t
