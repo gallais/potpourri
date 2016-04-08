@@ -19,8 +19,6 @@ R++ δ γ ΔΓ Δ Γ = ΔΓ ≡ (Δ ++ Γ)
 functional++ : {o k : ℕ} {δ : Context o} {γ : Context k} {ΔΓ : Usages (δ C.++ γ)} → Functional′ (R++ δ γ ΔΓ)
 functional++ []      refl refl = refl
 functional++ (A ∷ Δ) eq₁  eq₂  = functional++ Δ (cong tail eq₁) (cong tail eq₂)
-  where tail : {k : ℕ} {δ : Context k} {σ : Type} (Γ : Usages (σ ∷ δ)) → Usages δ
-        tail (x ∷ Γ) = Γ
 
 RFin : (k : Σ[ n ∈ ℕ ] Context n × Fin n) → (let (_ , γ , _) = k in Usages γ × Usages γ) → Type → Set
 RFin (_ , _ , k) (Γ , Δ) σ = Γ ⊢ k ∈[ σ ]⊠ Δ

@@ -26,6 +26,9 @@ data Usages : {n : ℕ} (γ : Context n) → Set where
   []  : Usages []
   _∷_ : {n : ℕ} {γ : Context n} {a : Type} → Usage a → Usages γ → Usages (a ∷ γ)
 
+tail : {n : ℕ} {γ : Context n} {a : Type} → Usages (a ∷ γ) → Usages γ
+tail (_ ∷ Γ) = Γ
+
 infixr 4 _++_
 _++_ : {m n : ℕ} {γ : Context m} {δ : Context n}
        (Γ : Usages γ) (Δ : Usages δ) → Usages (γ C.++ δ)
