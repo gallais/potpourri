@@ -1,0 +1,7 @@
+#!/bin/sh
+
+LAGDA=`find linear/ -name "*.lagda"`
+for k in ${LAGDA}; do
+  ./lagda2tex "$k"
+done
+  
