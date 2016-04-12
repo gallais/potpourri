@@ -13,7 +13,7 @@ if [ ! -f "$TARGET".hash ]; then
 fi
 # If the tex file hasn't been generated yet or if the
 # file has changed, then (re)generate it.
-if [ ! -f latex/"$TARGETNAME".tex ] || [ $CHECK != `cat "$TARGET".hash` ]; then
+if [ ! -f latex/"$TARGET".tex ] || [ $CHECK != `cat "$TARGET".hash` ]; then
   echo REGENERATE: "$TARGET".tex
   agda -i . -i "$STDLIB" --latex "$TARGET".lagda > "$TARGET".log
 else
