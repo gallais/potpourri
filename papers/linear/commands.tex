@@ -1,16 +1,34 @@
 %%%%%%%%%% AGDA ALIASES
 
-\newcommand{\APT}{\AgdaPrimitiveType}
-\newcommand{\AK}{\AgdaKeyword}
-\newcommand{\AM}{\AgdaModule}
-\newcommand{\AS}{\AgdaSymbol}
-\newcommand{\AStr}{\AgdaString}
-\newcommand{\AN}{\AgdaNumber}
-\newcommand{\AD}{\AgdaDatatype}
-\newcommand{\AF}{\AgdaFunction}
-\newcommand{\AR}{\AgdaRecord}
-\newcommand{\ARF}{\AgdaField}
-\newcommand{\AB}{\AgdaBound}
-\newcommand{\AIC}{\AgdaInductiveConstructor}
+%\newcommand{\APT}{\AgdaPrimitiveType}
+%\newcommand{\AK}{\AgdaKeyword}
+%\newcommand{\AM}{\AgdaModule}
+%\newcommand{\AS}{\AgdaSymbol}
+%\newcommand{\AStr}{\AgdaString}
+%\newcommand{\AN}{\AgdaNumber}
+%\newcommand{\AD}{\AgdaDatatype}
+%\newcommand{\AF}{\AgdaFunction}
+%\newcommand{\AR}{\AgdaRecord}
+%\newcommand{\ARF}{\AgdaField}
+%\newcommand{\AB}{\AgdaBound}
+%\newcommand{\AIC}{\AgdaInductiveConstructor}
 
+\renewcommand{\textsc}[1]{{\footnotesize \uppercase{#1}}}
+\newcommand{\𝓣}{$\mathcal{T}$}
+\newcommand{\MCT}{$\mathcal{T}$}
 \newcommand{\model}{$\mathit{𝓜}^{Γ}_{σ}$}
+
+
+\newcommand{\DefinedType}[1]{\text{\textsc{#1}}}
+
+\newcommand{\Type}{\DefinedType{Type}}
+\newcommand{\Nat}{\DefinedType{Nat}}
+\newcommand{\Var}{\DefinedType{Var}}
+\newcommand{\Inferable}{\DefinedType{Infer}}
+\newcommand{\Checkable}{\DefinedType{Check}}
+\newcommand{\Pattern}{\DefinedType{Pattern}}
+\newcommand{\Context}{\DefinedType{Context}}
+\newcommand{\Usage}{\DefinedType{Usage}}
+\newcommand{\Usages}{\DefinedType{Usages}}
+
+\newcommand{\Set}{\mathcal{\textit{Set}}}
