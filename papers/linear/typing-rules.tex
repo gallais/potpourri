@@ -1,0 +1,78 @@
+\begin{figure}[p]
+\begin{mathpar}
+\inferrule
+ {
+}{Γ ∙ \texttt{fresh}_σ ⊢ \texttt{zero} ∈ σ ⊠ Γ ∙ \texttt{stale}_σ
+}
+\and \inferrule
+ {Γ ⊢ k ∈ σ ⊠ Δ
+}{Γ ∙ A ⊢ \texttt{suc}(k) ∈ σ ⊠ Δ ∙ A
+}
+\end{mathpar}
+\caption{Typing rules for \Var{}\label{figure:deBruijn}}
+
+\begin{mathpar}
+\inferrule
+ {Γ ⊢ k ∈ σ ⊠ Δ
+}{Γ ⊢ \texttt{var}(k) ∈ σ ⊠ Δ
+}
+\and \inferrule
+ {Γ ⊢ t ∈ σ ⊸ τ ⊠ Δ \and Δ ⊢ σ ∋ u ⊠ Θ
+}{Γ ⊢ \texttt{app}(t, u) ∈ τ ⊠ Θ
+}
+\and \inferrule
+ {Γ ⊢ t ∈ σ ⊕ τ ⊠ Δ \and
+  {\begin{array}{l}
+    Δ ∙ \texttt{fresh}_σ ⊢ ν ∋ l ⊠ Θ ∙ \texttt{stale}_σ \\
+    Δ ∙ \texttt{fresh}_τ ⊢ ν ∋ r ⊠ Θ ∙ \texttt{stale}_τ
+  \end{array}}
+}{Γ ⊢ \texttt{case}~t~\texttt{return}~ν~\texttt{of}~l~\texttt{\%\!\%}~r ∈ ν ⊠ Θ
+}
+\and \inferrule
+ {Γ ⊢ σ ∋ t ⊠ Δ
+}{Γ ⊢ \texttt{cut}(t, σ) ∈ σ ⊠ Δ
+}
+\end{mathpar}
+\caption{Typing rules for \Inferable{}\label{figure:infer}}
+
+\begin{mathpar}
+\inferrule
+ {Γ ∙ \texttt{fresh}_σ ⊢ τ ∋ b ⊠ Δ ∙ \texttt{stale}_σ
+}{Γ ⊢ σ ⊸ τ ∋ \texttt{lam}(b) ⊠ Δ
+}
+\and \inferrule
+ {Γ ⊢ t ∈ σ ⊠ Δ \and σ ∋ p \leadsto{} δ
+  \\\\ Δ \append{} \texttt{fresh}_δ ⊢ τ ∋ u ⊠ Θ \append{} \texttt{stale}_δ
+}{Γ ⊢ τ ∋ \texttt{let}~p~\texttt{∷=}~t~\texttt{in}~u ⊠ Θ
+}
+\and \inferrule
+ {Γ ⊢ σ ∋ t ⊠ Δ
+}{Γ ⊢ σ ⊕ τ ∋ \texttt{inl}(t) ⊠ Δ
+}
+\and \inferrule
+ {Γ ⊢ τ ∋ t ⊠ Δ
+}{Γ ⊢ σ ⊕ τ ∋ \texttt{inr}(t) ⊠ Δ
+}
+\\ \inferrule
+ {Γ ⊢ σ ∋ a ⊠ Δ \and Δ ⊢ τ ∋ b ⊠ Θ
+}{Γ ⊢ σ ⊗ τ ∋ \texttt{prd}(a, b) ⊠ Θ
+}
+\and \inferrule
+ {Γ ⊢ t ∈ σ ⊠ Δ
+}{Γ ⊢ σ ∋ \texttt{neu}(t) ⊠ Δ
+}
+\end{mathpar}
+\caption{Typing rules for \Checkable{}\label{figure:check}}
+
+\begin{mathpar}
+\inferrule
+ {
+}{σ ∋ \texttt{v} \leadsto{} σ ∙ []
+}
+\and \inferrule
+ {σ ∋ p \leadsto{} γ \and τ ∋ q \leadsto{} δ
+}{σ ⊗ τ ∋ (p \texttt{,} q) \leadsto{} δ \append γ
+}
+\end{mathpar}
+\caption{Typing rules for \Pattern{}\label{figure:pattern}}
+\end{figure}

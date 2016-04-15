@@ -133,7 +133,7 @@ to each free variable, canonical values (which we call \Checkable{})
 can be \emph{check}ed against a type whilst we may infer the type of
 computations (which we call \Inferable{}).
 
-\begin{table}[h]\centering
+\begin{figure}[h]\centering
 \begin{tabular}{lcl}
 ⟨$\Inferable{}_n$⟩ & ::= & \texttt{var} ⟨$\Var{}_n$⟩ \\
                    &  |  & \texttt{app} ⟨$\Inferable{}_n$⟩ ⟨$\Checkable{}_n$⟩ \\
@@ -146,13 +146,13 @@ computations (which we call \Inferable{}).
 ⟨$\Checkable{}_n$⟩ & ::= & \texttt{lam} ⟨$\Checkable{}_{1 + n}$⟩ \\
                    &  |  & \texttt{let} ⟨$\Pattern{}_m$⟩ \texttt{∷=} ⟨$\Inferable{}_n$⟩
                            \texttt{in} ⟨$\Checkable{}_{m + n}$⟩ \\
-                   &  |  & \texttt{prd} ⟨$\Checkable{}_n$⟩ ⟨$\Checkable{}_n$⟩ \\
                    &  |  & \texttt{inl} ⟨$\Checkable{}_n$⟩ \\
                    &  |  & \texttt{inr} ⟨$\Checkable{}_n$⟩ \\
+                   &  |  & \texttt{prd} ⟨$\Checkable{}_n$⟩ ⟨$\Checkable{}_n$⟩ \\
                    &  |  & \texttt{neu} ⟨$\Inferable{}_n$⟩ \\                  
 \end{tabular}
 \caption{Grammar of the Language of Raw Terms}
-\end{table}
+\end{figure}
 
 Two additional rules (\texttt{neu} and \texttt{cut} respectively)
 allow the embeddin of \Inferable{} into \Checkable{} and vice-versa. They
@@ -365,6 +365,7 @@ This definition clarifies the notion but also leads to more generic
 statements later on: weakening, substitutiong, framing can all be
 expressed as properties a Typing Relation might have.
 
+\input{typing-rules}
 
 \subsubsection{Typing de Bruijn indices}
 
@@ -379,17 +380,7 @@ will have turned \texttt{stale}:
 The typing relation is presented in a sequent-style: Γ ⊢ $k$ ∈ σ ⊠ Δ
 means that starting from the usage annotation Γ, the de Bruijn index
 $k$ is ascribed type σ with leftovers Δ. It is defined inductively by
-two constructors:
-\begin{mathpar}
-\inferrule
- {
-}{Γ ∙ \texttt{fresh}_σ ⊢ \texttt{zero} ∈ σ ⊠ Γ ∙ \texttt{stale}_σ
-}
-\and \inferrule
- {Γ ⊢ k ∈ σ ⊠ Δ
-}{Γ ∙ A ⊢ \texttt{suc}(k) ∈ σ ⊠ Δ ∙ A
-}
-\end{mathpar}
+two constructors (cf. Figure~\ref{figure:deBruijn}).
 \end{definition}
 
 \begin{remark}The careful reader will have noticed that there is precisely
@@ -414,7 +405,8 @@ usage annotation ($Γ ∙ \texttt{fresh}_τ ∙ \texttt{fresh}_σ$):
 }
 \end{mathpar}
 Or, as it would be written in Agda, taking advantage of the fact that
-language constructs and typing rules have been given the same name:
+the language constructs and the typing rules about them have been given
+the same names:
 \begin{lstlisting}
   one : 'Γ' '∙' fresh 'τ' '∙' fresh 'σ' ⊢ suc(zero) '∈' 'τ' '⊠' 'Γ' '∙' stale 'τ' '∙' fresh 'σ'
   one = suc zero
@@ -423,9 +415,9 @@ language constructs and typing rules have been given the same name:
 
 \subsubsection{Typing terms}
 
-\begin{definition}
-\end{definition}
+\begin{definition} The key idea
 
+\end{definition}
 
 
 %%%%%%%%%%%%%%%
