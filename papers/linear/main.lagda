@@ -11,6 +11,13 @@
 \usepackage{todonotes}
 \usepackage{microtype}
 \usepackage{catchfilebetweentags}
+\lstset{
+    escapeinside='',
+    extendedchars=true,
+    inputencoding=utf8,
+}
+
+
 \bibliographystyle{plainurl}% the recommended bibstyle
 
 % Author macros::begin %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -88,9 +95,9 @@ Following Altenkirch and Reus~\cite{altenkirch1999monadic},
 we define the raw terms of our language not as an inductive
 type but rather as an inductive \emph{family}~\cite{dybjer1994inductive}.
 This technique, sometimes dubbed ``type-level de Bruijn indices'',
-makes it possible to keep track in the index of the family of the
-free currently in scope. As is nowadays folklore, instead of using
-a set-indexed presentation where a closed terms is indexed by
+makes it possible to keep track, in the index of the familyn, of the
+free variables currently in scope. As is nowadays folklore, instead of
+using a set-indexed presentation where a closed terms is indexed by
 the empty set $⊥$ and fresh variables are introduced by wrapping
 the index in a \texttt{Maybe} type constructor\footnote{The value
 \texttt{nothing} represents the fresh variable whilst the data
@@ -273,11 +280,11 @@ usage annotations indicate whether resources have been consumed already
 or are still availble. Type-inference (resp. Type-checking) is then
 inferring (resp. checking) a term's type but \emph{also} annotating
 the resources consumed by the term in question and returning the
-``leftovers'' which gave their name to this paper.
+\emph{leftovers} which gave their name to this paper.
 
 \begin{definition}
 \label{definition:context}
-A ``context'' is a list of \Type{}s indexed by its length. It can
+A \Context{} is a list of \Type{}s indexed by its length. It can
 be formally described by the following inference rules:
 \begin{mathpar}
 \inferrule
@@ -354,48 +361,170 @@ an indexed relation $\text{\𝓣{}}_n$ such that:
 \end{mathpar}
 \end{definition}
 
+This definition clarifies the notion but also leads to more generic
+statements later on: weakening, substitutiong, framing can all be
+expressed as properties a Typing Relation might have.
+
+
+\subsubsection{Typing de Bruijn indices}
+
 The simplest instance of a Typing Relation is the one for de Bruijn
 indices: given an index $k$ and a usage annotation, it successfully
 associates a type to that index if and only if the $k$th resource
-in context is \texttt{fresh}. In the resulting leftovers, it will
-have turned \texttt{stale}:
+in context is \texttt{fresh}. In the resulting leftovers, the resource
+will have turned \texttt{stale}:
 
 \begin{definition}
 \label{typing:deBruijn}
-The relation is defined inductively. It has exactly two constructors
-and their name are overloaded with the corresponding constructors for
-\Var{}:
+The typing relation is presented in a sequent-style: Γ ⊢ $k$ ∈ σ ⊠ Δ
+means that starting from the usage annotation Γ, the de Bruijn index
+$k$ is ascribed type σ with leftovers Δ. It is defined inductively by
+two constructors:
 \begin{mathpar}
 \inferrule
  {
-}{\texttt{zero} : Γ ∙ \texttt{fresh}_σ ⊢ \texttt{zero} ∈ σ ⊠ Γ ∙ \texttt{stale}_σ
+}{Γ ∙ \texttt{fresh}_σ ⊢ \texttt{zero} ∈ σ ⊠ Γ ∙ \texttt{stale}_σ
 }
 \and \inferrule
- {K : Γ ⊢ k ∈ σ ⊠ Δ
-}{\texttt{suc}(K) : Γ ∙ A ⊢ \texttt{suc}(k) ∈ σ ⊠ Δ ∙ A
+ {Γ ⊢ k ∈ σ ⊠ Δ
+}{Γ ∙ A ⊢ \texttt{suc}(k) ∈ σ ⊠ Δ ∙ A
 }
 \end{mathpar}
 \end{definition}
 
+\begin{remark}The careful reader will have noticed that there is precisely
+one typing rule for each \Var{} constructor. It is not a coincidence. And
+if these typing rules are not named it's because in Agda, they can simply
+be given the same name as their \Var{} counterpart. The same will be true
+for \Inferable{}, \Checkable{} and \Pattern{} which means that writing
+down a typable program could be seen as either writing a raw term or the
+typing derivation associated to it depending on the author's intent.
+\end{remark}
+
 \begin{example}
-Which makes it to write the first typing derivation of this paper:
-the de Bruijn index 1 has type τ in the context (γ ∙ σ ∙ τ) with
+The de Bruijn index 1 has type τ in the context (γ ∙ σ ∙ τ) with
 usage annotation ($Γ ∙ \texttt{fresh}_τ ∙ \texttt{fresh}_σ$):
 \begin{mathpar}
 \inferrule
  {\inferrule
    {
-  }{\texttt{zero} : Γ ∙ \texttt{fresh}_τ ⊢ \texttt{zero} ∈ τ ⊠ Γ ∙ \texttt{stale}_τ
+  }{Γ ∙ \texttt{fresh}_τ ⊢ \texttt{zero} ∈ τ ⊠ Γ ∙ \texttt{stale}_τ
   }
-}{\texttt{suc(zero)} : Γ ∙ \texttt{fresh}_τ ∙ \texttt{fresh}_σ ⊢ \texttt{suc(zero)} ∈ τ ⊠ Γ ∙ \texttt{stale}_τ ∙ \texttt{fresh}_σ
+}{Γ ∙ \texttt{fresh}_τ ∙ \texttt{fresh}_σ ⊢ \texttt{suc(zero)} ∈ τ ⊠ Γ ∙ \texttt{stale}_τ ∙ \texttt{fresh}_σ
 }
 \end{mathpar}
-Or, as it would be written in Agda:\todo{fixthis}
+Or, as it would be written in Agda, taking advantage of the fact that
+language constructs and typing rules have been given the same name:
 \begin{lstlisting}
-  one : Γ ∙ fresh τ :: fresh σ ⊢ suc(zero) ∈  τ  ⊠ Γ ∙ stale τ ∙ fresh σ
+  one : 'Γ' '∙' fresh 'τ' '∙' fresh 'σ' ⊢ suc(zero) '∈' 'τ' '⊠' 'Γ' '∙' stale 'τ' '∙' fresh 'σ'
   one = suc zero
 \end{lstlisting}
 \end{example}
+
+\subsubsection{Typing terms}
+
+\begin{definition}
+\end{definition}
+
+
+
+%%%%%%%%%%%%%%%
+%% WEAKENING %%
+%%%%%%%%%%%%%%%
+
+\section{Weakening}
+
+It is perhaps surprising to find a notion of weakening for a linear
+calculus: the whole point of linearity is precisely to ensure that
+all the resources are used. However when opting for a system based
+on consumption annotations, it becomes necessary in order to define
+substitution for instance, to be able to extend the underlying
+context a term is defined with respect to. Linearity is guaranteed
+by ensuring that the inserted variables are left untouched by the
+term.
+
+Weakening arises from a notion of inclusion. The appropriate type
+theoretical structure to describe these inclusions is well-known
+and called an Order Preserving Embeddding~\cite{chapman2009thesis}.~\todo{Altenkirch too}
+
+\begin{definition}
+An Order Preserving Embedding is an inductive family with two
+indices: the element it starts from and the one it arrives at.
+Its constructors describe a strategy to realise this promise
+of an embedding from one to the other.
+
+They are needed for \Nat{}s, \Context{}s and \Usages{}, each
+one indexed by a value of the previous one in order to refine
+it: the Order Preserving Embeddings for \Nat{} describe ways
+to extend a scope, the ones for \Context{}s ascribe types to
+these new variables and finally the ones for \Usages{} associate
+usage annotations to these types.
+
+\begin{mathpar}
+\inferrule
+ {k, l : \Nat{}
+}{k ≤ l : \Set{}
+}
+\and \inferrule
+ {γ : \Context{}_k \and δ : \Context{}_l \and o : k ≤ l 
+}{γ ≤_o δ : \Set{}
+}
+\and \inferrule
+ {Γ : \Usages{}_γ \and Δ : \Usages{}_δ \and o : k ≤ l \and O : γ ≤_o δ
+}{Γ ≤_O Δ : \Set{}
+}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {
+}{k ≤ k
+}
+\and \inferrule
+ {
+}{γ ≤_{\texttt{done}} γ
+}
+\and \inferrule
+ {
+}{Γ ≤_{\texttt{done}} Γ
+}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {k ≤ l
+}{1+k ≤ 1+l
+}
+\and \inferrule
+ {γ ≤_o δ
+}{γ ∙ σ ≤_{\texttt{copy}(o)} δ ∙ σ
+}
+\and \inferrule
+ {𝓞 : Γ ≤_O Δ
+}{Γ ∙ S ≤_{\texttt{copy}(O)} Δ ∙ S
+}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {k ≤ l
+}{k ≤ 1+l
+}
+\and \inferrule
+ {γ ≤_o δ
+}{γ ≤_{\texttt{insert}(o)} δ ∙ σ
+}
+\and \inferrule
+ {Γ ≤_O Δ
+}{Γ ≤_{\texttt{insert}(O)} Δ ∙ S
+}
+\end{mathpar}
+
+\end{definition}
+
+
+
+
+%%%%%%%%%%%%%%%%%%
+%% SUBSTITUTION %%
+%%%%%%%%%%%%%%%%%%
 
 \section{}
 \begin{definition}
