@@ -505,24 +505,32 @@ theoretical structure to describe these inclusions is well-known
 and called an Order Preserving Embeddding~\cite{chapman2009thesis,altenkirch1995categorical}.
 Unlike a simple function witnessing the inclusion of its domain
 into its codomain, the restriction brought by order preserving
-embeddings guarantee that contraction is simply not possible which
+embeddings guarantees that contraction is simply not possible which
 is crucial in a linear setting. In this development, three variations
-on OPEs are actually need: one for \Nat{}s to describe the embedding
+on OPEs are actually needed: one for \Nat{}s to describe the embedding
 of a scope into a larger one, one for \Context{} describing what types
 the extra variables in scope are assigned and finally one for their
 \Usages{} mentioning whether these variables are fresh or stale.
 
 \begin{definition}
-An Order Preserving Embedding is an inductive family with two
-indices: the element it starts from and the one it arrives at.
-Its constructors dubbed ``moves'' describe a strategy to realise
-this promise of an embedding from one to the other.
-Figure~\ref{figure:ope} defines three OPEs at the same time:
+An Order Preserving Embedding is an inductive family. Its constructors
+dubbed ``moves'' describe a strategy to realise the promise of an
+embedding. Figure~\ref{figure:ope} defines three OPEs at the same
+time.
 
-The first column describes the OPE for \Nat{}s, the second one is
-dedicated to the OPE for \Context{}s (which is indexed by the one
-for scopes), and finally the third one is the OPE for \Usages{}
-(itself indexed by the one for the corresponding \Context{}s).
+The first column lists the name of constructors associated to each
+one of the moves. The second column describes the OPE for \Nat{}s
+and it follows closely the traditional definition of OPEs. The two
+remaining columns are a bit different: they respectively define the
+OPE for \Context{}s and the one for \Usages{}. However they do not
+mention the source and target sets in their indices; they are in
+fact generic enough to be applied to any context / usages of the
+right size. If a value of $k ≤ l$ is seen as a \emph{diff} between
+$k$ and $l$ then the OPEs on contexts and usages annotations only
+specify what to do for the variables introduced by the diff (i.e.
+the variables corresponding to an \texttt{insert} constructor).
+These diffs can then be applied to concrete contexts and usages
+respectively to transform them.
 
 The first row defines the move \texttt{done} for each one of the
 OPEs. It is the strategy corresponding to the trivial embedding of
@@ -530,11 +538,17 @@ a set into itself by the identity. It serves as a base case.
 
 The second row corresponds to the \texttt{copy} move which extends
 an existing embedding by copying the current $0$th variable from
-source to target.
+source to target. The corresponding cases for \Context{}s and
+\Usages{} are purely structural: no additional content is required
+to be able to perform a \texttt{copy} move.
 
 Last but not least, the third row describes the move \texttt{insert}
 which introduces an extra variable in the target set. This is the
-move used to extend an existing context, i.e. to weaken it.
+move used to extend an existing context, i.e. to weaken it. In this
+case, it is paramount that the OPE for \Context{}s should take a
+type σ as an extra argument (it will be the type of the newly introduced
+variable) whilst the OPE for \Usages{} takes a $\Usage{}_σ$ (it will
+be the usage associated to that newly introduced variable of type σ).
 
 \begin{figure}[h]\centering
 \begin{tabular}{l|c|c|c}
@@ -543,13 +557,12 @@ move used to extend an existing context, i.e. to weaken it.
 }{k ≤ l : \Set{}
 }
 & \inferrule
- {{\begin{array}{l}γ : \Context{}_k \\ δ : \Context{}_l\end{array}} \and o : k ≤ l 
-}{γ ≤_o δ : \Set{}
+ {o : k ≤ l 
+}{\OPE{}(o) : \Set{}
 }
 & \inferrule
- {{\begin{array}{l}Γ : \Usages{}_γ \\ Δ : \Usages{}_δ\end{array}}
- \and {\begin{array}{l}o : k ≤ l \\ O : γ ≤_o δ\end{array}}
-}{Γ ≤_O Δ : \Set{}
+ {o : k ≤ l \and O : \OPE{}(o)
+}{\OPE{}(O) : \Set{}
 } \\ & & \\
 \texttt{done}
 & \inferrule
@@ -558,11 +571,11 @@ move used to extend an existing context, i.e. to weaken it.
 }
 & \inferrule
  {
-}{γ ≤_{\texttt{done}} γ
+}{\OPE{}(\texttt{done})
 }
 & \inferrule
  {
-}{Γ ≤_{\texttt{done}} Γ
+}{\OPE{}(\texttt{done})
 }\\ & & \\
 \texttt{copy}
 & \inferrule
@@ -570,12 +583,12 @@ move used to extend an existing context, i.e. to weaken it.
 }{1+k ≤ 1+l
 }
 & \inferrule
- {γ ≤_o δ
-}{γ ∙ σ ≤_{\texttt{copy}(o)} δ ∙ σ
+ {o : k ≤ l \and \OPE{}(o)
+}{\OPE{}(\texttt{copy}(o))
 }
 & \inferrule
- {𝓞 : Γ ≤_O Δ
-}{Γ ∙ S ≤_{\texttt{copy}(O)} Δ ∙ S
+ {{\begin{array}{l}o : k ≤ l \\ O : \OPE{}(o)\end{array}} \and \OPE{}(O)
+}{\OPE{}(\texttt{copy}(O))
 }\\ & & \\
 \texttt{insert}
 & \inferrule
@@ -583,12 +596,12 @@ move used to extend an existing context, i.e. to weaken it.
 }{k ≤ 1+l
 }
 & \inferrule
- {γ ≤_o δ
-}{γ ≤_{\texttt{insert}(o)} δ ∙ σ
+ {o : k ≤ l \and \OPE{}(o) \and \Type{}
+}{\OPE{}(\texttt{insert}(o))
 }
 & \inferrule
- {Γ ≤_O Δ
-}{Γ ≤_{\texttt{insert}(O)} Δ ∙ S
+ {{\begin{array}{l}o : k ≤ l \\ O : \OPE{}(o) \\ σ : \Type{}\end{array}} \and \OPE{}(O) \and S : \Usage{}_σ
+}{\OPE{}(\texttt{insert}(O, σ))
 }
 \end{tabular}
 \caption{Order Preserving Embeddings for \Nat{}, \Context{} and \Usages{}\label{figure:ope}}
@@ -597,13 +610,22 @@ move used to extend an existing context, i.e. to weaken it.
 
 \begin{example}
 \label{example:ope}
-The typical use-case for a weakening in lambda calculi is to readjust
-the type of a term being substituted under a lambda. A natural example
-of an element of the Order Preserving Embedding type for \Context{}s is
-therefore:
+We may define three embeddings corresponding to the introduction of a
+fresh variable for scopes, contexts and usages respectively. The
+body of these three declarations looks the same because we overload
+the constructors' names but they build different objects. As can be
+seen in the types, the latter ones depend on the former ones. This
+type of embedding is very much grounded in reality: it is precisely
+what pushing a substitution under a lambda abstraction calls for.
 \begin{lstlisting}
-  withFreshVar : 'γ ≤ γ ∙ σ'
-  withFreshVar = insert done
+  scopeWithFV : suc n '≤' suc (suc n)
+  scopeWithFV = insert done
+
+  contextWithFV : Type '→' Context.OPE scopeWithFV
+  contextWithFV 'σ' = insert done 'σ'
+
+  usagesWithFV : ('σ' : Type) '→' Usage σ '→' Usages.OPE (contextWithFV 'σ')
+  usagesWithFV 'σ' S = insert done S
 \end{lstlisting}
 \end{example}
 
