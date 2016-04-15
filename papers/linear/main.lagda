@@ -415,8 +415,24 @@ the same names:
 
 \subsubsection{Typing terms}
 
-\begin{definition} The key idea
+The key idea appearing in all the typing rules for compound
+expressions is to use the input \Usages{} to type one of the
+sub-expressions, collect the leftovers from that typing
+derivation and use them as the new input \Usages{} when typing
+the next sub-expression.
 
+Another common pattern can be seen across all the rules involving
+binders, be they λ-abstractions, let-bindings or branches of a
+case. Typechecking the body of a binder involves extending the
+input \Usages{} with fresh variables and observing that they have
+become stale in the ouput one. This guarantees that these bound
+variables cannot escape their scope as well as that they have indeed
+been used. Relaxing the staleness restriction would lead to an affine
+type system which would be interesting in its own right.
+
+\begin{definition}Typing rules for \Inferable{} are typeset in
+a fashion similar to the one for \Var{}. Indeed, in both cases
+the type is inferred.\todo{Input / Scrutinee / Output}\todo{pattern}
 \end{definition}
 
 
