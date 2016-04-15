@@ -7,7 +7,7 @@
 
 \input{commands}
 \usepackage{agda}
-\usepackage{mathpartir}
+\usepackage{mathpartir, lscape}
 \usepackage{todonotes}
 \usepackage{microtype}
 \usepackage{catchfilebetweentags}
@@ -196,27 +196,30 @@ well-scoped by construction. It does not impose any other constraint,
 which means that a user may write valid programs but also invalid
 ones as the following examples demonstrate:
 
-\begin{example}\texttt{swap} is a closed, well-typed linear term
-taking a pair as an input and swapping its components. It corresponds
-to the mathematical function $(x, y) \mapsto (y, x)$.
+\begin{example}\label{example:swap}
+\texttt{swap} is a closed, well-typed linear term taking a pair as
+an input and swapping its components. It corresponds to the mathematical
+function $(x, y) \mapsto (y, x)$.
 \begin{lstlisting}
   swap = lam (let (v , v) ∷= var zero
               in prd (neu (var (suc zero))) (neu (var zero)))
 \end{lstlisting}
 \end{example}
 
-\begin{example}\texttt{illTyped} is a closed linear term. However
-it is manifestly ill-typed: the let-binding it uses tries to break
-down a function as if it were a pair.
+\begin{example}\label{example:illTyped}
+\texttt{illTyped} is a closed linear term. However it is manifestly
+ill-typed: the let-binding it uses tries to break down a function as
+if it were a pair.
 \begin{lstlisting}
   illTyped = let (v , v) ∷= cut (lam (neu (var zero))) (a ⊸ a)
              in prd (neu (var zero)) (neu (var (suc zero)))
 \end{lstlisting}
 \end{example}
 
-\begin{example}Finally, \texttt{diagonal} is a term typable in the
-simply-typed lambda calculus but it is not linear: it duplicates
-its input just like $x \mapsto (x, x)$ does.
+\begin{example}\label{example:diagonal}
+Finally, \texttt{diagonal} is a term typable in the simply-typed
+lambda calculus but it is not linear: it duplicates its input just
+like $x \mapsto (x, x)$ does.
 \begin{lstlisting}
   diagonal = lam (prd (neu (var zero)) (neu (var zero)))
 \end{lstlisting}
@@ -430,11 +433,57 @@ variables cannot escape their scope as well as that they have indeed
 been used. Relaxing the staleness restriction would lead to an affine
 type system which would be interesting in its own right.
 
-\begin{definition}Typing rules for \Inferable{} are typeset in
-a fashion similar to the one for \Var{}. Indeed, in both cases
-the type is inferred.\todo{Input / Scrutinee / Output}\todo{pattern}
+\begin{definition}The Typing Relation for \Inferable{} is typeset
+in a fashion similar to the one for \Var{}. Indeed, in both cases
+the type is inferred. $Γ ⊢ t ∈ σ ⊠ Δ$ means that given Γ a
+$\Usages{}_γ$, and $t$ an \Inferable{}, the type σ is inferred
+together with leftovers Δ, another $\Usages{}_γ$. (cf.
+Figure~\ref{figure:infer})
+
+For \Checkable{}, the type σ comes first: $Γ ⊢ σ ∋ t ⊠ Δ$ means
+that given Γ a $\Usages{}_γ$, a type σ, the \Checkable{} $t$ can
+be checked to have type σ with leftovers Δ (cf.
+Figure~\ref{figure:check})
 \end{definition}
 
+\begin{example}
+Given these rules, it is easy to see that the identity function
+can be checked at type (σ ⊸ σ) in an empty context:
+\begin{mathpar}
+\inferrule
+ {\inferrule
+   {\inferrule
+     {\inferrule
+       {
+      }{[] ∙ \texttt{fresh}_σ ⊢ \texttt{zero} ∈ σ ⊠ [] ∙ \texttt{stale}_σ
+      }
+    }{[] ∙ \texttt{fresh}_σ ⊢ \texttt{var}(\texttt{zero}) ∈ σ ⊠ [] ∙ \texttt{stale}_σ
+    }
+  }{[] ∙ \texttt{fresh}_σ ⊢ σ ∋ \texttt{neu}(\texttt{var}(\texttt{zero})) ⊠ [] ∙ \texttt{stale}_σ
+  }
+}{[] ⊢ σ ⊸ σ ∋ \texttt{lam}(\texttt{neu}(\texttt{var}(\texttt{zero}))) ⊠ []
+}
+\end{mathpar}
+Or, as it would be written in Agda where the typing rules were
+given the same name as their term constructor counterparts:
+\begin{lstlisting}
+  identity : [] '⊢' 'σ' '⊸' 'σ' '∋' lam (neu (var zero)) '⊠' []
+  identity = lam (neu (var zero))
+\end{lstlisting}
+\end{example}
+
+\begin{example}
+It is also possible to revisit Example \ref{example:swap} to prove
+that it can be checked against type (σ ⊗ τ) ⊸ (τ ⊗ σ) in an empty
+context. This gives the lengthy derivation in Appendix~\ref{typing:swap}
+or the following simpler one in Agda:
+
+\begin{lstlisting}
+  swapTyped : [] '⊢' ('σ' '⊗' 'τ') '⊸' ('τ' '⊗' 'σ') '∋' swap '⊠' []
+  swapTyped = lam (let (v , v) ∷= var zero
+                   in prd (neu (var (suc zero))) (neu (var zero))
+\end{lstlisting}
+\end{example}
 
 %%%%%%%%%%%%%%%
 %% WEAKENING %%
@@ -641,6 +690,10 @@ information:
 
 %% .. or use the thebibliography environment explicitely
 
+\appendix
 
+\begin{landscape}
+\input{typing-swap}
+\end{landscape}
 
 \end{document}

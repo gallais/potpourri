@@ -1,0 +1,58 @@
+\appendix{Typing derivation for \texttt{swap}}
+\label{typing:swap}
+\begin{mathpar}
+\inferrule
+ {\inferrule
+   {\inferrule
+     {\inferrule
+       {
+      }{\texttt{fresh}_{σ ⊗ τ} ⊢ \texttt{zero} ∈ σ ⊗ τ ⊠ \texttt{stale}_{σ ⊗ τ}
+      }
+     }{\texttt{fresh}_{σ ⊗ τ} ⊢ \texttt{var}(\texttt{zero}) ∈ σ ⊗ τ ⊠ \texttt{stale}_{σ ⊗ τ}
+   }
+   \inferrule
+    {\inferrule{ }{σ ∋ \texttt{v} \leadsto{} [] ∙ \texttt{fresh}_σ}
+      \and \inferrule{ }{τ ∋ \texttt{v} \leadsto{} [] ∙ \texttt{fresh}_τ}
+   }{σ ⊗ τ ∋ (\texttt{v, v}) \leadsto{} [] ∙ \texttt{fresh}_τ ∙ \texttt{fresh}_σ
+   } \and Π
+  }{[] ∙ \texttt{fresh}_{σ ⊗ τ} ⊢ τ ⊗ σ ∋
+    {\begin{array}{l}
+      \texttt{let}~(\texttt{v, v})~∷=~\texttt{var}~\texttt{zero}~\texttt{in} \\
+      \texttt{prd}(\texttt{neu}(\texttt{var}(1)),~\texttt{neu}(\texttt{var}(0)))
+    \end{array}}
+    ⊠ [] ∙ \texttt{stale}_{σ ⊗ τ}$$
+  }
+}{[] ⊢ (σ ⊗ τ) ⊸ (τ ⊗ σ) ∋ \texttt{swap} ⊠ []
+}
+
+\and
+Π = \inferrule
+    {\inferrule
+      {\inferrule
+        {\inferrule
+        {\inferrule
+        {
+        }{[] ∙ \texttt{fresh}_τ ⊢ 0 ∈ τ ⊠ [] ∙ \texttt{stale}_τ
+       } 
+        }{[] ∙ \texttt{fresh}_τ ∙ \texttt{fresh}_σ ⊢ 1 ∈ τ
+          ⊠ [] ∙ \texttt{stale}_τ ∙ \texttt{fresh}_σ
+       } 
+        }{[] ∙ \texttt{fresh}_τ ∙ \texttt{fresh}_σ ⊢ \texttt{var}(1) ∈ τ
+          ⊠ [] ∙ \texttt{stale}_τ ∙ \texttt{fresh}_σ
+       } 
+     }{[] ∙ \texttt{fresh}_τ ∙ \texttt{fresh}_σ ⊢ τ ∋ \texttt{neu}(\texttt{var}(1))
+       ⊠ [] ∙ \texttt{stale}_τ ∙ \texttt{fresh}_σ
+     } \and \inferrule
+      {\inferrule
+      {
+     }{[] ∙ \texttt{stale}_τ ∙ \texttt{fresh}_σ ⊢ 0 ∈ σ
+       ⊠ [] ∙ \texttt{stale}_τ ∙ \texttt{stale}_σ
+     }
+     }{[] ∙ \texttt{stale}_τ ∙ \texttt{fresh}_σ ⊢ \texttt{var}(0) ∈ σ
+       ⊠ [] ∙ \texttt{stale}_τ ∙ \texttt{stale}_σ
+     }
+    }{[] ∙ \texttt{fresh}_τ ∙ \texttt{fresh}_σ ⊢ τ ⊗ σ ∋
+      \texttt{prd}(\texttt{neu}(\texttt{var}(1)),~\texttt{neu}(\texttt{var}(0))
+      ⊠ [] ∙ \texttt{stale}_τ ∙ \texttt{stale}_σ
+   }
+\end{mathpar}
