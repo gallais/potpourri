@@ -437,13 +437,13 @@ type system which would be interesting in its own right.
 in a fashion similar to the one for \Var{}. Indeed, in both cases
 the type is inferred. $Γ ⊢ t ∈ σ ⊠ Δ$ means that given Γ a
 $\Usages{}_γ$, and $t$ an \Inferable{}, the type σ is inferred
-together with leftovers Δ, another $\Usages{}_γ$. (cf.
-Figure~\ref{figure:infer})
+together with leftovers Δ, another $\Usages{}_γ$. The rules are
+listed in Figure~\ref{figure:infer}.
 
 For \Checkable{}, the type σ comes first: $Γ ⊢ σ ∋ t ⊠ Δ$ means
 that given Γ a $\Usages{}_γ$, a type σ, the \Checkable{} $t$ can
-be checked to have type σ with leftovers Δ (cf.
-Figure~\ref{figure:check})
+be checked to have type σ with leftovers Δ. The rules can be found
+in Figure~\ref{figure:check}.
 \end{definition}
 
 \begin{example}
@@ -475,8 +475,8 @@ given the same name as their term constructor counterparts:
 \begin{example}
 It is also possible to revisit Example \ref{example:swap} to prove
 that it can be checked against type (σ ⊗ τ) ⊸ (τ ⊗ σ) in an empty
-context. This gives the lengthy derivation in Appendix~\ref{typing:swap}
-or the following simpler one in Agda:
+context. This gives the lengthy derivation included in the appendix
+or the following one in Agda which quite a lot more readable:
 
 \begin{lstlisting}
   swapTyped : [] '⊢' ('σ' '⊗' 'τ') '⊸' ('τ' '⊗' 'σ') '∋' swap '⊠' []
@@ -494,7 +494,7 @@ or the following simpler one in Agda:
 It is perhaps surprising to find a notion of weakening for a linear
 calculus: the whole point of linearity is precisely to ensure that
 all the resources are used. However when opting for a system based
-on consumption annotations, it becomes necessary in order to define
+on consumption annotations it becomes necessary, in order to define
 substitution for instance, to be able to extend the underlying
 context a term is defined with respect to. Linearity is guaranteed
 by ensuring that the inserted variables are left untouched by the
@@ -502,79 +502,110 @@ term.
 
 Weakening arises from a notion of inclusion. The appropriate type
 theoretical structure to describe these inclusions is well-known
-and called an Order Preserving Embeddding~\cite{chapman2009thesis}.~\todo{Altenkirch too}
+and called an Order Preserving Embeddding~\cite{chapman2009thesis,altenkirch1995categorical}.
+Unlike a simple function witnessing the inclusion of its domain
+into its codomain, the restriction brought by order preserving
+embeddings guarantee that contraction is simply not possible which
+is crucial in a linear setting. In this development, three variations
+on OPEs are actually need: one for \Nat{}s to describe the embedding
+of a scope into a larger one, one for \Context{} describing what types
+the extra variables in scope are assigned and finally one for their
+\Usages{} mentioning whether these variables are fresh or stale.
 
 \begin{definition}
 An Order Preserving Embedding is an inductive family with two
 indices: the element it starts from and the one it arrives at.
-Its constructors describe a strategy to realise this promise
-of an embedding from one to the other.
+Its constructors dubbed ``moves'' describe a strategy to realise
+this promise of an embedding from one to the other.
+Figure~\ref{figure:ope} defines three OPEs at the same time:
 
-They are needed for \Nat{}s, \Context{}s and \Usages{}, each
-one indexed by a value of the previous one in order to refine
-it: the Order Preserving Embeddings for \Nat{} describe ways
-to extend a scope, the ones for \Context{}s ascribe types to
-these new variables and finally the ones for \Usages{} associate
-usage annotations to these types.
+The first column describes the OPE for \Nat{}s, the second one is
+dedicated to the OPE for \Context{}s (which is indexed by the one
+for scopes), and finally the third one is the OPE for \Usages{}
+(itself indexed by the one for the corresponding \Context{}s).
 
-\begin{mathpar}
-\inferrule
+The first row defines the move \texttt{done} for each one of the
+OPEs. It is the strategy corresponding to the trivial embedding of
+a set into itself by the identity. It serves as a base case.
+
+The second row corresponds to the \texttt{copy} move which extends
+an existing embedding by copying the current $0$th variable from
+source to target.
+
+Last but not least, the third row describes the move \texttt{insert}
+which introduces an extra variable in the target set. This is the
+move used to extend an existing context, i.e. to weaken it.
+
+\begin{figure}[h]\centering
+\begin{tabular}{l|c|c|c}
+& \inferrule
  {k, l : \Nat{}
 }{k ≤ l : \Set{}
 }
-\and \inferrule
- {γ : \Context{}_k \and δ : \Context{}_l \and o : k ≤ l 
+& \inferrule
+ {{\begin{array}{l}γ : \Context{}_k \\ δ : \Context{}_l\end{array}} \and o : k ≤ l 
 }{γ ≤_o δ : \Set{}
 }
-\and \inferrule
- {Γ : \Usages{}_γ \and Δ : \Usages{}_δ \and o : k ≤ l \and O : γ ≤_o δ
+& \inferrule
+ {{\begin{array}{l}Γ : \Usages{}_γ \\ Δ : \Usages{}_δ\end{array}}
+ \and {\begin{array}{l}o : k ≤ l \\ O : γ ≤_o δ\end{array}}
 }{Γ ≤_O Δ : \Set{}
-}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
+} \\ & & \\
+\texttt{done}
+& \inferrule
  {
 }{k ≤ k
 }
-\and \inferrule
+& \inferrule
  {
 }{γ ≤_{\texttt{done}} γ
 }
-\and \inferrule
+& \inferrule
  {
 }{Γ ≤_{\texttt{done}} Γ
-}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
+}\\ & & \\
+\texttt{copy}
+& \inferrule
  {k ≤ l
 }{1+k ≤ 1+l
 }
-\and \inferrule
+& \inferrule
  {γ ≤_o δ
 }{γ ∙ σ ≤_{\texttt{copy}(o)} δ ∙ σ
 }
-\and \inferrule
+& \inferrule
  {𝓞 : Γ ≤_O Δ
 }{Γ ∙ S ≤_{\texttt{copy}(O)} Δ ∙ S
-}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
+}\\ & & \\
+\texttt{insert}
+& \inferrule
  {k ≤ l
 }{k ≤ 1+l
 }
-\and \inferrule
+& \inferrule
  {γ ≤_o δ
 }{γ ≤_{\texttt{insert}(o)} δ ∙ σ
 }
-\and \inferrule
+& \inferrule
  {Γ ≤_O Δ
 }{Γ ≤_{\texttt{insert}(O)} Δ ∙ S
 }
-\end{mathpar}
-
+\end{tabular}
+\caption{Order Preserving Embeddings for \Nat{}, \Context{} and \Usages{}\label{figure:ope}}
+\end{figure}
 \end{definition}
+
+\begin{example}
+\label{example:ope}
+The typical use-case for a weakening in lambda calculi is to readjust
+the type of a term being substituted under a lambda. A natural example
+of an element of the Order Preserving Embedding type for \Context{}s is
+therefore:
+\begin{lstlisting}
+  withFreshVar : 'γ ≤ γ ∙ σ'
+  withFreshVar = insert done
+\end{lstlisting}
+\end{example}
 
 
 
