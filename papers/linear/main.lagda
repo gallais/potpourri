@@ -485,6 +485,97 @@ or the following one in Agda which quite a lot more readable:
 \end{lstlisting}
 \end{example}
 
+%%%%%%%%%%%%%
+%% FRAMING %%
+%%%%%%%%%%%%%
+
+\section{Framing}
+
+The most basic property one can prove about this typing system is
+the fact that the state of the resources which are not used by a
+lambda term is irrelevant. We call this property the Framing
+Property because of the obvious analogy with the frame rule in
+separation logic. This can be reformulated as the fact that as
+long as two pairs of an input and an output usages exhibit the
+same consumption pattern then if a derivation uses one of these,
+it can use the other one instead. Formally (postponing the
+definition of $Γ - Δ ≡ Θ - ξ$):
+
+\begin{definition}A Typing Relation \𝓣{} for a \Nat{}-indexed
+family $T$ has the Framing Property if for all $k$ a \Nat{},
+γ a $\Context{}_k$, Γ, Δ, Θ, ξ four $\Usages{}_γ$, $t$ an element
+of $T_k$ and σ a Type, if $Γ - Δ ≡ Θ - ξ$ and \𝓣{}$(Γ, t, σ, Δ)$
+then \𝓣{}$(Θ, t, σ, ξ)$ also holds.
+\end{definition}
+
+
+
+\begin{definition}
+\label{definition:differences}
+The ``consumption equivalence'' characterises the pairs of an input and
+an output \Usages{} which have the same consumption pattern. The
+usages annotations for the empty context are trivially related.
+If the context is not empty, then there are two cases: if the
+resources is left untouched on side, then so should it on the other
+side but the two annotations may be different (here denoted $A$ and $B$
+respectively). On the other hand, if the resource has been consumed
+on one side then it has to be on the other side too.
+\begin{mathpar}
+\inferrule
+ {Γ, Δ, Θ, ξ : \Usages{}_γ
+}{Γ ─ Δ ≡ Θ ─ ξ : \Set{}
+}
+\and \inferrule
+ {
+}{[] - [] ≡ [] - []
+}{
+}
+\and \inferrule
+ {Γ - Δ ≡ Θ - ξ
+}{(Γ ∙ A) - (Δ ∙ A) ≡ (Θ ∙ B) - (ξ ∙ B)
+}{
+}
+\and \inferrule
+ {Γ - Δ ≡ Θ - ξ
+}{(Γ ∙ \texttt{fresh}_σ) - (Δ ∙ \texttt{stale}_σ) ≡ (Θ ∙ \texttt{fresh}_σ) - (ξ ∙ \texttt{stale}_σ)
+}{
+}
+\end{mathpar}
+\end{definition}
+
+\begin{definition}The ``consumption partial order'' $Γ ⊆ Δ$ is defined as
+$Γ - Δ ≡ Γ - Δ$.
+\end{definition}
+
+\begin{lemma}
+\begin{enumerate}
+  \item The consumption equivalence is a partial equivalence
+  \item The consumption partial order is a partial order
+  \item If there is a Usages ``in between'' two others according to the consumption
+        partial order, then any pair of usages equal to these two can be split in a
+        manner compatible with this middle element. Formally: Given Γ, Δ, Θ, ξ
+        and χ such that $Γ - Δ ≡ Θ - ξ$, $Γ ⊆ χ$ and $χ ⊆ Δ$,
+        one can find ζ such that: $Γ - χ ≡ Θ - ζ$ and $χ - Δ ≡ ζ - ξ$.
+\end{enumerate}
+\end{lemma}
+
+\begin{lemma}[Consumption]The Typing Relations for \Var{}, \Inferable{}
+and \Checkable{} all imply that if a typing derivation exists with input
+usages annotation Γ and output usages annotation Δ then $Γ ⊆ Δ$.
+\end{lemma}
+
+\begin{theorem}
+\label{theorem:framing}
+The Typing Relations for \Var{} has the Framing Property.
+So do the ones for \Inferable{} and \Checkable{}.
+\end{theorem}
+\begin{proof}
+The proofs are by structural induction on the typing derivations.
+They rely on the previous lemmas to generate the inclusion evidence
+and use it to split up the witness of consumption equivalence and
+distribute it appropriately in the induction hypotheses.
+\end{proof}
+
 %%%%%%%%%%%%%%%
 %% WEAKENING %%
 %%%%%%%%%%%%%%%
@@ -550,7 +641,7 @@ type σ as an extra argument (it will be the type of the newly introduced
 variable) whilst the OPE for \Usages{} takes a $\Usage{}_σ$ (it will
 be the usage associated to that newly introduced variable of type σ).
 
-\begin{figure}[h]\centering
+\begin{figure}\centering
 \begin{tabular}{l|c|c|c}
 & \inferrule
  {k, l : \Nat{}
@@ -629,6 +720,33 @@ what pushing a substitution under a lambda abstraction calls for.
 \end{lstlisting}
 \end{example}
 
+We leave out the definitions of the two \texttt{patch} functions applying
+the diff described by an OPE to respectively a context or a usages
+annotation. They are structural in the OPE. The interested reader will find
+them in the formal development in Agda. We also leave out the definition of
+weakening for raw terms. It is given by a simple structural induction on the
+terms themselves.
+
+\begin{definition}A Typing Relation \𝓣{} for a \Nat{}-indexed family $T$
+such that we have a function $\texttt{weak}_T$ transporting proofs that
+$k ≤ l$ to functions $T_k → T_l$ is said to have the Weakening Property
+if for all $k, l$ in \Nat{}, $o$ a proof that $k ≤ l$, $O$ a proof that
+$\OPE{}(o)$ and $𝓞$ a proof that $\OPE{}(O)$ then for all γ a $\Context{}_k$,
+Γ and Δ two $\Usages{}_γ$, $t$ an element of $T_k$ and σ a \Type{}, if
+\𝓣{}$(Γ, t, σ, Δ)$ holds true then we also have
+\𝓣{}$(\texttt{patch}(𝓞, Γ), \texttt{weak}_T(o, t), σ, \texttt{patch}(𝓞, Δ))$.
+\end{definition}
+
+\begin{theorem}The Typing Relation for \Var{} has the Weakening Property.
+So do the Typing Relations for \Inferable{} and \Checkable{}.
+\end{theorem}
+\begin{proof}
+The proof for \Var{} is by induction on the typing derivation. The
+statements for \Inferable{} and \Checkable{} are proved by mutual
+structural inductions on the respective typing derivations. Using the
+\texttt{copy} constructor of OPEs is crucial to be able to go under
+binders.
+\end{proof}
 
 
 
@@ -636,64 +754,65 @@ what pushing a substitution under a lambda abstraction calls for.
 %% SUBSTITUTION %%
 %%%%%%%%%%%%%%%%%%
 
-\section{}
-\begin{definition}
-\label{definition:differences}
-``Consumption equality'' relates pairs of γ-usages seen as whenever they
-exhibit the same consumption pattern: they leave the same resources left untouched
+\section{Substituting}
 
+Stability of the typing relation under substitution guarantees
+that the evaluation of programs will yield results which have
+the same type as well as preserve the linearity constraints.
+The notion of leftovers naturally extends to substitutions: the
+terms meant to be substituted for the variables in context which
+are not used by a term will not be used when pushing the substitution
+onto this term. They will therefore have to be returned as leftovers.
+
+Because of this rather unusual behaviour for substitution, picking
+the right type-theoretical representation for the environment
+carrying the values to be substituted in is a bit subtle. Indeed,
+relying on the usual combination of weakening and crafting a fresh
+variale when going under a binder becomes problematic. The leftovers
+returned by the induction hypothesis would then live in an extended
+context and quite a lot of effort would be needed to downcast them
+back to the smaller context they started in. The solution is to have
+an explicit constructor for ``going under a binder''. 
+
+\begin{definition}The environment \Env{} used to define substitution
+for raw terms is indexed by two variables $k$ and $l$ where $k$ is the
+source's scope and $l$ is the target's scope. There are three constructors:
+one for the empty environment ([]), one for going under a binder (\texttt{∙v})
+and one to extend an environment with an $\Inferable{}_l$.
 \begin{mathpar}
 \inferrule
- {Γ, Δ, Θ, ξ : \Usages{}_γ
-}{Γ ─ Δ ≡ Θ ─ ξ : \Set{}
-}
-\and \inferrule
  {
-}{[] - [] ≡ [] - []
-}{
+}{[] : \Env{}(0, l)
 }
 \and \inferrule
- {Γ - Δ ≡ Θ - ξ
-}{(Γ ∙ A) - (Δ ∙ A) ≡ (Θ ∙ B) - (ξ ∙ B)
-}{
+ {ρ : \Env{}(k, l)
+}{ρ \texttt{∙v} : \Env{}(\texttt{suc}(k), \texttt{suc}(l)) 
 }
 \and \inferrule
- {Γ - Δ ≡ Θ - ξ
-}{(Γ ∙ [σ]) - (Δ ∙ ]σ[) ≡ (Θ ∙ [σ]) - (ξ ∙ ]σ[)
-}{
+ {ρ : \Env{}(k, l) \and t : \Inferable{}_l
+}{ρ ∙ t : \Env{} (\texttt{suc}(k), l)
 }
 \end{mathpar}
 \end{definition}
 
-\begin{definition}
-\label{definition:framing}
-A Typing relation \𝓣{} is said to have the ``Framing Property'' if for all
-term $t$, type $σ$ and γ-usages annotations Γ, Δ, Θ and ξ, whenever
-Γ ─ Δ ≡ Θ ─ ξ  and \𝓣{} Γ t σ Δ hold then so does \𝓣{} Θ t σ ξ.
-\end{definition}
-
-
-\begin{theorem}[Frame Rule]
-\label{theorem:framing}
-\begin{itemize}
-  \item Check has the Framing Property
-  \item Infer has the Framing Property
-\end{itemize}
-\end{theorem}
-
-\begin{theorem}[Stability under Weakening]
-\label{theorem:weakening}
-\end{theorem}
-
 \begin{theorem}[Stability under Substitution]
 \label{theorem:substituting}
 \end{theorem}
+
+%%%%%%%%%%%%%%%%%%
+%% TYPECHECKING %%
+%%%%%%%%%%%%%%%%%%
+
+\section{Typechecking}
 
 \begin{theorem}[Decidability of Typechecking]
 \label{theorem:typechecking}
 \end{theorem}
 
 
+%%%%%%%%%%%%%%%%%%
+%% RELATED WORK %%
+%%%%%%%%%%%%%%%%%%
 
 \section{Related Work}
 
@@ -730,8 +849,6 @@ information:
 \end{quote}
 
 
-
-\appendix
 
 %%
 %% Bibliography
