@@ -21,3 +21,8 @@ open import linear.Typing.Substitution
 -- Decidability of Typing inference / checking
 open import linear.Typecheck.Problem
 open import linear.Typecheck
+
+-- Examples
+open import linear.Language.Examples
+open import linear.Typing.Examples
+open import linear.Typecheck.Examples

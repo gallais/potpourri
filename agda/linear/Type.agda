@@ -61,6 +61,16 @@ eq (_ ─o _)   (κ _)      = no (λ ())
 eq (_ ─o _)   (_ ⊗ _)    = no (λ ())
 eq (_ ─o _)   (_ ⊕ _)    = no (λ ())
 
+≟-diag : (n : ℕ) → (n ≟ n) ≡ yes refl
+≟-diag zero = refl
+≟-diag (suc n) rewrite ≟-diag n = refl
+
+eq-diag : (σ : Type) → eq σ σ ≡ yes refl
+eq-diag (κ n)    rewrite ≟-diag n = refl
+eq-diag (σ ⊗ τ)  rewrite eq-diag σ | eq-diag τ = refl
+eq-diag (σ ⊕ τ)  rewrite eq-diag σ | eq-diag τ = refl
+eq-diag (σ ─o τ) rewrite eq-diag σ | eq-diag τ = refl
+
 -- Checking that a type has a given shape is decidable
 data Tensor : (σ : Type) → Set where
   mkTensor : (σ τ : Type) → Tensor (σ ⊗ τ)

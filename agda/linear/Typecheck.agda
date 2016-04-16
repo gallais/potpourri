@@ -100,15 +100,14 @@ mutual
 
   check : {n : ℕ} {γ : Context n} (Γ : Usages γ) (σ : Type) (t : Check n) → Dec $ CHECK Γ σ t
 
-  -- LAM
-  check Γ (σ ─o τ) (`lam b)
-    with check ([ σ ] ∷ Γ) τ b
-  ... | no ¬p                = no $ λ p → ¬p (_ , lam-inv (CHECK.proof p))
-  ... | yes ([ .σ ] ∷ Δ , p) = no λ q → case functionalCheckPost _ p (lam-inv $ CHECK.proof q) of λ ()
-  ... | yes (] .σ [ ∷ Δ , p) = yes (Δ , `lam p)
-  check Γ (σ ⊕ τ) (`lam b) = no $ λ p → case CHECK.proof p of λ ()
-  check Γ (σ ⊗ τ) (`lam b) = no $ λ p → case CHECK.proof p of λ ()
-  check Γ (κ n)   (`lam b) = no $ λ p → case CHECK.proof p of λ ()
+  -- NEU
+  check Γ σ (`neu t)
+    with infer Γ t
+  ... | no ¬p = no $ λ p → case ¬p (_ , _ , (neu-inv $ CHECK.proof p)) of λ ()
+  ... | yes (τ , Δ , p)
+    with Type.eq σ τ
+  ... | no ¬σ≡τ = no $ λ q → ¬σ≡τ $ functionalInfer _ (neu-inv $ CHECK.proof q) p
+  check Γ σ (`neu t) | yes (.σ , Δ , p) | yes refl = yes (Δ , `neu p)
 
   check Γ σ (`let p ∷= t `in u)
     with infer Γ t
@@ -137,6 +136,16 @@ mutual
     in ¬q (_ , sym eq₃)
   ... | yes (ξ , eq) rewrite eq = yes (_ , `let P ∷= T `in U)
 
+  -- LAM
+  check Γ (σ ─o τ) (`lam b)
+    with check ([ σ ] ∷ Γ) τ b
+  ... | no ¬p                = no $ λ p → ¬p (_ , lam-inv (CHECK.proof p))
+  ... | yes ([ .σ ] ∷ Δ , p) = no λ q → case functionalCheckPost _ p (lam-inv $ CHECK.proof q) of λ ()
+  ... | yes (] .σ [ ∷ Δ , p) = yes (Δ , `lam p)
+  check Γ (σ ⊕ τ) (`lam b) = no $ λ p → case CHECK.proof p of λ ()
+  check Γ (σ ⊗ τ) (`lam b) = no $ λ p → case CHECK.proof p of λ ()
+  check Γ (κ n)   (`lam b) = no $ λ p → case CHECK.proof p of λ ()
+
   -- PRD
   check Γ (σ ⊗ τ)  (`prd t u)
     with check Γ σ t
@@ -163,11 +172,3 @@ mutual
   check Γ (σ ─o τ) (`inr t) = no $ λ p → case CHECK.proof p of λ ()
   check Γ (κ n)    (`inr t) = no $ λ p → case CHECK.proof p of λ ()
 
-  -- NEU
-  check Γ σ (`neu t)
-    with infer Γ t
-  ... | no ¬p = no $ λ p → case ¬p (_ , _ , (neu-inv $ CHECK.proof p)) of λ ()
-  ... | yes (τ , Δ , p)
-    with Type.eq σ τ
-  ... | no ¬σ≡τ = no $ λ q → ¬σ≡τ $ functionalInfer _ (neu-inv $ CHECK.proof q) p
-  check Γ σ (`neu t) | yes (.σ , Δ , p) | yes refl = yes (Δ , `neu p)

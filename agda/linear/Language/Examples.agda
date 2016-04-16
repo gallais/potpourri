@@ -4,6 +4,9 @@ open import Data.Fin
 open import linear.Type
 open import linear.Language
 
+identity : Check 0
+identity = `lam (`neu (`var zero))
+
 swap : Check 0
 swap = `lam `let (`v ,, `v) ∷= `var zero
             `in `prd (`neu `var (suc zero)) (`neu `var zero)
