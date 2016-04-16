@@ -60,28 +60,54 @@
 
 \maketitle
 
-\begin{abstract}We start from a simple lambda-calculus and introduce a bidirectional 
+\begin{abstract}
+We start from a simple λ-calculus and introduce a bidirectional 
 typing relation corresponding to an Intuitionistic Linear Logic. This 
-typing relation is based on the idea that a linear term consumes some 
-of the resources available in its context whilst leaving behind leftovers 
-which could then be used by another program. 
+relation is based on the idea that a linear term consumes some of the
+resources available in its context whilst leaving behind leftovers
+which could then be fed to another program. 
 
-Practically, this means that typing derivations have both an input 
-and an output context. This leads to a notion of weakening (all the 
-extra resources added to the input context come out unchanged in the 
-output one), a rather direct proof of stability under substitution, 
-an analogue of the frame rule of separation logic showing that the 
-state of unused resources can be safely ignored, as well as a proof 
-that typechecking is decidable. 
+Concretely, this means that typing derivations have both an input 
+and an output context. This leads to a notion of weakening (the extra
+resources added to the input context come out unchanged in the output
+one), a rather direct proof of stability under substitution, an
+analogue of the frame rule of separation logic showing that the 
+state of unused resources can be safely ignored, and a proof that
+typechecking is decidable. 
 
 The work has been fully formalised in Agda, commented source files 
-are provided as additional material.
+are provided as additional material available at~\url{https://github.com/gallais/typing-with-leftovers}.
 \end{abstract}
 
 
 \section{Introduction}
 
+The strongly-typed functional programming community has benefited from
+a wealth of optimisations made possible precisely because the library
+author as well as the compiler are aware of the type of the program they
+are working on. These optimisations have ranged from Danvy's type-directed
+partial evaluation~\cite{Danvy1999Type} residualising specialised programs
+to Coq's extraction mechanism~\cite{letouzey2002new} systematically erasing
+all the purely logical proofs and including the library defining the
+State-Thread~\cite{launchbury1994lazy} monad which relies on higher-rank
+polymorphism and parametricity to ensure the safety of using an actual
+mutable object in a lazy, purely functional setting.
 
+However, in the context of the rising development of dependently-typed
+programming languages~\cite{Brady2013idris, norell2009dependently} which,
+unlike ghc's Haskell~\cite{weirich2013towards}, incorporate a hierarchy
+of universes in order to make certain that the underlying logic is consistent,
+some of these techniques are not applicable anymore. Indeed, the use of
+large quantification in the definition of the ST-monad crucially relies
+on impredicativity. As a consequence, the specification of programs
+allowed to update a mutable object in a safe way has to change.
+Idris has been extended with experimental support for uniqueness types
+inspired by Clean's~\cite{achten1993high} and Rust's ownership types~\cite{manual:rust},
+all of which stem from linear logic~\cite{girard1987linear}.
+
+In order to be able to use type theory to formally study the meta-theory
+of the programming languages whose type system includes notions of linearity,
+we need to have a good representation of such constraints.
 
 \paragraph*{Notations} This whole development has been fully formalised
 in Agda. Rather than including Agda syntax, the results are reformulated
@@ -126,7 +152,7 @@ variables present in a scope $n$.
 }
 \end{mathpar}
 
-The calculus is presented in a bidirectional fashion\todo{cite}.
+The calculus is presented in a bidirectional fashion~\cite{pierce2000local}.
 This gives a clean classification of term formers as being either
 constructors of canonical values or eliminations corresponding to
 computations. This separation also characterises the flow of
@@ -418,7 +444,7 @@ the same names:
 \end{lstlisting}
 \end{example}
 
-\subsubsection{Typing terms}
+\subsubsection{Typing Terms}
 
 The key idea appearing in all the typing rules for compound
 expressions is to use the input \Usages{} to type one of the
@@ -446,6 +472,14 @@ For \Checkable{}, the type σ comes first: $Γ ⊢ σ ∋ t ⊠ Δ$ means
 that given Γ a $\Usages{}_γ$, a type σ, the \Checkable{} $t$ can
 be checked to have type σ with leftovers Δ. The rules can be found
 in Figure~\ref{figure:check}.
+
+Finally, \Pattern{}s are checked against a type and a context of
+newly bound variables is generated. If the variable pattern always
+succeeds, the pair constructor pattern on the other hand obviously
+only succeeds if the type it attempts to split is a tensor type.
+The context of newly-bound variables is then the collection of the
+contexts associated to the nested patterns. The rules are given in
+Figure~\ref{figure:pattern}.
 \end{definition}
 
 \begin{example}
