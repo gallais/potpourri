@@ -81,6 +81,8 @@ are provided as additional material.
 
 \section{Introduction}
 
+
+
 \paragraph*{Notations} This whole development has been fully formalised
 in Agda. Rather than including Agda syntax, the results are reformulated
 in terms of definitions, lemmas, theorems, etc. However it is important
@@ -472,7 +474,7 @@ given the same name as their term constructor counterparts:
 \end{lstlisting}
 \end{example}
 
-\begin{example}
+\begin{example}\label{example:swapTyped}
 It is also possible to revisit Example \ref{example:swap} to prove
 that it can be checked against type (σ ⊗ τ) ⊸ (τ ⊗ σ) in an empty
 context. This gives the lengthy derivation included in the appendix
@@ -772,10 +774,11 @@ variale when going under a binder becomes problematic. The leftovers
 returned by the induction hypothesis would then live in an extended
 context and quite a lot of effort would be needed to downcast them
 back to the smaller context they started in. The solution is to have
-an explicit constructor for ``going under a binder''. 
+an explicit constructor for ``going under a binder'' which can be
+simply peeled off on the way out of a binder. 
 
 \begin{definition}The environment \Env{} used to define substitution
-for raw terms is indexed by two variables $k$ and $l$ where $k$ is the
+for raw terms is indexed by two \Nat{}s $k$ and $l$ where $k$ is the
 source's scope and $l$ is the target's scope. There are three constructors:
 one for the empty environment ([]), one for going under a binder (\texttt{∙v})
 and one to extend an environment with an $\Inferable{}_l$.
@@ -795,9 +798,128 @@ and one to extend an environment with an $\Inferable{}_l$.
 \end{mathpar}
 \end{definition}
 
-\begin{theorem}[Stability under Substitution]
-\label{theorem:substituting}
+Environment are carrying \Inferable{} elements because, being in the
+same syntactical class as \Var{}s, they can be substituted for them
+without any issue.
+
+\begin{lemma}Raw terms are stable under substitutions: for all $k$ and
+$l$, given $t$ a term $\Inferable{}_k$ (resp. $\Checkable{}_k$) and $ρ$
+an environment $\Env{}(k,l)$, we can apply the substitution $ρ$ to $t$
+and obtain an $\Inferable{}_l$ (resp. $\Checkable{}_l$).
+\end{lemma}
+\begin{proof}By mutual induction on the raw terms, using the \texttt{∙v}
+\Env{} constructor when going under a binder. The need for weakening or
+crafting fresh variables has not disappeared, it has been transferred to
+the function looking up a value in $ρ$ given a $\Var{}_k$.
+\end{proof}
+
+\begin{definition}The environments used when proving that Typing
+Relations are stable under substitution follow closely the ones
+for raw terms. $\Env{}(Θ₁, ρ, Θ₂, Γ)$ is a typing relation with
+input usages $Θ₁$ and output $Θ₂$ for the raw substitution $ρ$
+targetting the \texttt{fresh} variables in $Γ$. Unsurprisingly,
+the typing for the empty environment has the same input and output
+usages annotation. Formally:
+\begin{mathpar}
+\inferrule
+ {{\begin{array}{l}θ : \Context{}_l \\ Θ₁, Θ₂ : \Usages_θ\end{array}} \and ρ : \Env{}(k,l)
+  \and {\begin{array}{l}γ : Context{}_k \\ Γ : \Usages{}_γ\end{array}}
+}{\Env{}(Θ₁, ρ, Θ₂, Γ) : \Set{}
+}
+\and \inferrule
+ {
+}{\Env{}(Θ₁, [], Θ₁, [])
+}
+\end{mathpar}
+For \texttt{fresh} variables in Γ, there are two cases depending whether
+they have been introduced by going under a binder or not. If it is
+not the case then the typing environment carries around a typing
+derivation for the term $t$ meant to be substituted for this variable.
+Otherwise, it does not carry anything extra but tracks in its input /
+output usages annotation the fact the variable has been consumed.
+\begin{mathpar}
+\inferrule
+ {Θ₁ ⊢ t ∈ σ ⊠ Θ₂ \and \Env{}(Θ₂, ρ, Θ₃, Γ)
+}{\Env{}(Θ₁, ρ ∙ t, Θ₃, Γ ∙ \texttt{fresh}_σ)
+}
+\and \inferrule
+ {\Env{}(Θ₁, ρ, Θ₂, Γ)
+}{\Env{}(Θ₁ ∙ \texttt{fresh}_σ, ρ \texttt{∙v}, Θ₂ ∙ \texttt{stale}_σ, Γ ∙ \texttt{fresh}_σ)
+}
+\end{mathpar}
+For \texttt{stale} variables, there are two cases too. They are however
+a bit more similar: none of them carry around an extra typing derivation.
+The main difference is in the shape of the input and output context: in
+the case for the ``going under a binder'' constructor, they are clearly
+enriched with an extra (now consumed) variable whereas it is not the case
+for the normal environment extension.
+\begin{mathpar}
+\inferrule
+ {\Env{}(Θ₁, ρ, Θ₂, Γ)
+}{\Env{}(Θ₁, ρ ∙ t, Θ₂, Γ ∙ \texttt{stale}_σ)
+}
+\and \inferrule
+ {\Env{}(Θ₁, ρ, Θ₂, Γ)
+}{\Env{}(Θ₁ ∙ \texttt{stale}_σ, ρ \texttt{∙v}, Θ₂ ∙ \texttt{stale}_σ, Γ ∙ \texttt{stale}_σ)
+}
+\end{mathpar}
+\end{definition}
+
+\begin{definition}
+A Typing Relation \𝓣{} for a \Nat{}-indexed family $T$ equipped with
+a function \texttt{subst} which for all \Nat{}s $k, l$, given an
+element $T_k$ and an $\Env{}(k,l)$ returns an element $T_l$ is said to
+be stable under substitution if for all \Nat{}s $k$ and $l$, γ a $\Context{}_k$,
+Γ and Δ two $\Usages{}_γ$, $t$ an element of $T_k$, σ a Type, ρ an $\Env{}(k,l)$,
+$θ$ a $\Context{}_l$ and $Θ₁$ and $Θ₃$ two $\Usages_θ$ such that
+\𝓣{}$(Γ, t, σ, Δ)$ and $\Env{}(Θ₁, ρ, Θ₃, Γ)$ holds then there exists a $Θ₂$
+of type $\Usages{}_θ$ such that \𝓣{}$(Θ₁, \texttt{subst}(t, ρ), σ, Θ₂)$ and
+$\Env{}(Θ₂, ρ, Θ₃, Δ)$.
+\end{definition}
+
+\begin{theorem}\label{theorem:substituting}
+The Typing Relations for \Inferable{} and \Checkable{} are stable under substitution.
 \end{theorem}
+\begin{proof}
+The proof by mutual structural induction on the typing derivations relies
+heavily on the fact that these Typing Relations enjoy the framing property
+in order to readjust the usages annotations.
+\end{proof}
+
+
+%%%%%%%%%%%%%%%%%%
+%% FUNCTONALITY %%
+%%%%%%%%%%%%%%%%%%
+
+\section{Functionality}
+
+One thing we did not mention before because it was seldom used in the
+proofs is the fact that all of these typing relations are functional
+when seen as various (binary or ternary) relations. Which means that if
+two typing derivations exist for some fixed arguments (seen as inputs)
+then the other arguments (seen as outputs) are equal to each other.
+
+\begin{definition}We say that a relation $R$ of type
+$Π(\mathit{ri} : \mathit{RI}).Π(\mathit{ii} : \mathit{II}).O(ri) → \Set{}$
+is functional if for all relevant inputs $\mathit{ri}$, all pairs of
+irrelevant inputs $\mathit{ii₁}$ and $\mathit{ii₂}$ and for all pairs
+of outputs $o₁$ and $o₂$, if both $R(\mathit{ri}, \mathit{ii₁}, o₁)$
+and $R(\mathit{ri}, \mathit{ii₂}, o₂)$ hold then $o₁ ≡ o₂$.
+\end{definition}
+
+\begin{lemma}The Typing Relations for \Var{} and \Inferable{} are functional
+when seen as relations with relevant inputs the context and the scrutinee
+(either a \Var{} or an \Inferable{}), irrelevant inputs their \Usages{}
+annotation and outputs the inferred \Type{}s.
+\end{lemma}
+
+\begin{lemma}The Typing Relations for \Var{}, \Inferable{}, \Checkable{}
+and \Env{} are functional when seen as relations with relevant inputs all
+of their arguments except for one of the \Usages{} annotation or the other.
+This means that given a \Usages{} annotation (whether the input one or the
+output one) and the rest of the arguments, the other \Usages{} annotation
+is uniquely determined.
+\end{lemma}
 
 %%%%%%%%%%%%%%%%%%
 %% TYPECHECKING %%
@@ -807,9 +929,39 @@ and one to extend an environment with an $\Inferable{}_l$.
 
 \begin{theorem}[Decidability of Typechecking]
 \label{theorem:typechecking}
+Type-inference for \Inferable{} and Type-checking for \Checkable{} are
+decidable. In other words, given a \Nat{} $k$, γ a $\Context{}_k$ and
+Γ a $\Usages{}_γ$,
+\begin{enumerate}
+  \item for all $\Inferable{}_k$ $t$, it is decidable whether there is
+        a \Type{} $σ$ and Δ a $\Usages{}_γ$ such that $Γ ⊢ t ∈ σ ⊠ Δ$
+  \item for all \Type{} σ and $\Checkable{}_k$, it is decidable whether
+        there is Δ a $\Usages{}_γ$ such that $Γ ⊢ σ ∋ t ⊠ Δ$.
+\end{enumerate}
 \end{theorem}
+\begin{proof}
+The proof proceeds by mutual induction on the raw terms, using inversion
+lemmas to dismiss the impossible cases, using auxiliary lemmas showing
+that typechecking of \Var{}s and \Pattern{}s also is decidable and relies
+heavily on the functionality of the various relations involved.
+\end{proof}
 
+One of the benefits of having a formal proof of a theorem in Agda is that
+the theorem actually has computational content and may be run:
 
+\begin{example}We can for instance check that the search procedure
+succeeds in finding the \texttt{swapTyped} derivation we had written down
+as Example~\ref{example:swapTyped}. Because σ and τ are abstract in the
+following snippet, the equality test checking that σ is equal to itself
+and so is τ does not reduce and we need to rewrite by the proof
+\texttt{eq-diag} that the equality test always suceeds in this kind of
+situation:
+\begin{lstlisting}
+  swapChecked : '∀' 'σ' 'τ' '→' check [] (('σ ⊗ τ') '⊸' ('τ ⊗ σ')) swap
+                      '≡' yes ([] , swapTyped)
+  swapChecked 'σ' 'τ' rewrite eq-diag 'τ' | eq-diag 'σ' = refl
+\end{lstlisting}
+\end{example}
 %%%%%%%%%%%%%%%%%%
 %% RELATED WORK %%
 %%%%%%%%%%%%%%%%%%
@@ -848,6 +1000,33 @@ information:
   future accesses possible again.
 \end{quote}
 
+\section{Conclusion}
+
+We have shown that taking the view of linear logic as a logic of
+resource consumption seriously leads to a well-behaved presentation
+of the corresponding typing relation for the lambda calculus in type
+theory. The framing property claims that the state of irrelevant
+resources does not matter, stability under weakening shows that one
+may even add extra irrelevant assumptions to the context and they will
+be ignored whilst stability under substitution guarantees subject
+reduction with respect to the usual small step semantics of the lambda
+calculus. Finally, the decidability of type checking makes it possible
+to envision a user-facing language baed on raw terms and top-level type
+annotations where the machine does the heavy lifting of checking that
+all the invariants are met whilst producing a certified correct witness
+of typability.
+
+Avenues for future work include a treatment of an \emph{affine} logic
+where the type of substitution will have to be be different because
+of the ability to throw away resources without using them. Our long
+term goal is to have a formal specification of a calculus similar to
+the affine one described by Adams and Jacobs~\cite{Adams2015Type}.
+Another interesting question is whether these resource annotations
+can be used to develop a fully formalised proof search procedure for
+linear logic. The author and McBride have made an effort in such a
+direction~\cite{Allais2015Proof} by designing a sound and complete
+search procedure for a fragment of intuitionistic linear logic with
+type constructors tensor and with.
 
 
 %%
