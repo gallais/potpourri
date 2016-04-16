@@ -79,7 +79,6 @@ The work has been fully formalised in Agda, commented source files
 are provided as additional material available at~\url{https://github.com/gallais/typing-with-leftovers}.
 \end{abstract}
 
-
 \section{Introduction}
 
 The strongly-typed functional programming community has benefited from
@@ -123,7 +122,7 @@ Following Altenkirch and Reus~\cite{altenkirch1999monadic},
 we define the raw terms of our language not as an inductive
 type but rather as an inductive \emph{family}~\cite{dybjer1994inductive}.
 This technique, sometimes dubbed ``type-level de Bruijn indices'',
-makes it possible to keep track, in the index of the familyn, of the
+makes it possible to keep track, in the index of the family, of the
 free variables currently in scope. As is nowadays folklore, instead of
 using a set-indexed presentation where a closed terms is indexed by
 the empty set $⊥$ and fresh variables are introduced by wrapping
@@ -183,7 +182,7 @@ computations (which we call \Inferable{}).
 \end{figure}
 
 Two additional rules (\texttt{neu} and \texttt{cut} respectively)
-allow the embeddin of \Inferable{} into \Checkable{} and vice-versa. They
+allow the embedding of \Inferable{} into \Checkable{} and vice-versa. They
 make it possible to form redexes by embedding canonical values into
 computations and then applying eliminators to them. In terms of
 typechecking, they correspond to a change of direction between
@@ -308,7 +307,7 @@ rather than dispatching the available resources in the appropriate
 subderivations, we consider that a term is checked in a \emph{given}
 context on top of which usage annotations are super-imposed. These
 usage annotations indicate whether resources have been consumed already
-or are still availble. Type-inference (resp. Type-checking) is then
+or are still available. Type-inference (resp. Type-checking) is then
 inferring (resp. checking) a term's type but \emph{also} annotating
 the resources consumed by the term in question and returning the
 \emph{leftovers} which gave their name to this paper.
@@ -393,7 +392,7 @@ an indexed relation $\text{\𝓣{}}_n$ such that:
 \end{definition}
 
 This definition clarifies the notion but also leads to more generic
-statements later on: weakening, substitutiong, framing can all be
+statements later on: weakening, substitution, framing can all be
 expressed as properties a Typing Relation might have.
 
 \input{typing-rules}
@@ -456,7 +455,7 @@ Another common pattern can be seen across all the rules involving
 binders, be they λ-abstractions, let-bindings or branches of a
 case. Typechecking the body of a binder involves extending the
 input \Usages{} with fresh variables and observing that they have
-become stale in the ouput one. This guarantees that these bound
+become stale in the output one. This guarantees that these bound
 variables cannot escape their scope as well as that they have indeed
 been used. Relaxing the staleness restriction would lead to an affine
 type system which would be interesting in its own right.
@@ -804,7 +803,7 @@ Because of this rather unusual behaviour for substitution, picking
 the right type-theoretical representation for the environment
 carrying the values to be substituted in is a bit subtle. Indeed,
 relying on the usual combination of weakening and crafting a fresh
-variale when going under a binder becomes problematic. The leftovers
+variable when going under a binder becomes problematic. The leftovers
 returned by the induction hypothesis would then live in an extended
 context and quite a lot of effort would be needed to downcast them
 back to the smaller context they started in. The solution is to have
@@ -851,7 +850,7 @@ the function looking up a value in $ρ$ given a $\Var{}_k$.
 Relations are stable under substitution follow closely the ones
 for raw terms. $\Env{}(Θ₁, ρ, Θ₂, Γ)$ is a typing relation with
 input usages $Θ₁$ and output $Θ₂$ for the raw substitution $ρ$
-targetting the \texttt{fresh} variables in $Γ$. Unsurprisingly,
+targeting the \texttt{fresh} variables in $Γ$. Unsurprisingly,
 the typing for the empty environment has the same input and output
 usages annotation. Formally:
 \begin{mathpar}
@@ -988,7 +987,7 @@ succeeds in finding the \texttt{swapTyped} derivation we had written down
 as Example~\ref{example:swapTyped}. Because σ and τ are abstract in the
 following snippet, the equality test checking that σ is equal to itself
 and so is τ does not reduce and we need to rewrite by the proof
-\texttt{eq-diag} that the equality test always suceeds in this kind of
+\texttt{eq-diag} that the equality test always succeeds in this kind of
 situation:
 \begin{lstlisting}
   swapChecked : '∀' 'σ' 'τ' '→' check [] (('σ ⊗ τ') '⊸' ('τ ⊗ σ')) swap
@@ -1006,9 +1005,9 @@ We have already mentioned McBride's work~\cite{mcbride2016got}
 on (as a first approximation: the setup is actually more general)
 a type theory with a \emph{dependent linear} function space as a
 very important source of inspiration. In that context it is indeed
-crucial to retain the ability to tlak about a resource even if it
+crucial to retain the ability to talk about a resource even if it
 has already been consumed. E.g. a function taking a boolean and
-deciding wheter it is equal to \texttt{tt} or \texttt{ff} will
+deciding whether it is equal to \texttt{tt} or \texttt{ff} will
 have a type mentioning the function's argument twice. But in a
 lawful manner: $(x : \DefinedType{Bool}) ⊸ (x ≡ \texttt{tt}) ∨ (x ≡ \texttt{ff})$.
 This leads to the need for a context \emph{shared} across all
@@ -1045,7 +1044,7 @@ may even add extra irrelevant assumptions to the context and they will
 be ignored whilst stability under substitution guarantees subject
 reduction with respect to the usual small step semantics of the lambda
 calculus. Finally, the decidability of type checking makes it possible
-to envision a user-facing language baed on raw terms and top-level type
+to envision a user-facing language based on raw terms and top-level type
 annotations where the machine does the heavy lifting of checking that
 all the invariants are met whilst producing a certified correct witness
 of typability.
