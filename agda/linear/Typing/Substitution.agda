@@ -75,7 +75,7 @@ substCase :
   Σ[ Τ₃ ∈ Usages θ       ] Τ₁ ⊢ L.substInfer ρ (`case t return τ of l %% r) ∈ τ ⊠ Τ₃
                          × Env TInfer Τ₃ ρ Τ₄ Δ
 substCase t tρ (._ , lρ , (]v[∷ ρ₁′)) (._ , rρ , (]v[∷ ρ₂′))
-  rewrite functionalEnvPre functionalInferPre _ ρ₁′ ρ₂′ =
+  rewrite sym (functionalEnvPre functionalInferPre _ ρ₁′ ρ₂′) =
   , `case tρ return _ of lρ %% rρ , ρ₁′
 
 -- idea: generalise with a function f applied to each side!

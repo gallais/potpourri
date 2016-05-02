@@ -1,13 +1,14 @@
 module linear.Usage.Consumption where
 
 open import Data.Nat
-open import Data.Vec hiding (map ; [_] ; split ; _++_)
+open import Data.Vec hiding (map ; [_] ; split ; _++_ ; tail)
 open import Data.Product hiding (swap)
 open import Function
 
 open import linear.Type
-open import linear.Context hiding (_++_)
-open import linear.Usage as U hiding (_++_)
+open import linear.Scope as Sc
+open import linear.Context as C hiding (_++_)
+open import linear.Usage as U hiding (_++_ ; tail)
 import Relation.Binary.PropositionalEquality as PEq
 
 infix 3 _─_≡_─_
@@ -17,6 +18,11 @@ data _─_≡_─_ : {n : ℕ} {γ : Context n} (Γ Δ θ ξ : Usages γ) → Se
         Γ ─ Δ ≡ θ ─ ξ → A ∷ Γ ─ A ∷ Δ ≡ B ∷ θ ─ B ∷ ξ
   _∷_ : {n : ℕ} {γ : Context n} {Γ Δ θ ξ : Usages γ} (a : Type) →
         Γ ─ Δ ≡ θ ─ ξ → [ a ] ∷ Γ ─ ] a [ ∷ Δ ≡ [ a ] ∷ θ ─ ] a [ ∷ ξ
+
+tail : {n : ℕ} {γ : Context n} {Γ Δ θ ξ : Usages γ} {a : Type} {S T U V : Usage a} →
+       S ∷ Γ ─ T ∷ Δ ≡ U ∷ θ ─ V ∷ ξ → Γ ─ Δ ≡ θ ─ ξ
+tail (─∷ p)  = p
+tail (a ∷ p) = p
 
 infix 3 _⊆_
 _⊆_ : {n : ℕ} {γ : Context n} (Γ Δ : Usages γ) → Set
@@ -72,6 +78,16 @@ divide (a ∷ eq) (─∷ p)   (.a ∷ q) = map _ (map ─∷_    (a ∷_)) $ di
 divide (a ∷ eq) (.a ∷ p) (─∷ q)   = map _ (map (a ∷_) ─∷_)    $ divide eq p q
 divide (─∷ eq)  (─∷ p)   (─∷ q)   = map _ (map ─∷_    ─∷_)    $ divide eq p q
 divide (─∷ eq)  (a ∷ p)  ()
+
+weaken⁻¹ : {k l : ℕ} {γ : Context k} {m : Sc.Mergey k l} {M : C.Mergey m} (𝓜 : U.Mergey M)
+           {Γ Δ : Usages γ} {χ : Usages (γ C.⋈ M)} → Γ U.⋈ 𝓜 ⊆ χ → χ ⊆ Δ U.⋈ 𝓜 →
+           ∃ λ χ′ → χ PEq.≡ (χ′ U.⋈ 𝓜)
+weaken⁻¹ finish        p q = , PEq.refl
+weaken⁻¹ (copy 𝓜) {T ∷ Γ}        {.T ∷ Δ}       (─∷ p)  (─∷ q)  = map (_ ∷_) (PEq.cong (_ ∷_)) $ weaken⁻¹ 𝓜 p q
+weaken⁻¹ (copy 𝓜) {.([ a ]) ∷ Γ} {.(] a [) ∷ Δ} (─∷ p)  (a ∷ q) = map (_ ∷_) (PEq.cong (_ ∷_)) $ weaken⁻¹ 𝓜 p q
+weaken⁻¹ (copy 𝓜) {.([ a ]) ∷ Γ} {.(] a [) ∷ Δ} (a ∷ p) (─∷ q)  = map (_ ∷_) (PEq.cong (_ ∷_)) $ weaken⁻¹ 𝓜 p q
+weaken⁻¹ (insert A 𝓜) (─∷ p) (─∷ q) = map id (PEq.cong (_ ∷_)) $ weaken⁻¹ 𝓜 p q
+weaken⁻¹ (insert .([ a ]) 𝓜) (a ∷ p) ()
 
 equality : {n : ℕ} {γ : Context n} {Γ θ ξ : Usages γ} → Γ ─ Γ ≡ θ ─ ξ → θ PEq.≡ ξ
 equality []     = PEq.refl

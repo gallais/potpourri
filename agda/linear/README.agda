@@ -22,6 +22,10 @@ open import linear.Typing.Substitution
 open import linear.Typecheck.Problem
 open import linear.Typecheck
 
+-- Thinning
+open import linear.Usage.Erasure
+open import linear.Typing.Thinning
+
 -- Examples
 open import linear.Language.Examples
 open import linear.Typing.Examples

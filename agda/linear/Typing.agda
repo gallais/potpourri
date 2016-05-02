@@ -94,12 +94,15 @@ mutual
 
 
 
--- dirty hack
+-- dirty hacks
 patternSize : {o : ℕ} {p : Pattern o} {σ : Type} {γ : Context o} (p : σ ∋ p ↝ γ) → ℕ
 patternSize {o} _ = o
 
 patternContext : {o : ℕ} {p : Pattern o} {σ : Type} {γ : Context o} (p : σ ∋ p ↝ γ) → Context o
 patternContext {γ = γ} _ = γ
+
+patternPattern : {o : ℕ} {p : Pattern o} {σ : Type} {γ : Context o} (p : σ ∋ p ↝ γ) → Pattern o
+patternPattern {p = p} _ = p
 
 TCheck : Typing Check
 TCheck = λ Γ t A Δ → Γ ⊢ A ∋ t ⊠ Δ
