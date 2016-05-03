@@ -14,6 +14,11 @@ open import linear.Typing
 open import linear.Typing.Inversion
 open import linear.Typing.Functional
 
+-- Extensionality of Typing wrt to pointwise equality on Usages
+open import linear.Context.Pointwise
+open import linear.Usage.Pointwise
+open import linear.Typing.Extensional
+
 -- Frame rule and stability of Typing under Weakening and Substitution
 open import linear.Typing.Consumption
 open import linear.Typing.Substitution

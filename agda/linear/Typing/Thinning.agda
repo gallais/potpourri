@@ -11,11 +11,14 @@ open import Relation.Binary.PropositionalEquality
 open import linear.Type
 open import linear.Scope as Sc
 open import linear.Context as C
+import linear.Context.Pointwise as CP
 open import linear.Usage as U hiding (tail)
 open import linear.Usage.Consumption using (weaken⁻¹ ; tail ; truncate)
+import linear.Usage.Pointwise as UP
 open import linear.Language
 open import linear.Typing
 open import linear.Typing.Consumption
+open import linear.Typing.Extensional
 
 Thinning : {T : ℕ → Set} (Wk : Sc.Weakening T) (𝓣 : Typing T) → Set
 Thinning {T} Wk 𝓣 =
@@ -46,7 +49,8 @@ Thinning′ {T} Wk 𝓣 =
   
   𝓣 ξ t σ ζ → Σ[ t′ ∈ T k ] t ≡ Wk m t′ × 𝓣 Γ t′ σ Δ
 
-thinning : {T : ℕ → Set} {Wk : Sc.Weakening T} {𝓣 : Typing T} → Thinning′ Wk 𝓣 → Thinning Wk 𝓣
+thinning : {T : ℕ → Set} {Wk : Sc.Weakening T} {𝓣 : Typing T} →
+           Thinning′ Wk 𝓣 → Thinning Wk 𝓣
 thinning th 𝓜 Γ Δ t = th 𝓜 (reflUsages _) (reflUsages _) t
 
 thinning′Fin : Thinning′ Sc.weakFin TFin
@@ -100,8 +104,13 @@ mutual
   thinningCheck 𝓜 Γ Δ (`let_∷=_`in_ {σ} {τ} {o} {rp} {δ} {rt} {rχ} .{Δ U.⋈ 𝓜} {ru} p t u) =
     let (χ , eq)       = weaken⁻¹ 𝓜 (consumptionInfer t) (truncate (patternContext p) (consumptionCheck u))
         (t′ , eqt , T) = thinningInfer 𝓜 Γ χ (subst (_ ⊢ _ ∈ _ ⊠_) eq t)
+        EQ             : UP.Usages[ _≡_ , UP.UsageEq ] CP.refl (χ U.⋈ 𝓜) rχ
+        EQ             = subst (λ Γ → UP.Usages[ _≡_ , _ ] CP.refl Γ rχ) eq UP.refl
         coerced-u      : ([[ δ ]] U.++ χ) U.⋈ U.copys o 𝓜 ⊢ τ ∋ ru ⊠ (]] δ [[ U.++ Δ) U.⋈ U.copys o 𝓜
-        coerced-u      = {!!} -- hard!
+        coerced-u      = extensionalCheck (CP.copys δ) (CP.sym $ CP.copys δ)
+                          (UP.irrelevance _ (UP.trans (UP.copys [[ δ ]])
+                            (UP.refl {Γ = [[ δ ]]} UP.++ EQ)))
+                         (UP.sym (UP.irrelevance _ (UP.trans (UP.copys ]] δ [[) UP.refl))) u
         (u′ , equ , U) = thinningCheck (U.copys o 𝓜) ([[ δ ]] U.++ χ) (]] δ [[ U.++ Δ) coerced-u
     in `let rp ∷= t′ `in u′
      , cong₂ (`let rp ∷=_`in_) eqt equ
