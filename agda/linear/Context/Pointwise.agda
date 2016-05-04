@@ -7,8 +7,8 @@ open import Relation.Binary.PropositionalEquality as PEq using (_≡_ ; cong₂ 
 
 open import linear.Scope as Sc hiding (copys)
 open import linear.Type
-open import linear.Context as C hiding (_++_ ; copys)
-open import linear.Usage hiding (_++_ ; copys)
+open import linear.Context as C hiding (_++_ ; copys ; _⋈_)
+open import linear.Usage hiding (_++_ ; copys ; _⋈_)
 
 data Context[_] (R : (σ τ : Type) → Set) : {k : ℕ} (γ δ : Context k) → Set where
   []  : Context[ R ] [] []
@@ -42,10 +42,8 @@ pointwiseEq : {k : ℕ} {γ δ : Context k} → Context[ _≡_ ] γ δ → γ �
 pointwiseEq []         = PEq.refl
 pointwiseEq (eq ∷ eqs) = cong₂ (_∷_) eq $ pointwiseEq eqs
 
-coerce :
-  {k l : ℕ} {γ : Context l} {δ : Context k} {m : Sc.Mergey k l}
-  (M : C.Mergey m) → Context[ _≡_ ] γ (δ C.⋈ M) → Usages γ → Usages (δ C.⋈ M)
-coerce             finish       []         []      = []
-coerce             finish       (eq ∷ eqs) (S ∷ Γ) = subst Usage eq S ∷ coerce finish eqs Γ
-coerce             (insert σ M) (eq ∷ eqs) (S ∷ Γ) = subst Usage eq S ∷ coerce M eqs Γ
-coerce {δ = σ ∷ δ} (copy M)     (eq ∷ eqs) (S ∷ Γ) = subst Usage eq S ∷ coerce M eqs Γ
+_⋈_ : {k l : ℕ} {γ δ : Context k} {m : Sc.Mergey k l}
+      (eq : Context[ _≡_ ] γ δ) (M : C.Mergey m) → Context[ _≡_ ] (γ C.⋈ M) (δ C.⋈ M)
+eq         ⋈ finish     = eq
+(eq ∷ eqs) ⋈ copy M     = eq ∷ (eqs ⋈ M)
+eq         ⋈ insert σ M = PEq.refl ∷ (eq ⋈ M)

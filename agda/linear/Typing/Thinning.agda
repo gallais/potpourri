@@ -11,10 +11,12 @@ open import Relation.Binary.PropositionalEquality
 open import linear.Type
 open import linear.Scope as Sc
 open import linear.Context as C
+open import linear.Language
 import linear.Context.Pointwise as CP
 open import linear.Usage as U hiding (tail)
 open import linear.Usage.Consumption using (weaken⁻¹ ; tail ; truncate)
 import linear.Usage.Pointwise as UP
+open import linear.Usage.Erasure
 open import linear.Language
 open import linear.Typing
 open import linear.Typing.Consumption
@@ -129,3 +131,31 @@ mutual
   thinningCheck 𝓜 Γ Δ (`neu t) = 
     let (t′ , eq , T) = thinningInfer 𝓜 Γ Δ t
     in `neu t′ , cong `neu_ eq , `neu T
+
+
+-- A more conventional formulation of Thinning for Check and Infer
+-- can be derived as simple corrolaries of previous results:
+
+thinCheck :
+  {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {t : Check n} {σ : Type} → Γ ⊢ σ ∋ t ⊠ Δ →
+  Σ[ k ∈ ℕ ] Σ[ δ ∈ Context k ] Σ[ t′ ∈ Check k ] Σ[ m ∈ Sc.Mergey k n ]
+  t ≡ weakCheck m t′ × [[ δ ]] ⊢ σ ∋ t′ ⊠ ]] δ [[
+thinCheck T =
+  let (k , m , δ , M , 𝓜 , eqs , eq) = ⌊ consumptionCheck T ⌋
+      EQs = (UP.irrelevance _ (UP.coerceˡ eqs))
+      T₁  = extensionalCheck (CP.sym eqs) eqs EQs (UP.coerceʳ eqs) T
+      T₂  = framingCheck eq T₁
+      (t′ , eq , T₃) = thinningCheck 𝓜 _ _ T₂
+  in k , δ , t′ , m , eq , T₃
+
+thinInfer :
+  {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {t : Infer n} {σ : Type} → Γ ⊢ t ∈ σ ⊠ Δ →
+  Σ[ k ∈ ℕ ] Σ[ δ ∈ Context k ] Σ[ t′ ∈ Infer k ] Σ[ m ∈ Sc.Mergey k n ]
+  t ≡ weakInfer m t′ × [[ δ ]] ⊢ t′ ∈ σ ⊠ ]] δ [[
+thinInfer T =
+  let (k , m , δ , M , 𝓜 , eqs , eq) = ⌊ consumptionInfer T ⌋
+      EQs = (UP.irrelevance _ (UP.coerceˡ eqs))
+      T₁  = extensionalInfer (CP.sym eqs) eqs EQs (UP.coerceʳ eqs) T
+      T₂  = framingInfer eq T₁
+      (t′ , eq , T₃) = thinningInfer 𝓜 _ _ T₂
+  in k , δ , t′ , m , eq , T₃
