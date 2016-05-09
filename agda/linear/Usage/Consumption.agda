@@ -47,6 +47,11 @@ antisym []      []     = PEq.refl
 antisym (─∷ p)  (─∷ q) = PEq.cong _ $ antisym p q
 antisym (a ∷ p) ()
 
+irrelevance : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} (p q : Γ ⊆ Δ) → p PEq.≡ q
+irrelevance []      []       = PEq.refl
+irrelevance (─∷ p)  (─∷ q)   = PEq.cong ─∷_    $ irrelevance p q
+irrelevance (a ∷ p) (.a ∷ q) = PEq.cong (a ∷_) $ irrelevance p q
+
 infixr 3 _++_
 _++_ : {m n : ℕ} {γ : Context m} {δ : Context n} {Γ Δ θ ξ : Usages γ} {χ Φ : Usages δ} →
        χ ⊆ Φ → Γ ─ Δ ≡ θ ─ ξ → χ U.++ Γ ─ Φ U.++ Δ ≡ χ U.++ θ ─ Φ U.++ ξ

@@ -22,7 +22,7 @@ data Usage : (a : Type) → Set where
   [_] : (a : Type) → Usage a
   ]_[ : (a : Type) → Usage a
 
-infixl 5 _∷_ -- _∙_
+infixr 5 _∷_ -- _∙_
 data Usages : {n : ℕ} (γ : Context n) → Set where
   []  : Usages []
   _∷_ : {n : ℕ} {γ : Context n} {a : Type} → Usage a → Usages γ → Usages (a ∷ γ)
