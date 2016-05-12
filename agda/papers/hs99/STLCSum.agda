@@ -27,6 +27,8 @@ module TM where
     [_,_]  : {σ τ υ : ty} (lft : Tm (Γ ∙ σ) υ) (rgt : Tm (Γ ∙ τ) υ)
              (s : Tm Γ (σ `+ τ)) → Tm Γ υ
 
+infixl 15 _─_
+
 _─_ : {σ : ty} (Γ : Con ty) (v : σ ∈ Γ) → Con ty
 Γ ∙ σ ─ zro   = Γ
 Γ ∙ τ ─ suc v = (Γ ─ v) ∙ τ
@@ -37,7 +39,7 @@ wkVar (suc v) zro     = zro
 wkVar (suc v) (suc w) = suc $ wkVar v w
 
 data ¬Arrow : (σ : ty) → Set where
-  `b   : ¬Arrow `b
+  instance `b : ¬Arrow `b
   _`+_ : (σ τ : ty) → ¬Arrow $ σ `+ τ
 
 mutual

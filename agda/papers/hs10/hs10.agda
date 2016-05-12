@@ -21,6 +21,8 @@ data Tm (Γ : Con Ty) : Ty → Set where
   lam : {σ τ : Ty} (b : Tm (Γ ∙ σ) τ) → Tm Γ (σ `→ τ)
   app : {σ τ : Ty} (f : Tm Γ $ σ `→ τ) (t : Tm Γ σ) → Tm Γ τ
 
+infixl 15 _─_
+
 _─_ : {σ : Ty} (Γ : Con Ty) (v : σ ∈ Γ) → Con Ty
 Γ ∙ σ ─ zro   = Γ
 Γ ∙ τ ─ suc v = (Γ ─ v) ∙ τ
