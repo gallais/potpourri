@@ -16,6 +16,16 @@ app-inv :
   Γ ⊢ `app t u ∈ τ ⊠ Δ → Σ[ θ ∈ Usages γ ] Σ[ σ ∈ Type ] Γ ⊢ t ∈ σ ─o τ ⊠ θ × θ ⊢ σ ∋ u ⊠ Δ
 app-inv (`app t u) = , , t , u
 
+fst-inv :
+  {n : ℕ} {γ : Context n} {t : Infer n} {Γ Δ : Usages γ} {σ : Type} →
+  Γ ⊢ `fst t ∈ σ ⊠ Δ → Σ[ τ ∈ Type ] Γ ⊢ t ∈ σ & τ ⊠ Δ
+fst-inv (`fst t) = , t
+
+snd-inv :
+  {n : ℕ} {γ : Context n} {t : Infer n} {Γ Δ : Usages γ} {τ : Type} →
+  Γ ⊢ `snd t ∈ τ ⊠ Δ → Σ[ σ ∈ Type ] Γ ⊢ t ∈ σ & τ ⊠ Δ
+snd-inv (`snd t) = , t
+
 case-inv : 
   {n : ℕ} {γ : Context n} {t : Infer n} {l r : Check (suc n)} {Γ Δ : Usages γ} {ν₁ ν₂ : Type} →
   Γ ⊢ `case t return ν₁ of l %% r ∈ ν₂ ⊠ Δ →
@@ -40,10 +50,15 @@ let-inv :
   Γ ⊢ t ∈ σ ⊠ θ × σ ∋ p ↝ δ × [[ δ ]] ++ θ ⊢ τ ∋ u ⊠ ]] δ [[ ++ Δ
 let-inv (`let p ∷= t `in u) = , , , t , p , u
 
-prd-inv :
+prd⊗-inv :
   {n : ℕ} {γ : Context n} {t u : Check n} {Γ Δ : Usages γ} {σ τ : Type} →
   Γ ⊢ σ ⊗ τ ∋ `prd t u ⊠ Δ → Σ[ θ ∈ Usages γ ] Γ ⊢ σ ∋ t ⊠ θ × θ ⊢ τ ∋ u ⊠ Δ
-prd-inv (`prd t u) = , t , u
+prd⊗-inv (`prd⊗ t u) = , t , u
+
+prd&-inv :
+  {n : ℕ} {γ : Context n} {t u : Check n} {Γ Δ : Usages γ} {σ τ : Type} →
+  Γ ⊢ σ & τ ∋ `prd t u ⊠ Δ → Γ ⊢ σ ∋ t ⊠ Δ × Γ ⊢ τ ∋ u ⊠ Δ
+prd&-inv (`prd& t u) = t , u
 
 
 -- useful corrolaries
@@ -93,12 +108,12 @@ let-inv-body :
   let (θ , σ , δ , _) = let-inv p in [[ δ ]] ++ θ ⊢ τ ∋ u ⊠ ]] δ [[ ++ Δ
 let-inv-body p = let (_ , _ , _ , _ , _ , U) = let-inv p in U
 
-prd-inv-fst : 
+prd⊗-inv-fst : 
   {n : ℕ} {γ : Context n} {t u : Check n} {Γ Δ : Usages γ} {σ τ : Type} →
-  (p : Γ ⊢ σ ⊗ τ ∋ `prd t u ⊠ Δ) → let (θ , _) = prd-inv p in Γ ⊢ σ ∋ t ⊠ θ
-prd-inv-fst p = let (_ , T , _) = prd-inv p in T
+  (p : Γ ⊢ σ ⊗ τ ∋ `prd t u ⊠ Δ) → let (θ , _) = prd⊗-inv p in Γ ⊢ σ ∋ t ⊠ θ
+prd⊗-inv-fst p = let (_ , T , _) = prd⊗-inv p in T
 
-prd-inv-snd : 
+prd⊗-inv-snd : 
   {n : ℕ} {γ : Context n} {t u : Check n} {Γ Δ : Usages γ} {σ τ : Type} →
-  (p : Γ ⊢ σ ⊗ τ ∋ `prd t u ⊠ Δ) → let (θ , _) = prd-inv p in θ ⊢ τ ∋ u ⊠ Δ
-prd-inv-snd p = let (_ , _ , U) = prd-inv p in U
+  (p : Γ ⊢ σ ⊗ τ ∋ `prd t u ⊠ Δ) → let (θ , _) = prd⊗-inv p in θ ⊢ τ ∋ u ⊠ Δ
+prd⊗-inv-snd p = let (_ , _ , U) = prd⊗-inv p in U

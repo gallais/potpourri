@@ -39,7 +39,7 @@ _++_ : {m n : ℕ} {γ : Context m} {δ : Context n}
 []    ++ Δ = Δ
 x ∷ Γ ++ Δ = x ∷ (Γ ++ Δ)
 
-infix 1 _⊢_∈[_]⊠_
+infix 3 _⊢_∈[_]⊠_
 data _⊢_∈[_]⊠_ : {n : ℕ} {γ : Context n} (Γ : Usages γ) (k : Fin n) (a : Type) (Δ : Usages γ) → Set where
   z : {n : ℕ} {γ : Context n} {Γ : Usages γ} {a : Type} → [ a ] ∷ Γ ⊢ zero ∈[ a ]⊠ ] a [ ∷ Γ
   s_ : {n : ℕ} {γ : Context n} {k : Fin n} {Γ Δ : Usages γ} {a b : Type} {u : Usage b} →

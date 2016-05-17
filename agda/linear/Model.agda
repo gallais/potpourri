@@ -37,6 +37,8 @@ record Linear (𝓜^C 𝓜^I : Model)
     var   : {σ : Type} → 𝓜^I (σ ∷ []) σ
     app   : {γ δ θ : List Type} {σ τ : Type} →
             𝓜^I γ (σ ─o τ) → 𝓜^C δ σ → γ ++ δ ≅ θ → 𝓜^I θ τ
+    fst   : {γ : List Type} {σ τ : Type} → 𝓜^I γ (σ & τ) → 𝓜^I γ σ
+    snd   : {γ : List Type} {σ τ : Type} → 𝓜^I γ (σ & τ) → 𝓜^I γ τ
     case  : {γ δ θ : List Type} {σ τ ν : Type} →
             𝓜^I γ (σ ⊕ τ)  → 𝓜^C (σ ∷ δ) ν → 𝓜^C (τ ∷ δ) ν → γ ++ δ ≅ θ → 𝓜^I θ ν
     cut   : {γ : List Type} {σ : Type} → 𝓜^C γ σ → 𝓜^I γ σ
@@ -44,8 +46,9 @@ record Linear (𝓜^C 𝓜^I : Model)
     lam   : {γ : List Type} {σ τ : Type} → 𝓜^C (σ ∷ γ) τ → 𝓜^C γ (σ ─o τ)
     let'  : {γ δ θ : List Type} {σ τ ν : Type} →
             𝓜^I γ (σ ⊗ τ) → 𝓜^C (τ ∷ σ ∷ δ) ν → γ ++ δ ≅ θ → 𝓜^C θ ν
-    prd   : {γ δ θ : List Type} {σ τ : Type} →
+    prd⊗  : {γ δ θ : List Type} {σ τ : Type} →
             𝓜^C γ σ → 𝓜^C δ τ → γ ++ δ ≅ θ → 𝓜^C θ (σ ⊗ τ)
+    prd&  : {γ : List Type} {σ τ : Type} → 𝓜^C γ σ → 𝓜^C γ τ → 𝓜^C γ (σ & τ)
     inl   : {γ : List Type} {σ τ : Type} → 𝓜^C γ σ → 𝓜^C γ (σ ⊕ τ)
     inr   : {γ : List Type} {σ τ : Type} → 𝓜^C γ τ → 𝓜^C γ (σ ⊕ τ)
     neu   : {γ : List Type} {σ : Type} → 𝓜^I γ σ → 𝓜^C γ σ
@@ -99,6 +102,8 @@ module LINEAR {𝓜^C 𝓜^I : Model} (𝓜 : Linear 𝓜^C 𝓜^I) where
         T   = linearCheck t (consumptionCheck t)
         INC = UE.divide (consumptionInfer f) (consumptionCheck t) inc
     in app F T INC
+  linearInfer (`fst t) inc = fst (linearInfer t inc)
+  linearInfer (`snd t) inc = snd (linearInfer t inc)
   linearInfer (`case t return ν of l %% r) inc =
     let γ   = consumptionInfer t ; T   = linearInfer t γ
         δl  = consumptionCheck l ; L   = linearCheck l δl
@@ -126,11 +131,12 @@ module LINEAR {𝓜^C 𝓜^I : Model} (𝓜 : Linear 𝓜^C 𝓜^I) where
         U′ : 𝓜^C (toList θ L.++ used δ′) _
         U′ = subst (λ γ → 𝓜^C γ _) eq (coerce 𝓜^C δ (pure θ UC.++ δ′) U)
     in linearPattern p T U′ INC
-  linearCheck (`prd a b) inc =
+  linearCheck (`prd⊗ a b) inc =
     let γ   = consumptionCheck a ; A = linearCheck a γ
         δ   = consumptionCheck b ; B = linearCheck b δ
         INC = UE.divide γ δ inc
-    in prd A B INC
+    in prd⊗ A B INC
+  linearCheck (`prd& a b) inc = prd& (linearCheck a inc) (linearCheck b inc)
   linearCheck (`inl t) inc = inl (linearCheck t inc)
   linearCheck (`inr t) inc = inr (linearCheck t inc)
   linearCheck (`neu t) inc = neu (linearInfer t inc)
@@ -152,6 +158,9 @@ data _⊢_ : List Type → Type → Set where
   ⊗L  : {γ : List Type} {σ τ ν : Type} → τ ∷ σ ∷ γ ⊢ ν → σ ⊗ τ ∷ γ ⊢ ν
   ─oR : {γ : List Type} {σ τ : Type} → σ ∷ γ ⊢ τ → γ ⊢ σ ─o τ
   ─oL : {γ δ : List Type} {σ τ ν : Type} → γ ⊢ σ → τ ∷ δ ⊢ ν → (σ ─o τ) ∷ γ L.++ δ ⊢ ν
+  &R  : {γ : List Type} {σ τ : Type} → γ ⊢ σ → γ ⊢ τ → γ ⊢ σ & τ
+  &₁L : {γ : List Type} {σ τ ν : Type} → σ ∷ γ ⊢ ν  → σ & τ ∷ γ ⊢ ν
+  &₂L : {γ : List Type} {σ τ ν : Type} → τ ∷ γ ⊢ ν  → σ & τ ∷ γ ⊢ ν
   ⊕₁R : {γ : List Type} {σ τ : Type} → γ ⊢ σ → γ ⊢ σ ⊕ τ
   ⊕₂R : {γ : List Type} {σ τ : Type} → γ ⊢ τ → γ ⊢ σ ⊕ τ
   ⊕L  : {γ : List Type} {σ τ ν : Type} → σ ∷ γ ⊢ ν → τ ∷ γ ⊢ ν → σ ⊕ τ ∷ γ ⊢ ν
@@ -164,11 +173,14 @@ ILL = record
   ; app   = λ f t inc →
             let F = cut f (─oL t ax)
             in mix F (subst (_ ++_≅ _) (PEq.sym $ proj₂ identity _) inc)
+  ; fst   = λ t → subst (_⊢ _) (proj₂ identity _) (cut t (&₁L ax))
+  ; snd   = λ t → subst (_⊢ _) (proj₂ identity _) (cut t (&₂L ax))
   ; case  = λ t l r → mix (cut t (⊕L l r))
   ; cut   = id
   ; lam   = ─oR
   ; let'  = λ t u → mix (cut t (⊗L u))
-  ; prd   = λ a b → mix (⊗R a b)
+  ; prd⊗  = λ a b → mix (⊗R a b)
+  ; prd&  = &R
   ; inl   = ⊕₁R
   ; inr   = ⊕₂R
   ; neu   = id

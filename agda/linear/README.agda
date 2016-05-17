@@ -31,6 +31,9 @@ open import linear.Typecheck
 open import linear.Usage.Erasure
 open import linear.Typing.Thinning
 
+-- Model
+open import linear.Model
+
 -- Examples
 open import linear.Language.Examples
 open import linear.Typing.Examples

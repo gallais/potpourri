@@ -13,10 +13,12 @@ open import linear.Context as C hiding (_++_)
 open import linear.Usage
 open import linear.Relation.Functional
 
-R++ : {o k : ℕ} (δ : Context o) (γ : Context k) (ΔΓ : Usages (δ C.++ γ)) → (i : Usages δ) (o : Usages γ) → Set
+R++ : {o k : ℕ} (δ : Context o) (γ : Context k) (ΔΓ : Usages (δ C.++ γ)) →
+      (i : Usages δ) (o : Usages γ) → Set
 R++ δ γ ΔΓ Δ Γ = ΔΓ ≡ (Δ ++ Γ)
 
-functional++ : {o k : ℕ} {δ : Context o} {γ : Context k} {ΔΓ : Usages (δ C.++ γ)} → Functional′ (R++ δ γ ΔΓ)
+functional++ : {o k : ℕ} {δ : Context o} {γ : Context k} {ΔΓ : Usages (δ C.++ γ)} →
+               Functional′ (R++ δ γ ΔΓ)
 functional++ []      refl refl = refl
 functional++ (A ∷ Δ) eq₁  eq₂  = functional++ Δ (cong tail eq₁) (cong tail eq₂)
 

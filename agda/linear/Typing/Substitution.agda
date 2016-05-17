@@ -23,6 +23,8 @@ mutual
   weakInfer : Weakening Infer L.weakInfer TInfer
   weakInfer 𝓜 (`var k)                     = `var (weakFin 𝓜 k)
   weakInfer 𝓜 (`app t u)                   = `app (weakInfer 𝓜 t) (weakCheck 𝓜 u)
+  weakInfer 𝓜 (`fst t)                     = `fst (weakInfer 𝓜 t)
+  weakInfer 𝓜 (`snd t)                     = `snd (weakInfer 𝓜 t)  
   weakInfer 𝓜 (`case t return σ of l %% r) = `case weakInfer 𝓜 t return σ
                                                 of weakCheck (copy 𝓜) l
                                                 %% weakCheck (copy 𝓜) r
@@ -35,7 +37,8 @@ mutual
         ih   = weakCheck (copys o 𝓜) u
         cast = ++copys-elim₂ P [[ δ ]] ]] δ [[ Δ θ 𝓜
     in `let p ∷= weakInfer 𝓜 t `in cast ih
-  weakCheck 𝓜 (`prd t u)          = `prd (weakCheck 𝓜 t) (weakCheck 𝓜 u)
+  weakCheck 𝓜 (`prd⊗ t u)         = `prd⊗ (weakCheck 𝓜 t) (weakCheck 𝓜 u)
+  weakCheck 𝓜 (`prd& t u)         = `prd& (weakCheck 𝓜 t) (weakCheck 𝓜 u)
   weakCheck 𝓜 (`inl t)            = `inl weakCheck 𝓜 t
   weakCheck 𝓜 (`inr t)            = `inr weakCheck 𝓜 t
   weakCheck 𝓜 (`neu t)            = `neu weakInfer 𝓜 t
@@ -96,6 +99,12 @@ mutual
     let (θ₁ , tρ , ρ₁) = substInfer ρ t
         (θ₂ , uρ , ρ₂) = substCheck ρ₁ u
     in θ₂ , `app tρ uρ , ρ₂
+  substInfer ρ (`fst t) =
+    let (θ′ , tρ , ρ₂) = substInfer ρ t
+    in θ′ , `fst tρ , ρ₂
+  substInfer ρ (`snd t) = 
+    let (θ′ , tρ , ρ₂) = substInfer ρ t
+    in θ′ , `snd tρ , ρ₂
   substInfer {t = `case rt return .σ of rl %% rr} ρ (`case t return σ of l %% r) =
     let (θ₁ , tρ , ρ₁) = substInfer ρ t
     in substCase rt tρ (substCheck ([v]∷ ρ₁) l) (substCheck ([v]∷ ρ₁) r)
@@ -112,10 +121,15 @@ mutual
         (θ₃ , ρ)       = substLet δ (θ₂ , ρ₂)
         eq             = functionalEnvPre functionalInferPre _ ρ₂ (withStaleVars (patternContext p) ρ)
     in , `let p ∷= tρ `in subst (TCheck _ _ _) eq uρ , ρ
-  substCheck ρ (`prd a b) =
+  substCheck ρ (`prd⊗ a b) =
     let (θ₁ , aρ , ρ₁) = substCheck ρ a
         (θ₂ , bρ , ρ₂) = substCheck ρ₁ b
-    in θ₂ , `prd aρ bρ , ρ₂
+    in θ₂ , `prd⊗ aρ bρ , ρ₂
+  substCheck ρ (`prd& a b) =
+    let (θ₁ , aρ , ρ₁) = substCheck ρ a
+        (θ₂ , bρ , ρ₂) = substCheck ρ b
+        eq             = functionalEnvPre functionalInferPre _ ρ₂ ρ₁
+    in θ₁ , `prd& aρ (subst (_ ⊢ _ ∋ _ ⊠_) eq bρ) , ρ₁
   substCheck ρ (`inl t) =
     let (θ₁ , tρ , ρ₁) = substCheck ρ t
     in θ₁ , `inl tρ , ρ₁
