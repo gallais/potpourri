@@ -11,6 +11,7 @@
 {-# LANGUAGE EmptyCase              #-}
 {-# LANGUAGE IncoherentInstances    #-}
 {-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE RecordWildCards        #-}
 {-# OPTIONS -Wall                   #-}
 
 module Bidirectional where
@@ -95,6 +96,9 @@ type Included = Environment Var
 trans :: Included g h -> Environment e h i -> Environment e g i
 trans ren rho = Pack $ lookup rho . lookup ren
 
+wkEnv :: Weakening e -> Included h i -> Environment e g h -> Environment e g i
+wkEnv wk inc rho = Pack $ wk inc . lookup rho
+
 refl :: Included g g
 refl = Pack id
 
@@ -125,6 +129,95 @@ data Ne (g :: Context) (a :: Type) where
   NeRec :: SType a -> Nf g a -> Nf g ('TyNat :-> a :-> a) -> Ne g 'TyNat -> Ne g a
   NeCut :: Nf g a -> SType a -> Ne g a
 
+--
+
+type Weakening (t :: Context -> Type -> *) = forall g h a. Included g h -> t g a -> t h a
+type Kripke (e :: Context -> Type -> *) (v :: Context -> Type -> *)
+            (g :: Context) (a :: Type) (b :: Type) =
+  forall h. Included g h -> e h a -> v h b
+
+data Model
+  (env :: Context -> Type -> *)
+  (vnf :: Context -> Type -> *)
+  (vne :: Context -> Type -> *)
+  = Model
+  { -- ENV
+    reflects :: forall g. Environment env g g
+  , envWeak  :: Weakening env
+    -- VNF
+  , vnfTrue  :: forall g. vnf g 'TyBool
+  , vnfFalse :: forall g. vnf g 'TyBool
+  , vnfZero  :: forall g. vnf g 'TyNat
+  , vnfSucc  :: forall g. vnf g 'TyNat -> vnf g 'TyNat
+  , vnfLam   :: forall g a b. Kripke env vnf g a b -> vnf g (a :-> b)
+  , vnfEmb   :: forall g a. vne g a -> vnf g a
+    -- VNE
+  , vneVar   :: forall g a. env g a -> vne g a
+  , vneITE   :: forall g a. SType a -> vne g 'TyBool -> vnf g a -> vnf g a -> vne g a
+  , vneApp   :: forall g a b. vne g (a :-> b) -> vnf g a -> vne g b
+  , vneRec   :: forall g a. SType a -> vnf g a -> vnf g ('TyNat :-> a :-> a) -> vne g 'TyNat -> vne g a
+  , vneCut   :: forall g a. vnf g a -> SType a -> vne g a
+  }
+
+type Evaluation
+     (trm :: Context -> Type -> *)
+     (env :: Context -> Type -> *)
+     (val :: Context -> Type -> *) =
+     forall g h a. trm g a -> Environment env g h -> val h a
+
+evalNe :: Model env vnf vne -> Evaluation Ne env vne
+evalNe m@Model{..} ne rho = case ne of
+  NeVar v        -> vneVar (lookup rho v)
+  NeITE ty b l r -> vneITE ty (evalNe m b rho) (evalNf m l rho) (evalNf m r rho)
+  NeApp f t      -> vneApp (evalNe m f rho) (evalNf m t rho)
+  NeRec p z s n  -> vneRec p (evalNf m z rho) (evalNf m s rho) (evalNe m n rho)
+  NeCut f ty     -> vneCut (evalNf m f rho) ty
+
+evalNf :: Model env vnf vne -> Evaluation Nf env vnf
+evalNf m@Model{..} t rho = case t of 
+  NfTrue   -> vnfTrue
+  NfFalse  -> vnfFalse
+  NfZero   -> vnfZero
+  NfSucc n -> vnfSucc $ evalNf m n rho
+  NfLam b  -> vnfLam $ \ inc v -> evalNf m b (wkEnv envWeak inc rho # v)
+  NfEmb ne -> vnfEmb $ evalNe m ne rho
+
+--
+renaming :: Model Var Nf Ne
+renaming = Model
+  { reflects = Pack id
+  , envWeak  = lookup
+  , vnfTrue  = NfTrue
+  , vnfFalse = NfFalse
+  , vnfZero  = NfZero
+  , vnfSucc  = NfSucc
+  , vnfLam   = \ b -> NfLam $ b extended Here
+  , vnfEmb   = NfEmb
+  , vneVar   = NeVar
+  , vneApp   = NeApp
+  , vneITE   = NeITE
+  , vneRec   = NeRec
+  , vneCut   = NeCut
+  }
+
+substitution :: Model Ne Nf Ne
+substitution = Model
+  { reflects = Pack NeVar
+  , envWeak  = weaken
+  , vnfTrue  = NfTrue
+  , vnfFalse = NfFalse
+  , vnfZero  = NfZero
+  , vnfSucc  = NfSucc
+  , vnfLam   = \ b -> NfLam $ b extended (NeVar Here)
+  , vnfEmb   = NfEmb
+  , vneVar   = id
+  , vneApp   = NeApp
+  , vneITE   = NeITE
+  , vneRec   = NeRec
+  , vneCut   = NeCut
+  }
+
+--
 newtype EnvString (g :: Context) (a :: Type) = EnvString { runString :: String }
 
 showNf :: Environment EnvString g h -> Nf g a -> State [String] String
@@ -278,6 +371,28 @@ mul =
                 NfEmb $ NeApp (NeApp (NeCut add tyAdd) (var n)) (var ih))
                 (var m)
 
+class Weakenable (t :: Context -> Type -> *) where
+  weaken :: Weakening t
+
+  weak :: forall g h a. Extension g h (LT g h) => t g a -> t h a
+  weak = weaken $ steps (Proxy :: Proxy (LT g h))
+
+instance Weakenable Var where
+  weaken = lookup
+
+instance Weakenable Nf where
+  weaken = flip (evalNf renaming)
+
+instance Weakenable Ne where
+  weaken = flip (evalNe renaming)
+
+isZero :: Nf g ('TyNat :-> 'TyBool)
+isZero =
+  lam $ \ m ->
+  NfEmb $ NeRec STyBool
+                NfTrue
+                (lam $ \ _ -> lam $ \ _ -> NfFalse)
+                (var m)
 
 two :: Nf 'Null 'TyNat
 two = NfSucc $ NfSucc NfZero
@@ -294,5 +409,6 @@ main = do
   print (identity :: Nf 'Null ('TyNat :-> 'TyNat))
   print (true     :: Nf 'Null ('TyNat :-> 'TyBool :-> 'TyNat))
   print (false    :: Nf 'Null ('TyNat :-> 'TyBool :-> 'TyBool))
+  print (isZero   :: Nf 'Null ('TyNat :-> 'TyBool))
   mapM_ print [two, three, five]
 
