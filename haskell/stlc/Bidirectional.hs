@@ -101,7 +101,7 @@ step :: Included g h -> Included g (h :> a)
 step = flip trans extended
 
 extended :: Included g (g :> a)
-extended = step refl
+extended = Pack There
 
 pop :: Included g h -> Included (g :> a) (h :> a)
 pop rho = step rho # Here
