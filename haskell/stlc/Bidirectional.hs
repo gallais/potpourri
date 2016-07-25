@@ -11,6 +11,7 @@
 {-# LANGUAGE EmptyCase              #-}
 {-# LANGUAGE IncoherentInstances    #-}
 {-# LANGUAGE TypeOperators          #-}
+{-# OPTIONS -Wall                   #-}
 
 module Bidirectional where
 
@@ -23,11 +24,11 @@ import Data.Monoid
 
 data Type = TyNat | TyBool | TyFun Type Type
 infixr 5 :->
-type (:->) = TyFun
+type (:->) = 'TyFun
 
 data SType (a :: Type) :: * where
-  STyNat  :: SType TyNat
-  STyBool :: SType TyBool
+  STyNat  :: SType 'TyNat
+  STyBool :: SType 'TyBool
   STyFun  :: SType a -> SType b -> SType (a :-> b)
 
 instance Show (SType a) where
@@ -39,8 +40,8 @@ instance Show (SType a) where
 class CType a where
   sType :: SType a
 
-instance CType TyNat  where sType = STyNat
-instance CType TyBool where sType = STyBool
+instance CType 'TyNat  where sType = STyNat
+instance CType 'TyBool where sType = STyBool
 instance (CType a, CType b) => CType (a :-> b) where
   sType = STyFun sType sType
 
@@ -48,15 +49,15 @@ instance (CType a, CType b) => CType (a :-> b) where
 
 data Context = Null | Cons Context Type
 infixl 3 :>
-type (:>) = Cons
+type (:>) = 'Cons
 data SContext (g :: Context) where
-  SNull :: SContext Null
+  SNull :: SContext 'Null
   SCons :: SContext g -> SType a -> SContext (g :> a)
 
 class CContext (g :: Context) where
   sContext :: SContext g
 
-instance CContext Null where
+instance CContext 'Null where
   sContext = SNull
 
 instance (CContext g, CType a) => CContext (g :> a) where
@@ -68,7 +69,7 @@ data Var (g :: Context) (a :: Type) where
   Here  :: Var (g :> a) a
   There :: Var g a -> Var (g :> b) a
 
-absurd :: Var Null a -> b
+absurd :: Var 'Null a -> b
 absurd v = case v of {}
 
 -- Environments are functions associating a well-scoped and
@@ -77,7 +78,7 @@ absurd v = case v of {}
 newtype Environment (e :: Context -> Type -> *) (g :: Context) (h :: Context) =
   Pack { lookup :: forall a. Var g a -> e h a }
 
-empty :: Environment e Null h
+empty :: Environment e 'Null h
 empty = Pack absurd
 
 (#) :: forall e g h a. Environment e g h -> e h a -> Environment e (g :> a) h
@@ -110,52 +111,56 @@ pop rho = step rho # Here
 -- once more inclusion induces a notion of weakening.
 
 data Nf (g :: Context) (a :: Type) where
-  NfTrue  :: Nf g TyBool
-  NfFalse :: Nf g TyBool
-  NfZero  :: Nf g TyNat
-  NfSucc  :: Nf g TyNat -> Nf g TyNat
+  NfTrue  :: Nf g 'TyBool
+  NfFalse :: Nf g 'TyBool
+  NfZero  :: Nf g 'TyNat
+  NfSucc  :: Nf g 'TyNat -> Nf g 'TyNat
   NfLam   :: Nf (g :> a) b -> Nf g (a :-> b)
   NfEmb   :: Ne g a -> Nf g a
 
 data Ne (g :: Context) (a :: Type) where
   NeVar :: Var g a -> Ne g a
-  NeITE :: Ne g TyBool -> Nf g a -> Nf g a -> Ne g a
+  NeITE :: SType a -> Ne g 'TyBool -> Nf g a -> Nf g a -> Ne g a
   NeApp :: Ne g (a :-> b) -> Nf g a -> Ne g b
-  NeRec :: SType a -> Nf g a -> Nf g (TyNat :-> a :-> a) -> Ne g TyNat -> Ne g a
+  NeRec :: SType a -> Nf g a -> Nf g ('TyNat :-> a :-> a) -> Ne g 'TyNat -> Ne g a
   NeCut :: Nf g a -> SType a -> Ne g a
 
 newtype EnvString (g :: Context) (a :: Type) = EnvString { runString :: String }
 
 showNf :: Environment EnvString g h -> Nf g a -> State [String] String
-showNf rho (NfLam b) = do
-  (hd : tl) <- get
-  put tl
-  (("\\" <> hd <> ".") <>) <$> showNf (rho # EnvString hd) b
 showNf rho t = case t of
+  NfLam b  -> do
+    (hd : tl) <- get
+    put tl
+    (("\\" <> hd <> ".") <>) <$> showNf (rho # EnvString hd) b
   NfTrue   -> return "True"
   NfFalse  -> return "False"
   NfZero   -> return "Zero"
   NfSucc n -> ("Succ " <>) <$> showNf rho n
   NfEmb ne -> showNe rho ne
 
+showIfte :: String -> String -> String -> String
 showIfte b l r = "if " <> b <> " then " <> l <> " else " <> r
+showApp :: String -> String -> String
 showApp f t    = f <> " (" <> t <> ")"
-showRec z s n  = "rec[ " <> z <> ", " <> s <> ", " <> n <> " ]"
+showRec :: String -> String -> String -> String -> String
+showRec ty z s n  = "rec[ " <> ty <> ", " <> z <> ", " <> s <> ", " <> n <> " ]"
+showCut :: String -> String -> String
 showCut tm ty  = "(" <> tm <> " :: " <> ty <> ")"
 
 showNe :: Environment EnvString g h -> Ne g a -> State [String] String
-showNe rho t = case t of
+showNe rho ne = case ne of
   NeVar v       -> return $ runString $ lookup rho v
-  NeITE b l r   -> showIfte <$> showNe rho b  <*> showNf rho l <*> showNf rho r
+  NeITE _ b l r -> showIfte <$> showNe rho b  <*> showNf rho l <*> showNf rho r
   NeApp f t     -> showApp  <$> showNe rho f  <*> showNf rho t
-  NeRec p z s n -> showRec  <$> showNf rho z  <*> showNf rho s <*> showNe rho n
+  NeRec p z s n -> showRec  <$> pure (show p) <*> showNf rho z <*> showNf rho s <*> showNe rho n
   NeCut tm ty   -> showCut  <$> showNf rho tm <*> pure (show ty)
 
 
 nameSupply :: [String]
 nameSupply = concatMap (\ s -> fmap (:s) alpha) $ [] : num where
   alpha = "abcdefghijklmnopqrstuvwyz"
-  num   = fmap show [1..]
+  num   = fmap show ([1..] :: [Integer])
 
 initEnv :: forall g h. SContext g -> State [String] (Environment EnvString g h)
 initEnv SNull       = return empty
@@ -175,11 +180,10 @@ instance CContext g => Show (Ne g a) where
 class Extension (g :: Context) (h :: Context) (b :: Bool) where
   steps :: Proxy b -> Included g h
 
-
 instance Extension g g b where
   steps _ = refl
 
-instance Extension g h (LT g h) => Extension g (h :> a) True where
+instance Extension g h (LT g h) => Extension g ('Cons h a) 'True where
   steps _ = step $ steps (Proxy :: Proxy (LT g h))
 
 newtype FreshVar g a =
@@ -192,7 +196,7 @@ instance FreshVariable Ne where
   var = runFreshVar
 
 instance FreshVariable Nf where
-  var = NfEmb . var
+  var = NfEmb . runFreshVar
 
 lam :: forall g a b. (FreshVar g a -> Nf (g :> a) b) -> Nf g (a :-> b)
 lam b = NfLam $ b $ FreshVar $ NeVar freshVar where
@@ -206,7 +210,7 @@ identity = lam $ \ x -> var x
 
 true :: Nf g (a :-> b :-> a)
 true = lam $ \ x ->
-       lam $ \ y ->
+       lam $ \ _ ->
        var x
 
 false :: Nf g (a :-> b :-> b)
@@ -214,27 +218,28 @@ false = lam $ \ _ -> identity
 
 
 type family EQ x y where
-  EQ x x = True
-  EQ x y = False
+  EQ x x = 'True
+  EQ x y = 'False
 
 type family OR (b :: Bool) (c :: Bool) where
-  OR True c  = True
-  OR b True  = True
-  OR b False = b
-  OR False c = c
+  OR 'True c  = 'True
+  OR b 'True  = 'True
+  OR b 'False = b
+  OR 'False c = c
 
 type family LT (g :: Context) (h :: Context) where
-  LT g (Cons h a) = LE g h
-  LT g h          = False
+  LT g (h :> a) = LE g h
+  LT g h        = 'False
 
 type family LE (g :: Context) (h :: Context) where
   LE g h = OR (EQ g h) (LT g h)
 
 -- SYNTAX EXAMPLES
 
+tyAdd :: SType ('TyNat :-> 'TyNat :-> 'TyNat)
 tyAdd = STyFun STyNat (STyFun STyNat STyNat)
 
-addARGH :: Nf g (TyNat :-> TyNat :-> TyNat)
+addARGH :: Nf g ('TyNat :-> 'TyNat :-> 'TyNat)
 addARGH =
   NfLam {- m -} $
   NfLam {- n -} $
@@ -243,7 +248,7 @@ addARGH =
                 (NfLam $ NfLam $ NfSucc (NfEmb $ NeVar Here))
                 (NeVar $ There Here)
 
-mulARGH :: Nf g (TyNat :-> TyNat :-> TyNat)
+mulARGH :: Nf g ('TyNat :-> 'TyNat :-> 'TyNat)
 mulARGH =
   NfLam {- m -} $
   NfLam {- n -} $
@@ -254,7 +259,7 @@ mulARGH =
                 NfEmb $ NeApp (NeApp (NeCut addARGH tyAdd) (NfEmb $ NeVar m)) (NfEmb $ NeVar Here))
                 (NeVar $ There Here)
 
-add :: Nf g (TyNat :-> TyNat :-> TyNat)
+add :: Nf g ('TyNat :-> 'TyNat :-> 'TyNat)
 add =
   lam $ \ m ->
   lam $ \ n ->
@@ -263,7 +268,7 @@ add =
                 (lam $ \ _ -> lam $ \ ih -> NfSucc $ var ih)
                 (var m)
 
-mul :: Nf g (TyNat :-> TyNat :-> TyNat)
+mul :: Nf g ('TyNat :-> 'TyNat :-> 'TyNat)
 mul =
   lam $ \ m ->
   lam $ \ n ->
@@ -274,13 +279,13 @@ mul =
                 (var m)
 
 
-two :: Nf Null TyNat
+two :: Nf 'Null 'TyNat
 two = NfSucc $ NfSucc NfZero
 
-three :: Nf Null TyNat
+three :: Nf 'Null 'TyNat
 three = NfSucc two
 
-five :: Nf Null TyNat
+five :: Nf 'Null 'TyNat
 five = NfEmb $ NeApp (NeApp (NeCut add tyAdd) three) two
 
 
