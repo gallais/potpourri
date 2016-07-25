@@ -183,10 +183,16 @@ instance Extension g h (LT g h) => Extension g (h :> a) True where
   steps _ = step $ steps (Proxy :: Proxy (LT g h))
 
 newtype FreshVar g a =
-  FreshVar { varNe :: forall h. Extension (g :> a) h (LT (g :> a) h) => Ne h a }
+  FreshVar { runFreshVar :: forall h. Extension (g :> a) h (LT (g :> a) h) => Ne h a }
 
-varNf :: forall g h a. Extension (g :> a) h (LT (g :> a) h) => FreshVar g a -> Nf h a
-varNf = NfEmb . varNe
+class FreshVariable (v :: Context -> Type -> *) where
+  var :: forall g h a. Extension (g :> a) h (LT (g :> a) h) => FreshVar g a -> v h a
+
+instance FreshVariable Ne where
+  var = runFreshVar
+
+instance FreshVariable Nf where
+  var = NfEmb . var
 
 lam :: forall g a b. (FreshVar g a -> Nf (g :> a) b) -> Nf g (a :-> b)
 lam b = NfLam $ b $ FreshVar $ NeVar freshVar where
@@ -196,12 +202,12 @@ lam b = NfLam $ b $ FreshVar $ NeVar freshVar where
 
 
 identity :: Nf g (a :-> a)
-identity = lam $ \ x -> varNf x
+identity = lam $ \ x -> var x
 
 true :: Nf g (a :-> b :-> a)
 true = lam $ \ x ->
        lam $ \ y ->
-       varNf x
+       var x
 
 false :: Nf g (a :-> b :-> b)
 false = lam $ \ _ -> identity
@@ -253,9 +259,9 @@ add =
   lam $ \ m ->
   lam $ \ n ->
   NfEmb $ NeRec STyNat
-                (varNf n)
-                (lam $ \ _ -> lam $ \ ih -> NfSucc $ varNf ih)
-                (varNe m)
+                (var n)
+                (lam $ \ _ -> lam $ \ ih -> NfSucc $ var ih)
+                (var m)
 
 mul :: Nf g (TyNat :-> TyNat :-> TyNat)
 mul =
@@ -264,8 +270,8 @@ mul =
   NfEmb $ NeRec STyNat
                 NfZero
                 (lam $ \ _ -> lam $ \ ih ->
-                NfEmb $ NeApp (NeApp (NeCut add tyAdd) (varNf n)) (varNf ih))
-                (varNe m)
+                NfEmb $ NeApp (NeApp (NeCut add tyAdd) (var n)) (var ih))
+                (var m)
 
 
 two :: Nf Null TyNat
