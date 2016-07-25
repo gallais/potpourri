@@ -30,6 +30,12 @@ data SType (a :: Type) :: * where
   STyBool :: SType TyBool
   STyFun  :: SType a -> SType b -> SType (a :-> b)
 
+instance Show (SType a) where
+  show ty = case ty of
+    STyNat     -> "ℕ"
+    STyBool    -> "𝔹"
+    STyFun a b -> show a <> " -> " <> show b
+
 class CType a where
   sType :: SType a
 
@@ -114,9 +120,9 @@ data Nf (g :: Context) (a :: Type) where
 data Ne (g :: Context) (a :: Type) where
   NeVar :: Var g a -> Ne g a
   NeITE :: Ne g TyBool -> Nf g a -> Nf g a -> Ne g a
-  NeApp :: SType a -> Ne g (a :-> b) -> Nf g a -> Ne g b
+  NeApp :: Ne g (a :-> b) -> Nf g a -> Ne g b
   NeRec :: SType a -> Nf g a -> Nf g (TyNat :-> a :-> a) -> Ne g TyNat -> Ne g a
-  NeCut :: Nf g a -> Ne g a
+  NeCut :: Nf g a -> SType a -> Ne g a
 
 newtype EnvString (g :: Context) (a :: Type) = EnvString { runString :: String }
 
@@ -135,14 +141,15 @@ showNf rho t = case t of
 showIfte b l r = "if " <> b <> " then " <> l <> " else " <> r
 showApp f t    = f <> " (" <> t <> ")"
 showRec z s n  = "rec[ " <> z <> ", " <> s <> ", " <> n <> " ]"
+showCut tm ty  = "(" <> tm <> " :: " <> ty <> ")"
 
 showNe :: Environment EnvString g h -> Ne g a -> State [String] String
 showNe rho t = case t of
   NeVar v       -> return $ runString $ lookup rho v
-  NeITE b l r   -> showIfte <$> showNe rho b <*> showNf rho l <*> showNf rho r
-  NeApp ty f t  -> showApp  <$> showNe rho f <*> showNf rho t
-  NeRec p z s n -> showRec  <$> showNf rho z <*> showNf rho s <*> showNe rho n
-  NeCut tm      -> showNf rho tm
+  NeITE b l r   -> showIfte <$> showNe rho b  <*> showNf rho l <*> showNf rho r
+  NeApp f t     -> showApp  <$> showNe rho f  <*> showNf rho t
+  NeRec p z s n -> showRec  <$> showNf rho z  <*> showNf rho s <*> showNe rho n
+  NeCut tm ty   -> showCut  <$> showNf rho tm <*> pure (show ty)
 
 
 nameSupply :: [String]
@@ -191,7 +198,6 @@ lam b = NfLam $ b $ FreshVar $ NeVar freshVar where
 identity :: Nf g (a :-> a)
 identity = lam $ \ x -> varNf x
 
-
 true :: Nf g (a :-> b :-> a)
 true = lam $ \ x ->
        lam $ \ y ->
@@ -220,6 +226,8 @@ type family LE (g :: Context) (h :: Context) where
 
 -- SYNTAX EXAMPLES
 
+tyAdd = STyFun STyNat (STyFun STyNat STyNat)
+
 addARGH :: Nf g (TyNat :-> TyNat :-> TyNat)
 addARGH =
   NfLam {- m -} $
@@ -237,7 +245,7 @@ mulARGH =
                 NfZero
                 (NfLam $ NfLam $
                 let m = There $ There Here in
-                NfEmb $ NeApp STyNat (NeApp STyNat (NeCut addARGH) (NfEmb $ NeVar m)) (NfEmb $ NeVar Here))
+                NfEmb $ NeApp (NeApp (NeCut addARGH tyAdd) (NfEmb $ NeVar m)) (NfEmb $ NeVar Here))
                 (NeVar $ There Here)
 
 add :: Nf g (TyNat :-> TyNat :-> TyNat)
@@ -256,7 +264,7 @@ mul =
   NfEmb $ NeRec STyNat
                 NfZero
                 (lam $ \ _ -> lam $ \ ih ->
-                NfEmb $ NeApp STyNat (NeApp STyNat (NeCut add) (varNf n)) (varNf ih))
+                NfEmb $ NeApp (NeApp (NeCut add tyAdd) (varNf n)) (varNf ih))
                 (varNe m)
 
 
@@ -267,7 +275,7 @@ three :: Nf Null TyNat
 three = NfSucc two
 
 five :: Nf Null TyNat
-five = NfEmb $ NeApp STyNat (NeApp STyNat (NeCut add) three) two
+five = NfEmb $ NeApp (NeApp (NeCut add tyAdd) three) two
 
 
 main :: IO ()
