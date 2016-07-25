@@ -10,6 +10,7 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE EmptyCase              #-}
 {-# LANGUAGE IncoherentInstances    #-}
+{-# LANGUAGE TypeOperators          #-}
 
 module Bidirectional where
 
@@ -21,25 +22,30 @@ import Data.Monoid
 -- Defining type and the corresponding singletons
 
 data Type = TyNat | TyBool | TyFun Type Type
+infixr 5 :->
+type (:->) = TyFun
+
 data SType (a :: Type) :: * where
   STyNat  :: SType TyNat
   STyBool :: SType TyBool
-  STyFun  :: SType a -> SType b -> SType (TyFun a b)
+  STyFun  :: SType a -> SType b -> SType (a :-> b)
 
 class CType a where
   sType :: SType a
 
 instance CType TyNat  where sType = STyNat
 instance CType TyBool where sType = STyBool
-instance (CType a, CType b) => CType (TyFun a b) where
+instance (CType a, CType b) => CType (a :-> b) where
   sType = STyFun sType sType
 
 -- Contexts are lists of types
 
 data Context = Null | Cons Context Type
+infixl 3 :>
+type (:>) = Cons
 data SContext (g :: Context) where
   SNull :: SContext Null
-  SCons :: SContext g -> SType a -> SContext (Cons g a)
+  SCons :: SContext g -> SType a -> SContext (g :> a)
 
 class CContext (g :: Context) where
   sContext :: SContext g
@@ -47,14 +53,14 @@ class CContext (g :: Context) where
 instance CContext Null where
   sContext = SNull
 
-instance (CContext g, CType a) => CContext (Cons g a) where
+instance (CContext g, CType a) => CContext (g :> a) where
   sContext = SCons sContext sType
 
 -- Variable are fancy de Bruijn indices
 
 data Var (g :: Context) (a :: Type) where
-  Here  :: Var (Cons g a) a
-  There :: Var g a -> Var (Cons g b) a
+  Here  :: Var (g :> a) a
+  There :: Var g a -> Var (g :> b) a
 
 absurd :: Var Null a -> b
 absurd v = case v of {}
@@ -68,10 +74,10 @@ newtype Environment (e :: Context -> Type -> *) (g :: Context) (h :: Context) =
 empty :: Environment e Null h
 empty = Pack absurd
 
-(#) :: forall e g h a. Environment e g h -> e h a -> Environment e (Cons g a) h
+(#) :: forall e g h a. Environment e g h -> e h a -> Environment e (g :> a) h
 rho # val = Pack snoc where
 
-  snoc :: forall b. Var (Cons g a) b -> e h b
+  snoc :: forall b. Var (g :> a) b -> e h b
   snoc Here      = val
   snoc (There v) = lookup rho v
 
@@ -85,13 +91,13 @@ trans ren rho = Pack $ lookup rho . lookup ren
 refl :: Included g g
 refl = Pack id
 
-extended :: Included g (Cons g a)
-extended = Pack There
-
-step :: Included g h -> Included g (Cons h a)
+step :: Included g h -> Included g (h :> a)
 step = flip trans extended
 
-pop :: Included g h -> Included (Cons g a) (Cons h a)
+extended :: Included g (g :> a)
+extended = step refl
+
+pop :: Included g h -> Included (g :> a) (h :> a)
 pop rho = step rho # Here
 
 -- Terms can be defined in a well-scoped, well-typed fashion
@@ -102,14 +108,14 @@ data Nf (g :: Context) (a :: Type) where
   NfFalse :: Nf g TyBool
   NfZero  :: Nf g TyNat
   NfSucc  :: Nf g TyNat -> Nf g TyNat
-  NfLam   :: Nf (Cons g a) b -> Nf g (TyFun a b)
+  NfLam   :: Nf (g :> a) b -> Nf g (a :-> b)
   NfEmb   :: Ne g a -> Nf g a
 
 data Ne (g :: Context) (a :: Type) where
   NeVar :: Var g a -> Ne g a
   NeITE :: Ne g TyBool -> Nf g a -> Nf g a -> Ne g a
-  NeApp :: SType a -> Ne g (TyFun a b) -> Nf g a -> Ne g b
-  NeRec :: SType a -> Nf g a -> Nf g (TyFun TyNat (TyFun a a)) -> Ne g TyNat -> Ne g a
+  NeApp :: SType a -> Ne g (a :-> b) -> Nf g a -> Ne g b
+  NeRec :: SType a -> Nf g a -> Nf g (TyNat :-> a :-> a) -> Ne g TyNat -> Ne g a
   NeCut :: Nf g a -> Ne g a
 
 newtype EnvString (g :: Context) (a :: Type) = EnvString { runString :: String }
@@ -166,32 +172,32 @@ class Extension (g :: Context) (h :: Context) (b :: Bool) where
 instance Extension g g b where
   steps _ = refl
 
-instance Extension g h (LT g h) => Extension g (Cons h a) True where
+instance Extension g h (LT g h) => Extension g (h :> a) True where
   steps _ = step $ steps (Proxy :: Proxy (LT g h))
 
 newtype FreshVar g a =
-  FreshVar { varNe :: forall h. Extension (Cons g a) h (LT (Cons g a) h) => Ne h a }
+  FreshVar { varNe :: forall h. Extension (g :> a) h (LT (g :> a) h) => Ne h a }
 
-varNf :: forall g h a. Extension (Cons g a) h (LT (Cons g a) h) => FreshVar g a -> Nf h a
+varNf :: forall g h a. Extension (g :> a) h (LT (g :> a) h) => FreshVar g a -> Nf h a
 varNf = NfEmb . varNe
 
-lam :: forall g a b. (FreshVar g a -> Nf (Cons g a) b) -> Nf g (TyFun a b)
+lam :: forall g a b. (FreshVar g a -> Nf (g :> a) b) -> Nf g (a :-> b)
 lam b = NfLam $ b $ FreshVar $ NeVar freshVar where
 
-  freshVar :: forall h. Extension (Cons g a) h (LT (Cons g a) h) => Var h a
-  freshVar = lookup (steps (Proxy :: Proxy (LT (Cons g a) h))) (Here :: Var (Cons g a) a)
+  freshVar :: forall h. Extension (g :> a) h (LT (g :> a) h) => Var h a
+  freshVar = lookup (steps (Proxy :: Proxy (LT (g :> a) h))) (Here :: Var (g :> a) a)
 
 
-identity :: Nf g (TyFun a a)
+identity :: Nf g (a :-> a)
 identity = lam $ \ x -> varNf x
 
 
-true :: Nf g (TyFun a (TyFun b a))
+true :: Nf g (a :-> b :-> a)
 true = lam $ \ x ->
        lam $ \ y ->
        varNf x
 
-false :: Nf g (TyFun a (TyFun b b))
+false :: Nf g (a :-> b :-> b)
 false = lam $ \ _ -> identity
 
 
@@ -214,7 +220,7 @@ type family LE (g :: Context) (h :: Context) where
 
 -- SYNTAX EXAMPLES
 
-addARGH :: Nf g (TyFun TyNat (TyFun TyNat TyNat))
+addARGH :: Nf g (TyNat :-> TyNat :-> TyNat)
 addARGH =
   NfLam {- m -} $
   NfLam {- n -} $
@@ -223,7 +229,7 @@ addARGH =
                 (NfLam $ NfLam $ NfSucc (NfEmb $ NeVar Here))
                 (NeVar $ There Here)
 
-mulARGH :: Nf g (TyFun TyNat (TyFun TyNat TyNat))
+mulARGH :: Nf g (TyNat :-> TyNat :-> TyNat)
 mulARGH =
   NfLam {- m -} $
   NfLam {- n -} $
@@ -234,7 +240,7 @@ mulARGH =
                 NfEmb $ NeApp STyNat (NeApp STyNat (NeCut addARGH) (NfEmb $ NeVar m)) (NfEmb $ NeVar Here))
                 (NeVar $ There Here)
 
-add :: Nf g (TyFun TyNat (TyFun TyNat TyNat))
+add :: Nf g (TyNat :-> TyNat :-> TyNat)
 add =
   lam $ \ m ->
   lam $ \ n ->
@@ -243,7 +249,7 @@ add =
                 (lam $ \ _ -> lam $ \ ih -> NfSucc $ varNf ih)
                 (varNe m)
 
-mul :: Nf g (TyFun TyNat (TyFun TyNat TyNat))
+mul :: Nf g (TyNat :-> TyNat :-> TyNat)
 mul =
   lam $ \ m ->
   lam $ \ n ->
@@ -266,8 +272,8 @@ five = NfEmb $ NeApp STyNat (NeApp STyNat (NeCut add) three) two
 
 main :: IO ()
 main = do
-  print (identity :: Nf 'Null ('TyFun 'TyNat 'TyNat))
-  print (true     :: Nf 'Null ('TyFun 'TyNat ('TyFun 'TyBool 'TyNat)))
-  print (false    :: Nf 'Null ('TyFun 'TyNat ('TyFun 'TyBool 'TyBool)))
+  print (identity :: Nf 'Null ('TyNat :-> 'TyNat))
+  print (true     :: Nf 'Null ('TyNat :-> 'TyBool :-> 'TyNat))
+  print (false    :: Nf 'Null ('TyNat :-> 'TyBool :-> 'TyBool))
   mapM_ print [two, three, five]
 
