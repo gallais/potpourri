@@ -9,8 +9,6 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE PolyKinds                 #-}
-{-# LANGUAGE ConstraintKinds           #-}
-{-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 
 module ImperativeDSL where
