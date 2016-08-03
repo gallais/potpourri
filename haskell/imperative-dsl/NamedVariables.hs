@@ -1,3 +1,4 @@
+{-# OPTIONS -Wall                  #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE PolyKinds             #-}
@@ -30,6 +31,12 @@ toInt :: Index g s -> Int
 toInt Zro     = 0
 toInt (Suc m) = 1 + toInt m
 
+indexEq :: Index g s -> Index g t -> Maybe (s :~: t)
+indexEq v w = case (v, w) of
+  (Zro   , Zro)    -> Just Refl
+  (Suc v', Suc w') -> indexEq v' w'
+  _                -> Nothing
+
 -- Given a named variable, lookup the associated type in the
 -- context, fail if it is not in scope.
 type family If (b :: Bool) (l :: k) (r :: k) :: k where
@@ -59,10 +66,10 @@ instance Show (Name a) where
 
 -- `ScopedSymbol` is a way to state that a named variable
 -- is indeed in Scope and has a given type.
-data ScopedSymbol (g :: [(Symbol,*)]) (s :: Symbol) (a :: *) =
+data ScopedSymbol (s :: Symbol) (g :: [(Symbol,*)]) (a :: *) =
   (HasSymbolIdx g s a (AtHead g '(s, a))) => The (Name s)
 
-instance Show (ScopedSymbol g s a) where
+instance Show (ScopedSymbol s g a) where
   show v@(The nm) = concat [ show nm, " (= " , show (index'' v),  ")" ]
 
 ------------------------------------------------
@@ -99,5 +106,5 @@ instance ((s == t) ~ 'False, HasSymbolIdx g s a (AtHead g '(s, a))) =>
 index' :: forall g s a. HasSymbolIdx g s a (AtHead g '(s, a)) => Name s -> Index g '(s, a)
 index' nm = index (Proxy :: Proxy (AtHead g '(s, a))) nm
 
-index'' :: forall g s a. ScopedSymbol g s a -> Index g '(s, a)
+index'' :: forall g s a. ScopedSymbol s g a -> Index g '(s, a)
 index'' (The nm) = index (Proxy :: Proxy (AtHead g '(s, a))) nm

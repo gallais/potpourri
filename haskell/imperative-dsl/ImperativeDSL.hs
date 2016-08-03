@@ -1,3 +1,4 @@
+{-# OPTIONS -Wall                #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE GADTs               #-}
@@ -46,7 +47,7 @@ instance KnownType a => Show (Type a) where
 -- they are of a known type.
 
 data Exp (g :: [(Symbol,*)]) (t :: *) where
-  EVar :: ScopedSymbol g s a -> Exp g a
+  EVar :: ScopedSymbol s g a -> Exp g a
   ELit :: KnownType s => s -> Exp g s
   EAdd :: Exp g Int -> Exp g Int -> Exp g Int
   ENot :: Exp g Bool -> Exp g Bool
@@ -55,7 +56,7 @@ instance Show (Exp g t) where
   show e = case e of
     EVar v   -> "Var " ++ show v
     ELit b   -> show b
-    EAdd e f -> concat [ "(", show e, ") + (", show f, ")" ]
+    EAdd l r -> concat [ "(", show l, ") + (", show r, ")" ]
     ENot b   -> concat [ "¬ (", show b, ")" ]
 
 ------------------------------------------------
@@ -71,7 +72,7 @@ instance Show (Exp g t) where
 
 data Statement (g :: [(Symbol, *)]) (h :: [(Symbol,*)]) where
   Declare :: Name s -> Type a -> Statement g ('(s, a) ': g)
-  Assign  :: ScopedSymbol g s a -> Exp g a -> Statement g g
+  Assign  :: ScopedSymbol s g a -> Exp g a -> Statement g g
 
 -- `Statements` are a list of scope-aligned `Statement`s.
 
