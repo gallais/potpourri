@@ -1,144 +1,84 @@
-{-# LANGUAGE ScopedTypeVariables       #-}
-{-# LANGUAGE KindSignatures            #-}
-{-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE GADTs                     #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE TypeFamilies              #-}
-{-# LANGUAGE TypeOperators             #-}
-{-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE UndecidableInstances      #-}
-{-# LANGUAGE PolyKinds                 #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE PolyKinds           #-}
 
 module ImperativeDSL where
 
 import GHC.TypeLits
 import Data.Proxy
-import Data.Type.Equality
 
-type family If (b :: Bool) (l :: k) (r :: k) :: k where
-  If 'True  l r = l
-  If 'False l r = r
+import NamedVariables
 
-type family AtHead (g :: [k]) (s :: k) :: Bool where
-  AtHead '[]      s = 'False
-  AtHead (t ': g) s = s == t
+------------------------------------------------
+-- Types
+------------------------------------------------
 
-type family HasSymbol (g :: [(Symbol,*)]) (s :: Symbol) :: Maybe * where
-  HasSymbol '[]            s = 'Nothing
-  HasSymbol ('(t, a) ': g) s = If (s == t) ('Just a) (HasSymbol g s)
+-- Our programs are ascribed types. They are reflected
+-- as real Haskell types, however we impose that they
+-- should be "known" to us i.e. that we get a singleton
+-- representing them.
 
-data Index (g :: [k]) (s :: k) where
-  Zro :: Index (s ': g) s
-  Suc :: Index g s -> Index (t ': g) s
+data Type (a :: *) = KnownType a => Of
 
-toInt :: Index g s -> Int
-toInt Zro     = 0
-toInt (Suc m) = 1 + toInt m
+data SType (a :: *) where
+  SBool :: SType Bool
+  SInt  :: SType Int
 
-toEInt :: Index g s -> Exp g Int
-toEInt = EInt . toInt
+instance Show (SType a) where
+  show sty = case sty of
+    SBool -> "Bool"
+    SInt  -> "Int"
 
-class HasSymbol g s ~ 'Just a => HasSymbolIdx (g :: [(Symbol,*)]) (s :: Symbol) (a :: *) (b :: Bool) where
-  index :: Proxy b -> Name s -> Index g '(s, a)
+class Show a => KnownType a where sType :: Proxy a -> SType a
+instance KnownType Bool where sType _ = SBool
+instance KnownType Int  where sType _ = SInt
 
-instance ((s == t) ~ 'False, HasSymbolIdx g s a (AtHead g '(s, a))) => HasSymbolIdx ('(t, b) ': g) s a 'False where
-  index _ nm = Suc $ index' nm
+instance KnownType a => Show (Type a) where
+  show Of = show $ sType (Proxy :: Proxy a)
 
-instance HasSymbolIdx ('(s, a) ': g) s a 'True where
-  index _ nm = Zro
+------------------------------------------------
+-- Expressions
+------------------------------------------------
 
-index' :: forall g s a. HasSymbolIdx g s a (AtHead g '(s, a)) => Name s -> Index g '(s, a)
-index' nm = index (Proxy :: Proxy (AtHead g '(s, a))) nm
+-- Expressions are fairly basic. We allow literals as long
+-- they are of a known type.
 
-index'' :: forall g s a. ScopedSymbol g s a -> Index g '(s, a)
-index'' (The nm) = index (Proxy :: Proxy (AtHead g '(s, a))) nm
+data Exp (g :: [(Symbol,*)]) (t :: *) where
+  EVar :: ScopedSymbol g s a -> Exp g a
+  ELit :: KnownType s => s -> Exp g s
+  EAdd :: Exp g Int -> Exp g Int -> Exp g Int
+  ENot :: Exp g Bool -> Exp g Bool
 
-test :: Exp ('("foo", Int) ': '("bar", Bool) ': '[]) Int
-test = toEInt $ index' (Var :: Name "foo")
+instance Show (Exp g t) where
+  show e = case e of
+    EVar v   -> "Var " ++ show v
+    ELit b   -> show b
+    EAdd e f -> concat [ "(", show e, ") + (", show f, ")" ]
+    ENot b   -> concat [ "¬ (", show b, ")" ]
 
-test' :: Exp ('("foo", Int) ': '("bar", Bool) ': '[]) Int
-test' = toEInt $ index' (Var :: Name "bar")
+------------------------------------------------
+-- Statements
+------------------------------------------------
 
-test'' :: Exp ('("foo", Int) ': '("bar", Bool) ': '[]) Int
-test'' = EAdd test test'
-
--- Renamed Proxy types for clarity
-data Name (s :: Symbol) = KnownSymbol s => Var
-data Type (a :: *)      = KnownType a   => Of
-
-example' :: Statement '[] ('("foo", Int) ': '[])
-example' = Declare (Var :: Name "foo") (Of :: Type Int)
-
-data ScopedSymbol (g :: [(Symbol,*)]) (s :: Symbol) (a :: *) = forall t.
-  (s ~ t, KnownSymbol s, HasSymbolIdx g s a (AtHead g '(s, a))) => The (Name t)
-
-example :: ScopedSymbol ('("foo", Int) ': '("bar", Bool) ': '[]) "bar" Bool
-example = The (Var :: Name "bar")
-
-example'' :: Statement ('("foo", Int) ': '[]) ('("foo", Int) ': '[])
-example'' = Assign (The (Var :: Name "foo")) (EInt 1)
+-- A `Statement` can be seen as a Scope-transformer: it takes
+-- the current scope and returns an updated one.
+--   In the case of `Declare`, the returned scope has been
+-- extended with the newly declared variable (and its associated
+-- type).
+--   In the case of `Assign`, the scope is left unchanged.
 
 data Statement (g :: [(Symbol, *)]) (h :: [(Symbol,*)]) where
   Declare :: Name s -> Type a -> Statement g ('(s, a) ': g)
   Assign  :: ScopedSymbol g s a -> Exp g a -> Statement g g
 
+-- `Statements` are a list of scope-aligned `Statement`s.
+
 infixr 5 :>
 data Statements (g :: [(Symbol, *)]) (h :: [(Symbol,*)]) where
   Done :: Statements g g
   (:>) :: Statement g h -> Statements h i -> Statements g i
-
-data Program = forall h. Program (Statements '[] h)
-
-increment :: ScopedSymbol g s Int -> Statement g g
-increment v = Assign v (EAdd (EVar v) (EInt 1))
-
-program :: Program
-program = Program
-  $  Declare (Var :: Name "foo") (Of :: Type Int)
-  :> Assign  (The (Var :: Name "foo")) (EInt 1)
-  :> Declare (Var :: Name "bar") (Of :: Type Bool)
-  :> increment (The (Var :: Name "foo"))
-  :> Assign  (The (Var :: Name "bar")) (ENot $ EBool True)
-  :> Done
-
-data Exp (g :: [(Symbol,*)]) (t :: *) where
-  EVar    :: ScopedSymbol g s a -> Exp g a
-  EBool   :: Bool -> Exp g Bool
-  EInt    :: Int  -> Exp g Int
-  EAdd    :: Exp g Int -> Exp g Int -> Exp g Int
-  ENot    :: Exp g Bool -> Exp g Bool
-
-instance Show (Index g s) where
-  show Zro     = "Zro"
-  show (Suc m) = "Suc " ++ show m
-
-instance Show (ScopedSymbol g s a) where
-  show v@(The _) = concat [ symbolVal (Proxy :: Proxy s)
-                          , " (= " , show (index'' v),  ")" ]
-instance Show (Exp g t) where
-  show e = case e of
-    EVar v   -> "Var " ++ show v
-    EBool b  -> show b
-    EInt i   -> show i
-    EAdd e f -> concat [ "(", show e, ") + (", show f, ")" ]
-    ENot b   -> concat [ "¬ (", show b, ")" ]
-
-class KnownType a where
-  display :: Type a -> String
-
-instance KnownType Bool where
-  display _ = "Bool"
-
-instance KnownType Int where
-  display _ = "Int"
-
-instance KnownType a => Show (Type a) where
-  show = display
-
-instance KnownSymbol a => Show (Name a) where
-  show _ = symbolVal (Proxy :: Proxy a)
 
 instance Show (Statement g h) where
   show (Declare v@Var t@Of) = concat [ "new ", show v, " :: ", show t ]
@@ -149,5 +89,13 @@ instance Show (Statements g h) where
   show (st :> Done) = show st
   show (st :> rest) = concat [ show st, "\n", show rest ]
 
-instance Show Program where
-  show (Program sts) = show sts
+------------------------------------------------
+-- Programs
+------------------------------------------------
+
+-- A Program is a sequence of `Statements` starting in the
+-- empty scope.
+
+data Program = forall h. Program (Statements '[] h)
+
+instance Show Program where show (Program sts) = show sts
