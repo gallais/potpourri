@@ -53,3 +53,10 @@ program = Program
   :> increment (The (Var :: Name "foo"))
   :> Assign  (The (Var :: Name "bar")) (ENot $ ELit True)
   :> Done
+
+program' :: Program
+program' = Program
+  $ declareFoo
+  :> assignFoo
+  :> Print (EVar (The (Var :: Name "foo")))
+  :> Done

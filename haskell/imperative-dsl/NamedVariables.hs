@@ -95,7 +95,7 @@ class HasSymbol g s ~ 'Just a =>
   index :: Proxy b -> Name s -> Index g '(s, a)
 
 instance HasSymbolIdx ('(s, a) ': g) s a 'True where
-  index _ nm = Zro
+  index _ _ = Zro
 
 instance ((s == t) ~ 'False, HasSymbolIdx g s a (AtHead g '(s, a))) =>
          HasSymbolIdx ('(t, b) ': g) s a 'False where

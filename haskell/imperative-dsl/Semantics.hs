@@ -3,7 +3,6 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE PolyKinds              #-}
 {-# LANGUAGE KindSignatures         #-}
-{-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
@@ -23,6 +22,7 @@ import NamedVariables
 import ImperativeDSL
 
 import Control.Monad.Except
+import Control.Monad.Writer
 
 ------------------------------------------------
 -- Environments
@@ -107,13 +107,14 @@ andThen :: Computation g -> (Environment g -> Computation h) -> Computation h
 andThen c f = Computation $ runComputation c >>= runComputation . f
 -}
 
-instance MonadError Error m => Eval Statement m where
+instance (MonadError Error m, MonadWriter String m) => Eval Statement m where
   type Result h = Environment h
   eval t rho = case t of
     Declare _ _ -> pure $ declare rho
     Assign v e  -> assign rho v <$> eval e rho
+    Print e     -> rho <$ (eval e rho >>= tell . show)
 
-instance MonadError Error m => Eval Statements m where
+instance (MonadError Error m, MonadWriter String m) => Eval Statements m where
   type Result h = Environment h
   eval t rho = case t of
     Done      -> pure rho
@@ -123,6 +124,6 @@ instance MonadError Error m => Eval Statements m where
 -- of statements using an empty environment to begin with and return
 -- `()` if the evaluation is a success.
 
-runProgram :: Program -> Either Error ()
+runProgram :: Program -> WriterT String (Either Error) ()
 runProgram (Program p) = () <$ eval p empty
 

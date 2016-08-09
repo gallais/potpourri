@@ -73,6 +73,7 @@ instance Show (Exp g t) where
 data Statement (g :: [(Symbol, *)]) (h :: [(Symbol,*)]) where
   Declare :: Name s -> Type a -> Statement g ('(s, a) ': g)
   Assign  :: ScopedSymbol s g a -> Exp g a -> Statement g g
+  Print   :: KnownType a => Exp g a -> Statement g g
 
 -- `Statements` are a list of scope-aligned `Statement`s.
 
@@ -84,6 +85,7 @@ data Statements (g :: [(Symbol, *)]) (h :: [(Symbol,*)]) where
 instance Show (Statement g h) where
   show (Declare v@Var t@Of) = concat [ "new ", show v, " :: ", show t ]
   show (Assign v e)         = concat [ show v, " := ", show e ]
+  show (Print e)            = concat [ "print (", show e, ")" ]
 
 instance Show (Statements g h) where
   show Done         = ""
