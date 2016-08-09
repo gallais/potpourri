@@ -3,12 +3,12 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE PolyKinds              #-}
 {-# LANGUAGE KindSignatures         #-}
+{-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE Rank2Types             #-}
 {-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE EmptyCase              #-}
@@ -16,6 +16,7 @@
 
 module Semantics where
 
+import GHC.Prim
 import GHC.TypeLits
 import Data.Type.Equality
 import NamedVariables
@@ -62,8 +63,9 @@ declare rho = Environment $ \ v -> case v of
 -- monad.
 
 class Eval (t :: [(Symbol, *)] -> k -> *) (m :: * -> *) where
-  type Result (a :: k)
-  eval :: Monad m => t g a -> Environment g -> m (Result a)
+  type Result t (a :: k)
+  type Constr t m :: Constraint
+  eval :: (Monad m, Constr t m) => t g a -> Environment g -> m (Result t a)
 
 
 -- Pure expressions can still fail: the type system does not ensure
@@ -76,8 +78,9 @@ deriving instance Show Error
 -- Eval for scoped symbols amounts to looking up the value in the
 -- environment and raising an error if it has not been initialised.
 
-instance MonadError Error m => Eval (ScopedSymbol s) m where
-  type Result a = a
+instance Eval (ScopedSymbol s) m where
+  type Result (ScopedSymbol s) a = a
+  type Constr (ScopedSymbol s) m = MonadError Error m
   eval v@(The nm) rho = maybe (throwError $ NotInitialised nm) pure
                       $ runEnvironment rho (index'' v)
 
@@ -85,37 +88,30 @@ instance MonadError Error m => Eval (ScopedSymbol s) m where
 -- induction hypotheses are put together with the constructors'
 -- semantical counterparts using applicative combinators.
 
-instance MonadError Error m => Eval Exp m where
-  type Result a = a
+instance Eval Exp m where
+  type Result Exp a = a
+  type Constr Exp m = MonadError Error m
   eval e rho = case e of
     EVar v   -> eval v rho
     ELit s   -> pure s
     EAdd l r -> (+) <$> eval l rho <*> eval r rho
     ENot b   -> not <$> eval b rho
 
--- For statements, the situation is a bit more complex: instead of
--- returning a pure value (modulo the presence of errors), one returns
--- an updated scope (modulo the presence of errors). 
--- We introduce a new type of computations and a bind-like combinator
--- making it possible to sequence statements.
+-- Statements are scope-transformer. As such, their evaluation
+-- yields not a value but a new environment corresponding to the
+-- modified scope.
 
-{-
-newtype Computation (h :: [(Symbol, *)]) =
-  Computation { runComputation :: Either Error (Environment h) }
-
-andThen :: Computation g -> (Environment g -> Computation h) -> Computation h
-andThen c f = Computation $ runComputation c >>= runComputation . f
--}
-
-instance (MonadError Error m, MonadWriter String m) => Eval Statement m where
-  type Result h = Environment h
+instance Eval Statement m where
+  type Result Statement h = Environment h
+  type Constr Statement m = (MonadError Error m, MonadWriter String m)
   eval t rho = case t of
     Declare _ _ -> pure $ declare rho
     Assign v e  -> assign rho v <$> eval e rho
     Print e     -> rho <$ (eval e rho >>= tell . show)
 
-instance (MonadError Error m, MonadWriter String m) => Eval Statements m where
-  type Result h = Environment h
+instance Eval Statements m where
+  type Result Statements h = Environment h
+  type Constr Statements m = (MonadError Error m, MonadWriter String m)
   eval t rho = case t of
     Done      -> pure rho
     st :> sts -> eval st rho >>= eval sts
