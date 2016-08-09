@@ -3,10 +3,13 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE PolyKinds              #-}
 {-# LANGUAGE KindSignatures         #-}
+{-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE Rank2Types             #-}
 {-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE EmptyCase              #-}
@@ -19,6 +22,7 @@ import Data.Type.Equality
 import NamedVariables
 import ImperativeDSL
 
+import Control.Monad.Except
 
 ------------------------------------------------
 -- Environments
@@ -57,8 +61,10 @@ declare rho = Environment $ \ v -> case v of
 -- If the Monad class were poly-kinded, we would require `m` to be a
 -- monad.
 
-class Eval (t :: [(Symbol, *)] -> k -> *) (m :: k -> *) | t -> m where
-  eval :: t g a -> Environment g -> m a
+class Eval (t :: [(Symbol, *)] -> k -> *) (m :: * -> *) where
+  type Result (a :: k)
+  eval :: Monad m => t g a -> Environment g -> m (Result a)
+
 
 -- Pure expressions can still fail: the type system does not ensure
 -- that values have been initialised before they can be used. As a
@@ -70,15 +76,17 @@ deriving instance Show Error
 -- Eval for scoped symbols amounts to looking up the value in the
 -- environment and raising an error if it has not been initialised.
 
-instance Eval (ScopedSymbol s) (Either Error) where
-  eval v@(The nm) rho = maybe (Left $ NotInitialised nm) Right
+instance MonadError Error m => Eval (ScopedSymbol s) m where
+  type Result a = a
+  eval v@(The nm) rho = maybe (throwError $ NotInitialised nm) pure
                       $ runEnvironment rho (index'' v)
 
 -- Eval for expressions is a straightforward traversal where the
 -- induction hypotheses are put together with the constructors'
 -- semantical counterparts using applicative combinators.
 
-instance Eval Exp (Either Error) where
+instance MonadError Error m => Eval Exp m where
+  type Result a = a
   eval e rho = case e of
     EVar v   -> eval v rho
     ELit s   -> pure s
@@ -91,25 +99,30 @@ instance Eval Exp (Either Error) where
 -- We introduce a new type of computations and a bind-like combinator
 -- making it possible to sequence statements.
 
+{-
 newtype Computation (h :: [(Symbol, *)]) =
   Computation { runComputation :: Either Error (Environment h) }
 
 andThen :: Computation g -> (Environment g -> Computation h) -> Computation h
 andThen c f = Computation $ runComputation c >>= runComputation . f
+-}
 
-instance Eval Statement Computation where
-  eval t rho = Computation $ case t of
-    Declare _ _ -> Right $ declare rho
+instance MonadError Error m => Eval Statement m where
+  type Result h = Environment h
+  eval t rho = case t of
+    Declare _ _ -> pure $ declare rho
     Assign v e  -> assign rho v <$> eval e rho
 
-instance Eval Statements Computation where
+instance MonadError Error m => Eval Statements m where
+  type Result h = Environment h
   eval t rho = case t of
-    Done      -> Computation (Right rho)
-    st :> sts -> eval st rho `andThen` eval sts
+    Done      -> pure rho
+    st :> sts -> eval st rho >>= eval sts
 
 -- We can finally define what it means to run a program: run the list
 -- of statements using an empty environment to begin with and return
 -- `()` if the evaluation is a success.
 
 runProgram :: Program -> Either Error ()
-runProgram (Program p) = () <$ runComputation (eval p empty)
+runProgram (Program p) = () <$ eval p empty
+
