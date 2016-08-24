@@ -34,6 +34,9 @@ newtype Scope                (t :: * -> *) (a :: *) =
 newtype Kripke (e :: * -> *) (v :: * -> *) (a :: *) =
   Kripke { runKripke :: forall b. (a -> b) -> e b -> v b }
 
+kripke :: (v ~> w) -> Kripke e v a -> Kripke e w a
+kripke f k = Kripke $ \ i e -> f $ runKripke k i e
+
 instance Show1 t => Show1 (Scope t) where
   showsPrec1 i (Scope t) = showString "Scope { runScope = "
                          . showsPrec1 i t
@@ -138,17 +141,47 @@ deriving instance Functor Variable
 instance Alg TmF Variable Term where
   ret _ = Var . runVar
   alg e = case e of
-    L b   -> Fix $ L $ abstract Variable b
+    L b   -> Fix $ L $ Scope $ abstract Variable $ kripke runConst b
     A f t -> Fix $ (A `on` runConst) f t
 
 instance Alg TmF Term Term where
   ret _ = id
   alg e = case e of
-    L b   -> Fix $ L $ abstract Var b
+    L b   -> Fix $ L $ Scope $ abstract Var $ kripke runConst b
     A f t -> Fix $ (A `on` runConst) f t
 
-abstract :: (forall a. a -> e a) -> forall a. Kripke e (Const v w) a -> Scope v a
-abstract var k = Scope $ runConst $ runKripke k Just (var Nothing)
+newtype Model f a = Model { runModel :: Fix f (Kripke (Model f)) a }
+
+instance Alg TmF (Model TmF) (Model TmF) where
+  ret _ = id
+  alg e = case e of
+    L b   -> Model $ Fix $ L $ kripke (runModel . runConst) b
+    A f t -> case runModel (runConst t) of
+      Fix (L b) -> Model $ runKripke b id (runConst t)
+      _         -> Model $ Fix $ (A `on` runModel . runConst) f t
+
+reifyTerm :: Model TmF a -> Term a
+reifyTerm m = case runModel m of
+  Var a       -> Var a
+  Fix (L b)   -> Fix $ L $ Scope $ reifyTerm $ Model $ abstract reflectTerm b
+  Fix (A f t) -> Fix $ (A `on` reifyTerm . Model) f t
+
+reflectTerm :: a -> Model TmF a
+reflectTerm = Model . Var
+
+instance Functor (Fix TmF (Kripke (Model f))) where
+  fmap f e = case e of
+    Var a       -> Var (f a)
+    Fix (L b)   -> Fix $ L $ Kripke $ \ i -> runKripke b (i . f)
+    Fix (A t u) -> Fix $ (A `on` fmap f) t u
+
+deriving instance Functor (Model TmF)
+
+normTerm :: Term a -> Term a
+normTerm = reifyTerm . eval reflectTerm
+
+abstract :: (forall a. a -> e a) -> forall a. Kripke e v a -> v (Maybe a)
+abstract var k = runKripke k Just (var Nothing)
 
 instance Alg CsF Variable Case where
   ret _ = Var . runVar
@@ -206,3 +239,9 @@ idTERM = Fix $ L $ Scope $ Var Nothing
 
 falseTERM :: Term Void
 falseTERM = substTerm oTERM $ maybe idTERM absurd
+
+cutTERM :: Term Void
+cutTERM = Fix $ A falseTERM falseTERM -- (\ x y -> y) (\ x y -> y) ---->* (\ y -> y)
+
+normTERM :: Term Void
+normTERM = normTerm cutTERM
