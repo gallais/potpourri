@@ -20,6 +20,8 @@
 module Generic where
 
 import GHC.TypeLits
+import Data.Void
+import Data.Function
 import Data.Functor.Classes
 import Data.Proxy
 
@@ -50,8 +52,6 @@ class Alg  t e v where
 -- kind SyntaxT = Syntax -> Syntax
 -- class SyntaxWithBinding (syn :: SyntaxT) where
 
-
-
 class SyntaxWithBinding (syn :: (((* -> *) -> (* -> *)) -> * -> *) -> ((* -> *) -> * -> *) -> * -> *) where
   reindex :: (scp ~~> scp)
           -> (scp' ~~> scp')
@@ -74,7 +74,6 @@ instance Show1 (f (Fix f) s) => Show1 (Fix f s) where
     Fix t -> showString "Fix " . showsPrec1 (1+i) t
 
 deriving instance (Show a, Show (f (Fix f) s a)) => Show (Fix f s a)
-deriving instance Functor (f (Fix f) s) => Functor (Fix f s)
 
 newtype Const    (v :: k -> *) (i :: l) (a :: k) = Const    { runConst :: v a }
 newtype Identity (v :: k -> *)          (a :: k) = Identity { runIdentity :: v a }
@@ -88,11 +87,6 @@ instance (Functor e, SyntaxWithBinding t, Alg t e v) => Eval (Fix t Scope) e v w
                                    (\ f k -> Kripke $ \ i e -> f $ runKripke k i e)
                                    (Const . go rho)
                                    (\ g b -> Kripke $ \ i e -> g (Const . go (maybe e (fmap i . rho))) $ runScope b) t
- -- (Const . go) _f t --(patch . eval rho) t where
-
---    patch :: forall f a. Kripke e (f v) a -> Kripke e (f (Const v (Kripke e))) a
-  --  patch (Kripke t) = Kripke $ \ i e -> Const $ t i e
-
 
 data TmF (r :: ((* -> *) -> (* -> *)) -> (* -> *))
          (s :: (* -> *) -> (* -> *))
@@ -144,8 +138,17 @@ deriving instance Functor Variable
 instance Alg TmF Variable Term where
   ret _ = Var . runVar
   alg e = case e of
-    L b   -> Fix $ L $ Scope $ runConst $ runKripke b Just (Variable Nothing)
-    A f t -> Fix $ A (runConst f) (runConst t)
+    L b   -> Fix $ L $ abstract Variable b
+    A f t -> Fix $ (A `on` runConst) f t
+
+instance Alg TmF Term Term where
+  ret _ = id
+  alg e = case e of
+    L b   -> Fix $ L $ abstract Var b
+    A f t -> Fix $ (A `on` runConst) f t
+
+abstract :: (forall a. a -> e a) -> forall a. Kripke e (Const v w) a -> Scope v a
+abstract var k = Scope $ runConst $ runKripke k Just (var Nothing)
 
 instance Alg CsF Variable Case where
   ret _ = Var . runVar
@@ -153,6 +156,13 @@ instance Alg CsF Variable Case where
     LI t    -> Fix $ LI $ runConst t
     RI t    -> Fix $ RI $ runConst t
     CA f kp -> Fix $ CA (runConst f) $ Scope $ pair runConst $ runKripke kp Just (Variable Nothing)
+
+instance Alg CsF Case Case where
+  ret _ = id
+  alg e = case e of
+    LI t    -> Fix $ LI $ runConst t
+    RI t    -> Fix $ RI $ runConst t
+    CA f kp -> Fix $ CA (runConst f) $ Scope $ pair runConst $ runKripke kp Just (Var Nothing)
 
 type Case = Fix CsF Scope
 type Term = Fix TmF Scope
@@ -163,8 +173,17 @@ renameTerm = flip $ eval . (Variable .)
 renameCase :: Case a -> (a -> b) -> Case b
 renameCase = flip $ eval . (Variable .)
 
+instance Functor (Fix TmF Scope) where fmap = flip renameTerm
+instance Functor (Fix CsF Scope) where fmap = flip renameCase
+
+substTerm :: Term a -> (a -> Term b) -> Term b
+substTerm = flip eval 
+
+substCase :: Case a -> (a -> Case b) -> Case b
+substCase = flip eval 
+
 type family Free (n :: Nat) :: * where
-  Free 0 = ()
+  Free 0 = Void
   Free n = Maybe (Free (n - 1))
 
 type OCase n = Case (Free n)
@@ -182,3 +201,8 @@ oTERM = Fix $ L $ Scope $ Var $ Just Nothing
 oTERM' :: OTerm 2
 oTERM' = renameTerm oTERM Just
 
+idTERM :: Term Void
+idTERM = Fix $ L $ Scope $ Var Nothing
+
+falseTERM :: Term Void
+falseTERM = substTerm oTERM $ maybe idTERM absurd
