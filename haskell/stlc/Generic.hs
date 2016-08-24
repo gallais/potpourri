@@ -1,3 +1,4 @@
+{-# OPTIONS -Wall                  #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE KindSignatures        #-}
@@ -14,12 +15,14 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE ImpredicativeTypes    #-}
 
 module Generic where
 
 import GHC.TypeLits
 import Data.Functor.Classes
 import Data.Proxy
+
 
 type (~>) (x :: k -> *) y = forall a. x a -> y a
 type (~~>) (f :: (k -> *) -> (l -> *)) g = forall x y. x ~> y -> f x ~> g y
@@ -40,9 +43,21 @@ class Alg  t e v where
   alg  :: t (Const v) (Kripke e) a -> v a
   ret  :: Proxy t -> e ~> v
 
+-- This is what I'd like to write:
+-- kind Scoped  = * -> *
+-- kind ScopedT = Scoped -> Scoped
+-- kind Syntax  = ScopedT -> Scoped
+-- kind SyntaxT = Syntax -> Syntax
+-- class SyntaxWithBinding (syn :: SyntaxT) where
+
+
+
 class SyntaxWithBinding (syn :: (((* -> *) -> (* -> *)) -> * -> *) -> ((* -> *) -> * -> *) -> * -> *) where
-  reindex :: (rec scp a -> rec' scp' a')
-          -> (scp (rec scp) a -> scp' (rec' scp') a')
+  reindex :: (scp ~~> scp)
+          -> (scp' ~~> scp')
+          -- Reindexing properties
+          -> (rec scp a -> rec' scp' a')
+          -> (forall f. (forall b b'. (r b -> r' b') -> f r b -> f r' b') -> scp (f (rec scp)) a -> scp' (f (rec' scp')) a')
           -> syn rec scp a -> syn rec' scp' a'
 
 instance (Functor e, Eval t e v) => Eval (Scope t) e (Kripke e v) where
@@ -61,16 +76,22 @@ instance Show1 (f (Fix f) s) => Show1 (Fix f s) where
 deriving instance (Show a, Show (f (Fix f) s a)) => Show (Fix f s a)
 deriving instance Functor (f (Fix f) s) => Functor (Fix f s)
 
-newtype Const (v :: * -> *) (i :: k) (a :: *) = Const { runConst :: v a }
+newtype Const    (v :: k -> *) (i :: l) (a :: k) = Const    { runConst :: v a }
+newtype Identity (v :: k -> *)          (a :: k) = Identity { runIdentity :: v a }
 
 instance (Functor e, SyntaxWithBinding t, Alg t e v) => Eval (Fix t Scope) e v where
-  eval rho = go where
+  eval = go where
 
-    go (Var a) = ret (Proxy :: Proxy t) $ rho a
-    go (Fix t) = alg $ reindex (Const . go) (patch . eval rho) t where
+    go :: forall a b. (a -> e b) -> Fix t Scope a -> v b
+    go rho (Var a) = ret (Proxy :: Proxy t) $ rho a
+    go rho (Fix t) = alg $ reindex (\ f -> Scope . f . runScope)
+                                   (\ f k -> Kripke $ \ i e -> f $ runKripke k i e)
+                                   (Const . go rho)
+                                   (\ g b -> Kripke $ \ i e -> g (Const . go (maybe e (fmap i . rho))) $ runScope b) t
+ -- (Const . go) _f t --(patch . eval rho) t where
 
-    patch :: forall a. Kripke e v a -> Kripke e (Const v (Kripke e)) a
-    patch (Kripke t) = Kripke $ \ i e -> Const $ t i e
+--    patch :: forall f a. Kripke e (f v) a -> Kripke e (f (Const v (Kripke e))) a
+  --  patch (Kripke t) = Kripke $ \ i e -> Const $ t i e
 
 
 data TmF (r :: ((* -> *) -> (* -> *)) -> (* -> *))
@@ -81,7 +102,7 @@ data TmF (r :: ((* -> *) -> (* -> *)) -> (* -> *))
   A :: r s a -> r s a -> TmF r s a
 
 instance (Show1 (r s), Show1 (s (r s))) => Show1 (TmF r s) where
-  showsPrec1 i t = case t of
+  showsPrec1 i e = case e of
     L b   -> showString "L " . showsPrec1 (1+i) b
     A f t -> showsBinary1 "A" i f t
 
@@ -89,32 +110,75 @@ deriving instance (Show (r s a), Show (s (r s) a)) => Show (TmF r s a)
 deriving instance (Functor (r s), Functor (s (r s))) => Functor (TmF r s)
 
 instance SyntaxWithBinding TmF where
-  reindex r s t = case t of
-    L b   -> L $ s b
+  reindex fs fs' r s e = case e of
+    L b   -> L $ fs' runIdentity $ s (\ f -> Identity . f . runIdentity) $ fs Identity b
     A f t -> A (r f) (r t)
+
+-- Weird language with sums and "fused cases" to show that
+-- a scope may span more than one sub-structures:
+-- CA (LI a) (l , r) --->* l [0 <- a]
+-- CA (RI a) (l , r) --->* r [0 <- a]
+
+newtype Pair x a = Pair { runPair :: (x a, x a) }
+pair :: (x a -> x' a') -> Pair x a -> Pair x' a'
+pair f (Pair (t, u)) = Pair (f t, f u)
+
+
+data CsF (r :: ((* -> *) -> (* -> *)) -> (* -> *))
+         (s :: (* -> *) -> (* -> *))
+         (a :: *)
+         :: * where
+  LI :: r s a -> CsF r s a                     -- Left  Injection
+  RI :: r s a -> CsF r s a                     -- Right Injection
+  CA :: r s a -> s (Pair (r s)) a -> CsF r s a -- Case  Analysis
+
+instance SyntaxWithBinding CsF where
+  reindex _ _ r s e = case e of
+    LI t   -> LI $ r t
+    RI t   -> RI $ r t
+    CA c b -> CA (r c) $ s pair b
 
 newtype Variable a = Variable { runVar :: a }
 deriving instance Functor Variable
 
 instance Alg TmF Variable Term where
   ret _ = Var . runVar
-  alg t = case t of
+  alg e = case e of
     L b   -> Fix $ L $ Scope $ runConst $ runKripke b Just (Variable Nothing)
     A f t -> Fix $ A (runConst f) (runConst t)
 
+instance Alg CsF Variable Case where
+  ret _ = Var . runVar
+  alg e = case e of
+    LI t    -> Fix $ LI $ runConst t
+    RI t    -> Fix $ RI $ runConst t
+    CA f kp -> Fix $ CA (runConst f) $ Scope $ pair runConst $ runKripke kp Just (Variable Nothing)
+
+type Case = Fix CsF Scope
 type Term = Fix TmF Scope
 
-rename :: Term a -> (a -> b) -> Term b
-rename = flip $ eval . (Variable .)
+renameTerm :: Term a -> (a -> b) -> Term b
+renameTerm = flip $ eval . (Variable .)
+
+renameCase :: Case a -> (a -> b) -> Case b
+renameCase = flip $ eval . (Variable .)
 
 type family Free (n :: Nat) :: * where
   Free 0 = ()
   Free n = Maybe (Free (n - 1))
 
+type OCase n = Case (Free n)
 type OTerm n = Term (Free n)
 
-example :: OTerm 1
-example = Fix $ L $ Scope $ Var $ Just Nothing
+oCASE :: OCase 1
+oCASE = Fix $ CA (Var Nothing) $ Scope $ Pair (Var (Just Nothing), Var Nothing)
 
-example' :: OTerm 2
-example' = rename example Just
+oCASE' :: OCase 4
+oCASE' = renameCase oCASE $ Just . Just . Just
+
+oTERM :: OTerm 1
+oTERM = Fix $ L $ Scope $ Var $ Just Nothing
+
+oTERM' :: OTerm 2
+oTERM' = renameTerm oTERM Just
+
