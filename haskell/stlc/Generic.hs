@@ -60,7 +60,7 @@ class SyntaxWithBinding (syn :: (((* -> *) -> (* -> *)) -> * -> *) -> ((* -> *) 
           -> (scp' ~~> scp')
           -- Reindexing properties
           -> (rec scp a -> rec' scp' a')
-          -> (forall f. (forall b b'. (r b -> r' b') -> f r b -> f r' b') -> scp (f (rec scp)) a -> scp' (f (rec' scp')) a')
+          -> (forall f. (forall b b'. (rec scp b -> rec' scp' b') -> f (rec scp) b -> f (rec' scp') b') -> scp (f (rec scp)) a -> scp' (f (rec' scp')) a')
           -> syn rec scp a -> syn rec' scp' a'
 
 instance (Functor e, Eval t e v) => Eval (Scope t) e (Kripke e v) where
@@ -89,7 +89,9 @@ instance (Functor e, SyntaxWithBinding t, Alg t e v) => Eval (Fix t Scope) e v w
     go rho (Fix t) = alg $ reindex (\ f -> Scope . f . runScope)
                                    (\ f k -> Kripke $ \ i e -> f $ runKripke k i e)
                                    (Const . go rho)
-                                   (\ g b -> Kripke $ \ i e -> g (Const . go (maybe e (fmap i . rho))) $ runScope b) t
+                                   (\ g b -> Kripke $ \ i e -> g (Const . go (maybe e (fmap i . rho))) $ runScope b)
+                                   t
+
 
 data TmF (r :: ((* -> *) -> (* -> *)) -> (* -> *))
          (s :: (* -> *) -> (* -> *))
@@ -245,3 +247,4 @@ cutTERM = Fix $ A falseTERM falseTERM -- (\ x y -> y) (\ x y -> y) ---->* (\ y -
 
 normTERM :: Term Void
 normTERM = normTerm cutTERM
+
