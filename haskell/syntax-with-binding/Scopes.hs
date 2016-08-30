@@ -23,7 +23,7 @@ instance Newtype (Scope t a) (t (Maybe a)) where
   pack   = Scope
   unpack = runScope
 
-scope :: (t ~> u) -> Scope t ~> Scope u
+scope :: Scope ~~> Scope
 scope = over Scope
 
 instance Functor t => Functor (Scope t) where
@@ -42,7 +42,7 @@ instance (Show a, Show1 t) => Show (Scope t a) where showsPrec = showsPrec1
 newtype Kripke (e :: * -> *) (v :: * -> *) (a :: *) =
   Kripke { runKripke :: forall b. (a -> b) -> e b -> v b }
 
-kripke :: (v ~> w) -> Kripke e v ~> Kripke e w
+kripke :: Kripke e ~~> Kripke e
 kripke f k = Kripke $ \ i e -> f $ runKripke k i e
 
 instance Functor (Kripke e v) where
@@ -54,6 +54,6 @@ abstract' var k = runKripke k Just (var Nothing)
 abstract :: (forall a. a -> e a) -> Kripke e (Const v r) ~> Scope v
 abstract var = Scope . runConst . abstract' var
 
-fixpoint :: Kripke v v a -> v a
+fixpoint :: Kripke v v ~> v
 fixpoint kp = runKripke kp id (fixpoint kp)
 

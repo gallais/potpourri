@@ -24,10 +24,10 @@ newtype Pair x a = Pair { runPair :: (x a, x a) }
 pair :: (x a -> x' a') -> Pair x a -> Pair x' a'
 pair f (Pair (t, u)) = Pair (f t, f u)
 
-first :: Pair x a -> x a
+first :: Pair x ~> x
 first (Pair (l, _)) = l
 
-second :: Pair x a -> x a
+second :: Pair x ~> x
 second (Pair (_, r)) = r
 
 instance Functor x => Functor (Pair x) where
