@@ -24,7 +24,7 @@ import Data.Void
 import Data.Function
 import Data.Functor.Classes
 import Data.Proxy
-
+import Control.Newtype
 
 type (~>) (x :: k -> *) y = forall a. x a -> y a
 type (~~>) (f :: (k -> *) -> (l -> *)) g = forall x y. x ~> y -> f x ~> g y
@@ -36,6 +36,9 @@ newtype Kripke (e :: * -> *) (v :: * -> *) (a :: *) =
 
 kripke :: (v ~> w) -> Kripke e v a -> Kripke e w a
 kripke f k = Kripke $ \ i e -> f $ runKripke k i e
+
+instance Functor (Kripke e v) where
+  fmap f e = Kripke $ \ i -> runKripke e (i . f)
 
 instance Show1 t => Show1 (Scope t) where
   showsPrec1 i (Scope t) = showString "Scope { runScope = "
@@ -81,6 +84,10 @@ deriving instance (Show a, Show (f (Fix f) s a)) => Show (Fix f s a)
 newtype Const    (v :: k -> *) (i :: l) (a :: k) = Const    { runConst :: v a }
 newtype Identity (v :: k -> *)          (a :: k) = Identity { runIdentity :: v a }
 
+instance Newtype (Identity v a) (v a) where
+  pack   = Identity
+  unpack = runIdentity
+
 instance (Functor e, SyntaxWithBinding t, Alg t e v) => Eval (Fix t Scope) e v where
   eval = go where
 
@@ -110,7 +117,7 @@ deriving instance (Functor (r s), Functor (s (r s))) => Functor (TmF r s)
 
 instance SyntaxWithBinding TmF where
   reindex fs fs' r s e = case e of
-    L b   -> L $ fs' runIdentity $ s (\ f -> Identity . f . runIdentity) $ fs Identity b
+    L b   -> L $ fs' runIdentity $ s (over Identity) $ fs Identity b
     A f t -> A (r f) (r t)
 
 -- Weird language with sums and "fused cases" to show that
@@ -122,6 +129,14 @@ newtype Pair x a = Pair { runPair :: (x a, x a) }
 pair :: (x a -> x' a') -> Pair x a -> Pair x' a'
 pair f (Pair (t, u)) = Pair (f t, f u)
 
+first :: Pair x a -> x a
+first (Pair (l, _)) = l
+
+second :: Pair x a -> x a
+second (Pair (_, r)) = r
+
+instance Functor x => Functor (Pair x) where
+  fmap f (Pair (l, r)) = Pair (fmap f l, fmap f r)
 
 data CsF (r :: ((* -> *) -> (* -> *)) -> (* -> *))
          (s :: (* -> *) -> (* -> *))
@@ -130,12 +145,20 @@ data CsF (r :: ((* -> *) -> (* -> *)) -> (* -> *))
   LI :: r s a -> CsF r s a                     -- Left  Injection
   RI :: r s a -> CsF r s a                     -- Right Injection
   CA :: r s a -> s (Pair (r s)) a -> CsF r s a -- Case  Analysis
+  FX :: s (r s) a -> CsF r s a                 -- Fixpoint Operator
+  LA :: s (r s) a -> CsF r s a                 -- Lambda Abstraction
+  AP :: Pair (r s) a -> CsF r s a              -- Application
+  UN :: CsF r s a
 
 instance SyntaxWithBinding CsF where
-  reindex _ _ r s e = case e of
+  reindex fs fs' r s e = case e of
     LI t   -> LI $ r t
     RI t   -> RI $ r t
     CA c b -> CA (r c) $ s pair b
+    FX f   -> FX $ fs' runIdentity $ s (over Identity) $ fs Identity f
+    LA b   -> LA $ fs' runIdentity $ s (over Identity) $ fs Identity b
+    AP p   -> AP $ pair r p
+    UN     -> UN
 
 newtype Variable a = Variable { runVar :: a }
 deriving instance Functor Variable
@@ -143,13 +166,13 @@ deriving instance Functor Variable
 instance Alg TmF Variable Term where
   ret _ = Var . runVar
   alg e = case e of
-    L b   -> Fix $ L $ Scope $ abstract Variable $ kripke runConst b
+    L b   -> Fix $ L $ Scope $ abstract' Variable $ kripke runConst b
     A f t -> Fix $ (A `on` runConst) f t
 
 instance Alg TmF Term Term where
   ret _ = id
   alg e = case e of
-    L b   -> Fix $ L $ Scope $ abstract Var $ kripke runConst b
+    L b   -> Fix $ L $ Scope $ abstract' Var $ kripke runConst b
     A f t -> Fix $ (A `on` runConst) f t
 
 newtype Model f a = Model { runModel :: Fix f (Kripke (Model f)) a }
@@ -165,7 +188,7 @@ instance Alg TmF (Model TmF) (Model TmF) where
 reifyTerm :: Model TmF a -> Term a
 reifyTerm m = case runModel m of
   Var a       -> Var a
-  Fix (L b)   -> Fix $ L $ Scope $ reifyTerm $ Model $ abstract reflectTerm b
+  Fix (L b)   -> Fix $ L $ Scope $ reifyTerm $ Model $ abstract' reflectTerm b
   Fix (A f t) -> Fix $ (A `on` reifyTerm . Model) f t
 
 reflectTerm :: a -> Model TmF a
@@ -174,23 +197,31 @@ reflectTerm = Model . Var
 instance Functor (Fix TmF (Kripke (Model f))) where
   fmap f e = case e of
     Var a       -> Var (f a)
-    Fix (L b)   -> Fix $ L $ Kripke $ \ i -> runKripke b (i . f)
-    Fix (A t u) -> Fix $ (A `on` fmap f) t u
+    Fix e' -> Fix $ case e' of
+      L b   -> L $ fmap f b
+      A t u -> (A `on` fmap f) t u
 
 deriving instance Functor (Model TmF)
 
 normTerm :: Term a -> Term a
 normTerm = reifyTerm . eval reflectTerm
 
-abstract :: (forall a. a -> e a) -> forall a. Kripke e v a -> v (Maybe a)
-abstract var k = runKripke k Just (var Nothing)
+abstract' :: (forall a. a -> e a) -> forall a. Kripke e v a -> v (Maybe a)
+abstract' var k = runKripke k Just (var Nothing)
+
+abstract :: (forall a. a -> e a) -> Kripke e (Const v r) ~> Scope v
+abstract var = Scope . runConst . abstract' var
 
 instance Alg CsF Variable Case where
   ret _ = Var . runVar
   alg e = case e of
     LI t    -> Fix $ LI $ runConst t
     RI t    -> Fix $ RI $ runConst t
-    CA f kp -> Fix $ CA (runConst f) $ Scope $ pair runConst $ runKripke kp Just (Variable Nothing)
+    CA f kp -> Fix $ CA (runConst f) $ Scope $ pair runConst $ abstract' Variable kp
+    FX f    -> Fix $ FX $ abstract Variable f
+    LA b    -> Fix $ FX $ abstract Variable b
+    AP p    -> Fix $ AP $ pair runConst p
+    UN      -> Fix UN
 
 instance Alg CsF Case Case where
   ret _ = id
@@ -198,6 +229,60 @@ instance Alg CsF Case Case where
     LI t    -> Fix $ LI $ runConst t
     RI t    -> Fix $ RI $ runConst t
     CA f kp -> Fix $ CA (runConst f) $ Scope $ pair runConst $ runKripke kp Just (Var Nothing)
+    FX kp   -> Fix $ FX $ abstract Var kp
+    LA b    -> Fix $ LA $ abstract Var b
+    AP p    -> Fix $ AP $ pair runConst p
+    UN      -> Fix UN
+
+instance Alg CsF (Model CsF) (Model CsF) where
+  ret _ = id
+  alg e =
+    let cleanup = runModel . runConst
+    in case e of
+    LI t    -> Model $ Fix $ LI $ cleanup t
+    RI t    -> Model $ Fix $ RI $ cleanup t
+    CA f kp -> case cleanup f of
+      Fix (LI l) -> runConst $ first  $ runKripke kp id $ Model l 
+      Fix (RI r) -> runConst $ second $ runKripke kp id $ Model r
+      f'          -> Model $ Fix $ CA f' $ kripke (pair cleanup) kp
+    FX kp   -> fixpoint $ kripke runConst kp
+    LA b    -> Model $ Fix $ LA $ kripke cleanup b
+    AP p    -> case cleanup (first p) of
+      Fix (LA b) -> Model $ runKripke b id (runConst $ second p)
+      _          -> Model $ Fix $ AP $ pair cleanup p    
+    UN      -> Model $ Fix UN      
+
+reifyCase :: Model CsF a -> Case a
+reifyCase v = case runModel v of
+  Var a  -> Var a
+  Fix e' -> Fix $ case e' of
+    LI t    -> LI $ reifyCase $ Model t
+    RI t    -> RI $ reifyCase $ Model t
+    CA f kp -> CA (reifyCase $ Model f) $ Scope $ pair (reifyCase . Model) $ abstract' (Model . Var) kp
+    FX kp   -> FX $ Scope $ reifyCase $ Model $ abstract' (Model . Var) kp
+    LA kp   -> LA $ Scope $ reifyCase $ Model $ abstract' (Model . Var) kp
+    AP p    -> AP $ pair (reifyCase . Model) p
+    UN      -> UN
+
+instance Functor (Fix CsF (Kripke (Model CsF))) where
+  fmap f e = case e of
+    Var a  -> Var $ f a
+    Fix e' -> Fix $ case e' of
+      LI t    -> LI $ fmap f t
+      RI t    -> RI $ fmap f t
+      CA t kp -> CA (fmap f t) $ fmap f kp
+      FX kp   -> FX $ fmap f kp
+      LA kp   -> LA $ fmap f kp
+      AP p    -> AP $ fmap f p
+      UN      -> UN
+
+deriving instance Functor (Model CsF)
+
+reflectCase :: a -> Model CsF a
+reflectCase = Model . Var
+
+normCase :: Case a -> Case a
+normCase = reifyCase . eval reflectCase
 
 type Case = Fix CsF Scope
 type Term = Fix TmF Scope
@@ -248,3 +333,32 @@ cutTERM = Fix $ A falseTERM falseTERM -- (\ x y -> y) (\ x y -> y) ---->* (\ y -
 normTERM :: Term Void
 normTERM = normTerm cutTERM
 
+natToCase :: Integer -> Case a
+natToCase n | n <= 0 = Fix $ LI $ Fix UN
+natToCase n          = Fix $ RI $ natToCase (n - 1)
+
+caseToNat :: Case a -> Integer
+caseToNat t = case t of
+  Fix (LI (Fix UN)) -> 0
+  Fix (RI n)        -> 1 + caseToNat n
+  _                 -> error "Malformed Nat"
+
+fixpoint :: Kripke v v a -> v a
+fixpoint kp = runKripke kp id (fixpoint kp)
+
+plus :: Case Void
+plus =
+  Fix $ LA               $ Scope $ {- m  -}
+  Fix $ FX               $ Scope $ {- m+ -}
+  Fix $ LA               $ Scope $ {- n  -}
+  Fix $ CA (Var Nothing) $ Scope $ {- case n -}
+  Pair
+  ( Var (Just (Just (Just Nothing)))
+  , Fix (RI $ Fix $ AP $ Pair (Var (Just (Just Nothing)), Var Nothing))
+  )
+
+plus' :: Case Void -> Case Void -> Case Void
+plus' m n = Fix $ AP $ Pair (Fix (AP (Pair (plus, m))),n)
+
+five :: Integer
+five = caseToNat $ normCase $ (plus' `on` natToCase) 2 3
