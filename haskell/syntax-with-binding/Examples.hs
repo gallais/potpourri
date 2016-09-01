@@ -98,3 +98,19 @@ mult =
 
 ten :: Integer
 ten = caseToNat $ norm $ mult $$ natToCase five $$ natToCase 2
+
+-------------------------------------------------------------
+-- EXAMPLES FOR CLF
+-------------------------------------------------------------
+
+ones :: CL Integer 'Zero
+ones = CLCON' 1 $ Var Z
+
+ones' :: [Integer]
+ones' = take 10 $ toStream ones
+
+twothrees :: CL Integer 'Zero
+twothrees = CLCON' 2 $ CLCON' 3 $ Var $ S Z
+
+twothrees' :: [Integer]
+twothrees' = take 10 $ toStream twothrees

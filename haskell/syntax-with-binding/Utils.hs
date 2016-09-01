@@ -45,7 +45,12 @@ instance HigherFunctor j x => HigherFunctor j (Pair x) where
 -- CONST
 -------------------------------------------------------------
 
-newtype Const (v :: k -> *) (i :: l) (a :: k) = Const    { runConst :: v a }
+newtype Const (v :: k -> *) (i :: l) (a :: k) = Const { runConst :: v a }
+newtype CONST (a :: *) (i :: Natural) = CONST { runCONST :: a }
+
+instance Newtype (CONST e i) e where
+  pack = CONST
+  unpack = runCONST
 
 -------------------------------------------------------------
 -- APPLY
@@ -83,6 +88,8 @@ data Fin (n :: Natural) :: * where
   Z :: Fin ('Succ n)
   S :: Fin n -> Fin ('Succ n)
 
+deriving instance Show (Fin n)
+
 finZero :: Fin 'Zero -> forall a. a
 finZero k = case k of {}
 
@@ -96,3 +103,9 @@ class HigherFunctor (j :: i -> *) (e :: i -> *) where
 
 instance HigherFunctor Variable Variable where
   hfmap = id
+
+instance HigherFunctor Fin Fin where
+  hfmap = id
+
+instance HigherFunctor Fin (CONST e) where
+  hfmap _ = CONST . runCONST

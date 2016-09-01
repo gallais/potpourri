@@ -12,10 +12,12 @@
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE PatternSynonyms       #-}
 {-# LANGUAGE EmptyCase             #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 
 module Syntaxes where
 
 import Data.Function
+import Data.Proxy
 import Data.Functor.Classes
 import Control.Newtype
 
@@ -115,6 +117,40 @@ pattern TTLM b   = Fix (LM b)
 pattern TTAP f t = Fix (f :$ t)
 
 -------------------------------------------------------------
+-- CYCLIC LISTS
+-------------------------------------------------------------
+
+data CLF (e :: *) -- element type
+         (r :: ((Natural -> *) -> (Natural -> *)) -> (Natural -> *))
+         (s :: (Natural -> *) -> (Natural -> *))
+         (a :: Natural)
+         :: * where
+  NIL  :: CLF e r s a
+  (:<) :: e -> s (r s) a -> CLF e r s a
+
+type CL e = Fix Fin (CLF e) (Scope Fin)
+
+instance SyntaxWithBinding (CLF e) where
+  reindex fs fs' _ s e = case e of
+    NIL      -> NIL
+    hd :< tl -> hd :< (fs' runApply $ s (over Apply) $ fs Apply tl)
+
+pattern CLNIL       = Fix NIL
+pattern CLCON  e es = Fix (e :< es)
+pattern CLCON' e es = CLCON e (Scope es)
+
+instance Alg Fin (CLF e) (CONST [e]) (CONST [e]) where
+  ret _ = id
+  alg e = case e of
+    NIL      -> CONST []
+    hd :< tl -> let prfx :: CONST [e] ~> CONST [e]
+                    prfx = over CONST (hd :)
+                in prfx $ fixpoint' prfx $ kripke runConst tl
+
+toStream :: forall e. CL e 'Zero -> [e]
+toStream = runCONST . eval' (Proxy :: Proxy (CONST [e])) finZero
+
+-------------------------------------------------------------
 -- ALGEBRAS FOR RENAMING
 -------------------------------------------------------------
 
@@ -147,6 +183,14 @@ instance Alg Fin TTF Fin TT where
     PI a b -> TTPI (runConst a) $ abstract' id b
     LM b   -> TTLM $ abstract' id b
     f :$ t -> (TTAP `on` runConst) f t
+
+instance HigherFunctor Fin TT where hfmap = flip rename
+
+instance Alg Fin (CLF e) Fin (CL e) where
+  ret _ = Var
+  alg e = case e of
+    NIL      -> CLNIL
+    hd :< tl -> CLCON hd $ abstract' id tl
 
 -------------------------------------------------------------
 -- ALGEBRAS FOR SUBSTITUTION

@@ -106,3 +106,5 @@ abstract' var = scope runConst . abstract var
 fixpoint :: Kripke j v v ~> v
 fixpoint kp = runKripke kp id (fixpoint kp)
 
+fixpoint' :: v ~> v -> Kripke j v v ~> v
+fixpoint' f kp = runKripke kp id (f $ fixpoint' f kp)
