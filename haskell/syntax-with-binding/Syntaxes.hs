@@ -11,6 +11,7 @@
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE EmptyCase             #-}
 
 module Syntaxes where
 
@@ -26,7 +27,7 @@ import Generic
 -- UNTYPED LAMBDA CALCULUS
 -------------------------------------------------------------
 
-type Term = Fix TmF Scope
+type Term = Fix' TmF Scope'
 
 data TmF (r :: ((* -> *) -> (* -> *)) -> (* -> *))
          (s :: (* -> *) -> (* -> *))
@@ -40,14 +41,15 @@ instance SyntaxWithBinding TmF where
     L b   -> L $ fs' runApply $ s (over Apply) $ fs Apply b
     A f t -> A (r f) (r t)
 
-pattern TmL t   = Fix (L (Scope t))
+pattern TmL t   = Fix (L t)
 pattern TmA f t = Fix (A f t)
 
+pattern TmL' t   = Fix (L (Scope t))
 -------------------------------------------------------------
 -- UNTYPED LAMBDA CALCULUS WITH UNIT, SUMS, AND FIXPOINTS
 -------------------------------------------------------------
 
-type Case = Fix CsF Scope
+type Case = Fix' CsF Scope'
 
 data CsF (r :: ((* -> *) -> (* -> *)) -> (* -> *))
          (s :: (* -> *) -> (* -> *))
@@ -73,64 +75,112 @@ instance SyntaxWithBinding CsF where
 
 pattern CsLI t   = Fix (LI t)
 pattern CsRI t   = Fix (RI t)
-pattern CsCA t b = Fix (CA t (Scope b))
-pattern CsFX f   = Fix (FX (Scope f))
-pattern CsLA f   = Fix (LA (Scope f))
+pattern CsCA t b = Fix (CA t b)
+pattern CsFX f   = Fix (FX f)
+pattern CsLA f   = Fix (LA f)
 pattern CsAP f t = Fix (AP (Pair (f, t)))
 pattern CsUN     = Fix UN
 
+pattern CsCA' t b = Fix (CA t (Scope b))
+pattern CsFX' f   = Fix (FX (Scope f))
+pattern CsLA' f   = Fix (LA (Scope f))
+
 ($$) :: Case a -> Case a -> Case a
 ($$) f t = CsAP f t
+
+
+-------------------------------------------------------------
+-- MINI TT
+-------------------------------------------------------------
+
+
+type TT = Fix Fin TTF (Scope Fin)
+
+data TTF (r :: ((Natural -> *) -> (Natural -> *)) -> (Natural -> *))
+         (s :: (Natural -> *) -> (Natural -> *))
+         (a :: Natural)
+         :: * where
+  PI   :: r s a -> s (r s) a -> TTF r s a
+  LM   :: s (r s) a -> TTF r s a
+  (:$) :: r s a -> r s a -> TTF r s a
+
+instance SyntaxWithBinding TTF where
+  reindex fs fs' r s e = case e of
+    PI a b -> PI (r a) $ fs' runApply $ s (over Apply)  $ fs Apply b
+    LM b   -> LM $ fs' runApply $ s (over Apply) $ fs Apply b
+    f :$ t -> ((:$) `on` r) f t
+
+pattern TTPI a b = Fix (PI a b)
+pattern TTLM b   = Fix (LM b)
+pattern TTAP f t = Fix (f :$ t)
 
 -------------------------------------------------------------
 -- ALGEBRAS FOR RENAMING
 -------------------------------------------------------------
 
-instance Alg TmF Variable Term where
-  ret _ = Var . runVar
+instance Alg Variable TmF Variable Term where
+  ret _ = Var
   alg e = case e of
-    L b   -> TmL $ abstract' Variable $ kripke runConst b
+    L b   -> TmL $ abstract' id b
     A f t -> (TmA `on` runConst) f t
-instance Functor (Fix TmF Scope) where fmap = flip rename
 
-instance Alg CsF Variable Case where
-  ret _ = Var . runVar
+instance HigherFunctor Variable Term where hfmap = flip rename
+instance Functor Term where fmap = hfmap . over Variable
+
+instance Alg Variable CsF Variable Case where
+  ret _ = Var
   alg e = Fix $ case e of
     LI t    -> LI $ runConst t
     RI t    -> RI $ runConst t
-    CA f kp -> CA (runConst f) $ Scope $ pair runConst $ abstract' Variable kp
-    FX f    -> FX $ abstract Variable f
-    LA b    -> FX $ abstract Variable b
+    CA f kp -> CA (runConst f) $ scope (pair runConst) $ abstract id kp
+    FX f    -> FX $ abstract' id f
+    LA b    -> FX $ abstract' id b
     AP p    -> AP $ pair runConst p
     UN      -> UN
-instance Functor (Fix CsF Scope) where fmap = flip rename
+
+instance HigherFunctor Variable Case where hfmap = flip rename
+instance Functor Case where fmap = hfmap . over Variable
+
+instance Alg Fin TTF Fin TT where
+  ret _ = Var
+  alg e = case e of
+    PI a b -> TTPI (runConst a) $ abstract' id b
+    LM b   -> TTLM $ abstract' id b
+    f :$ t -> (TTAP `on` runConst) f t
 
 -------------------------------------------------------------
 -- ALGEBRAS FOR SUBSTITUTION
 -------------------------------------------------------------
 
-instance Alg TmF Term Term where
+instance Alg Variable TmF Term Term where
   ret _ = id
   alg e = case e of
-    L b   -> TmL $ abstract' Var $ kripke runConst b
+    L b   -> TmL $ abstract' Var b
     A f t -> (TmA `on` runConst) f t
 
-instance Alg CsF Case Case where
+instance Alg Variable CsF Case Case where
   ret _ = id
   alg e = Fix $ case e of
     LI t    -> LI $ runConst t
     RI t    -> RI $ runConst t
-    CA f kp -> CA (runConst f) $ Scope $ pair runConst $ runKripke kp Just (Var Nothing)
-    FX kp   -> FX $ abstract Var kp
-    LA b    -> LA $ abstract Var b
+    CA f kp -> CA (runConst f) $ scope (pair runConst) $ abstract Var kp
+    FX kp   -> FX $ abstract' Var kp
+    LA b    -> LA $ abstract' Var b
     AP p    -> AP $ pair runConst p
     UN      -> UN
+
+instance Alg Fin TTF TT TT where
+  ret _ = id
+  alg e = Fix $ case e of
+    PI a b -> PI (runConst a) $ abstract' Var b
+    LM b   -> LM $ abstract' Var b
+    f :$ t -> ((:$) `on` runConst) f t
 
 -------------------------------------------------------------
 -- ALGEBRAS FOR NORMALISATION BY EVALUATION
 -------------------------------------------------------------
 
-instance Alg TmF (Model TmF) (Model TmF) where
+instance Alg Variable TmF (Model Variable TmF) (Model Variable TmF) where
   ret _ = id
   alg e = case e of
     L b   -> Model $ Fix $ L $ kripke (runModel . runConst) b
@@ -138,7 +188,7 @@ instance Alg TmF (Model TmF) (Model TmF) where
       Fix (L b) -> Model $ runKripke b id (runConst t)
       _         -> Model $ Fix $ (A `on` runModel . runConst) f t
 
-instance Alg CsF (Model CsF) (Model CsF) where
+instance Alg Variable CsF (Model Variable CsF) (Model Variable CsF) where
   ret _ = id
   alg e =
     let cleanup = runModel . runConst
@@ -156,27 +206,24 @@ instance Alg CsF (Model CsF) (Model CsF) where
       _          -> Fix $ AP $ pair cleanup p    
     UN      -> Model $ Fix UN      
 
-instance Functor (Fix TmF (Kripke (Model f))) where
-  fmap f e = case e of
-    Var a       -> Var (f a)
+instance HigherFunctor Variable (Fix' TmF (Kripke' (Model' f))) where
+  hfmap f e = case e of
+    Var a  -> Var (f a)
     Fix e' -> Fix $ case e' of
-      L b   -> L $ fmap f b
-      A t u -> (A `on` fmap f) t u
-deriving instance Functor (Model TmF)
+      L b   -> L $ hfmap f b
+      A t u -> (A `on` hfmap f) t u
 
-instance Functor (Fix CsF (Kripke (Model CsF))) where
-  fmap f e = case e of
+instance HigherFunctor Variable (Fix' CsF (Kripke' (Model' CsF))) where
+  hfmap f e = case e of
     Var a  -> Var $ f a
     Fix e' -> Fix $ case e' of
-      LI t    -> LI $ fmap f t
-      RI t    -> RI $ fmap f t
-      CA t kp -> CA (fmap f t) $ fmap f kp
-      FX kp   -> FX $ fmap f kp
-      LA kp   -> LA $ fmap f kp
-      AP p    -> AP $ fmap f p
+      LI t    -> LI $ hfmap f t
+      RI t    -> RI $ hfmap f t
+      CA t kp -> CA (hfmap f t) $ hfmap f kp
+      FX kp   -> FX $ hfmap f kp
+      LA kp   -> LA $ hfmap f kp
+      AP p    -> AP $ hfmap f p
       UN      -> UN
-deriving instance Functor (Model CsF)
-
 
 -------------------------------------------------------------
 -- SHOW INSTANCES

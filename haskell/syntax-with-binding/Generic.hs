@@ -1,17 +1,18 @@
-{-# OPTIONS -Wall                  #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE UndecidableInstances  #-}
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE PolyKinds             #-}
-{-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# OPTIONS -Wall                   #-}
+{-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE KindSignatures         #-}
+{-# LANGUAGE RankNTypes             #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE DeriveFunctor          #-}
+{-# LANGUAGE StandaloneDeriving     #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE PolyKinds              #-}
+{-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE PatternSynonyms        #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 module Generic where
 
@@ -33,8 +34,8 @@ import Scopes
 -- class SyntaxWithBinding (syn :: SyntaxT) where
 
 class SyntaxWithBinding
-      (syn :: (((* -> *) -> (* -> *)) -> (* -> *))
-           ->  ((* -> *) -> (* -> *)) -> (* -> *)) where
+      (syn :: (((i -> *) -> (i -> *)) -> (i -> *))
+           ->  ((i -> *) -> (i -> *)) -> (i -> *)) where
   reindex :: (scp  ~~> scp)
           -> (scp' ~~> scp')
           -- Reindexing properties
@@ -49,75 +50,84 @@ class SyntaxWithBinding
 -- FIXPOINT OF A SYNTAX TRANSFORMER
 -------------------------------------------------------------
 
-data Fix f (s :: (* -> *) -> (* -> *)) (a :: *) :: * where
-   Var :: a             -> Fix f s a
-   Fix :: f (Fix f) s a -> Fix f s a
+data Fix (v :: i -> *) f (s :: (i -> *) -> (i -> *)) (a :: i) :: * where
+   Var :: v a             -> Fix v f s a
+   Fix :: f (Fix v f) s a -> Fix v f s a
 
-instance Show1 (f (Fix f) s) => Show1 (Fix f s) where
+type Fix' = Fix Variable
+
+pattern MkVar a = Var (Variable a)
+
+instance (Show1 v, Show1 (f (Fix v f) s)) => Show1 (Fix v f s) where
   showsPrec1 i e = case e of
-    Var v -> showString "Var " . showsPrec (1+i) v
+    Var v -> showString "Var " . showsPrec1 (1+i) v
     Fix t -> showString "Fix " . showsPrec1 (1+i) t
-deriving instance (Show a, Show (f (Fix f) s a)) => Show (Fix f s a)
+deriving instance (Show (v a), Show (f (Fix v f) s a)) => Show (Fix v f s a)
 
 -------------------------------------------------------------
 -- ALGEBRAS, EVALUATION AND FUNDAMENTAL LEMMA OF SYNTAXES
 -------------------------------------------------------------
 
-class Alg  t e v where
-  alg  :: t (Const v) (Kripke e) a -> v a
-  ret  :: Proxy t -> e ~> v
+class Alg j t e v | t -> j where
+  alg :: t (Const v) (Kripke j e) a -> v a
+  ret :: Proxy t -> e ~> v
 
-class Eval t e v where
-  eval  :: (a -> e b) -> t a -> v b
-  eval' :: Proxy e -> (a -> e b) -> t a -> v b
+class Eval j t e v where
+  eval  :: (j a -> e b) -> t a -> v b
+  eval' :: Proxy e -> (j a -> e b) -> t a -> v b
   eval' _ = eval
 
 
-instance (Functor e, SyntaxWithBinding t, Alg t e v) => Eval (Fix t Scope) e v where
+instance (VarLike j, HigherFunctor j e, SyntaxWithBinding t, Alg j t e v) => Eval j (Fix j t (Scope j)) e v where
   eval = go where
 
-    go :: forall a b. (a -> e b) -> Fix t Scope a -> v b
+    go :: forall a b. (j a -> e b) -> Fix j t (Scope j) a -> v b
     go rho (Var a) = ret (Proxy :: Proxy t) $ rho a
     go rho (Fix t) = alg $ reindex scope
                                    kripke
                                    (Const . go rho)
                                    (\ g b -> Kripke $ \ i e ->
-                                             g (Const . go (maybe e (fmap i . rho)))
+                                             g (Const . go (inspect e (hfmap i . rho)))
                                              $ runScope b)
                                    t
 -------------------------------------------------------------
 -- RENAMING AND SUBSTITUTION
 -------------------------------------------------------------
 
-rename :: (SyntaxWithBinding t, Alg t Variable (Fix t Scope)) =>
-          Fix t Scope a -> (a -> b) -> Fix t Scope b
-rename = flip $ eval . (Variable .)
+rename :: (VarLike j, HigherFunctor j j, SyntaxWithBinding t, Alg j t j (Fix j t (Scope j))) =>
+          Fix j t (Scope j) a -> (j a -> j b) -> Fix j t (Scope j) b
+rename = flip $ eval' (Proxy :: Proxy j)
 
-subst :: (SyntaxWithBinding t, Alg t (Fix t Scope) (Fix t Scope), Functor (Fix t Scope)) =>
-         Fix t Scope a -> (a -> Fix t Scope b) -> Fix t Scope b
-subst = flip eval
+subst :: (VarLike j, HigherFunctor j (Fix j t (Scope j)), SyntaxWithBinding t, Alg j t (Fix j t (Scope j)) (Fix j t (Scope j))) =>
+         Fix j t (Scope j) a -> (j a -> Fix j t (Scope j) b) -> Fix j t (Scope j) b
+subst = flip $ eval
 
 -------------------------------------------------------------
 -- MODEL OF A SYNTAXT AND NORMALISATION BY EVALUTION
 -------------------------------------------------------------
 
-newtype Model f a = Model { runModel :: Fix f (Kripke (Model f)) a }
+newtype Model v f a = Model { runModel :: Fix v f (Kripke v (Model v f)) a }
 
-reflect :: a -> Model f a
+instance HigherFunctor j (Fix j f (Kripke j (Model j f))) =>
+         HigherFunctor j (Model j f) where
+  hfmap f (Model m) = Model (hfmap f m)
+
+type Model' = Model Variable
+
+reflect :: j ~> Model j f
 reflect = Model . Var
 
-reify :: forall f. SyntaxWithBinding f => Model f ~> Fix f Scope
+reify :: forall f j. (VarLike j, SyntaxWithBinding f) => Model j f ~> Fix j f (Scope j)
 reify = go . runModel where
 
-  go :: Fix f (Kripke (Model f)) ~> Fix f Scope
+  go :: Fix j f (Kripke j (Model j f)) ~> Fix j f (Scope j)
   go (Var a) = Var a
   go (Fix f) = Fix $ reindex kripke scope go
-                     (\ g -> Scope . g go . abstract' reflect)
+                     (\ g -> scope (g go) . abstract reflect)
                      f
 
 norm ::
-  forall t. SyntaxWithBinding t
-         => Functor (Model t)
-         => Alg t (Model t) (Model t)
-         => Fix t Scope ~> Fix t Scope
-norm = reify . eval' (Proxy :: Proxy (Model t)) reflect
+  forall j t. (VarLike j,  HigherFunctor j (Model j t), SyntaxWithBinding t)
+         => Alg j t (Model j t) (Model j t)
+         => Fix j t (Scope j) ~> Fix j t (Scope j)
+norm = reify . eval' (Proxy :: Proxy (Model j t)) reflect

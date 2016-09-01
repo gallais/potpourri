@@ -29,16 +29,16 @@ type OTerm n = Term (Free n)
 -------------------------------------------------------------
 
 oTERM :: OTerm 1
-oTERM = TmL $ Var $ Just Nothing
+oTERM = TmL' $ MkVar $ Just Nothing
 
 oTERM' :: OTerm 2
-oTERM' = rename oTERM Just
+oTERM' = rename oTERM (fmap Just)
 
 idTERM :: Term Void
-idTERM = TmL $ Var Nothing
+idTERM = TmL' $ MkVar Nothing
 
 falseTERM :: Term Void
-falseTERM = subst oTERM $ maybe idTERM absurd
+falseTERM = subst oTERM $ maybe idTERM absurd . runVariable
 
 cutTERM :: Term Void
 cutTERM = TmA falseTERM falseTERM -- (\ x y -> y) (\ x y -> y) ---->* (\ y -> y)
@@ -51,11 +51,11 @@ normTERM = norm cutTERM
 -------------------------------------------------------------
 
 oCASE :: OCase 1
-oCASE = CsCA (Var Nothing) $ Pair (Var (Just Nothing), Var Nothing)
+oCASE = CsCA' (MkVar Nothing) $ Pair (MkVar (Just Nothing), MkVar Nothing)
   -- Either a (Either a b) -> Either a b
 
 oCASE' :: OCase 4
-oCASE' = rename oCASE $ Just . Just . Just
+oCASE' = rename oCASE $ fmap (Just . Just . Just)
 
 -- Representing natural numbers in Case
 -- Defining addition by a fix point
@@ -72,13 +72,13 @@ caseToNat t = case t of
 
 plus :: Case a
 plus =
-  CsLA               $ {- m  -}
-  CsFX               $ {- m+ -}
-  CsLA               $ {- n  -}
-  CsCA (Var Nothing) $ {- case n -}
+  CsLA'                 $ {- m  -}
+  CsFX'                 $ {- m+ -}
+  CsLA'                 $ {- n  -}
+  CsCA' (MkVar Nothing) $ {- case n -}
   Pair
-  ( Var (Just (Just (Just Nothing)))
-  , (CsRI $ Var (Just (Just Nothing)) $$ Var Nothing)
+  ( MkVar (Just (Just (Just Nothing)))
+  , (CsRI $ MkVar (Just (Just Nothing)) $$ MkVar Nothing)
   )
 
 five :: Integer
@@ -86,14 +86,14 @@ five = caseToNat $ norm $ plus $$ natToCase 2 $$ natToCase 3
 
 mult :: Case a
 mult =
-  CsLA               $ {- m  -}
-  CsFX               $ {- m* -}
-  CsLA               $ {- n  -}
-  CsCA (Var Nothing) $ {- case n -}
+  CsLA'                 $ {- m  -}
+  CsFX'                 $ {- m* -}
+  CsLA'                 $ {- n  -}
+  CsCA' (MkVar Nothing) $ {- case n -}
   Pair
   ( CsLI CsUN
-  , (plus $$ (Var (Just (Just (Just Nothing))))
-          $$ (Var (Just (Just Nothing)) $$ Var Nothing))
+  , (plus $$ (MkVar (Just (Just (Just Nothing))))
+          $$ (MkVar (Just (Just Nothing)) $$ MkVar Nothing))
   )
 
 ten :: Integer

@@ -5,55 +5,104 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE UndecidableInstances  #-}
 
 module Scopes where
 
 import Utils
 import Control.Newtype
+import Data.Functor.Compose
 import Data.Functor.Classes
+
+-------------------------------------------------------------
+-- VAR LIKE
+-------------------------------------------------------------
+
+class VarLike (j :: i -> *) where
+  type Next j :: i -> i
+  var0    :: j (Next j n)
+  weak    :: forall n. j n -> j (Next j n)
+  inspect :: a -> (j n -> a) -> j (Next j n) -> a
+
+instance VarLike Variable where
+  type Next Variable = Maybe
+  var0 = Variable Nothing
+  weak = fmap Just
+  inspect z s = maybe z s . sequenceA
+
+instance VarLike Fin where
+  type Next Fin = 'Succ
+  var0 = Z
+  weak = S
+  inspect z s k = case k of
+    Z    -> z
+    S k' -> s k'
+
+newtype DeBruijn (n :: Natural) = DeBruijn { runDeBruijn :: Integer }
+
+instance Newtype (DeBruijn n) Integer where
+  pack = DeBruijn
+  unpack = runDeBruijn
+
+instance VarLike DeBruijn where
+  type Next DeBruijn = 'Succ
+  var0 = DeBruijn 0
+  weak = over DeBruijn (1+)
+  inspect z s (DeBruijn k) = case k of
+    0 -> z
+    _ -> s $ DeBruijn $ k - 1
 
 -------------------------------------------------------------
 -- BASIC SCOPE
 -------------------------------------------------------------
 
-newtype Scope (t :: * -> *) (a :: *) =
-  Scope { runScope  :: t (Maybe a) }
+newtype Scope (j :: i -> *) (t :: i -> *) (a :: i) =
+  Scope { runScope  :: t (Next j a) }
 
-instance Newtype (Scope t a) (t (Maybe a)) where
+type Scope' = Scope Variable
+
+instance (t' ~ t (Next j a)) => Newtype (Scope j t a) t' where
   pack   = Scope
   unpack = runScope
 
-scope :: Scope ~~> Scope
+scope :: Scope j ~~> Scope j
 scope = over Scope
 
-instance Functor t => Functor (Scope t) where
+instance (Functor (Next j), Functor t) => Functor (Scope j t) where
   fmap f = over Scope (fmap (fmap f))
 
-instance Show1 t => Show1 (Scope t) where
+instance (Show1 (Next j), Show1 t, Functor t) => Show1 (Scope j t) where
   showsPrec1 i (Scope t) = showString "Scope { runScope = "
-                         . showsPrec1 i t
+                         . showsPrec1 i (Compose t)
                          . showString " }"
-instance (Show a, Show1 t) => Show (Scope t a) where showsPrec = showsPrec1
+instance (Show a, Show1 (Next j), Show1 t, Functor t) => Show (Scope j t a) where showsPrec = showsPrec1
 
 -------------------------------------------------------------
 -- KRIPKE FUNCTION SPACE
 -------------------------------------------------------------
 
-newtype Kripke (e :: * -> *) (v :: * -> *) (a :: *) =
-  Kripke { runKripke :: forall b. (a -> b) -> e b -> v b }
+newtype Kripke (j :: i -> *) (e :: i -> *) (v :: i -> *) (a :: i) =
+  Kripke { runKripke :: forall b. (j a -> j b) -> e b -> v b }
 
-kripke :: Kripke e ~~> Kripke e
+type Kripke' = Kripke Variable
+
+kripke :: Kripke j e ~~> Kripke j e
 kripke f k = Kripke $ \ i e -> f $ runKripke k i e
 
-instance Functor (Kripke e v) where
-  fmap f e = Kripke $ \ i -> runKripke e (i . f)
+instance Functor j => Functor (Kripke j e v) where
+  fmap f e = Kripke $ \ i -> runKripke e (i . fmap f)
 
-abstract' :: (forall a. a -> e a) -> forall a. Kripke e v a -> v (Maybe a)
-abstract' var k = runKripke k Just (var Nothing)
+instance HigherFunctor j (Kripke j e v) where
+  hfmap f e = Kripke $ runKripke e . (. f)
 
-abstract :: (forall a. a -> e a) -> Kripke e (Const v r) ~> Scope v
-abstract var = Scope . runConst . abstract' var
+abstract :: VarLike j => (j ~> e) -> Kripke j e v ~> Scope j v
+abstract var k = Scope $ runKripke k weak (var var0)
 
-fixpoint :: Kripke v v ~> v
+abstract' :: VarLike j => (j ~> e) -> Kripke j e (Const v r) ~> Scope j v
+abstract' var = scope runConst . abstract var
+
+fixpoint :: Kripke j v v ~> v
 fixpoint kp = runKripke kp id (fixpoint kp)
 
