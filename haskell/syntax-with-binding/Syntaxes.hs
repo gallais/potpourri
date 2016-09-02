@@ -148,8 +148,11 @@ instance Alg Fin (CLF e) (CONST [e]) (CONST [e]) where
                     prfx = over CONST (hd :)
                 in prfx $ fixpoint' prfx $ kripke runConst tl
 
-toStream :: forall e. CL e 'Zero -> [e]
-toStream = runCONST . eval' (Proxy :: Proxy (CONST [e])) finZero
+toStream :: forall e. CList e -> [e]
+  -- contracting this type signature using ~> takes `e` out
+  -- of scope which makes it impossible to mention it in the
+  -- proxy type in the body of the function!
+toStream = runCONST . eval' (Proxy :: Proxy (CONST [e])) finZero . runCList
 
 instance MonadReader (e -> f) m => Alg Fin (CLF e) Fin (Compose m (CL f)) where
   ret _ = Compose . return . Var
@@ -300,4 +303,13 @@ instance (Show1 (r s), Show1 (s (r s))) => Show1 (TmF r s) where
 
 deriving instance (Show (r s a), Show (s (r s) a)) => Show (TmF r s a)
 
+-- Trick to avoid the overlapping instance with `Fix ...` declared
+-- generically a bit earlier
+instance Show e => Show (Apply (CL e) n) where
+  show e = case runApply e of
+    Var a       -> "Var " ++ show a
+    CLNIL       -> "NIL"
+    CLCON hd tl -> show hd ++ " :< " ++ show (Apply $ runScope tl)
 
+instance Show e => Show (CList e) where
+  show = show . Apply . runCList

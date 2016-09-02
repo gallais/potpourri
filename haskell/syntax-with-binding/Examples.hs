@@ -107,16 +107,16 @@ ones :: CList Integer
 ones = CList $ CLCON' 1 $ Var Z
 
 ones' :: [Integer]
-ones' = take 10 $ toStream $ runCList ones
+ones' = take 10 $ toStream ones
 
 twothrees :: CList Integer
 twothrees = CList $ CLCON' 2 $ CLCON' 3 $ Var $ S Z
 
 twothrees' :: [Integer]
-twothrees' = take 10 $ toStream $ runCList twothrees
+twothrees' = take 10 $ toStream twothrees
 
 threefours :: CList Integer
 threefours = fmap (+1) twothrees
 
 threefours' :: [Integer]
-threefours' = take 10 $ toStream $ runCList threefours
+threefours' = take 10 $ toStream threefours
