@@ -116,5 +116,5 @@ instance HigherFunctor Variable Variable where
 instance HigherFunctor Fin Fin where
   hfmap = id
 
-instance HigherFunctor Fin (CONST e) where
+instance HigherFunctor j (CONST e) where
   hfmap _ = CONST . runCONST

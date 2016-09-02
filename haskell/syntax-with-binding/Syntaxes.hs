@@ -21,6 +21,7 @@ import Data.Proxy
 import Data.Functor.Classes
 import Control.Newtype
 import Control.Monad.Reader
+import Control.Monad.State
 
 import Utils
 import Scopes
@@ -302,6 +303,17 @@ instance (Show1 (r s), Show1 (s (r s))) => Show1 (TmF r s) where
     A f t -> showsBinary1 "A" i f t
 
 deriving instance (Show (r s a), Show (s (r s) a)) => Show (TmF r s a)
+
+
+instance (MonadState [String] m, Show e) => Alg Fin (CLF e) (CONST String) (Compose m (CONST String)) where
+  ret _ = Compose . return
+  alg e = Compose $ case e of
+    NIL      -> return $ CONST "NIL"
+    hd :< tl -> do
+      (nm : rest) <- get
+      put rest
+      str <- runCompose $ runScope $ abstract' (const $ CONST nm) tl
+      return $ over CONST ((concat ["fix ", nm, ". ", show hd, " :< "]) ++) str
 
 -- Trick to avoid the overlapping instance with `Fix ...` declared
 -- generically a bit earlier

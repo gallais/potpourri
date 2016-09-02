@@ -1,5 +1,6 @@
 {-# OPTIONS -Wall                   #-}
 {-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
@@ -13,11 +14,13 @@
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE PatternSynonyms        #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE TypeFamilies           #-}
 
 module Generic where
 
 import Data.Functor.Classes
 import Data.Proxy
+import Control.Monad.State
 
 import Utils
 import Scopes
@@ -131,3 +134,26 @@ norm ::
          => Alg j t (Model j t) (Model j t)
          => Fix j t (Scope j) ~> Fix j t (Scope j)
 norm = reify . eval' (Proxy :: Proxy (Model j t)) reflect
+
+
+-------------------------------------------------------------
+-- DISPLAY USING A NAME SUPPLY
+-------------------------------------------------------------
+
+display ::
+  forall j t m. (MonadState [String] m, VarLike j, SyntaxWithBinding t)
+         => Alg j t (CONST String) (Compose m (CONST String))
+         => forall a. (j a -> String) -> Fix j t (Scope j) a -> m String
+display rho = fmap runCONST . runCompose . eval' (Proxy :: Proxy (CONST String)) (CONST . rho)
+
+display' ::
+  forall t. SyntaxWithBinding t
+         => Alg Fin t (CONST String) (Compose (State [String]) (CONST String))
+         => Fix Fin t (Scope Fin) 'Zero -> String
+display' = flip evalState names . display finZero
+
+  where
+
+    alpha = ['a'..'z']
+    names = fmap (:[]) alpha
+          ++ zipWith (\ c -> (c:) . show) (cycle alpha) [(1 :: Integer)..]
