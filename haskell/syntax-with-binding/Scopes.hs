@@ -11,7 +11,7 @@
 
 module Scopes where
 
-import Utils
+import Utils hiding (Compose)
 import Control.Newtype
 import Data.Functor.Compose
 import Data.Functor.Classes

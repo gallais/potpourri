@@ -62,6 +62,15 @@ instance Newtype (Apply v a) (v a) where
   pack   = Apply
   unpack = runApply
 
+-------------------------------------------------------------
+-- COMPOSE
+-------------------------------------------------------------
+
+newtype Compose (g :: j -> *) (f :: i -> j) (a :: i) = Compose { runCompose :: g (f a) }
+
+instance Newtype (Compose g f a) (g (f a)) where
+  pack = Compose
+  unpack = runCompose
 
 -------------------------------------------------------------
 -- VARIABLE

@@ -20,6 +20,7 @@ import Data.Function
 import Data.Proxy
 import Data.Functor.Classes
 import Control.Newtype
+import Control.Monad.Reader
 
 import Utils
 import Scopes
@@ -149,6 +150,25 @@ instance Alg Fin (CLF e) (CONST [e]) (CONST [e]) where
 
 toStream :: forall e. CL e 'Zero -> [e]
 toStream = runCONST . eval' (Proxy :: Proxy (CONST [e])) finZero
+
+instance MonadReader (e -> f) m => Alg Fin (CLF e) Fin (Compose m (CL f)) where
+  ret _ = Compose . return . Var
+  alg e = Compose $ case e of
+    NIL      -> return CLNIL
+    hd :< tl ->
+      let hd' = fmap ($ hd) ask
+          tl' = fmap Scope $ runCompose $ runScope $ abstract' id tl
+      in CLCON <$> hd' <*> tl'
+
+newtype CList a = CList { runCList :: CL a 'Zero }
+
+instance Newtype (CList a) (CL a 'Zero) where
+  pack = CList
+  unpack = runCList
+
+instance Functor CList where
+  fmap f = over CList $ ($ f) . runCompose . eval' (Proxy :: Proxy Fin) finZero
+
 
 -------------------------------------------------------------
 -- ALGEBRAS FOR RENAMING

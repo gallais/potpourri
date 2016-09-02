@@ -103,14 +103,20 @@ ten = caseToNat $ norm $ mult $$ natToCase five $$ natToCase 2
 -- EXAMPLES FOR CLF
 -------------------------------------------------------------
 
-ones :: CL Integer 'Zero
-ones = CLCON' 1 $ Var Z
+ones :: CList Integer
+ones = CList $ CLCON' 1 $ Var Z
 
 ones' :: [Integer]
-ones' = take 10 $ toStream ones
+ones' = take 10 $ toStream $ runCList ones
 
-twothrees :: CL Integer 'Zero
-twothrees = CLCON' 2 $ CLCON' 3 $ Var $ S Z
+twothrees :: CList Integer
+twothrees = CList $ CLCON' 2 $ CLCON' 3 $ Var $ S Z
 
 twothrees' :: [Integer]
-twothrees' = take 10 $ toStream twothrees
+twothrees' = take 10 $ toStream $ runCList twothrees
+
+threefours :: CList Integer
+threefours = fmap (+1) twothrees
+
+threefours' :: [Integer]
+threefours' = take 10 $ toStream $ runCList threefours
