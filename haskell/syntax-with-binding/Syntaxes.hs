@@ -44,6 +44,7 @@ instance SyntaxWithBinding TmF where
   reindex fs fs' r s e = case e of
     L b   -> L $ fs' runApply $ s (over Apply) $ fs Apply b
     A f t -> A (r f) (r t)
+instance Functor Term where fmap = hfmap . over Variable
 
 pattern TmL t   = Fix (L t)
 pattern TmA f t = Fix (A f t)
@@ -76,6 +77,8 @@ instance SyntaxWithBinding CsF where
     LA b   -> LA $ fs' runApply $ s (over Apply) $ fs Apply b
     AP p   -> AP $ pair r p
     UN     -> UN
+
+instance Functor Case where fmap = hfmap . over Variable
 
 pattern CsLI t   = Fix (LI t)
 pattern CsRI t   = Fix (RI t)
@@ -142,8 +145,8 @@ pattern CLCON  e es = Fix (e :< es)
 pattern CLCON' e es = CLCON e (Scope es)
 
 instance Alg Fin (CLF e) (CONST [e]) (CONST [e]) where
-  ret _ = id
-  alg e = case e of
+  ret _ _ = id
+  alg _ e = case e of
     NIL      -> CONST []
     hd :< tl -> let prfx :: CONST [e] ~> CONST [e]
                     prfx = over CONST (hd :)
@@ -156,8 +159,8 @@ toStream :: forall e. CList e -> [e]
 toStream = runCONST . eval' (Proxy :: Proxy (CONST [e])) finZero . runCList
 
 instance MonadReader (e -> f) m => Alg Fin (CLF e) Fin (Compose m (CL f)) where
-  ret _ = Compose . return . Var
-  alg e = Compose $ case e of
+  ret _ _ = Compose . return . Var
+  alg _ e = Compose $ case e of
     NIL      -> return CLNIL
     hd :< tl ->
       let hd' = fmap ($ hd) ask
@@ -173,92 +176,21 @@ instance Newtype (CList a) (CL a 'Zero) where
 instance Functor CList where
   fmap f = over CList $ ($ f) . runCompose . eval' (Proxy :: Proxy Fin) finZero
 
-
--------------------------------------------------------------
--- ALGEBRAS FOR RENAMING
--------------------------------------------------------------
-
-instance Alg Variable TmF Variable Term where
-  ret _ = Var
-  alg e = case e of
-    L b   -> TmL $ abstract' id b
-    A f t -> (TmA `on` runConst) f t
-
-instance HigherFunctor Variable Term where hfmap = flip rename
-instance Functor Term where fmap = hfmap . over Variable
-
-instance Alg Variable CsF Variable Case where
-  ret _ = Var
-  alg e = Fix $ case e of
-    LI t    -> LI $ runConst t
-    RI t    -> RI $ runConst t
-    CA f kp -> CA (runConst f) $ scope (pair runConst) $ abstract id kp
-    FX f    -> FX $ abstract' id f
-    LA b    -> FX $ abstract' id b
-    AP p    -> AP $ pair runConst p
-    UN      -> UN
-
-instance HigherFunctor Variable Case where hfmap = flip rename
-instance Functor Case where fmap = hfmap . over Variable
-
-instance Alg Fin TTF Fin TT where
-  ret _ = Var
-  alg e = case e of
-    PI a b -> TTPI (runConst a) $ abstract' id b
-    LM b   -> TTLM $ abstract' id b
-    f :$ t -> (TTAP `on` runConst) f t
-
-instance HigherFunctor Fin TT where hfmap = flip rename
-
-instance Alg Fin (CLF e) Fin (CL e) where
-  ret _ = Var
-  alg e = case e of
-    NIL      -> CLNIL
-    hd :< tl -> CLCON hd $ abstract' id tl
-
--------------------------------------------------------------
--- ALGEBRAS FOR SUBSTITUTION
--------------------------------------------------------------
-
-instance Alg Variable TmF Term Term where
-  ret _ = id
-  alg e = case e of
-    L b   -> TmL $ abstract' Var b
-    A f t -> (TmA `on` runConst) f t
-
-instance Alg Variable CsF Case Case where
-  ret _ = id
-  alg e = Fix $ case e of
-    LI t    -> LI $ runConst t
-    RI t    -> RI $ runConst t
-    CA f kp -> CA (runConst f) $ scope (pair runConst) $ abstract Var kp
-    FX kp   -> FX $ abstract' Var kp
-    LA b    -> LA $ abstract' Var b
-    AP p    -> AP $ pair runConst p
-    UN      -> UN
-
-instance Alg Fin TTF TT TT where
-  ret _ = id
-  alg e = Fix $ case e of
-    PI a b -> PI (runConst a) $ abstract' Var b
-    LM b   -> LM $ abstract' Var b
-    f :$ t -> ((:$) `on` runConst) f t
-
 -------------------------------------------------------------
 -- ALGEBRAS FOR NORMALISATION BY EVALUATION
 -------------------------------------------------------------
 
 instance Alg Variable TmF (Model Variable TmF) (Model Variable TmF) where
-  ret _ = id
-  alg e = case e of
+  ret _ _ = id
+  alg _ e = case e of
     L b   -> Model $ Fix $ L $ kripke (runModel . runConst) b
     A f t -> case runModel (runConst t) of
       Fix (L b) -> Model $ runKripke b id (runConst t)
       _         -> Model $ Fix $ (A `on` runModel . runConst) f t
 
 instance Alg Variable CsF (Model Variable CsF) (Model Variable CsF) where
-  ret _ = id
-  alg e =
+  ret _ _ = id
+  alg _ e =
     let cleanup = runModel . runConst
     in case e of
     LI t    -> Model $ Fix $ LI $ cleanup t
@@ -306,8 +238,8 @@ deriving instance (Show (r s a), Show (s (r s) a)) => Show (TmF r s a)
 
 
 instance (MonadState [String] m, Show e) => Alg Fin (CLF e) (CONST String) (Compose m (CONST String)) where
-  ret _ = Compose . return
-  alg e = Compose $ case e of
+  ret _ _ = Compose . return
+  alg _ e = Compose $ case e of
     NIL      -> return $ CONST "NIL"
     hd :< tl -> do
       (nm : rest) <- get

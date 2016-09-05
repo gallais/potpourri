@@ -71,39 +71,56 @@ deriving instance (Show (v a), Show (f (Fix v f) s a)) => Show (Fix v f s a)
 -- ALGEBRAS, EVALUATION AND FUNDAMENTAL LEMMA OF SYNTAXES
 -------------------------------------------------------------
 
-class Alg j t e v | t -> j where
-  alg :: t (Const v) (Kripke j e) a -> v a
-  ret :: Proxy t -> e ~> v
+class Alg j t e v where
+  alg :: Proxy j -> t (Const v) (Kripke j e) a -> v a
+  ret :: Proxy j -> Proxy t -> e ~> v
 
 class Eval j t e v where
   eval  :: (j a -> e b) -> t a -> v b
   eval' :: Proxy e -> (j a -> e b) -> t a -> v b
   eval' _ = eval
 
-
 instance (VarLike j, HigherFunctor j e, SyntaxWithBinding t, Alg j t e v) => Eval j (Fix j t (Scope j)) e v where
   eval = go where
 
     go :: forall a b. (j a -> e b) -> Fix j t (Scope j) a -> v b
-    go rho (Var a) = ret (Proxy :: Proxy t) $ rho a
-    go rho (Fix t) = alg $ reindex scope
+    go rho (Var a) = ret (Proxy :: Proxy j) (Proxy :: Proxy t) $ rho a
+    go rho (Fix t) = alg (Proxy :: Proxy j)
+                         $ reindex scope
                                    kripke
                                    (Const . go rho)
                                    (\ g b -> Kripke $ \ i e ->
                                              g (Const . go (inspect e (hfmap i . rho)))
                                              $ runScope b)
                                    t
+
 -------------------------------------------------------------
--- RENAMING AND SUBSTITUTION
+-- RENAMING
 -------------------------------------------------------------
 
-rename :: (VarLike j, HigherFunctor j j, SyntaxWithBinding t, Alg j t j (Fix j t (Scope j))) =>
+instance (VarLike j, SyntaxWithBinding t) => Alg j t j (Fix j t (Scope j)) where
+  ret _ _ = Var
+  alg _ = Fix . reindex kripke scope runConst (\ f -> abstract id . kripke (f runConst))
+
+rename :: (VarLike j, HigherFunctor j j, SyntaxWithBinding t) =>
           Fix j t (Scope j) a -> (j a -> j b) -> Fix j t (Scope j) b
 rename = flip $ eval' (Proxy :: Proxy j)
 
-subst :: (VarLike j, HigherFunctor j (Fix j t (Scope j)), SyntaxWithBinding t, Alg j t (Fix j t (Scope j)) (Fix j t (Scope j))) =>
+instance (VarLike j, HigherFunctor j j, SyntaxWithBinding t) => HigherFunctor j (Fix j t (Scope j)) where
+  hfmap = flip rename
+
+-------------------------------------------------------------
+-- Substitution
+-------------------------------------------------------------
+
+instance (VarLike j, SyntaxWithBinding t) => Alg j t (Fix j t (Scope j)) (Fix j t (Scope j)) where
+  ret _ _ = id
+  alg _ = Fix . reindex kripke scope runConst (\ f -> abstract Var . kripke (f runConst))
+
+subst :: (VarLike j, HigherFunctor j j, SyntaxWithBinding t) =>
          Fix j t (Scope j) a -> (j a -> Fix j t (Scope j) b) -> Fix j t (Scope j) b
 subst = flip $ eval
+
 
 -------------------------------------------------------------
 -- MODEL OF A SYNTAXT AND NORMALISATION BY EVALUTION
@@ -157,3 +174,5 @@ display' = flip evalState names . display finZero
     alpha = ['a'..'z']
     names = fmap (:[]) alpha
           ++ zipWith (\ c -> (c:) . show) (cycle alpha) [(1 :: Integer)..]
+
+
