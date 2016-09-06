@@ -119,8 +119,11 @@ instance (VarLike j, SyntaxWithBinding t) => Alg j t (Fix j t (Scope j)) (Fix j 
 
 subst :: (VarLike j, HigherFunctor j j, SyntaxWithBinding t) =>
          Fix j t (Scope j) a -> (j a -> Fix j t (Scope j) b) -> Fix j t (Scope j) b
-subst = flip $ eval
+subst = flip eval
 
+instance (VarLike j, HigherFunctor j j, SyntaxWithBinding t) => RelativeMonad j (Fix j t (Scope j)) where
+  rreturn = Var
+  rbind   = subst
 
 -------------------------------------------------------------
 -- MODEL OF A SYNTAXT AND NORMALISATION BY EVALUTION

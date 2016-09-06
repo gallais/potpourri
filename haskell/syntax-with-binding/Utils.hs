@@ -118,3 +118,11 @@ instance HigherFunctor Fin Fin where
 
 instance HigherFunctor j (CONST e) where
   hfmap _ = CONST . runCONST
+
+-------------------------------------------------------------
+-- RELATIVE MONADS
+-------------------------------------------------------------
+
+class HigherFunctor j m => RelativeMonad (j :: i -> *) (m :: i -> *) where
+  rreturn :: j ~> m
+  rbind   :: m a -> (j a -> m b) -> m b
