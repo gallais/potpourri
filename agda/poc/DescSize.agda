@@ -37,11 +37,11 @@ fmap {X} {Y} d {i} f = go d where
   go (`r d)   (x , t) = f x , go d t
   go `ι       tt      = tt
 
-fold : ∀ d X → (⟦ d ⟧ X ≤′ X) → (μ d ⟶′ X)
-fold d X alg = go where
+fold : ∀ {d} X → (⟦ d ⟧ X ≤′ X) → (μ d ⟶′ X)
+fold {d} X alg = go where
 
   go : μ d ⟶′ X
   go ⟨ t ⟩ = alg (fmap d go t)
 
-id : ∀ d → μ d ⟶′ μ d
-id d t = fold d (μ d) ⟨_⟩ t
+id : ∀ {d} → μ d ⟶′ μ d
+id t = fold (μ _) ⟨_⟩ t
