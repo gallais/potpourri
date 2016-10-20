@@ -22,6 +22,9 @@ record ⊤ : Set where
 open import Data.Empty
 open import Data.Product
 
+Π : (A : Set) (B : A → Set) → Set
+Π A B = ∀ a → B a
+
 postulate
   _≅_ : Set → Set → Set
   _≣_ : {A B : Set} → A → B → Set
@@ -33,10 +36,9 @@ postulate
 
   fin-≅  : {m n : Nat} → Rule (Fin m ≅ Fin n) (m ≣ n)
   pi-≅   : {A C : Set} {B : A → Set} {D : C → Set} →
-           Rule ((∀ a → B a) ≅ (∀ c → D c))
-                (Σ[ eq ∈ C ≅ A ] (∀ c a → c ≣ a → B a ≅ D c))
+           Rule (Π A B ≅ Π C D) (C ≅ A × ∀ c a → c ≣ a → B a ≅ D c)
   sig-≅  : {A C : Set} {B : A → Set} {D : C → Set} →
-           Rule (Σ A B ≅ Σ C D) (Σ[ eq ∈ A ≅ C ] (∀ a c → a ≣ c → B a ≅ D c))
+           Rule (Σ A B ≅ Σ C D) (A ≅ C × ∀ a c → a ≣ c → B a ≅ D c)
 
 
   refl-≣ : {A : Set} (a : A) → Rule (a ≣ a) ⊤
@@ -63,8 +65,8 @@ postulate
   trans-≣ : {A B C : Set} {a : A} {b : B} {c : C} → a ≣ b → b ≣ c → a ≣ c
 
 
-{-# BUILTIN REWRITE Rule        #-}
-{-# REWRITE pi-≅ refl-≅ sig-≅   #-}
+{-# BUILTIN REWRITE Rule            #-}
+{-# REWRITE pi-≅ refl-≅ sig-≅ fin-≅ #-}
 {-# REWRITE refl-≣              #-}
 {-# REWRITE ¬tt≣ff ¬ff≣tt       #-}
 {-# REWRITE nat-≣ ¬0≣1+n ¬1+n≣0 #-}
@@ -77,8 +79,7 @@ postulate
 
   coerce-refl : {A : Set} {a : A} (eq : A ≅ A) → Rule (coerce A A eq a) a
   coerce-pi   : {A C : Set} {B : A → Set} {D : C → Set} →
-                {eq : (∀ a → B a) ≅ (∀ c → D c)}
-                {f : ∀ a → B a} →
+                {eq : Π A B ≅ Π C D} {f : ∀ a → B a} →
                 Rule (coerce (∀ a → B a) (∀ c → D c) eq f)
                      (λ c → let a   = coerce C A (proj₁ eq) c
                                 c≣a = coherence C A (proj₁ eq) c
@@ -90,8 +91,14 @@ postulate
                           c       = coerce A C (proj₁ eq) a
                           a≣c     = coherence A C (proj₁ eq) a
                       in (c , coerce (B a) (D c) (proj₂ eq a c a≣c) b))
+  coerce-finz : {m n : Nat} {eq : m ≣ n} →
+                Rule (coerce (Fin (succ m)) (Fin (succ n)) eq Fin.zero) Fin.zero
+  coerce-fins : {m n : Nat} {eq : m ≣ n} {k : Fin m} →
+                Rule (coerce (Fin (succ m)) (Fin (succ n)) eq (Fin.succ k))
+                     (Fin.succ (coerce (Fin m) (Fin n) eq k))
 
-{-# REWRITE coerce-refl coerce-pi #-}
+
+{-# REWRITE coerce-refl coerce-pi coerce-sig #-}
 
 if : ∀ {ℓ} {A : Set ℓ} → Bool → A → A → A
 if tt A B = A
@@ -100,7 +107,7 @@ if ff A B = B
 open import Function
 
 lemma : (∀ b → if b Nat Nat) ≅ ((b : Bool) → Nat)
-lemma = ⟨⟩ , (λ { _ tt _ → ⟨⟩ ; _ ff _ → ⟨⟩ })
+lemma = ⟨⟩ , λ { _ tt _ → ⟨⟩ ; _ ff _ → ⟨⟩ }
 
 toNat : Bool → Nat
 toNat = coerce (∀ b → if b Nat Nat) (Bool → Nat) lemma $ λ { tt → zero ; ff → succ zero }
