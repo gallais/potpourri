@@ -31,8 +31,13 @@ open import linear.Typecheck
 open import linear.Usage.Erasure
 open import linear.Typing.Thinning
 
--- Model
+-- More traditional presentation and Model
+open import linear.ILL
 open import linear.Model
+
+-- Soundness and Completeness
+open import linear.Soundness
+-- open import linear.Completeness
 
 -- Examples
 open import linear.Language.Examples

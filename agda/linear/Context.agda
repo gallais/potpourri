@@ -6,7 +6,7 @@ open import Data.Fin
 open import Data.Vec as V hiding (_++_)
 
 open import linear.Type
-open import linear.Scope as Sc hiding (Mergey ; copys)
+open import linear.Scope as Sc hiding (Mergey ; copys ; inserts)
 open import Relation.Binary.PropositionalEquality
 
 Context : ℕ → Set
@@ -51,6 +51,11 @@ data Mergey : {k l : ℕ} (m : Sc.Mergey k l) → Set where
 copys : (o : ℕ) {k l : ℕ} {m : Sc.Mergey k l} (M : Mergey m) → Mergey (Sc.copys o m)
 copys zero    M = M
 copys (suc o) M = copy (copys o M)
+
+inserts : {o k l : ℕ} (O : Context o) {m : Sc.Mergey k l} →
+          Mergey m → Mergey (Sc.inserts o m)
+inserts []      M = M
+inserts (σ ∷ O) M = insert σ (inserts O M)
 
 infixl 4 _⋈_
 _⋈_ : {k l : ℕ} (Γ : Context k) {m : Sc.Mergey k l} (M : Mergey m) → Context l

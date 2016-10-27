@@ -19,6 +19,10 @@ copys : Extending Mergey
 copys zero    m = m
 copys (suc o) m = copy (copys o m)
 
+inserts : {k l : ℕ} (o : ℕ) → Mergey k l → Mergey k (o + l)
+inserts zero    m = m
+inserts (suc o) m = insert (inserts o m)
+
 weakFin : Weakening Fin
 weakFin finish     k       = k
 weakFin (copy m)   zero    = zero

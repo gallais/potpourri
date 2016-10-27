@@ -10,12 +10,14 @@ open import linear.Relation.Functional
 
 open import linear.Type
 open import linear.Scope as Sc
-  hiding (Mergey ; copys
+  hiding (Mergey ; copys ; inserts
         ; Extending
         ; Weakening ; weakFin
         ; Env ; Substituting
         ; Freshey ; withFreshVars)
-open import linear.Context as C hiding (Mergey ; _⋈_ ; copys ; _++_ ; ++copys-elim)
+open import linear.Context as C
+  hiding (Mergey ; _⋈_ ; copys ; inserts
+         ; _++_ ; ++copys-elim)
 open import Relation.Binary.PropositionalEquality
 
 data Usage : (a : Type) → Set where
@@ -57,9 +59,15 @@ data Mergey : {k l : ℕ} {m : Sc.Mergey k l} (M : C.Mergey m) → Set where
   insert : {k l : ℕ} {m : Sc.Mergey k l} {M : C.Mergey m} {a : Type}
            (A : Usage a) (𝓜 : Mergey M) → Mergey (insert a M)
 
-copys : (o : ℕ) {k l : ℕ} {m : Sc.Mergey k l} {M : C.Mergey m} → Mergey M → Mergey (C.copys o M)
+copys : (o : ℕ) {k l : ℕ} {m : Sc.Mergey k l} {M : C.Mergey m} →
+        Mergey M → Mergey (C.copys o M)
 copys zero    M = M
 copys (suc o) M = copy (copys o M)
+
+inserts : {o k l : ℕ} {O : Context o} (𝓞 : Usages O) {m : Sc.Mergey k l} {M : C.Mergey m} →
+          Mergey M → Mergey (C.inserts O M)
+inserts []      𝓜 = 𝓜
+inserts (S ∷ 𝓞) 𝓜 = insert S (inserts 𝓞 𝓜)
 
 infixl 4 _⋈_
 _⋈_ : {k l : ℕ} {γ : Context k} {m : Sc.Mergey k l} {M : C.Mergey m}
