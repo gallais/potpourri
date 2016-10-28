@@ -3,19 +3,21 @@ module linear.Completeness where
 open import Data.Nat
 import Data.Fin as F
 open import Data.Nat.Properties.Simple
-open import Data.List as List
+open import Data.List as List hiding ([_] ; _∷ʳ_)
 open import Data.List.Properties
-open import Data.Vec
-open import Data.Product
+open import Data.Vec hiding ([_] ; _∷ʳ_)
+open import Data.Product as Prod
+open import Data.Sum as Sum
 open import Function
-open import Relation.Binary.PropositionalEquality as Eq
+open import Relation.Binary.PropositionalEquality as Eq hiding ([_])
 
 
 open import linear.ILL
 open import linear.Type
 open import linear.Context as C
 open import linear.Scope as S
-open import linear.Usage as U
+open import linear.Usage as U hiding ([_])
+open import linear.Usage.Erasure
 open import linear.Context.Pointwise as CP
 open import linear.Usage.Pointwise as UP
 open import linear.Language as L
@@ -227,6 +229,59 @@ complete (⊕L t u)   =
       T′       = T.weakCheck (copy (insert _ finish)) T
       U′       = T.weakCheck (copy (insert _ finish)) U
   in , `neu (`case `var z return _ of T′ %% U′)
-complete (mix t inc) =
-  let (rT , T) = complete t
-  in , {!!}
+complete (mix t inc) = {!!} -- mixCheck inc $ proj₂ $ complete t
+
+
+infix 5 [_]_++_≅_ 
+data [_]_++_≅_ :
+  ∀ {γ δ θ} → γ ++ δ ≅ θ →
+  Usages (fromList γ) → Usages (fromList δ) → Usages (fromList θ) →
+  Set where
+  []   : [ [] ] [] ++ [] ≅ []
+  _∷ˡ_ : ∀ {σ γ δ θ} {p : γ ++ δ ≅ θ} {Γ Δ Θ} (S : Usage σ) →
+         [ p ] Γ ++ Δ ≅ Θ → [ σ ∷ˡ p ] S ∷ Γ ++ Δ ≅ S ∷ Θ
+  _∷ʳ_ : ∀ {σ γ δ θ} {p : γ ++ δ ≅ θ} {Γ Δ Θ} (S : Usage σ) →
+         [ p ] Γ ++ Δ ≅ Θ → [ σ ∷ʳ p ] Γ ++ S ∷ Δ ≅ S ∷ Θ
+
+split-Usages :
+  ∀ {γ δ θ} (p : γ ++ δ ≅ θ) (Γ : Usages (fromList θ)) →
+  ∃ λ Γ₁ → ∃ λ Γ₂ → [ p ] Γ₁ ++ Γ₂ ≅ Γ
+split-Usages []       []      = [] , [] , []
+split-Usages (a ∷ˡ p) (A ∷ Γ) =
+  let (Γ₁ , Γ₂ , eq) = split-Usages p Γ
+  in A ∷ Γ₁ , Γ₂ , A ∷ˡ eq
+split-Usages (a ∷ʳ p) (A ∷ Γ) =
+  let (Γ₁ , Γ₂ , eq) = split-Usages p Γ
+  in Γ₁ , A ∷ Γ₂ , A ∷ʳ eq
+
+
+≅-inj : ∀ {γ δ θ Γ₁ Γ₂ Δ₁ Δ₂ Θ} (p : γ ++ δ ≅ θ) →
+  [ p ] Γ₁ ++ Δ₁ ≅ Θ → [ p ] Γ₂ ++ Δ₂ ≅ Θ →
+  Γ₁ ≡ Γ₂ × Δ₁ ≡ Δ₂
+≅-inj []       []         []          = Eq.refl , Eq.refl
+≅-inj (a ∷ˡ p) (S ∷ˡ eq₁) (.S ∷ˡ eq₂) = Prod.map (cong (S ∷_)) id $ ≅-inj p eq₁ eq₂
+≅-inj (σ ∷ʳ p) (S ∷ʳ eq₁) (.S ∷ʳ eq₂) = Prod.map id (cong (S ∷_)) $ ≅-inj p eq₁ eq₂
+
+splitFin :
+  ∀ {γ δ θ Γ₁ Γ₂ Δ₁ Δ₂ Γ Δ k σ} (p : γ ++ δ ≅ θ) →
+  [ p ] Γ₁ ++ Γ₂ ≅ Γ → [ p ] Δ₁ ++ Δ₂ ≅ Δ →
+  Γ ⊢ k ∈[ σ ]⊠ Δ → (∃ λ k → Γ₁ ⊢ k ∈[ σ ]⊠ Δ₁)
+                  ⊎ (∃ λ k → Γ₂ ⊢ k ∈[ σ ]⊠ Δ₂)
+splitFin [] [] [] ()
+splitFin (σ ∷ˡ p) (_ ∷ˡ eq₁) (_  ∷ˡ eq₂) z
+  rewrite proj₁ (≅-inj p eq₁ eq₂) = inj₁ (, z)
+splitFin (σ ∷ʳ p) (_ ∷ʳ eq₁) (_  ∷ʳ eq₂) z
+  rewrite proj₂ (≅-inj p eq₁ eq₂) = inj₂ (, z)
+splitFin (σ ∷ˡ p) (u ∷ˡ eq₁) (.u ∷ˡ eq₂) (s K) =
+  Sum.map (Prod.map _ s_) id $ splitFin p eq₁ eq₂ K
+splitFin (σ ∷ʳ p) (u ∷ʳ eq₁) (.u ∷ʳ eq₂) (s K) =
+  Sum.map id (Prod.map _ s_) $ splitFin p eq₁ eq₂ K
+
+-- Is this the right thing?
+Mix : ∀ {T} → Typing T → Set
+Mix {T} 𝓣 =
+  ∀ {γ δ θ Γ₁ Γ₂ Δ₁ Δ₂ Γ Γ′ Δ Δ′ t σ} (p q : γ ++ δ ≅ θ) →
+  [ p ] Γ₁ ++ Γ₂ ≅ Γ  → [ p ] Δ₁ ++ Δ₂ ≅ Δ → 
+  [ q ] Γ₁ ++ Γ₂ ≅ Γ′ → [ q ] Δ₁ ++ Δ₂ ≅ Δ′ → 
+  𝓣 Γ t σ Δ → ∃ λ t → 𝓣 Γ′ t σ Δ′
+
