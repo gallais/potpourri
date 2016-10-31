@@ -5,7 +5,7 @@ import Data.Fin as F
 open import Data.Nat.Properties.Simple
 open import Data.List as List hiding ([_] ; _∷ʳ_)
 open import Data.List.Properties
-open import Data.Vec hiding ([_] ; _∷ʳ_)
+open import Data.Vec as V hiding ([_] ; _∷ʳ_)
 open import Data.Product as Prod
 open import Data.Sum as Sum
 open import Function
@@ -17,7 +17,6 @@ open import linear.Type
 open import linear.Context as C
 open import linear.Scope as S
 open import linear.Usage as U hiding ([_])
-open import linear.Usage.Erasure
 open import linear.Context.Pointwise as CP
 open import linear.Usage.Pointwise as UP
 open import linear.Language as L
@@ -231,20 +230,43 @@ complete (⊕L t u)   =
   in , `neu (`case `var z return _ of T′ %% U′)
 complete (mix t inc) = {!!} -- mixCheck inc $ proj₂ $ complete t
 
+infix 2 [_]_++_≅_ _++_≅_ 
 
-infix 5 [_]_++_≅_ 
-data [_]_++_≅_ :
-  ∀ {γ δ θ} → γ ++ δ ≅ θ →
-  Usages (fromList γ) → Usages (fromList δ) → Usages (fromList θ) →
+data _++_≅_ : ∀ {m n p} → Context m → Context n → Context p → Set where
+  [] : [] ++ [] ≅ []
+  _∷ˡ_ : ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p}
+         σ → γ ++ δ ≅ θ → (σ ∷ γ) ++ δ ≅ (σ ∷ θ)
+  _∷ʳ_ : ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p}
+         σ → γ ++ δ ≅ θ → γ ++ (σ ∷ δ) ≅ (σ ∷ θ)
+
+module VecEq where
+
+  _++ˡ_ : ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p}
+          {o} (φ : Context o) → γ ++ δ ≅ θ → φ V.++ γ ++ δ ≅ φ V.++ θ
+  []      ++ˡ p = p
+  (σ ∷ φ) ++ˡ p = σ ∷ˡ (φ ++ˡ p)
+
+data [_]_++_≅_ : ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p} →
+                 γ ++ δ ≅ θ → Usages γ → Usages δ → Usages θ →
   Set where
   []   : [ [] ] [] ++ [] ≅ []
-  _∷ˡ_ : ∀ {σ γ δ θ} {p : γ ++ δ ≅ θ} {Γ Δ Θ} (S : Usage σ) →
+  _∷ˡ_ : ∀ {m n p σ} {γ : Context m} {δ : Context n} {θ : Context p}
+         {p : γ ++ δ ≅ θ} {Γ Δ Θ} (S : Usage σ) →
          [ p ] Γ ++ Δ ≅ Θ → [ σ ∷ˡ p ] S ∷ Γ ++ Δ ≅ S ∷ Θ
-  _∷ʳ_ : ∀ {σ γ δ θ} {p : γ ++ δ ≅ θ} {Γ Δ Θ} (S : Usage σ) →
+  _∷ʳ_ : ∀ {m n p σ} {γ : Context m} {δ : Context n} {θ : Context p}
+         {p : γ ++ δ ≅ θ} {Γ Δ Θ} (S : Usage σ) →
          [ p ] Γ ++ Δ ≅ Θ → [ σ ∷ʳ p ] Γ ++ S ∷ Δ ≅ S ∷ Θ
 
+
+_++ˡ_ : ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p}
+        {p : γ ++ δ ≅ θ} {Γ Δ Θ} {o} {φ : Context o} (Φ : Usages φ) →
+  [ p ] Γ ++ Δ ≅ Θ → [ φ VecEq.++ˡ p ] Φ U.++ Γ ++ Δ ≅ Φ U.++ Θ
+[]      ++ˡ eq = eq
+(S ∷ Φ) ++ˡ eq = S ∷ˡ (Φ ++ˡ eq)
+
 splitUsages :
-  ∀ {γ δ θ} (p : γ ++ δ ≅ θ) (Γ : Usages (fromList θ)) →
+  ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p}
+  (p : γ ++ δ ≅ θ) (Γ : Usages θ) →
   ∃ λ Γ₁ → ∃ λ Γ₂ → [ p ] Γ₁ ++ Γ₂ ≅ Γ
 splitUsages []       []      = [] , [] , []
 splitUsages (a ∷ˡ p) (A ∷ Γ) =
@@ -254,11 +276,18 @@ splitUsages (a ∷ʳ p) (A ∷ Γ) =
   let (Γ₁ , Γ₂ , eq) = splitUsages p Γ
   in Γ₁ , A ∷ Γ₂ , A ∷ʳ eq
 
-unsplitContext : ∀ {γ δ θ} (p : γ ++ δ ≅ θ) →
+unsplitUsages : ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p} (p : γ ++ δ ≅ θ)
+  (Γ : Usages γ) (Δ : Usages δ) →
+  ∃ λ Θ → [ p ] Γ ++ Δ ≅ Θ
+unsplitUsages []       []      []      = , []
+unsplitUsages (a ∷ˡ p) (A ∷ Γ) Δ       = Prod.map (A ∷_) (A ∷ˡ_) $ unsplitUsages p Γ Δ
+unsplitUsages (a ∷ʳ p) Γ       (A ∷ Δ) = Prod.map (A ∷_) (A ∷ʳ_) $ unsplitUsages p Γ Δ
+
+unsplitContext : ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p} (p : γ ++ δ ≅ θ) →
   ∃ λ (mM₁ : ∃ C.Mergey) →
   ∃ λ (mM₂ : ∃ C.Mergey) →
-    Context[ _≡_ ] (fromList θ) (fromList γ C.⋈ proj₂ mM₁)
-  × Context[ _≡_ ] (fromList θ) (fromList δ C.⋈ proj₂ mM₂)
+    Context[ _≡_ ] θ (γ C.⋈ proj₂ mM₁)
+  × Context[ _≡_ ] θ (δ C.⋈ proj₂ mM₂)
 unsplitContext []       = (, finish) , (, finish) , ([] , [])
 unsplitContext (σ ∷ˡ p) =
   let ((_ , M₁) , (_ , M₂) , eq₁ , eq₂) = unsplitContext p
@@ -268,7 +297,8 @@ unsplitContext (σ ∷ʳ p) =
   in (, insert σ M₁) , (, copy M₂) , Eq.refl ∷ eq₁ , Eq.refl ∷ eq₂
 
 unsplitUsages₁ :
-  ∀ {γ δ θ} (p : γ ++ δ ≅ θ) (Δ : Usages (fromList δ)) →
+  ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p}
+  (p : γ ++ δ ≅ θ) (Δ : Usages δ) →
   let ((_ , M₁) , _) = unsplitContext p
   in U.Mergey M₁
 unsplitUsages₁ []       Δ       = finish
@@ -276,7 +306,7 @@ unsplitUsages₁ (a ∷ˡ p) Δ       = copy (unsplitUsages₁ p Δ)
 unsplitUsages₁ (a ∷ʳ p) (A ∷ Δ) = insert A (unsplitUsages₁ p Δ)
 
 unsplitUsages₁-eq :
-  ∀ {γ δ θ} {p : γ ++ δ ≅ θ} {Δ : Usages (fromList δ)} →
+  ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p} {p : γ ++ δ ≅ θ} {Δ : Usages δ} →
   let ((_ , M₁) , _ , eq₁ , _) = unsplitContext p in
   ∀ {Γ Θ} → [ p ] Γ ++ Δ ≅ Θ → Usages[ _≡_ , UsageEq ] eq₁ Θ (Γ U.⋈ unsplitUsages₁ p Δ)
 unsplitUsages₁-eq []        = []
@@ -284,7 +314,7 @@ unsplitUsages₁-eq (S ∷ˡ eq) = Eq.refl ∷ (unsplitUsages₁-eq eq)
 unsplitUsages₁-eq (S ∷ʳ eq) = Eq.refl ∷ (unsplitUsages₁-eq eq)
 
 unsplitUsages₂ :
-  ∀ {γ δ θ} (p : γ ++ δ ≅ θ) (Γ : Usages (fromList γ)) →
+  ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p} (p : γ ++ δ ≅ θ) (Γ : Usages γ) →
   let (_ , (_ , M₂) , _) = unsplitContext p
   in U.Mergey M₂
 unsplitUsages₂ []       Γ       = finish
@@ -292,14 +322,15 @@ unsplitUsages₂ (a ∷ˡ p) (A ∷ Γ) = insert A (unsplitUsages₂ p Γ)
 unsplitUsages₂ (a ∷ʳ p) Γ       = copy (unsplitUsages₂ p Γ)
 
 unsplitUsages₂-eq :
-  ∀ {γ δ θ} {p : γ ++ δ ≅ θ} {Γ : Usages (fromList γ)} →
+  ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p} {p : γ ++ δ ≅ θ} {Γ : Usages γ} →
   let (_ , (_ , M₂) , _ , eq₂) = unsplitContext p in
   ∀ {Δ Θ} → [ p ] Γ ++ Δ ≅ Θ → Usages[ _≡_ , UsageEq ] eq₂ Θ (Δ U.⋈ unsplitUsages₂ p Γ)
 unsplitUsages₂-eq []        = []
 unsplitUsages₂-eq (S ∷ˡ eq) = Eq.refl ∷ (unsplitUsages₂-eq eq)
 unsplitUsages₂-eq (S ∷ʳ eq) = Eq.refl ∷ (unsplitUsages₂-eq eq)
 
-≅-inj : ∀ {γ δ θ Γ₁ Γ₂ Δ₁ Δ₂ Θ} (p : γ ++ δ ≅ θ) →
+≅-inj : ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p}
+  {Γ₁ Γ₂ Δ₁ Δ₂ Θ} (p : γ ++ δ ≅ θ) →
   [ p ] Γ₁ ++ Δ₁ ≅ Θ → [ p ] Γ₂ ++ Δ₂ ≅ Θ →
   Γ₁ ≡ Γ₂ × Δ₁ ≡ Δ₂
 ≅-inj []       []         []          = Eq.refl , Eq.refl
@@ -307,7 +338,8 @@ unsplitUsages₂-eq (S ∷ʳ eq) = Eq.refl ∷ (unsplitUsages₂-eq eq)
 ≅-inj (σ ∷ʳ p) (S ∷ʳ eq₁) (.S ∷ʳ eq₂) = Prod.map id (cong (S ∷_)) $ ≅-inj p eq₁ eq₂
 
 splitFin :
-  ∀ {γ δ θ Γ₁ Γ₂ Δ₁ Δ₂ Γ Δ k σ} (p : γ ++ δ ≅ θ) →
+  ∀ {m n p} {γ : Context m} {δ : Context n} {θ : Context p}
+  {Γ₁ Γ₂ Δ₁ Δ₂ Γ Δ k σ} (p : γ ++ δ ≅ θ) →
   [ p ] Γ₁ ++ Γ₂ ≅ Γ → [ p ] Δ₁ ++ Δ₂ ≅ Δ →
   Γ ⊢ k ∈[ σ ]⊠ Δ → (∃ λ k → Γ₁ ⊢ k ∈[ σ ]⊠ Δ₁ × Γ₂ ≡ Δ₂)
                   ⊎ (∃ λ k → Γ₂ ⊢ k ∈[ σ ]⊠ Δ₂ × Γ₁ ≡ Δ₁)
@@ -330,13 +362,14 @@ splitFin (σ ∷ʳ p) (u ∷ʳ eq₁) (.u ∷ʳ eq₂) (s K) =
 -- Is this the right thing?
 Mix : ∀ {T} → Typing T → Set
 Mix {T} 𝓣 =
-  ∀ {γ δ θ Γ₁ Γ₂ Δ₁ Δ₂ Γ Γ′ Δ Δ′ t σ} (p q : γ ++ δ ≅ θ) →
+  ∀ {l m n} {γ : Context l} {δ : Context m} {θ : Context n}
+  {Γ₁ Γ₂ Δ₁ Δ₂ Γ Γ′ Δ Δ′ t σ} {p q : γ ++ δ ≅ θ} →
   [ p ] Γ₁ ++ Γ₂ ≅ Γ  → [ p ] Δ₁ ++ Δ₂ ≅ Δ → 
   [ q ] Γ₁ ++ Γ₂ ≅ Γ′ → [ q ] Δ₁ ++ Δ₂ ≅ Δ′ → 
   𝓣 Γ t σ Δ → ∃ λ t → 𝓣 Γ′ t σ Δ′
 
 mixFin : Mix TFin
-mixFin {Γ₁ = Γ₁} {Γ₂} p q eqΓ eqΔ eqΓ′ eqΔ′ K =
+mixFin {Γ₁ = Γ₁} {Γ₂} {p = p} {q} eqΓ eqΔ eqΓ′ eqΔ′ K =
   case splitFin p eqΓ eqΔ K of λ
   { (inj₁ (k , K , Γ₂≡Δ₂)) →
     let (_ , _ , eq₁ , _) = unsplitContext q
@@ -355,3 +388,50 @@ mixFin {Γ₁ = Γ₁} {Γ₂} p q eqΓ eqΔ eqΓ′ eqΔ′ K =
         EQΔ′              = UP.irrelevance _ (subst _ (Eq.sym Γ₁≡Δ₁) (UP.sym EQΔ′))
     in , extensionalFin eq₂ (CP.sym eq₂) EQΓ′ EQΔ′ K′
   }
+
+
+mutual
+
+  mixCheck : Mix TCheck
+  mixCheck eqΓ eqΔ eqΓ′ eqΔ′ (`lam b) =
+    Prod.map `lam_ `lam_ $ mixCheck (_ ∷ˡ eqΓ) (_ ∷ˡ eqΔ) (_ ∷ˡ eqΓ′) (_ ∷ˡ eqΔ′) b
+  mixCheck {p = p} {q} eqΓ eqΔ eqΓ′ eqΔ′ (`let pat ∷= t `in u) =
+    let (Δ₁  , Δ₂  , eqΔ₁₂) = splitUsages p _
+        (Δ′₁₂ , eqΔ′₁₂)     = unsplitUsages q Δ₁ Δ₂
+        (t , T)             = mixInfer eqΓ eqΔ₁₂ eqΓ′ eqΔ′₁₂ t
+        φ                   = patternContext pat
+        (u , U)             = mixCheck ([[ φ ]] ++ˡ eqΔ₁₂)  (]] φ [[ ++ˡ eqΔ)
+                                       ([[ φ ]] ++ˡ eqΔ′₁₂) (]] φ [[ ++ˡ eqΔ′) u
+    in , `let pat ∷= T `in U
+  mixCheck {p = p} {q} eqΓ eqΔ eqΓ′ eqΔ′ (`prd⊗ t u) =
+    let (Δ₁  , Δ₂  , eqΔ₁₂) = splitUsages p _
+        (Δ′₁₂ , eqΔ′₁₂)     = unsplitUsages q Δ₁ Δ₂
+        (t , T)             = mixCheck eqΓ eqΔ₁₂ eqΓ′ eqΔ′₁₂ t
+        (u , U)             = mixCheck eqΔ₁₂ eqΔ eqΔ′₁₂ eqΔ′ u
+    in , `prd⊗ T U
+  mixCheck eqΓ eqΔ eqΓ′ eqΔ′ (`prd& t u) =
+    let (t , T) = mixCheck eqΓ eqΔ eqΓ′ eqΔ′ t
+        (u , U) = mixCheck eqΓ eqΔ eqΓ′ eqΔ′ u
+    in , `prd& T U
+  mixCheck eqΓ eqΔ eqΓ′ eqΔ′ (`inl t) = Prod.map `inl_ `inl_ $ mixCheck eqΓ eqΔ eqΓ′ eqΔ′ t
+  mixCheck eqΓ eqΔ eqΓ′ eqΔ′ (`inr t) = Prod.map `inr_ `inr_ $ mixCheck eqΓ eqΔ eqΓ′ eqΔ′ t
+  mixCheck eqΓ eqΔ eqΓ′ eqΔ′ (`neu t) = Prod.map `neu_ `neu_ $ mixInfer eqΓ eqΔ eqΓ′ eqΔ′ t
+
+  mixInfer : Mix TInfer
+  mixInfer eqΓ eqΔ eqΓ′ eqΔ′ (`var k) = Prod.map `var_ `var_ $ mixFin eqΓ eqΔ eqΓ′ eqΔ′ k
+  mixInfer {p = p} {q} eqΓ eqΔ eqΓ′ eqΔ′ (`app f t) =
+    let (Δ₁  , Δ₂  , eqΔ₁₂) = splitUsages p _
+        (Δ′₁₂ , eqΔ′₁₂)     = unsplitUsages q Δ₁ Δ₂
+        (f , F)             = mixInfer eqΓ eqΔ₁₂ eqΓ′ eqΔ′₁₂ f
+        (t , T)             = mixCheck eqΔ₁₂ eqΔ eqΔ′₁₂ eqΔ′ t
+    in , `app F T
+  mixInfer eqΓ eqΔ eqΓ′ eqΔ′ (`fst p) = Prod.map `fst_ `fst_ $ mixInfer eqΓ eqΔ eqΓ′ eqΔ′ p
+  mixInfer eqΓ eqΔ eqΓ′ eqΔ′ (`snd p) = Prod.map `snd_ `snd_ $ mixInfer eqΓ eqΔ eqΓ′ eqΔ′ p
+  mixInfer {p = p} {q} eqΓ eqΔ eqΓ′ eqΔ′ (`case t return σ of l %% r) =
+    let (Δ₁  , Δ₂  , eqΔ₁₂) = splitUsages p _
+        (Δ′₁₂ , eqΔ′₁₂)     = unsplitUsages q Δ₁ Δ₂
+        (t , T)             = mixInfer eqΓ eqΔ₁₂ eqΓ′ eqΔ′₁₂ t
+        (l , L)             = mixCheck (_ ∷ˡ eqΔ₁₂) (_ ∷ˡ eqΔ) (_ ∷ˡ eqΔ′₁₂) (_ ∷ˡ eqΔ′) l
+        (r , R)             = mixCheck (_ ∷ˡ eqΔ₁₂) (_ ∷ˡ eqΔ) (_ ∷ˡ eqΔ′₁₂) (_ ∷ˡ eqΔ′) r
+    in , `case T return σ of L %% R
+  mixInfer eqΓ eqΔ eqΓ′ eqΔ′ (`cut t) = Prod.map _ `cut $ mixCheck eqΓ eqΔ eqΓ′ eqΔ′ t

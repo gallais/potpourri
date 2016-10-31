@@ -66,7 +66,7 @@ mutual
     
   data _⊢_∈_⊠_ {n : ℕ} {γ : Context n} (Γ : Usages γ) : (t : Infer n) (A : Type) (Δ : Usages γ) → Set where
 
-    `var : {σ : Type} {Δ : Usages γ} {k : Fin n} →
+    `var_ : {σ : Type} {Δ : Usages γ} {k : Fin n} →
 
              Γ ⊢ k ∈[ σ ]⊠ Δ →
           ----------------------
@@ -78,13 +78,13 @@ mutual
           ---------------------------------------
              Γ ⊢ `app t u ∈ τ ⊠ θ            
 
-    `fst : {σ τ : Type} {Δ : Usages γ} {t : Infer n} →
+    `fst_ : {σ τ : Type} {Δ : Usages γ} {t : Infer n} →
 
             Γ ⊢ t ∈ σ & τ ⊠ Δ →
           -----------------------
             Γ ⊢ `fst t ∈ σ ⊠ Δ           
 
-    `snd : {σ τ : Type} {Δ : Usages γ} {t : Infer n} →
+    `snd_ : {σ τ : Type} {Δ : Usages γ} {t : Infer n} →
 
             Γ ⊢ t ∈ σ & τ ⊠ Δ →
           -----------------------

@@ -19,10 +19,10 @@ mutual
     `neu_        : (t : Infer n) → Check n
 
   data Infer (n : ℕ) : Set where
-    `var                : (k : Fin n) → Infer n
+    `var_               : (k : Fin n) → Infer n
     `app                : (t : Infer n) (u : Check n) → Infer n
-    `fst                : (t : Infer n) → Infer n
-    `snd                : (t : Infer n) → Infer n
+    `fst_               : (t : Infer n) → Infer n
+    `snd_               : (t : Infer n) → Infer n
     `case_return_of_%%_ : (i : Infer n) (σ : Type) (l r : Check (suc n)) → Infer n
     `cut                : (t : Check n) (σ : Type) → Infer n
 

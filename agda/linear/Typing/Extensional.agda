@@ -35,7 +35,7 @@ mutual
 
   extensionalInfer : Extensional TInfer
   extensionalInfer eqs₁ eqs₂ EQs₁ EQs₂ (`var k) =
-    `var $ extensionalFin eqs₁ eqs₂ EQs₁ EQs₂ k
+    `var extensionalFin eqs₁ eqs₂ EQs₁ EQs₂ k
   extensionalInfer eqs₁ eqs₂ EQs₁ EQs₂ (`app f t) =
     let f′ = extensionalInfer eqs₁ eqs₂ EQs₁ (coerceʳ eqs₂) f
         t′ = extensionalCheck (CP.sym eqs₂) eqs₂ (coerceˡ eqs₂) EQs₂ t

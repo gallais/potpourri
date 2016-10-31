@@ -77,7 +77,7 @@ mutual
   thinningInfer : Thinning weakInfer TInfer
   thinningInfer 𝓜 Γ Δ (`var k) =
     let (k′ , eq , K) = thinningFin 𝓜 Γ Δ k
-    in `var k′ , cong `var eq , `var K
+    in `var k′ , cong `var_ eq , `var K
   thinningInfer 𝓜 Γ Δ (`app f t) =
     let (χ , eq)       = weaken⁻¹ 𝓜 (consumptionInfer f) (consumptionCheck t)
         (f′ , eqf , F) = thinningInfer 𝓜 Γ _ (subst (_ ⊢ _ ∈ _ ⊠_) eq f)
@@ -85,10 +85,10 @@ mutual
     in `app f′ t′ , cong₂ `app eqf eqt , `app F T
   thinningInfer 𝓜 Γ Δ (`fst t) =
     let (t′ , eqt , T) = thinningInfer 𝓜 Γ Δ t
-    in `fst t′ , cong `fst eqt , `fst T
+    in `fst t′ , cong `fst_ eqt , `fst T
   thinningInfer 𝓜 Γ Δ (`snd t) =
     let (t′ , eqt , T) = thinningInfer 𝓜 Γ Δ t
-    in `snd t′ , cong `snd eqt , `snd T
+    in `snd t′ , cong `snd_ eqt , `snd T
   thinningInfer 𝓜 Γ Δ (`case_return_of_%%_ {σ} {τ} {rχ} .{Δ U.⋈ 𝓜} {rt} {rl} {rr} t ν l r) =
     let (χ , eq)       = weaken⁻¹ 𝓜 (consumptionInfer t) (tail $ consumptionCheck l)
         (t′ , eqt , T) = thinningInfer 𝓜 Γ _ (subst (_ ⊢ _ ∈ _ ⊠_) eq t)
