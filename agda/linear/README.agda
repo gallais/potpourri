@@ -35,9 +35,15 @@ open import linear.Typing.Thinning
 open import linear.ILL
 open import linear.Model
 
+-- Mix aka context permutations (needed for completeness)
+open import linear.Mix
+open import linear.Context.Mix
+open import linear.Usage.Mix
+open import linear.Typing.Mix
+
 -- Soundness and Completeness
 open import linear.Soundness
--- open import linear.Completeness
+open import linear.Completeness
 
 -- Examples
 open import linear.Language.Examples
