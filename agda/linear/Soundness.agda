@@ -3,9 +3,11 @@ module linear.Soundness where
 open import Data.Nat
 open import Data.Product
 open import Data.List
+open import Data.Vec
 open import Function
 open import Algebra
 open import Relation.Binary.PropositionalEquality as PEq
+open ≡-Reasoning
 
 open import linear.Type
 open import linear.Context
@@ -16,6 +18,7 @@ open import linear.Typing.Consumption
 open import linear.ILL
 open import linear.Model
 open import linear.Usage.Erasure
+open import linear.Utils
 
 ILL : Linear _⊢_ _⊢_
 ILL = let open Monoid (monoid Type) in record
@@ -41,10 +44,22 @@ ILL = let open Monoid (monoid Type) in record
 -- Immediate consequence: every derivation in our extension
 -- gives rise to a derivation in ILL
 
-illCheck : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {t : Check n} {σ : Type} →
-           (T : Γ ⊢ σ ∋ t ⊠ Δ) → used (consumptionCheck T) ⊢ σ
-illCheck T = LINEAR.linearCheck ILL T (consumptionCheck T)
+illCheck : ∀ {γ σ t} → [[ fromList γ ]] ⊢ σ ∋ t ⊠ ]] fromList γ [[ → γ ⊢ σ
+illCheck {γ} {σ} T = subst (_⊢ σ) eqγ proof where
 
-illInfer : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {t : Infer n} {σ : Type} →
-           (T : Γ ⊢ t ∈ σ ⊠ Δ) → used (consumptionInfer T) ⊢ σ
-illInfer T = LINEAR.linearInfer ILL T (consumptionInfer T)
+   proof = LINEAR.linearCheck ILL T (consumptionCheck T)
+   eqγ   = begin
+             used (consumptionCheck T) ≡⟨ used-all (consumptionCheck T) ⟩
+             toList (fromList γ)       ≡⟨ toList∘fromList γ ⟩
+             γ
+           ∎
+
+illInfer : ∀ {γ σ t} → [[ fromList γ ]] ⊢ t ∈ σ ⊠ ]] fromList γ [[ → γ ⊢ σ
+illInfer {γ} {σ} T = subst (_⊢ σ) eqγ proof where
+
+   proof = LINEAR.linearInfer ILL T (consumptionInfer T)
+   eqγ   = begin
+             used (consumptionInfer T) ≡⟨ used-all (consumptionInfer T) ⟩
+             toList (fromList γ)       ≡⟨ toList∘fromList γ ⟩
+             γ
+           ∎

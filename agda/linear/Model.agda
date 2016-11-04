@@ -125,7 +125,7 @@ module LINEAR {𝓜^C 𝓜^I : Model} (𝓜 : Linear 𝓜^C 𝓜^I) where
         eq = let open ≡-Reasoning in
              begin
                used (pure θ UC.++ δ′)     ≡⟨ used-++ (pure θ) _ ⟩
-               used (pure θ) L.++ used δ′ ≡⟨ cong (L._++ used δ′) (used-pure θ) ⟩
+               used (pure θ) L.++ used δ′ ≡⟨ cong (L._++ used δ′) (used-all (pure θ)) ⟩
                toList θ L.++ used δ′
              ∎
         U′ : 𝓜^C (toList θ L.++ used δ′) _

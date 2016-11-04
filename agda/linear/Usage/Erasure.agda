@@ -38,9 +38,9 @@ used-refl : {n : ℕ} {γ : Context n} {Γ : Usages γ} (inc : Γ ⊆ Γ) → us
 used-refl []       = PEq.refl
 used-refl (─∷ inc) = used-refl inc
 
-used-pure : {n : ℕ} (γ : Context n) → used (pure γ) ≡ toList γ
-used-pure []      = PEq.refl
-used-pure (σ ∷ γ) = PEq.cong (σ ∷_) (used-pure γ)
+used-all : {n : ℕ} {γ : Context n} (pr : [[ γ ]] ⊆ ]] γ [[) → used pr ≡ toList γ
+used-all []      = PEq.refl
+used-all (σ ∷ γ) = PEq.cong (σ ∷_) (used-all γ)
 
 used-++ : {k l : ℕ} {γ : Context k} {δ : Context l} {Γ Γ′ : Usages γ} {Δ Δ′ : Usages δ}
           (incΓ : Γ ⊆ Γ′) (incΔ : Δ ⊆ Δ′) →
