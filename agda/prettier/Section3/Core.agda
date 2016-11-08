@@ -24,7 +24,7 @@ record Press {ℓ} (Doc : Set ℓ) : Set ℓ where
 infixr 4 _<|>_
 data Doc : Bool → Set where
   []    : ∀ {b} → Doc b
-  _<>_  : ∀ {b} → Doc b → Doc b → Doc b
+  _<>_  : ∀ {b c} → Doc b → Doc c → Doc (b ∨ c)
   txt   : ∀ {b} → String → Doc b
   _>>_  : ∀ {b} → ℕ → Doc b → Doc b
   ln    : ∀ {b} → Doc b
@@ -41,17 +41,25 @@ press = record
   ; layout = layout
   } where
 
-  flatten : ∀ {b} → Doc b → Doc false
-  flatten []        = []
-  flatten (d <> e)  = flatten d <> flatten e
-  flatten (txt s)   = txt s
-  flatten (n >> d)  = flatten d
-  flatten ln        = txt " "
-  flatten (d <|> e) = flatten d
+  -- We have two flattens in order to quickly return
+  -- if the index already tells us that we're sum-free.
+  flatten  : ∀ {b} → Doc b → Doc false
+  flatten′ : ∀ {b} → Doc b → Doc false
+
+  flatten {false} d = d
+  flatten         d = flatten′ d 
+
+  flatten′ []        = []
+  flatten′ (d <> e)  = flatten d <> flatten e
+  flatten′ (txt s)   = txt s
+  flatten′ (n >> d)  = flatten d
+  flatten′ ln        = txt " "
+  flatten′ (d <|> e) = flatten d
 
   group : ∀ {b} → Doc b → Doc true
   group d = flatten d <|> d
 
+  -- CPS presentation makes termination obvious
   best : ∀ {b} → ℕ → Doc b → S2.Doc false
   best w d = go w 0 0 d $ λ _ → S2.[] where
 
@@ -62,7 +70,7 @@ press = record
     go w k i (n >> d)  ds = go w k (i + n) d ds
     go w k i ln        ds = i S2.vv ds i
     go w k i (d <|> e) ds = better w k (go w k i d ds) (go w k i e ds)
-      where open S2.pressImplementation using (better)
+      where open S2.pressImplementation
 
   layout : ℕ → Doc true → String
   layout w d = S2.pressImplementation.layout $ best w d
