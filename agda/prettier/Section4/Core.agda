@@ -1,5 +1,6 @@
 module Section4.Core where
 
+import Level
 open import Data.Nat
 import Data.Integer as ℤ
 open import Data.Bool
@@ -15,9 +16,10 @@ open import Relation.Binary.PropositionalEquality
 import Section2.Core as S2
 
 
-record Press {ℓ} (Doc : Set ℓ) : Set ℓ where
+record Press ℓ : Set (Level.suc ℓ) where
   infixr 5 _<>_
   field
+    Doc    : Set ℓ
     _<>_   : Doc → Doc → Doc
     ε      : Doc
     text   : String → Doc
@@ -32,7 +34,6 @@ record Press {ℓ} (Doc : Set ℓ) : Set ℓ where
   foldDoc f []       = ε
   foldDoc f (x ∷ []) = x
   foldDoc f (x ∷ xs) = f x (foldDoc f xs)
-
 
   _<+>_ = λ d e → d <> text " " <> e
   spread = foldDoc _<+>_
@@ -60,9 +61,10 @@ private
     ln    : ∀ {b} → Doc b
     _<|>_ : ∀ {b c} → Doc b → Doc c → Doc true
 
-press : Press (Doc true)
+press : Press _
 press = record
-  { _<>_   = _<>_
+  { Doc    = Doc true
+  ; _<>_   = _<>_
   ; ε      = []
   ; text   = txt
   ; line   = ln

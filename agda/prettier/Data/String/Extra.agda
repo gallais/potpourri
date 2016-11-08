@@ -4,7 +4,7 @@ open import Data.Bool
 open import Data.Product
 open import Data.List as List
 open import Data.Char as Char
-open import Data.String
+open import Data.String as String
 open import Function
 open import Relation.Binary.PropositionalEquality
 
@@ -22,3 +22,5 @@ _ : words "Hello world, This a test! And it works!"
   ≡ "Hello" ∷ "world," ∷ "This" ∷ "a" ∷ "test!" ∷ "And" ∷ "it" ∷ "works!" ∷ []
 _ = refl
 
+quoted : String → String
+quoted v = "\"" String.++ v String.++ "\""
