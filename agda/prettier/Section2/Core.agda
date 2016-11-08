@@ -34,7 +34,7 @@ press = record
   ; nest   = nest
   ; group  = group
   ; layout = λ w → layout ∘ best w 0
-  } where
+  } module pressImplementation where
 
   forget : ∀ {b} → Doc b → Doc true
   forget []        = []
@@ -66,20 +66,20 @@ press = record
   group (n vv d)  = (" " << flatten d) <|> (n vv d)
   group (d <|> e) = group d <|> e
 
+  fits : ℤ.ℤ → Doc false → Bool
+  fits ℤ.-[1+ _ ] _ = false
+  fits k []         = true
+  fits k (s << d)   = fits (k ℤ.- ℤ.+ length (toList s)) d
+  fits k (n vv d)   = true
+
+  better : ℕ → ℕ → Doc false → Doc false → Doc false
+  better w k d e = if fits (let open ℤ in + w - + k) d then d else e
+
   best : ∀ {b} → ℕ → ℕ → Doc b → Doc false
   best w k []        = []
   best w k (s << d)  = s << best w (k + length (toList s)) d
   best w k (n vv d)  = n vv best w n d
-  best w k (d <|> e) = better w k (best w k d) (best w k e) where
-
-   fits : ℤ.ℤ → Doc false → Bool
-   fits ℤ.-[1+ _ ] _ = false
-   fits k []         = true
-   fits k (s << d)   = fits (k ℤ.- ℤ.+ length (toList s)) d
-   fits k (n vv d)   = true
-
-   better : ℕ → ℕ → Doc false → Doc false → Doc false
-   better w k d e = if fits (let open ℤ in + w - + k) d then d else e
+  best w k (d <|> e) = better w k (best w k d) (best w k e)
 
   layout : Doc false → String
   layout []       = ""
