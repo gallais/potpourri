@@ -15,20 +15,27 @@ record Stream {ℓ} (A : Set ℓ) (i : Size) : Set ℓ where
     tail : {j : Size< i} → Stream A j
 open Stream public
 
-unfold : ∀ {ℓ ℓ′} {S : Set ℓ} {A : Set ℓ′} → (S → A × S) → S → ∀ {i} → Stream A i
-head (unfold next seed) = proj₁ $ next seed
-tail (unfold next seed) = unfold next (proj₂ $ next seed)
+module _ {ℓ} {A : Set ℓ} where
 
-pure : ∀ {ℓ} {A : Set ℓ} → A → Stream A ∞
-pure a = unfold (λ a → (a , a)) a
+  unfold : ∀ {ℓ′} {S : Set ℓ′} → (S → A × S) → S → ∀ {i} → Stream A i
+  head (unfold next seed) = proj₁ $ next seed
+  tail (unfold next seed) = unfold next (proj₂ $ next seed)
 
-app : ∀ {ℓ ℓ′} {A : Set ℓ} {B : Set ℓ′} →
-      ∀ {i} → Stream (A → B) i → Stream A i → Stream B i
-head (app fs as) = head fs $ head as
-tail (app fs as) = app (tail fs) (tail as)
+  pure : A → Stream A ∞
+  pure a = unfold (λ a → (a , a)) a
 
-map : ∀ {ℓ ℓ′} {A : Set ℓ} {B : Set ℓ′} → (A → B) → ∀ {i} → Stream A i → Stream B i
-map f s = app (pure f) s
+  data In : (a : A) (xs : Stream A ∞) → Set ℓ where
+    here  : ∀ {xs} →                    In (head xs) xs
+    there : ∀ {a xs} → In a (tail xs) → In a         xs
+
+module _ {ℓ ℓ′} {A : Set ℓ} {B : Set ℓ′} where
+
+  app : ∀ {i} → Stream (A → B) i → Stream A i → Stream B i
+  head (app fs as) = head fs $ head as
+  tail (app fs as) = app (tail fs) (tail as)
+
+  map : (A → B) → ∀ {i} → Stream A i → Stream B i
+  map f s = app (pure f) s
 
 module _ {ℓ ℓ′} {A : Set ℓ} (P : A → Set ℓ′) where
 
@@ -63,15 +70,40 @@ module _ {ℓ ℓ′} {A : Set ℓ} {P : A → Set ℓ′} where
 
 module _ {ℓ ℓ′ ℓ′′} {A : Set ℓ} {P : A → Set ℓ′} {Q : A → Set ℓ′′} where
 
-  □-filter  : {s : Stream A ∞} (inf : Infinite P s) →
+  filter-□  : {s : Stream A ∞} (inf : Infinite P s) →
               □ Q s → ∀ {i} → □ Q {i} (filter s inf)
-  □-filter⋄ : {s : Stream A ∞} (inf : Infinite P s) (di : ⋄ P s) →
+  filter⋄-□ : {s : Stream A ∞} (inf : Infinite P s) (di : ⋄ P s) →
               □ Q s → ∀ {i} → □ Q {i} (filter⋄ s inf di)
 
-  □-filter inf □Q = □-filter⋄ inf (⋄here inf) □Q
+  filter-□ inf □Q = filter⋄-□ inf (⋄here inf) □Q
 
-  Phead (□-filter⋄ inf (now _) □Q) = Phead □Q
-  Ptail (□-filter⋄ inf (now _) □Q) = □-filter (□tail inf) (Ptail □Q)
-  □-filter⋄ inf (later _ di) □Q = □-filter⋄ (□tail inf) di (Ptail □Q)
+  Phead (filter⋄-□ inf (now _) □Q) = Phead □Q
+  Ptail (filter⋄-□ inf (now _) □Q) = filter-□ (□tail inf) (Ptail □Q)
+  filter⋄-□ inf (later _ di) □Q = filter⋄-□ (□tail inf) di (Ptail □Q)
+
+module _ {ℓ ℓ′} {A : Set ℓ} {P : A → Set ℓ′} where
+
+  □-filter : {s : Stream A ∞} (inf : Infinite P s) →
+             ∀ {i} → □ P {i} (filter s inf)
+  □-filter⋄ : {s : Stream A ∞} (inf : Infinite P s) (di : ⋄ P s) →
+              ∀ {i} → □ P {i} (filter⋄ s inf di)
+
+  □-filter inf = □-filter⋄ inf (⋄here inf)
+
+  Phead (□-filter⋄ inf (now p)) = p
+  Ptail (□-filter⋄ inf (now _)) = □-filter (□tail inf)
+  □-filter⋄ inf (later _ di) = □-filter⋄ (□tail inf) di
 
 
+  ∈-filter  : {a : A} {s : Stream A ∞} (inf : Infinite P s) →
+              In a s → P a → In a (filter s inf)
+  ∈-filter⋄ : {a : A} {s : Stream A ∞} (inf : Infinite P s) (di : ⋄ P s) →
+              In a s → P a → In a (filter⋄ s inf di)
+
+
+  ∈-filter inf index = ∈-filter⋄ inf (⋄here inf) index
+
+  ∈-filter⋄ inf (now _)       here          p = here
+  ∈-filter⋄ inf (now _)       (there index) p = there (∈-filter (□tail inf) index p)
+  ∈-filter⋄ inf (later ¬p di) here          p = ⊥-elim (¬p p)
+  ∈-filter⋄ inf (later ¬p di) (there index) p = ∈-filter⋄ (□tail inf) di index p
