@@ -35,11 +35,14 @@ data RTm a where
   RA :: RTm a -> RTm a -> RTm a
   RL :: a -> RTm a -> RTm a
 
-scopeCheck :: forall a. Eq a => forall m. (a -> Maybe (Var m)) -> RTm a -> Maybe (Tm m)
-scopeCheck rho e = case e of
+scopeCheck :: forall a. Eq a => RTm a -> Maybe (Tm 'Z)
+scopeCheck = scopeCheck' (const Nothing)
+
+scopeCheck' :: forall a. Eq a => forall m. (a -> Maybe (Var m)) -> RTm a -> Maybe (Tm m)
+scopeCheck' rho e = case e of
   RV a   -> V <$> rho a
-  RA f t -> A <$> scopeCheck rho f <*> scopeCheck rho t
-  RL x b -> L <$> scopeCheck (extend x rho) b
+  RA f t -> A <$> scopeCheck' rho f <*> scopeCheck' rho t
+  RL x b -> L <$> scopeCheck' (extend x rho) b
 
   where
 
