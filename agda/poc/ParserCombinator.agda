@@ -4,23 +4,23 @@ open import Data.Nat
 open import Data.Sum as S
 open import Data.Product as P
 
-infixr 2 _⟶_
+infixr 1 _⟶_
 _⟶_ : (A B : ℕ → Set) → (ℕ → Set)
 (A ⟶ B) n = A n → B n
 
-infixr 3 _⊕_
+infixr 2 _⊕_
 _⊕_ : (A B : ℕ → Set) → (ℕ → Set)
 (A ⊕ B) n = A n ⊎ B n
 
-infixr 4 _⊗_
+infixr 3 _⊗_
 _⊗_ : (A B : ℕ → Set) → (ℕ → Set)
 (A ⊗ B) n = A n × B n
 
-infix 3 □_
+infix 4 □_
 □_ : (A : ℕ → Set) → (ℕ → Set)
 (□ A) n = ∀ m → .(m < n) → A m
 
-infix 4 [_]
+infix 5 [_]
 [_] : (A : ℕ → Set) → Set
 [ A ] = ∀ {n} → A n
 
@@ -93,11 +93,11 @@ b <$ p = const b <$> p
 return : {A : Set} → [ Parser A ⟶ □ Parser A ]
 runParser (return p lt le) s = runParser p (≤-trans s (<⇒≤ le))
 
-fix□ : {A : Set} → [ (□ Parser A ⟶ Parser A) ] → [ □ Parser A ]
+fix□ : {A : ℕ → Set} → [ □ A ⟶ A ] → [ □ A ]
 fix□ f {zero}  = λ _ ()
 fix□ f {suc n} = λ m m<sn → f (λ p p<m → fix□ f p (≤-trans p<m (≤-pred m<sn)))
 
-fix : {A : Set} → [ (□ Parser A ⟶ Parser A) ] → [ Parser A ]
+fix : {A : ℕ → Set} → [ □ A ⟶ A ] → [ A ]
 fix = run ∘ fix□
 
 open import Relation.Nullary
@@ -113,7 +113,7 @@ open import Category.Monad
 import Level
 open RawMonad (M.monad {Level.zero}) using (_>>=_)
 
-infixl 4 _<&>_
+infixl 4 _<&>_ _<&_ _&>_
 _<&>_ : {A B : Set} → [ Parser A ⟶ □ Parser B ⟶ Parser (A × B) ]
 runParser (A <&> B) m≤n s =
   runParser A m≤n s >>= λ rA →
@@ -122,6 +122,16 @@ runParser (A <&> B) m≤n s =
   let (b , q , q<p , s′′) = rB in
   just ((a , b) , q , <-trans q<p p<m , s′′)
 
+_<&_ : {A B : Set} → [ Parser A ⟶ □ Parser B ⟶ Parser A ]
+A <& B = proj₁ <$> (A <&> B)
+
+_&>_ : {A B : Set} → [ Parser A ⟶ □ Parser B ⟶ Parser B ]
+A &> B = proj₂ <$> (A <&> B)
+
+infixr 5 _<*>_
+_<*>_ : {A B : Set} → [ Parser (A → B) ⟶ Parser A ⟶ Parser B ]
+F <*> A = uncurry _$_ <$> (F <&> return A)
+
 infixr 3 _<|>_
 _<|>_ : {A B : Set} → [ Parser A ⟶ Parser B ⟶ Parser (A ⊎ B) ]
 runParser (A <|> B) m≤n s with runParser (inj₁ <$> A) m≤n s
@@ -129,7 +139,7 @@ runParser (A <|> B) m≤n s with runParser (inj₁ <$> A) m≤n s
 ... | r = r
 
 Nat : [ Parser ℕ ]
-Nat = fix (λ r → [ id , suc ∘ proj₂ ]′ <$> (0 <$ char 'Z' <|> char 'S' <&> r))
+Nat = fix (λ r → [ id , suc ]′ <$> (0 <$ char 'Z' <|> char 'S' &> r))
 
 import Data.String as String
 open String using () renaming (String to Text)
@@ -137,6 +147,7 @@ open String using () renaming (String to Text)
 `_ : (s : Text) → String (length (String.primStringToList s))
 ` s = let xs = String.primStringToList s in mkVec xs (trivial xs)
 
+infix 0 _!
 data Singleton {A : Set} : A → Set where
   _! : (a : A) → Singleton a
 
@@ -151,17 +162,27 @@ _ = 0 !
 _ : "SSSSSZ" ∈ Nat
 _ = 5 !
 
+List′ :  {A : Set} → [ Parser A ] → [ Parser (List A) ]
+List′ A = fix (λ r → [ id , uncurry _∷_ ]′
+                     <$> ([] <$ char 'N'
+                     <|> char 'C' &> return A <&> r))
+
+_ : "CSSSZCSSZCZN" ∈ List′ Nat
+_ = 3 ∷ 2 ∷ 0 ∷ [] !
 
 data Tree (A : Set) : Set where
   leaf : A → Tree A
   node : Tree A → Tree A → Tree A
 
 BTree : {A : Set} → [ Parser A ] → [ Parser (Tree A) ]
-BTree A = fix (λ r → [ leaf ∘ proj₂ , uncurry (node ∘ proj₂) ]′
-                 <$> (char 'L' <&> return A <|> char 'N' <&> r <&> r))
+BTree A = fix (λ r → [ leaf , uncurry node ]′
+                 <$> (char 'L' &> return A <|> char 'N' &> r <&> r))
 
 _ : "NNLZLSSZLZ" ∈ BTree Nat
 _ = node (node (leaf 0) (leaf 2)) (leaf 0) !
 
 _ : "NNLZLSSZNLZLSSSZ" ∈ BTree Nat
 _ = node (node (leaf 0) (leaf 2)) (node (leaf 0) (leaf 3)) !
+
+_ : "NLNLZLZLLSZ" ∈ BTree (BTree Nat)
+_ = node (leaf (node (leaf 0) (leaf 0))) (leaf (leaf 1)) !
