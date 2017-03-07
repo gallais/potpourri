@@ -67,8 +67,8 @@ vec {suc n} (mkVec [] ())
 ≤-trans z≤n _ = z≤n
 ≤-trans (s≤s le₁) (s≤s le₂) = s≤s (≤-trans le₁ le₂)
 
-run : {A : ℕ → Set} → [ □ A ] → [ A ]
-run a {n} = a {suc n} n ≤-refl 
+extract : {A : ℕ → Set} → [ □ A ] → [ A ]
+extract a {n} = a {suc n} n ≤-refl
 
 String = Vec Char
 
@@ -93,12 +93,15 @@ b <$ p = const b <$> p
 return : {A : Set} → [ Parser A ⟶ □ Parser A ]
 runParser (return p lt le) s = runParser p (≤-trans s (<⇒≤ le))
 
+duplicate : {A : ℕ → Set} → [ □ A ⟶ □ □ A ]
+duplicate □A m m<n p p<m = □A p (<-trans p<m m<n)
+
 fix□ : {A : ℕ → Set} → [ □ A ⟶ A ] → [ □ A ]
 fix□ f {zero}  = λ _ ()
 fix□ f {suc n} = λ m m<sn → f (λ p p<m → fix□ f p (≤-trans p<m (≤-pred m<sn)))
 
 fix : {A : ℕ → Set} → [ □ A ⟶ A ] → [ A ]
-fix = run ∘ fix□
+fix = extract ∘ fix□
 
 open import Relation.Nullary
 
