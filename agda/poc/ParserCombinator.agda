@@ -36,13 +36,13 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Relation.Nullary.Decidable
 
 ∣_∣≡_ : {A : Set} → List A → ℕ → Set
-∣ [] ∣≡ zero = ⊤
-∣ [] ∣≡ suc n = ⊥
-∣ x ∷ xs ∣≡ zero = ⊥
+∣ []     ∣≡ zero  = ⊤
 ∣ x ∷ xs ∣≡ suc n = ∣ xs ∣≡ n
+∣ []     ∣≡ suc n = ⊥
+∣ x ∷ xs ∣≡ zero  = ⊥
 
 trivial : {A : Set} (xs : List A) → ∣ xs ∣≡ length xs
-trivial [] = tt
+trivial []       = tt
 trivial (x ∷ xs) = trivial xs
 
 record Vec (A : Set) (n : ℕ) : Set where
@@ -176,16 +176,19 @@ module _ {A B : Set} where
  hchainl : [ Parser A ⟶ □ Parser (A → B → A) ⟶ □ Parser B ⟶ Parser A ]
  runParser (hchainl {m} pA pOp pB) {n} n≤m = kickstart where
 
+   goal : ℕ → Set
+   goal = Success A
+
    step : ∀ {n p} (p≤n : p ≤ n)
-          (r : (□ (_≤ n ⟶ Success A ⟶ Success A)) p) (acc : Success A p) →
-          Success ((A → B → A) × B) (Success.size acc) → Success A p
+          (r : (□ (_≤ n ⟶ goal ⟶ goal)) p) (acc : goal p) →
+          Success ((A → B → A) × B) (Success.size acc) → goal p
    step p≤n rec (a , q , q<p , _) ((op P., b) , r , r<q , str) =
      let q≤n = ≤-trans (<⇒≤ q<p) p≤n
          (a , s , s<q , str′) = rec q q<p q≤n (op a b , r , r<q , str) in
      a , s , <-trans s<q q<p , str′
 
-   chain : Success A n → Success A n
-   chain = (fix (_≤ n ⟶ Success A ⟶ Success A) $ λ {p} rec p≤n acc →
+   chain : goal n → goal n
+   chain = (fix (_≤ n ⟶ goal ⟶ goal) $ λ {p} rec p≤n acc →
            let (a , q , q<p , s) = acc
                .q<m : q < m
                q<m = ≤-trans q<p (≤-trans p≤n n≤m)
@@ -193,7 +196,7 @@ module _ {A B : Set} where
               (pOp q q<m <&> return (pB q q<m)) ≤-refl s)
            ≤-refl
 
-   kickstart : String n → Maybe (Success A n)
+   kickstart : String n → Maybe (goal n)
    kickstart s = runParser pA n≤m s MM.>>= just ∘ chain
 
 module _ {A : Set} where
@@ -210,28 +213,33 @@ module _ {A : Set} where
  chainl1 : [ Parser A ⟶ □ Parser (A → A → A) ⟶ Parser A ]
  chainl1 a op = hchainl a op (return a)
 
- list⁺ : [ Parser A ⟶ Parser (List⁺ A) ]
- runParser (list⁺ {m} pA) {n} n≤m = kickstart where
+ head+tail : [ Parser A ⟶ □ Parser A ⟶ Parser (List⁺ A) ]
+ runParser (head+tail {m} pHd pTl) {n} n≤m = kickstart where
 
-   step : ∀ {n p} (p≤n : p ≤ n)
-          (r : (□ (_≤ n ⟶ Success (List⁺ A) ⟶ Success (List⁺ A))) p) (acc : Success (List⁺ A) p) →
-          Success A (Success.size acc) → Success (List⁺ A) p
+   goal : ℕ → Set
+   goal = Success (List⁺ A)
+
+   step : ∀ {n p} (p≤n : p ≤ n) (r : (□ (_≤ n ⟶ goal ⟶ goal)) p)
+          (acc : goal p) → Success A (Success.size acc) → goal p
    step p≤n rec (a , q , q<p , _) (b , r , r<q , str) =
      let q≤n = ≤-trans (<⇒≤ q<p) p≤n
          (a , s , s<q , str′) = rec q q<p q≤n ((b ∷⁺ a) , r , r<q , str) in
      a , s , <-trans s<q q<p , str′
 
-   chain : Success (List⁺ A) n → Success (List⁺ A) n
+   chain : goal n → goal n
    chain = (fix (_≤ n ⟶ Success (List⁺ A) ⟶ Success (List⁺ A)) $ λ {p} rec p≤n acc →
            let (a , q , q<p , s) = acc
                .q<m : q < m
                q<m = ≤-trans q<p (≤-trans p≤n n≤m)
-           in maybe (step p≤n rec acc) acc $ runParser (return pA q q<m) ≤-refl s)
+           in maybe (step p≤n rec acc) acc $ runParser (pTl q q<m) ≤-refl s)
            ≤-refl
 
-   kickstart : String n → Maybe (Success (List⁺ A) n)
-   kickstart s = runParser pA n≤m s MM.>>=
+   kickstart : String n → Maybe (goal n)
+   kickstart s = runParser pHd n≤m s MM.>>=
                  just ∘ smap NonEmpty.reverse ∘ chain ∘ smap (_∷ [])
+
+ list⁺ : [ Parser A ⟶ Parser (List⁺ A) ]
+ list⁺ pA = head+tail pA (return pA)
 
  parens : [ □ Parser A ⟶ Parser A ]
  parens A = char '(' &> A <& return (char ')')
