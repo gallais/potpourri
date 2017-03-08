@@ -2,7 +2,7 @@ module poc.ParserCombinator where
 
 open import Data.Nat
 open import Data.Sum as S
-open import Data.Product as P
+open import Data.Product as P hiding (_,_)
 
 infixr 1 _⟶_
 _⟶_ : (A B : ℕ → Set) → (ℕ → Set)
@@ -75,16 +75,26 @@ String = Vec Char
 <⇒≤ : ∀ {m n} → m < n → m ≤ n
 <⇒≤ = ≤-trans (n≤1+n _)
 
+record Success (A : Set) (n : ℕ) : Set where
+  constructor _,_,_,_
+  field
+    value : A
+    size  : ℕ
+    small : size < n
+    left  : String size
+
 record Parser (A : Set) (n : ℕ) : Set where
   constructor mkParser
-  field runParser : ∀ {m} → .(m ≤ n) → String m → Maybe (A × ∃ λ p → p < m × String p)
+  field runParser : ∀ {m} → .(m ≤ n) → String m → Maybe (Success A m)
 open Parser
 
 open import Function
 
 infixr 5 _<$>_
 _<$>_ : {A B : Set} → (A → B) → [ Parser A ⟶ Parser B ]
-runParser (f <$> p) lt s = M.map (P.map f id) (runParser p lt s)
+runParser (f <$> p) lt s = flip M.map (runParser p lt s) $ λ rA →
+  let (a , p , p<m , s′) = rA in
+  f a , p , p<m , s′
 
 infixr 5 _<$_
 _<$_ : {A B : Set} → B → [ Parser A ⟶ Parser B ]
@@ -96,6 +106,7 @@ runParser (return p lt le) s = runParser p (≤-trans s (<⇒≤ le))
 duplicate : {A : ℕ → Set} → [ □ A ⟶ □ □ A ]
 duplicate □A m m<n p p<m = □A p (<-trans p<m m<n)
 
+
 fix□ : {A : ℕ → Set} → [ □ A ⟶ A ] → [ □ A ]
 fix□ f {zero}  = λ _ ()
 fix□ f {suc n} = λ m m<sn → f (λ p p<m → fix□ f p (≤-trans p<m (≤-pred m<sn)))
@@ -104,6 +115,11 @@ fix : {A : ℕ → Set} → [ □ A ⟶ A ] → [ A ]
 fix = extract ∘ fix□
 
 open import Relation.Nullary
+
+anyChar : [ Parser Char ]
+runParser anyChar lt s with vec s
+... | nil       = nothing
+... | cons a as = just (a , _ , ≤-refl , as)
 
 char : Char → [ Parser Char ]
 runParser (char c) lt s with vec s
@@ -114,35 +130,71 @@ runParser (char c) lt _ | cons a as | no ¬p = nothing
 
 open import Category.Monad
 import Level
-open RawMonad (M.monad {Level.zero}) using (_>>=_)
+module MM = RawMonad (M.monad {Level.zero}) using (_>>=_)
 
-infixl 4 _<&>_ _<&_ _&>_
-_<&>_ : {A B : Set} → [ Parser A ⟶ □ Parser B ⟶ Parser (A × B) ]
-runParser (A <&> B) m≤n s =
-  runParser A m≤n s >>= λ rA →
-  let (a , p , p<m , s′) = rA in
-  runParser (B p (≤-trans p<m m≤n)) ≤-refl s′ >>= λ rB →
-  let (b , q , q<p , s′′) = rB in
-  just ((a , b) , q , <-trans q<p p<m , s′′)
+module _ {A B : Set} where
 
-_<&_ : {A B : Set} → [ Parser A ⟶ □ Parser B ⟶ Parser A ]
-A <& B = proj₁ <$> (A <&> B)
+ _>>=_ : [ Parser A ⟶ (const A ⟶ □ Parser B) ⟶ Parser B ]
+ runParser (A >>= B) m≤n s =
+   runParser A m≤n s MM.>>= λ rA →
+   let (a , p , p<m , s′) = rA in
+   runParser (B a p (≤-trans p<m m≤n)) ≤-refl s′ MM.>>= λ rB →
+   let (b , q , q<p , s′′) = rB in
+   just (b , q , <-trans q<p p<m , s′′)
 
-_&>_ : {A B : Set} → [ Parser A ⟶ □ Parser B ⟶ Parser B ]
-A &> B = proj₂ <$> (A <&> B)
+ infixl 4 _<&>_ _<&_ _&>_
+ _<&>_ : [ Parser A ⟶ □ Parser B ⟶ Parser (A × B) ]
+ runParser (A <&> B) m≤n s =
+   runParser A m≤n s MM.>>= λ rA →
+   let (a , p , p<m , s′) = rA in
+   runParser (B p (≤-trans p<m m≤n)) ≤-refl s′ MM.>>= λ rB →
+   let (b , q , q<p , s′′) = rB in
+   just ((a P., b) , q , <-trans q<p p<m , s′′)
 
-infixr 5 _<*>_
-_<*>_ : {A B : Set} → [ Parser (A → B) ⟶ Parser A ⟶ Parser B ]
-F <*> A = uncurry _$_ <$> (F <&> return A)
+ _<&_ : [ Parser A ⟶ □ Parser B ⟶ Parser A ]
+ A <& B = proj₁ <$> (A <&> B)
 
-infixr 3 _<|>_
-_<|>_ : {A B : Set} → [ Parser A ⟶ Parser B ⟶ Parser (A ⊎ B) ]
-runParser (A <|> B) m≤n s with runParser (inj₁ <$> A) m≤n s
-... | nothing = runParser (inj₂ <$> B) m≤n s
-... | r = r
+ _&>_ : [ Parser A ⟶ □ Parser B ⟶ Parser B ]
+ A &> B = proj₂ <$> (A <&> B)
 
-Nat : [ Parser ℕ ]
-Nat = fix (λ r → [ id , suc ]′ <$> (0 <$ char 'Z' <|> char 'S' &> r))
+module _ {A B : Set} where
+
+ infixr 5 _<*>_
+ _<*>_ : {A B : Set} → [ Parser (A → B) ⟶ Parser A ⟶ Parser B ]
+ F <*> A = uncurry _$_ <$> (F <&> return A)
+
+ infixr 3 _<|>_
+ _<|>_ : [ Parser A ⟶ Parser B ⟶ Parser (A ⊎ B) ]
+ runParser (A <|> B) m≤n s with runParser (inj₁ <$> A) m≤n s
+ ... | nothing = runParser (inj₂ <$> B) m≤n s
+ ... | r = r
+
+ hchainl : [ Parser A ⟶ □ Parser (A → B → A) ⟶ □ Parser B ⟶ Parser A ]
+ runParser (hchainl {m} pA pOp pB) {n} n≤m = kickstart where
+
+   step : ∀ {n p} (p≤n : p ≤ n)
+          (r : (□ (_≤ n ⟶ Success A ⟶ Success A)) p) (acc : Success A p) →
+          Success ((A → B → A) × B) (Success.size acc) → Success A p
+   step p≤n rec (a , q , q<p , _) ((op P., b) , r , r<q , str) =
+     let q≤n = ≤-trans (<⇒≤ q<p) p≤n
+         (a , s , s<q , str′) = rec q q<p q≤n (op a b , r , r<q , str) in
+     a , s , <-trans s<q q<p , str′
+
+   chain : Success A n → Success A n
+   chain = (fix {A = _≤ n ⟶ Success A ⟶ Success A} $ λ {p} rec p≤n acc →
+           let (a , q , q<p , s) = acc
+               .q<m : q < m
+               q<m = ≤-trans q<p (≤-trans p≤n n≤m)
+           in maybe (step p≤n rec acc) acc $ runParser
+              (pOp q q<m <&> return (pB q q<m)) ≤-refl s)
+           ≤-refl
+
+   kickstart : String n → Maybe (Success A n)
+   kickstart s = runParser pA n≤m s MM.>>= just ∘ chain
+
+---------------------------------------------------------------
+-- EXAMPLES
+---------------------------------------------------------------
 
 import Data.String as String
 open String using () renaming (String to Text)
@@ -158,6 +210,19 @@ _∈_ : {A : Set} → Text → [ Parser A ] → Set
 s ∈ A with runParser A (n≤1+n _) (` s)
 s ∈ A | just (a , 0 , _ , _)  = Singleton a
 s ∈ A | _ = ⊥
+
+data Expr : Set where
+  Var : Char → Expr
+  Add : Expr → Expr → Expr
+
+Exp : [ Parser Expr ]
+Exp = hchainl (Var <$> anyChar) (return $ Add <$ char '+') (return $ Var <$> anyChar)
+
+_ : "x+y+z" ∈ Exp
+_ = Add (Add (Var 'x') (Var 'y')) (Var 'z') !
+
+Nat : [ Parser ℕ ]
+Nat = fix (λ r → [ id , suc ]′ <$> (0 <$ char 'Z' <|> char 'S' &> r))
 
 _ : "Z" ∈ Nat
 _ = 0 !
