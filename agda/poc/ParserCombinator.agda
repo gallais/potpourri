@@ -33,7 +33,8 @@ open import Data.Bool
 open import Data.Maybe as M
 open import Data.Char
 open import Data.Nat.Properties
-open import Data.List hiding ([_])
+open import Data.List as List hiding ([_])
+import Data.DifferenceList as DList
 open import Data.List.NonEmpty as NonEmpty using (List⁺ ; _∷⁺_ ; _∷_)
 open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Relation.Nullary.Decidable
@@ -165,7 +166,7 @@ module _ {A B : Set} where
 module _ {A B : Set} where
 
  infixr 5 _<*>_
- _<*>_ : {A B : Set} → [ Parser (A → B) ⟶ Parser A ⟶ Parser B ]
+ _<*>_ : [ Parser (A → B) ⟶ Parser A ⟶ Parser B ]
  F <*> A = uncurry _$_ <$> (F <&> return A)
 
  infixr 3 _<⊎>_
@@ -273,7 +274,7 @@ _ = 0 !
 _ : "SSSSSZ" ∈ Nat
 _ = 5 !
 
-List′ :  {A : Set} → [ Parser A ] → [ Parser (List A) ]
+List′ : {A : Set} → [ Parser A ] → [ Parser (List A) ]
 List′ A = fix _ (λ r → [ id , uncurry _∷_ ]′
                       <$> ([] <$ char 'N'
                       <⊎> char 'C' &> return A <&> r))
@@ -354,3 +355,32 @@ _ = Add (Mul (Mul (Add (Var 'x') (Var 'y')) (Var 'z')) (Var 't')) (Var 'u') !
 
 _ : "10*(x+5*y)+z*7" ∈ Expr′
 _ = Add (Mul (Lit 10) (Add (Var 'x') (Mul (Lit 5) (Var 'y')))) (Mul (Var 'z') (Lit 7)) !
+
+-- Challenge taken from stackoverflow:
+-- http://stackoverflow.com/questions/12380239/agda-parsing-nested-lists
+
+NList : Set → ℕ → Set
+NList A zero    = A
+NList A (suc n) = List (NList A n)
+
+NList′ : {A : Set} → [ Parser A ] →
+         (n : ℕ) → [ Parser (NList A n) ]
+NList′ A zero    = A
+NList′ A (suc n) = parens $ return $ DList.toList <$>
+                   chainl1 (DList.[_] <$> NList′ A n) (return $ DList._++_ <$ char ',')
+
+_ : "((1,2,3),(4,5,6))" ∈ NList′ decimal 2
+_ = (1 ∷ 2 ∷ 3 ∷ []) ∷ (4 ∷ 5 ∷ 6 ∷ []) ∷ [] !
+
+_ : "((1,2,3),(4,5,6),(7,8,9,10))" ∈ NList′ decimal 2
+_ = (1 ∷ 2 ∷ 3 ∷ []) ∷ (4 ∷ 5 ∷ 6 ∷ []) ∷ (7 ∷ 8 ∷ 9 ∷ 10 ∷ []) ∷ [] !
+
+_ : "((1),(2))" ∈ NList′ decimal 2
+_ = (1 ∷ []) ∷ (2 ∷ []) ∷ [] !
+
+_ : "((1,2))" ∈ NList′ decimal 2
+_ = (1 ∷ 2 ∷ []) ∷ [] !
+
+_ : "(((1,2),(3,4)),((5,6),(7,8)))" ∈ NList′ decimal 3
+_ = ((1 ∷ 2 ∷ []) ∷ (3 ∷ 4 ∷ []) ∷ []) ∷
+    ((5 ∷ 6 ∷ []) ∷ (7 ∷ 8 ∷ []) ∷ []) ∷ [] !
