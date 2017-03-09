@@ -81,55 +81,57 @@ String = Vec Char
 <⇒≤ : ∀ {m n} → m < n → m ≤ n
 <⇒≤ = ≤-trans (n≤1+n _)
 
-record Success (A : Set) (n : ℕ) : Set where
+record Success (Tok : Set) (A : Set) (n : ℕ) : Set where
   constructor _,_,_,_
   field
     value : A
     size  : ℕ
     small : size < n
-    left  : String size
+    left  : Vec Tok size
 
-record Parser (A : Set) (n : ℕ) : Set where
+record Parser (Tok : Set) (A : Set) (n : ℕ) : Set where
   constructor mkParser
-  field runParser : ∀ {m} → .(m ≤ n) → String m → Maybe (Success A m)
+  field runParser : ∀ {m} → .(m ≤ n) → Vec Tok m → Maybe (Success Tok A m)
 open Parser
 
 open import Function
 
-module _ {A B : Set} where
+module _ {Tok A B : Set} where
 
- smap : (A → B) → [ Success A ⟶ Success B ]
+ smap : (A → B) → [ Success Tok A ⟶ Success Tok B ]
  smap f (a , n , n<m , s) = f a , n , n<m , s
 
  infixr 5 _<$>_
- _<$>_ : (A → B) → [ Parser A ⟶ Parser B ]
+ _<$>_ : (A → B) → [ Parser Tok A ⟶ Parser Tok B ]
  runParser (f <$> p) lt s = M.map (smap f) (runParser p lt s)
 
  infixr 5 _<$_
- _<$_ : B → [ Parser A ⟶ Parser B ]
+ _<$_ : B → [ Parser Tok A ⟶ Parser Tok B ]
  b <$ p = const b <$> p
 
-return : {A : Set} → [ Parser A ⟶ □ Parser A ]
+return : {Tok A : Set} → [ Parser Tok A ⟶ □ Parser Tok A ]
 runParser (return p lt le) s = runParser p (≤-trans s (<⇒≤ le))
 
-duplicate : {A : ℕ → Set} → [ □ A ⟶ □ □ A ]
-duplicate □A m m<n p p<m = □A p (<-trans p<m m<n)
+module _ {A : ℕ → Set} where
 
-fix□ : {A : ℕ → Set} → [ □ A ⟶ A ] → [ □ A ]
-fix□ f {zero}  = λ _ ()
-fix□ f {suc n} = λ m m<sn → f (λ p p<m → fix□ f p (≤-trans p<m (≤-pred m<sn)))
+ duplicate : [ □ A ⟶ □ □ A ]
+ duplicate □A m m<n p p<m = □A p (<-trans p<m m<n)
+
+ fix□ : [ □ A ⟶ A ] → [ □ A ]
+ fix□ f {zero}  = λ _ ()
+ fix□ f {suc n} = λ m m<sn → f (λ p p<m → fix□ f p (≤-trans p<m (≤-pred m<sn)))
 
 fix : ∀ A → [ □ A ⟶ A ] → [ A ]
 fix A = extract ∘ fix□
 
 open import Relation.Nullary
 
-anyChar : [ Parser Char ]
+anyChar : [ Parser Char Char ]
 runParser anyChar lt s with vec s
 ... | nil       = nothing
 ... | cons a as = just (a , _ , ≤-refl , as)
 
-char : Char → [ Parser Char ]
+char : Char → [ Parser Char Char ]
 runParser (char c) lt s with vec s
 ... | nil       = nothing
 ... | cons a as with a Data.Char.≟ c
@@ -140,9 +142,9 @@ open import Category.Monad
 import Level
 module MM = RawMonad (M.monad {Level.zero}) using (_>>=_)
 
-module _ {A B : Set} where
+module _ {Tok A B : Set} where
 
- _&>>=_ : [ Parser A ⟶ (const A ⟶ □ Parser B) ⟶ Parser (A × B) ]
+ _&>>=_ : [ Parser Tok A ⟶ (const A ⟶ □ Parser Tok B) ⟶ Parser Tok (A × B) ]
  runParser (A &>>= B) m≤n s =
    runParser A m≤n s MM.>>= λ rA →
    let (a , p , p<m , s′) = rA in
@@ -150,40 +152,40 @@ module _ {A B : Set} where
    let (b , q , q<p , s′′) = rB in
    just ((a P., b) , q , <-trans q<p p<m , s′′)
 
- _>>=_ : [ Parser A ⟶ (const A ⟶ □ Parser B) ⟶ Parser B ]
+ _>>=_ : [ Parser Tok A ⟶ (const A ⟶ □ Parser Tok B) ⟶ Parser Tok B ]
  A >>= B = proj₂ <$> A &>>= B
 
  infixl 4 _<&>_ _<&_ _&>_
- _<&>_ : [ Parser A ⟶ □ Parser B ⟶ Parser (A × B) ]
+ _<&>_ : [ Parser Tok A ⟶ □ Parser Tok B ⟶ Parser Tok (A × B) ]
  A <&> B = A &>>= const B
 
- _<&_ : [ Parser A ⟶ □ Parser B ⟶ Parser A ]
+ _<&_ : [ Parser Tok A ⟶ □ Parser Tok B ⟶ Parser Tok A ]
  A <& B = proj₁ <$> (A <&> B)
 
- _&>_ : [ Parser A ⟶ □ Parser B ⟶ Parser B ]
+ _&>_ : [ Parser Tok A ⟶ □ Parser Tok B ⟶ Parser Tok B ]
  A &> B = proj₂ <$> (A <&> B)
 
-module _ {A B : Set} where
+module _ {Tok A B : Set} where
 
  infixr 5 _<*>_
- _<*>_ : [ Parser (A → B) ⟶ Parser A ⟶ Parser B ]
+ _<*>_ : [ Parser Tok (A → B) ⟶ Parser Tok A ⟶ Parser Tok B ]
  F <*> A = uncurry _$_ <$> (F <&> return A)
 
  infixr 3 _<⊎>_
- _<⊎>_ : [ Parser A ⟶ Parser B ⟶ Parser (A ⊎ B) ]
+ _<⊎>_ : [ Parser Tok A ⟶ Parser Tok B ⟶ Parser Tok (A ⊎ B) ]
  runParser (A <⊎> B) m≤n s with runParser (inj₁ <$> A) m≤n s
  ... | nothing = runParser (inj₂ <$> B) m≤n s
  ... | r = r
 
- hchainl : [ Parser A ⟶ □ Parser (A → B → A) ⟶ □ Parser B ⟶ Parser A ]
+ hchainl : [ Parser Tok A ⟶ □ Parser Tok (A → B → A) ⟶ □ Parser Tok B ⟶ Parser Tok A ]
  runParser (hchainl {m} pA pOp pB) {n} n≤m = kickstart where
 
    goal : ℕ → Set
-   goal = Success A
+   goal = Success Tok A
 
    step : ∀ {n p} (p≤n : p ≤ n)
           (r : (□ (_≤ n ⟶ goal ⟶ goal)) p) (acc : goal p) →
-          Success ((A → B → A) × B) (Success.size acc) → goal p
+          Success Tok ((A → B → A) × B) (Success.size acc) → goal p
    step p≤n rec (a , q , q<p , _) ((op P., b) , r , r<q , str) =
      let q≤n = ≤-trans (<⇒≤ q<p) p≤n
          (a , s , s<q , str′) = rec q q<p q≤n (op a b , r , r<q , str) in
@@ -198,53 +200,53 @@ module _ {A B : Set} where
               (pOp q q<m <&> return (pB q q<m)) ≤-refl s)
            ≤-refl
 
-   kickstart : String n → Maybe (goal n)
+   kickstart : Vec Tok n → Maybe (goal n)
    kickstart s = runParser pA n≤m s MM.>>= just ∘ chain
 
-module _ {A : Set} where
+module _ {Tok A : Set} where
 
- guard : (A → Bool) → [ Parser A ⟶ Parser A ]
+ guard : (A → Bool) → [ Parser Tok A ⟶ Parser Tok A ]
  runParser (guard p A) m≤n s =
    runParser A m≤n s MM.>>= λ a →
    if p (Success.value a) then just a else nothing
 
  infixr 3 _<|>_
- _<|>_ : [ Parser A ⟶ Parser A ⟶ Parser A ]
+ _<|>_ : [ Parser Tok A ⟶ Parser Tok A ⟶ Parser Tok A ]
  A₁ <|> A₂ = [ id , id ]′ <$> (A₁ <⊎> A₂)
 
- chainl1 : [ Parser A ⟶ □ Parser (A → A → A) ⟶ Parser A ]
+ chainl1 : [ Parser Tok A ⟶ □ Parser Tok (A → A → A) ⟶ Parser Tok A ]
  chainl1 a op = hchainl a op (return a)
 
- head+tail : [ Parser A ⟶ □ Parser A ⟶ Parser (List⁺ A) ]
+ head+tail : [ Parser Tok A ⟶ □ Parser Tok A ⟶ Parser Tok (List⁺ A) ]
  runParser (head+tail {m} pHd pTl) {n} n≤m = kickstart where
 
    goal : ℕ → Set
-   goal = Success (List⁺ A)
+   goal = Success Tok (List⁺ A)
 
    step : ∀ {n p} (p≤n : p ≤ n) (r : (□ (_≤ n ⟶ goal ⟶ goal)) p)
-          (acc : goal p) → Success A (Success.size acc) → goal p
+          (acc : goal p) → Success Tok A (Success.size acc) → goal p
    step p≤n rec (a , q , q<p , _) (b , r , r<q , str) =
      let q≤n = ≤-trans (<⇒≤ q<p) p≤n
          (a , s , s<q , str′) = rec q q<p q≤n ((b ∷⁺ a) , r , r<q , str) in
      a , s , <-trans s<q q<p , str′
 
    chain : goal n → goal n
-   chain = (fix (_≤ n ⟶ Success (List⁺ A) ⟶ Success (List⁺ A)) $ λ {p} rec p≤n acc →
+   chain = (fix (_≤ n ⟶ goal ⟶ goal) $ λ {p} rec p≤n acc →
            let (a , q , q<p , s) = acc
                .q<m : q < m
                q<m = ≤-trans q<p (≤-trans p≤n n≤m)
            in maybe (step p≤n rec acc) acc $ runParser (pTl q q<m) ≤-refl s)
            ≤-refl
 
-   kickstart : String n → Maybe (goal n)
+   kickstart : Vec Tok n → Maybe (goal n)
    kickstart s = runParser pHd n≤m s MM.>>=
                  just ∘ smap NonEmpty.reverse ∘ chain ∘ smap (_∷ [])
 
- list⁺ : [ Parser A ⟶ Parser (List⁺ A) ]
+ list⁺ : [ Parser Tok A ⟶ Parser Tok (List⁺ A) ]
  list⁺ pA = head+tail pA (return pA)
 
- parens : [ □ Parser A ⟶ Parser A ]
- parens A = char '(' &> A <& return (char ')')
+parens : {A : Set} → [ □ Parser Char A ⟶ Parser Char A ]
+parens A = char '(' &> A <& return (char ')')
 
 ---------------------------------------------------------------
 -- EXAMPLES
@@ -260,12 +262,12 @@ infix 0 _!
 data Singleton {A : Set} : A → Set where
   _! : (a : A) → Singleton a
 
-_∈_ : {A : Set} → Text → [ Parser A ] → Set
+_∈_ : {A : Set} → Text → [ Parser Char A ] → Set
 s ∈ A with runParser A (n≤1+n _) (` s)
 s ∈ A | just (a , 0 , _ , _)  = Singleton a
 s ∈ A | _ = ⊥
 
-Nat : [ Parser ℕ ]
+Nat : [ Parser Char ℕ ]
 Nat = fix _ (λ r → [ id , suc ]′ <$> (0 <$ char 'Z' <⊎> char 'S' &> r))
 
 _ : "Z" ∈ Nat
@@ -274,7 +276,7 @@ _ = 0 !
 _ : "SSSSSZ" ∈ Nat
 _ = 5 !
 
-List′ : {A : Set} → [ Parser A ] → [ Parser (List A) ]
+List′ : {A : Set} → [ Parser Char A ] → [ Parser Char (List A) ]
 List′ A = fix _ (λ r → [ id , uncurry _∷_ ]′
                       <$> ([] <$ char 'N'
                       <⊎> char 'C' &> return A <&> r))
@@ -286,7 +288,7 @@ data Tree (A : Set) : Set where
   leaf : A → Tree A
   node : Tree A → Tree A → Tree A
 
-BTree : {A : Set} → [ Parser A ] → [ Parser (Tree A) ]
+BTree : {A : Set} → [ Parser Char A ] → [ Parser Char (Tree A) ]
 BTree A = fix _ (λ r → [ leaf , uncurry node ]′
                       <$> (char 'L' &> return A
                       <⊎> char 'N' &> r <&> r))
@@ -300,12 +302,12 @@ _ = node (node (leaf 0) (leaf 2)) (node (leaf 0) (leaf 3)) !
 _ : "NLNLZLZLLSZ" ∈ BTree (BTree Nat)
 _ = node (leaf (node (leaf 0) (leaf 0))) (leaf (leaf 1)) !
 
-alpha : [ Parser Char ]
+alpha : [ Parser Char Char ]
 alpha = guard (λ c → any (c ==_) alphas) anyChar where
 
   alphas = String.toList "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-digit : [ Parser ℕ ]
+digit : [ Parser Char ℕ ]
 digit = 0 <$ char '0'
     <|> 1 <$ char '1'
     <|> 2 <$ char '2'
@@ -317,7 +319,7 @@ digit = 0 <$ char '0'
     <|> 8 <$ char '8'
     <|> 9 <$ char '9'
 
-decimal : [ Parser ℕ ]
+decimal : [ Parser Char ℕ ]
 decimal = proj₁ ∘ foldr (λ v → uncurry $ λ t d → t + v * d P., 10 * d) (0 P., 1)
         ∘ NonEmpty.toList <$> list⁺ digit
 
@@ -333,8 +335,8 @@ data Expr : Set where
   Add Sub : Expr → Expr → Expr
   Mul Div : Expr → Expr → Expr
 
-Expr′ : [ Parser Expr ]
-Expr′ = fix (Parser Expr) $ λ rec →
+Expr′ : [ Parser Char Expr ]
+Expr′ = fix (Parser Char Expr) $ λ rec →
         let var    = Var <$> alpha
             lit    = Lit <$> decimal
             addop  = Add <$ char '+' <|> Sub <$ char '-'
@@ -363,8 +365,8 @@ NList : Set → ℕ → Set
 NList A zero    = A
 NList A (suc n) = List (NList A n)
 
-NList′ : {A : Set} → [ Parser A ] →
-         (n : ℕ) → [ Parser (NList A n) ]
+NList′ : {A : Set} → [ Parser Char A ] →
+         (n : ℕ)   → [ Parser Char (NList A n) ]
 NList′ A zero    = A
 NList′ A (suc n) = parens $ return $ DList.toList <$>
                    chainl1 (DList.[_] <$> NList′ A n) (return $ DList._++_ <$ char ',')
