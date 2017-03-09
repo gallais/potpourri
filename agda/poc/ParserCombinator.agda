@@ -24,6 +24,9 @@ infix 5 [_]
 [_] : (A : ℕ → Set) → Set
 [ A ] = ∀ {n} → A n
 
+□map : {A B : ℕ → Set} → [ A ⟶ B ] → [ □ A ⟶ □ B ]
+□map f □A m m≤n = f (□A m m≤n)
+
 open import Data.Unit hiding (_≤_)
 open import Data.Empty
 open import Data.Bool
@@ -138,22 +141,20 @@ module MM = RawMonad (M.monad {Level.zero}) using (_>>=_)
 
 module _ {A B : Set} where
 
- _>>=_ : [ Parser A ⟶ (const A ⟶ □ Parser B) ⟶ Parser B ]
- runParser (A >>= B) m≤n s =
+ _&>>=_ : [ Parser A ⟶ (const A ⟶ □ Parser B) ⟶ Parser (A × B) ]
+ runParser (A &>>= B) m≤n s =
    runParser A m≤n s MM.>>= λ rA →
    let (a , p , p<m , s′) = rA in
    runParser (B a p (≤-trans p<m m≤n)) ≤-refl s′ MM.>>= λ rB →
    let (b , q , q<p , s′′) = rB in
-   just (b , q , <-trans q<p p<m , s′′)
+   just ((a P., b) , q , <-trans q<p p<m , s′′)
+
+ _>>=_ : [ Parser A ⟶ (const A ⟶ □ Parser B) ⟶ Parser B ]
+ A >>= B = proj₂ <$> A &>>= B
 
  infixl 4 _<&>_ _<&_ _&>_
  _<&>_ : [ Parser A ⟶ □ Parser B ⟶ Parser (A × B) ]
- runParser (A <&> B) m≤n s =
-   runParser A m≤n s MM.>>= λ rA →
-   let (a , p , p<m , s′) = rA in
-   runParser (B p (≤-trans p<m m≤n)) ≤-refl s′ MM.>>= λ rB →
-   let (b , q , q<p , s′′) = rB in
-   just ((a P., b) , q , <-trans q<p p<m , s′′)
+ A <&> B = A &>>= const B
 
  _<&_ : [ Parser A ⟶ □ Parser B ⟶ Parser A ]
  A <& B = proj₁ <$> (A <&> B)
