@@ -45,10 +45,6 @@ open import Relation.Nullary.Decidable
 ∣ []     ∣≡ suc n = ⊥
 ∣ x ∷ xs ∣≡ zero  = ⊥
 
-trivial : {A : Set} (xs : List A) → ∣ xs ∣≡ length xs
-trivial []       = tt
-trivial (x ∷ xs) = trivial xs
-
 record Vec (A : Set) (n : ℕ) : Set where
   constructor mkVec
   field elements : List A
@@ -59,27 +55,33 @@ data View (A : Set) : (n : ℕ) → Vec A n → Set where
   nil  : View A 0 (mkVec [] _)
   cons : ∀ {n} a (as : Vec A n) .{e} → View A (suc n) (mkVec (a ∷ elements as) e)
 
-vec : ∀ {n} {A} (xs : Vec A n) → View A n xs
-vec {zero}  (mkVec [] _) = nil
-vec {suc n} (mkVec (x ∷ xs) prf) = cons x (mkVec xs prf)
-vec {zero}  (mkVec (_ ∷ _) ())
-vec {suc n} (mkVec [] ())
+module _ {A : Set} where
 
-≤-refl : ∀ {n} → n ≤ n
-≤-refl {zero} = z≤n
-≤-refl {suc n} = s≤s ≤-refl
+ trivial : (xs : List A) → ∣ xs ∣≡ length xs
+ trivial []       = tt
+ trivial (x ∷ xs) = trivial xs
 
-≤-trans : ∀ {m n p} → m ≤ n → n ≤ p → m ≤ p
-≤-trans z≤n _ = z≤n
-≤-trans (s≤s le₁) (s≤s le₂) = s≤s (≤-trans le₁ le₂)
+ fromList : (xs : List A) → Vec A (length xs)
+ fromList xs = mkVec xs (trivial xs)
 
-extract : {A : ℕ → Set} → [ □ A ] → [ A ]
-extract a {n} = a {suc n} n ≤-refl
+ vec : ∀ {n} (xs : Vec A n) → View A n xs
+ vec {zero}  (mkVec [] _) = nil
+ vec {suc n} (mkVec (x ∷ xs) prf) = cons x (mkVec xs prf)
+ vec {zero}  (mkVec (_ ∷ _) ())
+ vec {suc n} (mkVec [] ())
+
+module _ {A B : Set} where
+
+ ∣mapfxs∣≡∣xs∣ : (f : A → B) (xs : List A) → [ ∣ xs ∣≡_ ⟶ ∣ List.map f xs ∣≡_ ]
+ ∣mapfxs∣≡∣xs∣ f []       {zero}  prf = tt
+ ∣mapfxs∣≡∣xs∣ f (x ∷ xs) {suc n} prf = ∣mapfxs∣≡∣xs∣ f xs prf
+ ∣mapfxs∣≡∣xs∣ f []       {suc n} ()
+ ∣mapfxs∣≡∣xs∣ f (x ∷ xs) {zero}  ()
+
+ vmap : (A → B) → [ Vec A ⟶ Vec B ]
+ vmap f (mkVec xs prf) = mkVec (List.map f xs) (∣mapfxs∣≡∣xs∣ f xs prf)
 
 String = Vec Char
-
-<⇒≤ : ∀ {m n} → m < n → m ≤ n
-<⇒≤ = ≤-trans (n≤1+n _)
 
 record Success (Tok : Set) (A : Set) (n : ℕ) : Set where
   constructor _,_,_,_
@@ -109,13 +111,27 @@ module _ {Tok A B : Set} where
  _<$_ : B → [ Parser Tok A ⟶ Parser Tok B ]
  b <$ p = const b <$> p
 
-return : {Tok A : Set} → [ Parser Tok A ⟶ □ Parser Tok A ]
-runParser (return p lt le) s = runParser p (≤-trans s (<⇒≤ le))
+≤-refl : ∀ {n} → n ≤ n
+≤-refl {zero} = z≤n
+≤-refl {suc n} = s≤s ≤-refl
+
+≤-trans : ∀ {m n p} → m ≤ n → n ≤ p → m ≤ p
+≤-trans z≤n _ = z≤n
+≤-trans (s≤s le₁) (s≤s le₂) = s≤s (≤-trans le₁ le₂)
+
+<⇒≤ : ∀ {m n} → m < n → m ≤ n
+<⇒≤ = ≤-trans (n≤1+n _)
 
 module _ {A : ℕ → Set} where
 
+ extract : [ □ A ] → [ A ]
+ extract a {n} = a {suc n} n ≤-refl
+
  duplicate : [ □ A ⟶ □ □ A ]
  duplicate □A m m<n p p<m = □A p (<-trans p<m m<n)
+
+ lift2 : {B C : ℕ → Set} → [ A ⟶ B ⟶ C ] → [ □ A ⟶ □ B ⟶ □ C ]
+ lift2 f □A □B m m<n = f (□A m m<n) (□B m m<n)
 
  fix□ : [ □ A ⟶ A ] → [ □ A ]
  fix□ f {zero}  = λ _ ()
@@ -125,24 +141,47 @@ fix : ∀ A → [ □ A ⟶ A ] → [ A ]
 fix A = extract ∘ fix□
 
 open import Relation.Nullary
-
-anyChar : [ Parser Char Char ]
-runParser anyChar lt s with vec s
-... | nil       = nothing
-... | cons a as = just (a , _ , ≤-refl , as)
-
-char : Char → [ Parser Char Char ]
-runParser (char c) lt s with vec s
-... | nil       = nothing
-... | cons a as with a Data.Char.≟ c
-runParser (char c) lt _ | cons a as | yes p = just (c , _ , ≤-refl , as)
-runParser (char c) lt _ | cons a as | no ¬p = nothing
+open import Relation.Binary
 
 open import Category.Monad
 import Level
 module MM = RawMonad (M.monad {Level.zero}) using (_>>=_)
 
+module _ {Tok A : Set} where
+
+ return : [ Parser Tok A ⟶ □ Parser Tok A ]
+ runParser (return p lt le) s = runParser p (≤-trans s (<⇒≤ le))
+
+ guard : (A → Bool) → [ Parser Tok A ⟶ Parser Tok A ]
+ runParser (guard p A) m≤n s =
+   runParser A m≤n s MM.>>= λ a →
+   if p (Success.value a) then just a else nothing
+
+module _ {Tok : Set} where
+
+ anyTok : [ Parser Tok Tok ]
+ runParser anyTok lt s with vec s
+ ... | nil       = nothing
+ ... | cons a as = just (a , _ , ≤-refl , as)
+
+ exact : {{eq? : Decidable {A = Tok} _≡_}} → Tok → [ Parser Tok Tok ]
+ exact {{eq?}} t = guard (⌊_⌋ ∘ eq? t) anyTok
+
+instance eqChar = Data.Char._≟_
+
+char : Char → [ Parser Char Char ]
+char = exact
+
 module _ {Tok A B : Set} where
+
+ _&?>>=_ : [ Parser Tok A ⟶ (const A ⟶ □ Parser Tok B) ⟶ Parser Tok (A × Maybe B) ]
+ runParser (A &?>>= B) m≤n s =
+   runParser A m≤n s MM.>>= λ rA →
+   let (a , p , p<m , s′) = rA in
+   case runParser (B a p (≤-trans p<m m≤n)) ≤-refl s′ of λ where
+     nothing   → just ((a P., nothing) , p , p<m , s′)
+     (just rB) → let (b , q , q<p , s′′) = rB in
+                 just ((a P., just b) , q , <-trans q<p p<m , s′′)
 
  _&>>=_ : [ Parser Tok A ⟶ (const A ⟶ □ Parser Tok B) ⟶ Parser Tok (A × B) ]
  runParser (A &>>= B) m≤n s =
@@ -164,6 +203,10 @@ module _ {Tok A B : Set} where
 
  _&>_ : [ Parser Tok A ⟶ □ Parser Tok B ⟶ Parser Tok B ]
  A &> B = proj₂ <$> (A <&> B)
+
+ infixl 4 _<&?>_
+ _<&?>_ : [ Parser Tok A ⟶ □ Parser Tok B ⟶ Parser Tok (A × Maybe B) ]
+ A <&?> B = A &?>>= const B
 
 module _ {Tok A B : Set} where
 
@@ -204,11 +247,6 @@ module _ {Tok A B : Set} where
    kickstart s = runParser pA n≤m s MM.>>= just ∘ chain
 
 module _ {Tok A : Set} where
-
- guard : (A → Bool) → [ Parser Tok A ⟶ Parser Tok A ]
- runParser (guard p A) m≤n s =
-   runParser A m≤n s MM.>>= λ a →
-   if p (Success.value a) then just a else nothing
 
  infixr 3 _<|>_
  _<|>_ : [ Parser Tok A ⟶ Parser Tok A ⟶ Parser Tok A ]
@@ -255,6 +293,7 @@ parens A = char '(' &> A <& return (char ')')
 import Data.String as String
 open String using () renaming (String to Text)
 
+
 `_ : (s : Text) → String (length (String.primStringToList s))
 ` s = let xs = String.primStringToList s in mkVec xs (trivial xs)
 
@@ -262,8 +301,17 @@ infix 0 _!
 data Singleton {A : Set} : A → Set where
   _! : (a : A) → Singleton a
 
-_∈_ : {A : Set} → Text → [ Parser Char A ] → Set
-s ∈ A with runParser A (n≤1+n _) (` s)
+record Tokenizer (A : Set) : Set where
+  constructor mkTokenizer
+  field tokenize : List Char → List A
+
+  fromText : Text → List A
+  fromText = tokenize ∘ String.toList
+
+instance tokChar = mkTokenizer id
+
+_∈_ : {Tok A : Set} {{t : Tokenizer Tok}} → Text → [ Parser Tok A ] → Set
+_∈_ {{t}} s A with runParser A (n≤1+n _) (fromList $ Tokenizer.fromText t s)
 s ∈ A | just (a , 0 , _ , _)  = Singleton a
 s ∈ A | _ = ⊥
 
@@ -303,7 +351,7 @@ _ : "NLNLZLZLLSZ" ∈ BTree (BTree Nat)
 _ = node (leaf (node (leaf 0) (leaf 0))) (leaf (leaf 1)) !
 
 alpha : [ Parser Char Char ]
-alpha = guard (λ c → any (c ==_) alphas) anyChar where
+alpha = guard (λ c → any (c ==_) alphas) anyTok where
 
   alphas = String.toList "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -386,3 +434,74 @@ _ = (1 ∷ 2 ∷ []) ∷ [] !
 _ : "(((1,2),(3,4)),((5,6),(7,8)))" ∈ NList′ decimal 3
 _ = ((1 ∷ 2 ∷ []) ∷ (3 ∷ 4 ∷ []) ∷ []) ∷
     ((5 ∷ 6 ∷ []) ∷ (7 ∷ 8 ∷ []) ∷ []) ∷ [] !
+
+-- Well-parenthesised string
+data PAR : Set where
+  LPAR RPAR : PAR
+  LCUR RCUR : PAR
+  LSQU RSQU : PAR
+
+instance
+  {- eqPAR x y             -}
+  {- C-c C-c x y           -}
+  {- F3 C-c C-f C-c C-a F4 -}
+  {- F4 (repeat ∣PAR∣^2)    -}
+  eqPAR : Decidable {A = PAR} _≡_
+  eqPAR LPAR LPAR = yes refl
+  eqPAR LPAR RPAR = no (λ ())
+  eqPAR LPAR LCUR = no (λ ())
+  eqPAR LPAR RCUR = no (λ ())
+  eqPAR LPAR LSQU = no (λ ())
+  eqPAR LPAR RSQU = no (λ ())
+  eqPAR RPAR LPAR = no (λ ())
+  eqPAR RPAR RPAR = yes refl
+  eqPAR RPAR LCUR = no (λ ())
+  eqPAR RPAR RCUR = no (λ ())
+  eqPAR RPAR LSQU = no (λ ())
+  eqPAR RPAR RSQU = no (λ ())
+  eqPAR LCUR LPAR = no (λ ())
+  eqPAR LCUR RPAR = no (λ ())
+  eqPAR LCUR LCUR = yes refl
+  eqPAR LCUR RCUR = no (λ ())
+  eqPAR LCUR LSQU = no (λ ())
+  eqPAR LCUR RSQU = no (λ ())
+  eqPAR RCUR LPAR = no (λ ())
+  eqPAR RCUR RPAR = no (λ ())
+  eqPAR RCUR LCUR = no (λ ())
+  eqPAR RCUR RCUR = yes refl
+  eqPAR RCUR LSQU = no (λ ())
+  eqPAR RCUR RSQU = no (λ ())
+  eqPAR LSQU LPAR = no (λ ())
+  eqPAR LSQU RPAR = no (λ ())
+  eqPAR LSQU LCUR = no (λ ())
+  eqPAR LSQU RCUR = no (λ ())
+  eqPAR LSQU LSQU = yes refl
+  eqPAR LSQU RSQU = no (λ ())
+  eqPAR RSQU LPAR = no (λ ())
+  eqPAR RSQU RPAR = no (λ ())
+  eqPAR RSQU LCUR = no (λ ())
+  eqPAR RSQU RCUR = no (λ ())
+  eqPAR RSQU LSQU = no (λ ())
+  eqPAR RSQU RSQU = yes refl
+
+  tokPAR : Tokenizer PAR
+  tokPAR = mkTokenizer $ List.foldr (_++_ ∘ toPAR) [] where
+
+    toPAR : Char → List PAR
+    toPAR c = if c == '(' then LPAR ∷ []
+         else if c == ')' then RPAR ∷ []
+         else if c == '{' then LCUR ∷ []
+         else if c == '}' then RCUR ∷ []
+         else if c == '[' then LSQU ∷ []
+         else if c == ']' then RSQU ∷ []
+         else [] -- ignoring other characters as noise
+
+PAR′ : [ Parser PAR ⊤ ]
+PAR′ = fix (Parser PAR _) $ λ rec →
+        tt <$ ((exact LPAR <&?> rec) <& return (exact RPAR <&?> rec))
+    <|> tt <$ ((exact LCUR <&?> rec) <& return (exact RCUR <&?> rec))
+    <|> tt <$ ((exact LSQU <&?> rec) <& return (exact RSQU <&?> rec))
+
+
+_ : "hel[{(lo({((wor))ld})wan)t}som{e()[n]o}i(s)e]?" ∈ PAR′
+_ = _ !
