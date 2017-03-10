@@ -157,20 +157,15 @@ module _ {Tok A : Set} where
    runParser A m≤n s MM.>>= λ a →
    if p (Success.value a) then just a else nothing
 
+ fail : [ Parser Tok A ]
+ runParser fail = λ _ _ → nothing
+
 module _ {Tok : Set} where
 
  anyTok : [ Parser Tok Tok ]
  runParser anyTok lt s with vec s
  ... | nil       = nothing
  ... | cons a as = just (a , _ , ≤-refl , as)
-
- exact : {{eq? : Decidable {A = Tok} _≡_}} → Tok → [ Parser Tok Tok ]
- exact {{eq?}} t = guard (⌊_⌋ ∘ eq? t) anyTok
-
-instance eqChar = Data.Char._≟_
-
-char : Char → [ Parser Char Char ]
-char = exact
 
 module _ {Tok A B : Set} where
 
@@ -207,6 +202,39 @@ module _ {Tok A B : Set} where
  infixl 4 _<&?>_
  _<&?>_ : [ Parser Tok A ⟶ □ Parser Tok B ⟶ Parser Tok (A × Maybe B) ]
  A <&?> B = A &?>>= const B
+
+module _ {Tok A B C : Set} where
+
+ between : [ Parser Tok A ⟶ □ Parser Tok C ⟶ □ Parser Tok B ⟶ Parser Tok B ]
+ between A C B = A &> B <& C
+
+module _ {Tok : Set} {{eq? : Decidable {A = Tok} _≡_}} where
+
+ exact : Tok → [ Parser Tok Tok ]
+ exact t = guard (⌊_⌋ ∘ eq? t) anyTok
+
+ exacts : List⁺ Tok → [ Parser Tok (List⁺ Tok) ]
+ exacts (x ∷ xs) = go x xs where
+
+   go : Tok → List Tok → [ Parser Tok (List⁺ Tok) ]
+   go x []       = NonEmpty.[_] <$> exact x
+   go x (y ∷ xs) = uncurry _∷⁺_ <$> (exact x <&> return (go y xs))
+
+instance eqChar = Data.Char._≟_
+
+char : Char → [ Parser Char Char ]
+char = exact
+
+import Data.String as String
+open String using () renaming (String to Text)
+
+text : (t : Text) {_ : T (not $ null $ String.toList t)} → [ Parser Char Text ]
+text t {pr} with String.toList t | pr
+... | []     | ()
+... | x ∷ xs | _ = String.fromList ∘ NonEmpty.toList <$> exacts (x ∷ xs)
+
+parens : {A : Set} → [ □ Parser Char A ⟶ Parser Char A ]
+parens = between (char '(') (return (char ')'))
 
 module _ {Tok A B : Set} where
 
@@ -283,19 +311,12 @@ module _ {Tok A : Set} where
  list⁺ : [ Parser Tok A ⟶ Parser Tok (List⁺ A) ]
  list⁺ pA = head+tail pA (return pA)
 
-parens : {A : Set} → [ □ Parser Char A ⟶ Parser Char A ]
-parens A = char '(' &> A <& return (char ')')
-
 ---------------------------------------------------------------
 -- EXAMPLES
 ---------------------------------------------------------------
 
-import Data.String as String
-open String using () renaming (String to Text)
-
-
-`_ : (s : Text) → String (length (String.primStringToList s))
-` s = let xs = String.primStringToList s in mkVec xs (trivial xs)
+`_ : (s : Text) → String (length (String.toList s))
+` s = let xs = String.toList s in mkVec xs (trivial xs)
 
 infix 0 _!
 data Singleton {A : Set} : A → Set where
