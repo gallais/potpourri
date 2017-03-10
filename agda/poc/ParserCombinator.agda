@@ -130,15 +130,26 @@ module _ {A : ℕ → Set} where
  duplicate : [ □ A ⟶ □ □ A ]
  duplicate □A m m<n p p<m = □A p (<-trans p<m m<n)
 
- lift2 : {B C : ℕ → Set} → [ A ⟶ B ⟶ C ] → [ □ A ⟶ □ B ⟶ □ C ]
- lift2 f □A □B m m<n = f (□A m m<n) (□B m m<n)
-
  fix□ : [ □ A ⟶ A ] → [ □ A ]
  fix□ f {zero}  = λ _ ()
  fix□ f {suc n} = λ m m<sn → f (λ p p<m → fix□ f p (≤-trans p<m (≤-pred m<sn)))
 
+module _ {A B : ℕ → Set} where
+
+ lift2 : {C : ℕ → Set} → [ A ⟶ B ⟶ C ] → [ □ A ⟶ □ B ⟶ □ C ]
+ lift2 f □A □B m m<n = f (□A m m<n) (□B m m<n)
+
+ app : [ □ (A ⟶ B) ⟶ (□ A ⟶ □ B) ]
+ app F A m m<n = F m m<n (A m m<n)
+
 fix : ∀ A → [ □ A ⟶ A ] → [ A ]
 fix A = extract ∘ fix□
+
+module _ {A : ℕ → Set} where
+
+ loeb : [ □ (□ A ⟶ A) ⟶ □ A ]
+ loeb = fix (□ (□ A ⟶ A) ⟶ □ A) $ λ rec f m m<n →
+        f m m<n (rec m m<n (duplicate f m m<n))
 
 open import Relation.Nullary
 open import Relation.Binary
