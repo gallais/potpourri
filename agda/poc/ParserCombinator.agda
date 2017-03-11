@@ -33,7 +33,7 @@ open import Data.Bool
 open import Data.Maybe as M
 open import Data.Char
 open import Data.Nat.Properties
-open import Data.List as List hiding ([_])
+open import Data.List as List hiding ([_] ; any)
 import Data.DifferenceList as DList
 open import Data.List.NonEmpty as NonEmpty using (List⁺ ; _∷⁺_ ; _∷_)
 open import Relation.Binary.PropositionalEquality hiding ([_])
@@ -210,9 +210,29 @@ module _ {Tok A B : Set} where
  _&>_ : [ Parser Tok A ⟶ □ Parser Tok B ⟶ Parser Tok B ]
  A &> B = proj₂ <$> (A <&> B)
 
- infixl 4 _<&?>_
+ infixl 4 _<&?>_ _<&?_ _&?>_
  _<&?>_ : [ Parser Tok A ⟶ □ Parser Tok B ⟶ Parser Tok (A × Maybe B) ]
  A <&?> B = A &?>>= const B
+
+ _<&?_ : [ Parser Tok A ⟶ □ Parser Tok B ⟶ Parser Tok A ]
+ A <&? B = proj₁ <$> (A <&?> B)
+
+ _&?>_ : [ Parser Tok A ⟶ □ Parser Tok B ⟶ Parser Tok (Maybe B) ]
+ A &?> B = proj₂ <$> (A <&?> B)
+
+ infixl 4 _<?&>_ _<?&_ _?&>_
+ _<?&>_ : [ Parser Tok A ⟶ Parser Tok B ⟶ Parser Tok (Maybe A × B) ]
+ runParser (A <?&> B) m≤n s with runParser A m≤n s
+ ... | nothing = runParser ((λ b → nothing P., b) <$> B) m≤n s
+ ... | just (a , p , p<m , s′) with runParser B (≤-trans (<⇒≤ p<m) m≤n) s′
+ ... | nothing = nothing
+ ... | just (b , q , q<p , s′′) = just ((just a P., b) , q , <-trans q<p p<m , s′′)
+
+ _<?&_ : [ Parser Tok A ⟶ Parser Tok B ⟶ Parser Tok (Maybe A) ]
+ A <?& B = proj₁ <$> (A <?&> B)
+
+ _?&>_ : [ Parser Tok A ⟶ Parser Tok B ⟶ Parser Tok B ]
+ A ?&> B = proj₂ <$> (A <?&> B)
 
 module _ {Tok A B C : Set} where
 
@@ -221,8 +241,11 @@ module _ {Tok A B C : Set} where
 
 module _ {Tok : Set} {{eq? : Decidable {A = Tok} _≡_}} where
 
+ anyOf : List Tok → [ Parser Tok Tok ]
+ anyOf ts = guard (λ c → not (null ts) ∧ List.any (⌊_⌋ ∘ eq? c) ts) anyTok
+
  exact : Tok → [ Parser Tok Tok ]
- exact t = guard (⌊_⌋ ∘ eq? t) anyTok
+ exact = anyOf ∘ List.[_]
 
  exacts : List⁺ Tok → [ Parser Tok (List⁺ Tok) ]
  exacts (x ∷ xs) = go x xs where
@@ -235,6 +258,9 @@ instance eqChar = Data.Char._≟_
 
 char : Char → [ Parser Char Char ]
 char = exact
+
+space : [ Parser Char Char ]
+space = anyOf (' ' ∷ '\t' ∷ '\n' ∷ [])
 
 import Data.String as String
 open String using () renaming (String to Text)
@@ -322,6 +348,14 @@ module _ {Tok A : Set} where
  list⁺ : [ Parser Tok A ⟶ Parser Tok (List⁺ A) ]
  list⁺ pA = head+tail pA (return pA)
 
+spaces : [ Parser Char (List⁺ Char) ]
+spaces = list⁺ space
+
+module _ {A : Set} where
+
+  withSpaces : [ Parser Char A ⟶ Parser Char A ]
+  withSpaces A = spaces ?&> A <&? return spaces
+
 ---------------------------------------------------------------
 -- EXAMPLES
 ---------------------------------------------------------------
@@ -383,9 +417,7 @@ _ : "NLNLZLZLLSZ" ∈ BTree (BTree Nat)
 _ = node (leaf (node (leaf 0) (leaf 0))) (leaf (leaf 1)) !
 
 alpha : [ Parser Char Char ]
-alpha = guard (λ c → any (c ==_) alphas) anyTok where
-
-  alphas = String.toList "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+alpha = anyOf $ String.toList "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 digit : [ Parser Char ℕ ]
 digit = 0 <$ char '0'
@@ -419,14 +451,17 @@ Expr′ : [ Parser Char Expr ]
 Expr′ = fix (Parser Char Expr) $ λ rec →
         let var    = Var <$> alpha
             lit    = Lit <$> decimal
-            addop  = Add <$ char '+' <|> Sub <$ char '-'
-            mulop  = Mul <$ char '*' <|> Div <$ char '/'
+            addop  = withSpaces (Add <$ char '+' <|> Sub <$ char '-')
+            mulop  = withSpaces (Mul <$ char '*' <|> Div <$ char '/')
             factor = parens rec <|> var <|> lit
             term   = chainl1 factor $ return mulop
             expr   = chainl1 term   $ return addop
         in expr
 
 _ : "x+y+z" ∈ Expr′
+_ = Add (Add (Var 'x') (Var 'y')) (Var 'z') !
+
+_ : "x + y + z" ∈ Expr′
 _ = Add (Add (Var 'x') (Var 'y')) (Var 'z') !
 
 _ : "x+y*z+t" ∈ Expr′
