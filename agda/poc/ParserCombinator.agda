@@ -52,8 +52,8 @@ record Vec (A : Set) (n : ℕ) : Set where
 open Vec
 
 data View (A : Set) : (n : ℕ) → Vec A n → Set where
-  nil  : View A 0 (mkVec [] _)
-  cons : ∀ {n} a (as : Vec A n) .{e} → View A (suc n) (mkVec (a ∷ elements as) e)
+  []  : View A 0 (mkVec [] _)
+  _∷_ : ∀ {n} a (as : Vec A n) .{e} → View A (suc n) (mkVec (a ∷ elements as) e)
 
 module _ {A : Set} where
 
@@ -65,8 +65,8 @@ module _ {A : Set} where
  fromList xs = mkVec xs (trivial xs)
 
  vec : ∀ {n} (xs : Vec A n) → View A n xs
- vec {zero}  (mkVec [] _) = nil
- vec {suc n} (mkVec (x ∷ xs) prf) = cons x (mkVec xs prf)
+ vec {zero}  (mkVec [] _) = []
+ vec {suc n} (mkVec (x ∷ xs) prf) = x ∷ mkVec xs prf
  vec {zero}  (mkVec (_ ∷ _) ())
  vec {suc n} (mkVec [] ())
 
@@ -175,8 +175,8 @@ module _ {Tok : Set} where
 
  anyTok : [ Parser Tok Tok ]
  runParser anyTok lt s with vec s
- ... | nil       = nothing
- ... | cons a as = just (a , _ , ≤-refl , as)
+ ... | []     = nothing
+ ... | a ∷ as = just (a , _ , ≤-refl , as)
 
 module _ {Tok A B : Set} where
 
