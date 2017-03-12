@@ -285,7 +285,6 @@ module _ {Tok A B : Set} where
  ... | nothing = runParser (inj₂ <$> B) m≤n s
  ... | r = r
 
-
 module _ {Tok A : Set} where
 
  infixr 3 _<|>_
@@ -294,16 +293,15 @@ module _ {Tok A : Set} where
 
  schainl : [ Success Tok A ⟶ □ Parser Tok (A → A) ⟶ Success Tok A ]
  schainl =
-  fix (Success Tok A ⟶ □ Parser Tok (A → A) ⟶ Success Tok A) $ λ rec sA op →
-    let (a , p , p<m , s) = sA
-        rec′ = duplicate op p p<m
-    in case runParser (op p p<m) ≤-refl s of λ where
-         nothing    → sA
-         (just sOp) →
-           let (f , q , q<p , s′)    = sOp
-               (res , r , r<p , s′′) = rec p p<m (f a , q , q<p , s′) rec′
-           in res , r , <-trans r<p p<m , s′′
-
+   fix (Success Tok A ⟶ □ Parser Tok (A → A) ⟶ Success Tok A) $ λ rec sA op →
+   let (a , p , p<m , s) = sA
+       rec′ = duplicate op p p<m
+   in case runParser (op p p<m) ≤-refl s of λ where
+        nothing    → sA
+        (just sOp) →
+          let (f , q , q<p , s′)    = sOp
+              (res , r , r<p , s′′) = rec p p<m (f a , q , q<p , s′) rec′
+          in res , r , <-trans r<p p<m , s′′
 
  iterate : [ Parser Tok A ⟶ □ Parser Tok (A → A) ⟶ Parser Tok A ]
  runParser (iterate {n} a op) m≤n s =
