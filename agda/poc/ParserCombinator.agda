@@ -285,31 +285,6 @@ module _ {Tok A B : Set} where
  ... | nothing = runParser (inj₂ <$> B) m≤n s
  ... | r = r
 
- hchainl : [ Parser Tok A ⟶ □ Parser Tok (A → B → A) ⟶ □ Parser Tok B ⟶ Parser Tok A ]
- runParser (hchainl {m} pA pOp pB) {n} n≤m = kickstart where
-
-   goal : ℕ → Set
-   goal = Success Tok A
-
-   step : ∀ {n p} (p≤n : p ≤ n)
-          (r : (□ (_≤ n ⟶ goal ⟶ goal)) p) (acc : goal p) →
-          Success Tok ((A → B → A) × B) (Success.size acc) → goal p
-   step p≤n rec (a , q , q<p , _) ((op P., b) , r , r<q , str) =
-     let q≤n = ≤-trans (<⇒≤ q<p) p≤n
-         (a , s , s<q , str′) = rec q q<p q≤n (op a b , r , r<q , str) in
-     a , s , <-trans s<q q<p , str′
-
-   chain : goal n → goal n
-   chain = (fix (_≤ n ⟶ goal ⟶ goal) $ λ {p} rec p≤n acc →
-           let (a , q , q<p , s) = acc
-               .q<m : q < m
-               q<m = ≤-trans q<p (≤-trans p≤n n≤m)
-           in maybe (step p≤n rec acc) acc $ runParser
-              (pOp q q<m <&> return (pB q q<m)) ≤-refl s)
-           ≤-refl
-
-   kickstart : Vec Tok n → Maybe (goal n)
-   kickstart s = runParser pA n≤m s MM.>>= just ∘ chain
 
 module _ {Tok A : Set} where
 
@@ -317,33 +292,37 @@ module _ {Tok A : Set} where
  _<|>_ : [ Parser Tok A ⟶ Parser Tok A ⟶ Parser Tok A ]
  A₁ <|> A₂ = [ id , id ]′ <$> (A₁ <⊎> A₂)
 
+ schainl : [ Success Tok A ⟶ □ Parser Tok (A → A) ⟶ Success Tok A ]
+ schainl =
+  fix (Success Tok A ⟶ □ Parser Tok (A → A) ⟶ Success Tok A) $ λ rec sA op →
+    let (a , p , p<m , s) = sA
+        rec′ = duplicate op p p<m
+    in case runParser (op p p<m) ≤-refl s of λ where
+         nothing    → sA
+         (just sOp) →
+           let (f , q , q<p , s′)    = sOp
+               (res , r , r<p , s′′) = rec p p<m (f a , q , q<p , s′) rec′
+           in res , r , <-trans r<p p<m , s′′
+
+
+ iterate : [ Parser Tok A ⟶ □ Parser Tok (A → A) ⟶ Parser Tok A ]
+ runParser (iterate {n} a op) m≤n s =
+   runParser a m≤n s MM.>>= λ sA →
+   just $ schainl sA $ λ p p<m → op p (≤-trans p<m m≤n)
+
+module _ {Tok A B : Set} where
+
+ hchainl : [ Parser Tok A ⟶ □ Parser Tok (A → B → A) ⟶ □ Parser Tok B ⟶ Parser Tok A ]
+ hchainl A op B = iterate A (lift2 (_<*>_ ∘ (flip <$>_)) op B)
+
+module _ {Tok A : Set} where
+
  chainl1 : [ Parser Tok A ⟶ □ Parser Tok (A → A → A) ⟶ Parser Tok A ]
  chainl1 a op = hchainl a op (return a)
 
  head+tail : [ Parser Tok A ⟶ □ Parser Tok A ⟶ Parser Tok (List⁺ A) ]
- runParser (head+tail {m} pHd pTl) {n} n≤m = kickstart where
-
-   goal : ℕ → Set
-   goal = Success Tok (List⁺ A)
-
-   step : ∀ {n p} (p≤n : p ≤ n) (r : (□ (_≤ n ⟶ goal ⟶ goal)) p)
-          (acc : goal p) → Success Tok A (Success.size acc) → goal p
-   step p≤n rec (a , q , q<p , _) (b , r , r<q , str) =
-     let q≤n = ≤-trans (<⇒≤ q<p) p≤n
-         (a , s , s<q , str′) = rec q q<p q≤n ((b ∷⁺ a) , r , r<q , str) in
-     a , s , <-trans s<q q<p , str′
-
-   chain : goal n → goal n
-   chain = (fix (_≤ n ⟶ goal ⟶ goal) $ λ {p} rec p≤n acc →
-           let (a , q , q<p , s) = acc
-               .q<m : q < m
-               q<m = ≤-trans q<p (≤-trans p≤n n≤m)
-           in maybe (step p≤n rec acc) acc $ runParser (pTl q q<m) ≤-refl s)
-           ≤-refl
-
-   kickstart : Vec Tok n → Maybe (goal n)
-   kickstart s = runParser pHd n≤m s MM.>>=
-                 just ∘ smap NonEmpty.reverse ∘ chain ∘ smap (_∷ [])
+ head+tail hd tl = NonEmpty.reverse
+               <$> (iterate (NonEmpty.[_] <$> hd) (□map (NonEmpty._∷⁺_ <$>_) tl))
 
  list⁺ : [ Parser Tok A ⟶ Parser Tok (List⁺ A) ]
  list⁺ pA = head+tail pA (return pA)
