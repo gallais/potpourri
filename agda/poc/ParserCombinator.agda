@@ -315,6 +315,25 @@ module _ {Tok A B : Set} where
 
 module _ {Tok A : Set} where
 
+ chainr1 : [ Parser Tok A ⟶ □ Parser Tok (A → A → A) ⟶ Parser Tok A ]
+ chainr1 =
+   fix (Parser Tok A ⟶ □ Parser Tok (A → A → A) ⟶ Parser Tok A) $ λ {n} rec A op →
+     mkParser $ λ m≤n s →
+     runParser A m≤n s MM.>>= λ rA →
+     let (a , p , p<m , s′) = rA
+         .p<n : p < n
+         p<n = ≤-trans p<m m≤n
+     in case runParser (op p p<n) ≤-refl s′ of λ where
+        nothing   → just rA
+        (just (f , q , q<p , s′′)) →
+          let .q<n : q < n
+              q<n = <-trans q<p p<n
+          in case runParser (rec q q<n (return A q q<n) (duplicate op q q<n)) ≤-refl s′′
+             of λ where
+          nothing                     → just rA
+          (just (b , r , r<q , s′′′)) →
+             just (f a b , r , <-trans r<q (<-trans q<p p<m) , s′′′)
+
  chainl1 : [ Parser Tok A ⟶ □ Parser Tok (A → A → A) ⟶ Parser Tok A ]
  chainl1 a op = hchainl a op (return a)
 
@@ -395,6 +414,13 @@ _ = node (leaf (node (leaf 0) (leaf 0))) (leaf (leaf 1)) !
 
 alpha : [ Parser Char Char ]
 alpha = anyOf $ String.toList "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+record Identifier : Set where
+  constructor mkIdentifier
+  field getIdentifier : List⁺ Char
+
+identifier : [ Parser Char Identifier ]
+identifier = mkIdentifier <$> list⁺ alpha
 
 digit : [ Parser Char ℕ ]
 digit = 0 <$ char '0'
@@ -549,3 +575,56 @@ PAR′ = fix (Parser PAR _) $ λ rec →
 
 _ : "hel[{(lo({((wor))ld})wan)t}som{e()[n]o}i(s)e]?" ∈ PAR′
 _ = _ !
+
+data Type : Set where
+  `κ   : ℕ → Type
+  _`→_ : Type → Type → Type
+
+Type′ : [ Parser Char Type ]
+Type′ = fix _ $ λ rec → chainr1 (`κ <$> decimal <|> parens rec)
+                                (return $ _`→_ <$ withSpaces (char '→'))
+
+_ : "1 → (2 → 3) → 4" ∈ Type′
+_ = `κ 1 `→ ((`κ 2 `→ `κ 3) `→ `κ 4) !
+
+mutual
+
+  data Val : Set where
+    Lam : Identifier → Val → Val
+    Emb : Neu → Val
+
+  data Neu : Set where
+    Var : Identifier → Neu
+    Cut : Val → Type → Neu
+    App : Neu → Val → Neu
+
+Val′ : [ Parser Char Val ]
+Val′ = fix _ $ λ rec →
+       let var = Var <$> identifier
+           cut = uncurry Cut <$> (char '(' &> rec
+                             <& return (withSpaces (char ':'))
+                             <&> return Type′
+                             <& return (char ')'))
+           neu = hchainl (var <|> cut) (return (App <$ space)) rec
+       in uncurry Lam <$> (char 'λ' &> return (withSpaces identifier)
+                                   <&> return ((char '.')
+                                    &> rec))
+          <|> Emb <$> neu
+
+_ : "λx.x" ∈ Val′
+_ = Lam (mkIdentifier ('x' ∷ []))
+        (Emb (Var (mkIdentifier ('x' ∷ [])))) !
+
+_ : "λx.λy.x y" ∈ Val′
+_ = Lam (mkIdentifier ('x' ∷ []))
+   (Lam (mkIdentifier ('y' ∷ []))
+   (Emb (App (Var (mkIdentifier ('x' ∷ [])))
+             (Emb (Var (mkIdentifier ('y' ∷ []))))))) !
+
+_ : "λx.(λx.x : 1 → 1) x" ∈ Val′
+_ = Lam (mkIdentifier ('x' ∷ []))
+    (Emb (App
+              (Cut (Lam (mkIdentifier ('x' ∷ []))
+                        (Emb (Var (mkIdentifier ('x' ∷ [])))))
+                   (`κ 1 `→ `κ 1))
+              (Emb (Var (mkIdentifier ('x' ∷ [])))))) !
