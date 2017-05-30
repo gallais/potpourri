@@ -1,5 +1,6 @@
 module linear!.Language where
 
+open import Agda.Builtin.Unit
 open import Agda.Builtin.Nat
 
 -- Types: base, lolli & bang
@@ -30,15 +31,32 @@ data Context : Nat → Set where
   _□   : {n : Nat} → Context n → Context n
 
 -- Usage: fresh or stale
-infix 4 fresh_ stale_
-data Usage : Type! → Set where
-  fresh_ : (σ : Type!) → Usage σ
-  stale_ : (σ : Type!) → Usage σ
+infix 4 `fresh_ `stale_ fresh_ stale_
+data Usage : Type → Set where
+  `fresh_ : (σ : Type) → Usage σ
+  `stale_ : (σ : Type) → Usage σ
+
+`Usage! : Type! → Set
+`Usage! (σ !^ 0) = Usage σ
+`Usage! _        = ⊤
+
+record Usage! (σ : Type!) : Set where
+  constructor [_]
+  field usage! : `Usage! σ
+open Usage!
+
+fresh_ : (σ : Type!) → Usage! σ
+fresh σ !^ 0     = [ `fresh σ ]
+fresh σ !^ suc m = [ tt       ]
+
+stale_ : (σ : Type!) → Usage! σ
+stale σ !^ 0     = [ `stale σ ]
+stale σ !^ suc m = [ tt       ]
 
 data Usages : {n : Nat} (γ : Context n) → Set where
   ε    : Usages ε
   _:>_ : {n : Nat} {γ : Context n} {σ : Type!} →
-         Usages γ → Usage σ → Usages (γ :> σ)
+         Usages γ → Usage! σ → Usages (γ :> σ)
   _□   : {n : Nat} {γ : Context n} →
          Usages γ → Usages (γ □)
 
@@ -49,11 +67,11 @@ infix 1 _⊢var_∈_⊠_
 infixr 5 op_ wk_
 data _⊢var_∈_⊠_ : {n : Nat} {γ : Context n}
                   (Γ : Usages γ) (k : Fin n) (σ : Type!) (Δ : Usages γ) → Set where
-  z!  : {n : Nat} {γ : Context n} {Γ : Usages γ} {σ : Type} {m p : Nat}
-        {S : Usage (σ !^ suc m)} → Γ :> S ⊢var zero ∈ σ !^ p ⊠ Γ :> stale σ !^ suc m
+  z!  : {n : Nat} {γ : Context n} {Γ : Usages γ} {σ : Type} {m p : Nat} {S : Usage! (σ !^ suc m)} →
+        Γ :> S ⊢var zero ∈ σ !^ p ⊠ Γ :> stale σ !^ suc m
   z0  : {n : Nat} {γ : Context n} {Γ : Usages γ} {σ : Type} →
         Γ :> (fresh σ !^ 0) ⊢var zero ∈ σ !^ 0 ⊠ Γ :> stale σ !^ 0
-  wk_ : {n : Nat} {γ : Context n} {k : Fin n} {Γ Δ : Usages γ} {σ τ : Type!} {S : Usage τ} →
+  wk_ : {n : Nat} {γ : Context n} {k : Fin n} {Γ Δ : Usages γ} {σ τ : Type!} {S : Usage! τ} →
         Γ ⊢var k ∈ σ ⊠ Δ → Γ :> S ⊢var suc k ∈ σ ⊠ Δ :> S
 
   op_ : {n : Nat} {γ : Context n} {k : Fin n} {Γ Δ : Usages γ} {σ : Type!} →
@@ -68,39 +86,37 @@ _ = op op z!
 _ : ε :> fresh α ! ! ! ! □ :> stale α □ ⊢var _ ∈ α ⊠ _
 _ = op wk op z!
 
-open import Agda.Builtin.Unit
 open import Data.Empty
 open import Data.Product
 
-z-constraint : {n : Nat} {γ : Context (suc n)} (Γ : Usages γ) → Nat → Set
-z-constraint (Γ :> fresh σ !^ _)     zero    = ⊤
-z-constraint (Γ :> fresh σ !^ suc _) (suc _) = ⊤
-z-constraint (Γ :> stale σ !^ suc _) _       = ⊤
-z-constraint (Γ :> _)                _       = ⊥
-z-constraint (Γ □) m = z-constraint Γ (suc m)
+z-constraint : {n : Nat} (γ : Context (suc n)) (Γ : Usages γ) → Nat → Set
+z-constraint (γ :> σ !^ zero)  (Γ :> [ `fresh .σ ]) zero = ⊤
+z-constraint (γ :> σ !^ suc _) (Γ :> _)             _    = ⊤
+z-constraint (γ □)             (Γ □)                m    = z-constraint γ Γ (suc m)
+z-constraint (γ :> σ !^ zero)  (Γ :> _)             _    = ⊥
 
 z-constraint-valid :
-  {n : Nat} {γ : Context (suc n)} (Γ : Usages γ) (m : Nat) →
-  z-constraint Γ m → Type × Usages γ
-z-constraint-valid (Γ :> fresh σ !^ k)     zero    pr = σ , (Γ :> stale σ !^ k)
-z-constraint-valid (Γ :> fresh σ !^ suc k) (suc _) pr = σ , (Γ :> stale σ !^ suc k)
-z-constraint-valid (Γ :> stale σ !^ suc k) _       pr = σ , (Γ :> stale σ !^ suc k)
-z-constraint-valid (Γ □) m  pr = let (σ , Δ) = z-constraint-valid Γ (suc m) pr in (σ , (Δ □))
-z-constraint-valid (Γ :> fresh σ !^ zero)  (suc _) ()
-z-constraint-valid (Γ :> stale σ !^ zero)  _       ()
+  {n : Nat} (γ : Context (suc n)) (Γ : Usages γ) (m : Nat) →
+  z-constraint γ Γ m → Type × Usages γ
+z-constraint-valid (γ :> σ !^ zero)  (Γ :> [ `fresh .σ ]) zero _  = σ , (Γ :> [ `stale σ ])
+z-constraint-valid (γ :> σ !^ suc _) (Γ :> _)             _    _  = σ , (Γ :> [ tt ])
+z-constraint-valid (γ □)             (Γ □)                m    pr =
+  let (σ , Δ) = z-constraint-valid γ Γ (suc m) pr
+  in (σ , (Δ □))
+z-constraint-valid (γ :> σ !^ zero)  (Γ :> [ `fresh .σ ]) (suc _) ()
+z-constraint-valid (γ :> σ !^ zero)  (Γ :> [ `stale .σ ]) _       ()
+
 
 -- smart constructor for de Bruijn index 0
 z : {n : Nat} {γ : Context (suc n)} {Γ : Usages γ}
-    {m : Nat} {pr : z-constraint Γ m} →
-    let (σ , Δ) = z-constraint-valid Γ m pr in
+    {m : Nat} {pr : z-constraint γ Γ m} →
+    let (σ , Δ) = z-constraint-valid γ Γ m pr in
     Γ ⊢var zero ∈ σ !^ m ⊠ Δ
-z {Γ = Γ :> fresh σ !^ zero}  {m = zero}  = z0
-z {Γ = Γ :> fresh σ !^ suc k} {m = zero}  = z!
-z {Γ = Γ :> fresh σ !^ suc k} {m = suc _} = z!
-z {Γ = Γ :> stale σ !^ suc k}             = z!
-z {Γ = Γ □} {m = m} = op z
-z {Γ = Γ :> fresh σ !^ zero} {m = suc _} {pr = ()}
-z {Γ = Γ :> stale σ !^ zero} {m = _}     {pr = ()}
+z {γ = γ :> σ !^ zero}  {Γ = Γ :> [ `fresh .σ ]} {m = zero}  = z0
+z {γ = γ :> σ !^ suc _} {Γ = Γ :> _}             {m = _}     = z!
+z {γ = γ □}             {Γ = Γ □}                {m = m}     = op z
+z {γ = γ :> σ !^ zero}  {Γ = Γ :> [ `fresh .σ ]} {m = suc _} {pr = ()}
+z {γ = γ :> σ !^ zero}  {Γ = Γ :> [ `stale .σ ]}             {pr = ()}
 
 _ : ε :> fresh α ! ! ! ! ⊢var _ ∈ α ⊠ _
 _ = z
