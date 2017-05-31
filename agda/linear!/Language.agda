@@ -1,11 +1,11 @@
 module linear!.Language where
 
 open import Agda.Builtin.Unit
-open import Agda.Builtin.Nat
+open import Agda.Builtin.Nat hiding (_<_)
 
 -- Types: base, lolli & bang
-data Type  : Set
-data Type! : Set
+data   Type  : Set
+record Type! : Set
 
 infixr 4 _⊸_
 data Type where
@@ -13,8 +13,11 @@ data Type where
   _`⊸_ : Type! → Type! → Type
 
 infix 6 _!^_
-data Type! where
-  _!^_ : Type → Nat → Type!
+record Type! where
+  inductive
+  constructor _!^_
+  field type  : Type
+        bangs : Nat
 
 pattern α = `α !^ 0
 pattern _⊸_ σ τ = σ `⊸ τ !^ 0
@@ -61,7 +64,7 @@ data Usages : {n : Nat} (γ : Context n) → Set where
          Usages γ → Usages (γ □)
 
 
-open import Data.Fin
+open import Data.Fin using (Fin ; zero ; suc)
 -- De Bruijn index as resource consumption
 infix 1 _⊢var_∈_⊠_
 infixr 5 op_ wk_
@@ -73,7 +76,6 @@ data _⊢var_∈_⊠_ : {n : Nat} {γ : Context n}
         Γ :> (fresh σ !^ 0) ⊢var zero ∈ σ !^ 0 ⊠ Γ :> stale σ !^ 0
   wk_ : {n : Nat} {γ : Context n} {k : Fin n} {Γ Δ : Usages γ} {σ τ : Type!} {S : Usage! τ} →
         Γ ⊢var k ∈ σ ⊠ Δ → Γ :> S ⊢var suc k ∈ σ ⊠ Δ :> S
-
   op_ : {n : Nat} {γ : Context n} {k : Fin n} {Γ Δ : Usages γ} {σ : Type!} →
         Γ ⊢var k ∈ σ ! ⊠ Δ → Γ □ ⊢var k ∈ σ ⊠ Δ □
 
@@ -189,3 +191,206 @@ _ = lam (box (neu (var z)))
 
 _ : ε ⊢ α ! ⊸ α ! ! ! ! ∋ _ ⊠ ε
 _ = lam (box (neu (var z)))
+
+
+open import Data.Nat.Base
+open import Data.List as List hiding ([_])
+open import Data.List.All
+open import Algebra
+open import Function
+
+module LM {a} {A : Set a} = Monoid (List.monoid A)
+
+Banged : Type! → Set
+Banged = ((0 <_) ∘ Type!.bangs)
+
+-- This presentation of ILL is taken from:
+-- http://llwiki.ens-lyon.fr/mediawiki/index.php/Intuitionistic_linear_logic
+-- except for the `mix` constructor allowing the user to reorganise the
+-- context (on the llwiki, the context is a multiset).
+
+infix 1 _⊢_
+data _⊢_ : List Type! → Type! → Set where
+  ax  : {σ : Type!} →
+        -------------
+        (σ ∷ []) ⊢ σ
+  cut : {γ δ : List Type!} {σ τ : Type!} →
+        γ ⊢ σ → σ ∷ δ ⊢ τ →
+        ---------------------
+         γ ++ δ ⊢ τ
+  ⊸R : {γ : List Type!} {σ τ : Type!} →
+        σ ∷ γ ⊢ τ →
+        -------------
+        γ ⊢ σ ⊸ τ
+  ⊸L : {γ δ : List Type!} {σ τ ν : Type!} →
+        γ ⊢ σ → τ ∷ δ ⊢ ν →
+        --------------------
+        (σ ⊸ τ) ∷ γ ++ δ ⊢ ν
+
+  !R : {γ : List Type!} {σ : Type!} →
+       γ ⊢ σ → All Banged γ →
+       ------------------------
+       γ ⊢ σ !
+
+  !dL : {γ : List Type!} {σ τ : Type!} →
+        σ ∷ γ ⊢ τ →
+        ------------
+        (σ !) ∷ γ ⊢ τ
+
+  !cL : {γ : List Type!} {σ τ : Type!} →
+        (σ !) ∷ (σ !) ∷ γ ⊢ τ →
+        --------------------
+        (σ !) ∷ γ ⊢ τ
+
+  !wL : {γ : List Type!} {σ τ : Type!} →
+        γ ⊢ τ →
+        --------
+        (σ !) ∷ γ ⊢ τ
+
+
+--  mix : {γ δ θ : List Type} {σ : Type} → γ ++ δ ⊢ σ → γ ++ δ ≅ θ → θ ⊢ σ
+
+infix 1 _─_≡_─_
+data _─_≡_─_ : {n : ℕ} {γ : Context n} (Γ Δ θ ξ : Usages γ) → Set where
+  ε    : ε ─ ε ≡ ε ─ ε
+  _:>⊘ : {n : ℕ} {γ : Context n} {Γ Δ θ ξ : Usages γ}
+         {a : Type} {A B : Usage! (a !^ 0)} →
+         Γ ─ Δ ≡ θ ─ ξ → Γ :> A ─ Δ :> A ≡ θ :> B ─ ξ :> B
+  _:>[_!^suc_] :
+          {n : ℕ} {γ : Context n} {Γ Δ θ ξ : Usages γ} →
+          Γ ─ Δ ≡ θ ─ ξ →
+          (a : Type) (m : ℕ) {A B : Usage! (a !^ suc m)} →
+          Γ :> A ─ Δ :> A ≡ θ :> B ─ ξ :> B
+  _:>_ : {n : ℕ} {γ : Context n} {Γ Δ θ ξ : Usages γ} → 
+         Γ ─ Δ ≡ θ ─ ξ → (a : Type) →
+         Γ :> [ `fresh a ] ─ Δ :> [ `stale a ] ≡
+         θ :> [ `fresh a ] ─ ξ :> [ `stale a ]
+  _□   : {n : ℕ} {γ : Context n} {Γ Δ θ ξ : Usages γ} →
+         Γ ─ Δ ≡ θ ─ ξ →
+         Γ □ ─ Δ □ ≡ θ □ ─ ξ □
+
+infix 1 _⊆_
+_⊆_ : {n : ℕ} {γ : Context n} (Γ Δ : Usages γ) → Set
+Γ ⊆ Δ = Γ ─ Δ ≡ Γ ─ Δ
+
+refl-⊆ : {n : ℕ} {γ : Context n} (Γ : Usages γ) → Γ ⊆ Γ
+refl-⊆                       ε        = ε
+refl-⊆ {γ = γ :> _ !^ 0}     (Γ :> S) = refl-⊆ Γ :>⊘
+refl-⊆ {γ = γ :> a !^ suc m} (Γ :> S) = refl-⊆ Γ :>[ a !^suc m ]
+refl-⊆                       (Γ □)    = refl-⊆ Γ □
+
+trans-⊆ : {n : ℕ} {γ : Context n} {Γ Δ Θ : Usages γ} → Γ ⊆ Δ → Δ ⊆ Θ → Γ ⊆ Θ
+trans-⊆ ε                   ε                   = ε
+trans-⊆ (p :>⊘)             (q :>⊘)             = trans-⊆ p q :>⊘
+trans-⊆ (p :>⊘)             (q :> a)            = trans-⊆ p q :> a
+trans-⊆ (p :>[ a !^suc m ]) (q :>[ _ !^suc _ ]) = trans-⊆ p q :>[ a !^suc m ]
+trans-⊆ (p :> a)            (q :>⊘)             = trans-⊆ p q :> a
+trans-⊆ (p □)               (q □)               = trans-⊆ p q □
+
+□-inv-⊆ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} → Γ □ ⊆ Δ □ → Γ ⊆ Δ
+□-inv-⊆ (pr □) = pr
+
+:>-inv-⊆ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ}
+           {σ : Type!} {S T : Usage! σ} →
+           Γ :> S ⊆ Δ :> T → Γ ⊆ Δ
+:>-inv-⊆ (pr :>⊘)             = pr
+:>-inv-⊆ (pr :>[ _ !^suc _ ]) = pr
+:>-inv-⊆ (pr :> a)            = pr
+
+var-⊆ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {σ : Type!} {k : Fin n} →
+        Γ ⊢var k ∈ σ ⊠ Δ → Γ ⊆ Δ
+var-⊆                       z!     = refl-⊆ _ :>[ _ !^suc _ ]
+var-⊆                       z0     = refl-⊆ _ :> _
+var-⊆ {γ = γ :> a !^ 0}     (wk v) = var-⊆ v :>⊘
+var-⊆ {γ = γ :> a !^ suc m} (wk v) = var-⊆ v :>[ a !^suc m ]
+var-⊆                       (op v) = var-⊆ v □
+
+infer-⊆ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {σ : Type!} {t : Infer n} →
+          Γ ⊢ t ∈ σ ⊠ Δ → Γ ⊆ Δ
+check-⊆ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {σ : Type!} {t : Check n} →
+          Γ ⊢ σ ∋ t ⊠ Δ → Γ ⊆ Δ
+
+infer-⊆ (var v)   = var-⊆ v
+infer-⊆ (cut t)   = check-⊆ t
+infer-⊆ (app f t) = trans-⊆ (infer-⊆ f) (check-⊆ t)
+infer-⊆ (box t)   = □-inv-⊆ (infer-⊆ t)
+
+check-⊆ (lam t) = :>-inv-⊆ (check-⊆ t)
+check-⊆ (box t) = □-inv-⊆ (check-⊆ t)
+check-⊆ (neu t) = infer-⊆ t
+
+open import Agda.Builtin.Bool
+
+banged : Type! → Bool
+banged (_ !^ 0) = false
+banged _        = true
+
+all-banged : (γ : List Type!) → All Banged (filter banged γ)
+all-banged []               = []
+all-banged (σ !^ 0     ∷ γ) = all-banged γ
+all-banged (σ !^ suc _ ∷ γ) = s≤s z≤n ∷ all-banged γ
+
+soundz! : {σ : Type} (m p : Nat) → σ !^ suc m ∷ [] ⊢ σ !^ p
+soundz! zero    zero    = !dL ax
+soundz! zero    (suc p) = !R (soundz! zero p) (s≤s z≤n ∷ [])
+soundz! (suc m) p       = !dL (soundz! m p)
+
+erasure : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} → Γ ⊆ Δ → List Type!
+erasure ε                   = []
+erasure (Γ :>⊘)             = erasure Γ
+erasure (Γ :>[ a !^suc m ]) = a !^ suc m ∷ erasure Γ
+erasure (Γ :> a)            = a !^ 0 ∷ erasure Γ
+erasure (Γ □)               = erasure Γ
+
+open import Relation.Binary.PropositionalEquality
+
+!wLs : {γ δ : List Type!} {σ : Type!} →
+       All Banged δ → γ ⊢ σ → δ ++ γ ⊢ σ
+!wLs []           t = t
+!wLs (s≤s p ∷ ps) t = !wL (!wLs ps t)
+
+!wLsᴿ : {γ δ : List Type!} {σ : Type!} →
+        All Banged δ → γ ⊢ σ → γ ++ δ ⊢ σ
+!wLsᴿ = {!!}
+
+
+Banged-auto : {n : ℕ} {γ : Context n} {Γ : Usages γ} (p : Γ ⊆ Γ) →
+              All Banged (erasure p)
+Banged-auto ε                   = []
+Banged-auto (p :>⊘)             = Banged-auto p
+Banged-auto (p :>[ a !^suc m ]) = s≤s z≤n ∷ Banged-auto p
+Banged-auto (p □)               = Banged-auto p
+
+soundvar : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {σ : Type!} {k : Fin n} →
+           Γ ⊢var k ∈ σ ⊠ Δ → (p : Γ ⊆ Δ) → erasure p ⊢ σ
+soundvar z!     (p :>[ a !^suc m ]) = !wLsᴿ (Banged-auto p) (soundz! _ _)
+soundvar z0     (p :> a)            = !wLsᴿ (Banged-auto p) ax
+soundvar (wk T) (p :>⊘)             = soundvar T p
+soundvar (wk T) (p :>[ a !^suc m ]) = !wL (soundvar T p)
+soundvar (op T) (p □)               = rew $ cut (soundvar T p) (!dL ax)
+  where rew = subst (_⊢ _) (proj₂ LM.identity _)
+
+
+!Rs : {γ : List Type!} {σ : Type} (m : Nat) →
+      γ ⊢ σ !^ 0 → All Banged γ →
+      ------------------------
+      γ ⊢ σ !^ suc m
+!Rs zero    s c = !R s c
+!Rs (suc m) s c = !R (!Rs m s c) c
+
+sound∈ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {σ : Type!} {t : Infer n} →
+         Γ ⊢ t ∈ σ ⊠ Δ →
+         (p : Γ ⊆ Δ) → erasure p ⊢ σ
+sound∋ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {σ : Type!} {t : Check n} →
+         Γ ⊢ σ ∋ t ⊠ Δ →
+         (p : Γ ⊆ Δ) → erasure p ⊢ σ
+
+sound∈ (var V)   p = soundvar V p
+sound∈ (cut T)   p = sound∋ T p
+sound∈ (app F T) p = {!!}
+sound∈ (box T)   p = !Rs _ (sound∈ T (p □)) {!!}
+
+sound∋ (box T)                  p = !Rs _ (sound∋ T (p □)) {!!}
+sound∋ (neu T)                  p = sound∈ T p
+sound∋ (lam {σ = σ !^ 0}     T) p = ⊸R (sound∋ T (p :> σ))
+sound∋ (lam {σ = σ !^ suc m} T) p = ⊸R (sound∋ T (p :>[ σ !^suc m ]))
