@@ -480,6 +480,97 @@ soundvar (op T) (p □)               = rew $ cut (soundvar T p) (!dL ax)
 !Rs zero    s c = !R s c
 !Rs (suc m) s c = !R (!Rs m s c) c
 
+banged-refl : {n : ℕ} {γ : Context n} {Γ : Usages γ}
+              (p : Γ ⊆ Γ) → All Banged ⌞ p ⌟
+banged-refl ε                   = []
+banged-refl (p :>⊘)             = banged-refl p
+banged-refl (p :>[ a !^suc m ]) = s≤s z≤n ∷ banged-refl p
+banged-refl (p □)               = banged-refl p
+
+banged-trans :
+  {n : ℕ} {γ : Context n} {Γ Δ Θ : Usages γ} (p : Γ ⊆ Δ) (q : Δ ⊆ Θ) →
+  All Banged ⌞ p ⌟ → All Banged ⌞ q ⌟ → All Banged ⌞ trans-⊆ p q ⌟
+banged-trans ε        ε        ps qs         = []
+banged-trans (p :>⊘)  (q :>⊘)  ps qs         = banged-trans p q ps qs
+banged-trans (p :>⊘)  (q :> a) ps (prf ∷ qs) = prf ∷ banged-trans p q ps qs
+banged-trans (p :> a) (q :>⊘) (prf ∷ ps) qs  = prf ∷ banged-trans p q ps qs
+banged-trans (p □)    (q □)    ps qs         = banged-trans p q ps qs
+banged-trans (p :>[ a !^suc m ]) (q :>[ .a !^suc .m ]) (prf ∷ ps) (_ ∷ qs) =
+  prf ∷ banged-trans p q ps qs
+
+infix 1 _□∈_
+data _□∈_ {m : ℕ} (δ : Context m) : {n : ℕ} (γ : Context n) → Set where
+  _:>_ : {n : ℕ} {γ : Context n} → δ □∈ γ → (a : Type!) → δ □∈ γ :> a
+  _□   : {n : ℕ} {γ : Context n} → δ □∈ γ → δ □∈ γ □
+  []   : δ □∈ δ □
+
+CutOff : {m n : ℕ} {δ : Context m} {γ : Context n} → δ □∈ γ → Usages γ → Usages δ
+CutOff (p :> _) (Γ :> _) = CutOff p Γ
+CutOff (p □)    (Γ □)    = CutOff p Γ
+CutOff []       (Γ □)    = Γ
+
+cutOff : {m n : ℕ} {δ : Context m} {γ : Context n} {Γ Δ : Usages γ}
+         (v : δ □∈ γ) → Γ ⊆ Δ → CutOff v Γ ⊆ CutOff v Δ
+cutOff (v :> _) (p :>⊘)             = cutOff v p
+cutOff (v :> _) (p :>[ _ !^suc _ ]) = cutOff v p
+cutOff (v :> _) (p :> _)            = cutOff v p
+cutOff (v □)    (p □)               = cutOff v p
+cutOff []       (p □)               = p
+
+banged-cutOff :
+  {m n : ℕ} {δ : Context m} {γ : Context n} {Γ Δ : Usages γ}
+  (v : δ □∈ γ) (p : Γ ⊆ Δ) → All Banged ⌞ p ⌟ → All Banged ⌞ cutOff v p ⌟
+banged-cutOff (v :> _) (p :>⊘)             ps       = banged-cutOff v p ps
+banged-cutOff (v :> _) (p :>[ a !^suc m ]) (b ∷ ps) = banged-cutOff v p ps
+banged-cutOff (v :> _) (p :> a)            (() ∷ _)
+banged-cutOff (v □)    (p □)               ps       = banged-cutOff v p ps
+banged-cutOff []       (p □)               ps       = ps
+
+cutOffvar! :
+  {n : ℕ} {γ : Context n} {Γ Δ : Usages γ}
+  {k : Fin n} {σ : Type} {p : ℕ} → Γ ⊢var k ∈ σ !^ suc p ⊠ Δ →
+  (p : Γ ⊆ Δ) → All Banged ⌞ p ⌟
+cutOffvar! z!     (Γ :>[ _ !^suc _ ]) = (s≤s z≤n) ∷ banged-refl Γ
+cutOffvar! (wk t) (p :>⊘)             = cutOffvar! t p
+cutOffvar! (wk t) (p :>[ _ !^suc _ ]) = s≤s z≤n ∷ cutOffvar! t p
+cutOffvar! (op t) (p □)               = cutOffvar! t p
+
+cutOffvar :
+  {m n : ℕ} {δ : Context m} {γ : Context n} {Γ Δ : Usages γ}
+  {k : Fin n} {σ : Type!} → Γ ⊢var k ∈ σ ⊠ Δ →
+  (v : δ □∈ γ) →  (p : Γ ⊆ Δ) → All Banged ⌞ cutOff v p ⌟
+cutOffvar z!     (v :> _) (p :>[ _ !^suc _ ]) = banged-cutOff v p (banged-refl p)
+cutOffvar z0     (v :> _) (p :> a)            = banged-cutOff v p (banged-refl p)
+cutOffvar (wk t) (v :> _) (p :>⊘)             = cutOffvar t v p
+cutOffvar (wk t) (v :> _) (p :>[ a !^suc m ]) = cutOffvar t v p
+cutOffvar (op t) (v □)    (p □)               = cutOffvar t v p
+cutOffvar (op t) [] (p □)                     = cutOffvar! t p
+
+
+cutOff∈ :
+  {m n : ℕ} {δ : Context m} {γ : Context n} {Γ Δ : Usages γ}
+  {t : Infer n} {σ : Type!} → Γ ⊢ t ∈ σ ⊠ Δ →
+  (v : δ □∈ γ) →  (p : Γ ⊆ Δ) → All Banged ⌞ cutOff v p ⌟
+cutOff∋ :
+  {m n : ℕ} {δ : Context m} {γ : Context n} {Γ Δ : Usages γ}
+  {t : Check n} {σ : Type!} → Γ ⊢ σ ∋ t ⊠ Δ →
+  (v : δ □∈ γ) →  (p : Γ ⊆ Δ) → All Banged ⌞ cutOff v p ⌟
+
+cutOff∈ (var V)   v p = cutOffvar V v p
+cutOff∈ (cut T)   v p = cutOff∋ T v p
+cutOff∈ (app F T) v p =
+  let pF = infer-⊆ F
+      pT = check-⊆ T
+  in subst (All Banged) ⌞ trans-⊆ (cutOff v pF) (cutOff v pT) ⌟≡⌞ cutOff v p ⌟
+   $ banged-trans (cutOff v pF) (cutOff v pT) (cutOff∈ F v pF) (cutOff∋ T v pT)
+cutOff∈ (box T)   v p = cutOff∈ T (v □) (p □)
+
+cutOff∋ (lam {σ = σ !^ 0}     T) v p = cutOff∋ T (v :> _) (p :> σ)
+cutOff∋ (lam {σ = σ !^ suc m} T) v p = cutOff∋ T (v :> _) (p :>[ σ !^suc m ])
+cutOff∋ (box T)                  v p = cutOff∋ T (v □) (p □)
+cutOff∋ (neu T)                  v p = cutOff∈ T v p
+
+
 sound∈ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {σ : Type!} {t : Infer n} →
          Γ ⊢ t ∈ σ ⊠ Δ →
          (p : Γ ⊆ Δ) → ⌞ p ⌟ ⊢ σ
@@ -494,9 +585,9 @@ sound∈ (app F T) p =
   $ ⌞trans⌟ [] (infer-⊆ F) (check-⊆ T)
   $ subst (_⊢ _) (cong (⌞ infer-⊆ F ⌟ ++_) (proj₂ LM.identity _))
   $ cut (sound∈ F (infer-⊆ F)) (⊸L (sound∋ T (check-⊆ T)) ax)
-sound∈ (box T)   p = !Rs _ (sound∈ T (p □)) {!!}
+sound∈ (box T)   p = !Rs _ (sound∈ T (p □)) (cutOff∈ T [] (p □))
 
-sound∋ (box T)                  p = !Rs _ (sound∋ T (p □)) {!!}
+sound∋ (box T)                  p = !Rs _ (sound∋ T (p □)) (cutOff∋ T [] (p □))
 sound∋ (neu T)                  p = sound∈ T p
 sound∋ (lam {σ = σ !^ 0}     T) p = ⊸R (sound∋ T (p :> σ))
 sound∋ (lam {σ = σ !^ suc m} T) p = ⊸R (sound∋ T (p :>[ σ !^suc m ]))
