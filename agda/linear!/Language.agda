@@ -374,12 +374,39 @@ soundz! zero    zero    = !dL ax
 soundz! zero    (suc p) = !R (soundz! zero p) (s≤s z≤n ∷ [])
 soundz! (suc m) p       = !dL (soundz! m p)
 
+f⌜_⌝ : {n : ℕ} (γ : Context n) → Usages γ
+f⌜ ε               ⌝ = ε
+f⌜ γ :> σ !^ 0     ⌝ = f⌜ γ ⌝ :> [ `fresh σ ]
+f⌜ γ :> σ !^ suc m ⌝ = f⌜ γ ⌝ :> [ tt ]
+f⌜ γ □             ⌝ = f⌜ γ ⌝ □
+
+s⌜_⌝ : {n : ℕ} (γ : Context n) → Usages γ
+s⌜ ε               ⌝ = ε
+s⌜ γ :> σ !^ 0     ⌝ = s⌜ γ ⌝ :> [ `stale σ ]
+s⌜ γ :> σ !^ suc m ⌝ = s⌜ γ ⌝ :> [ tt ]
+s⌜ γ □             ⌝ = s⌜ γ ⌝ □
+
+use-all : {n : ℕ} (γ : Context n) → f⌜ γ ⌝ ⊆ s⌜ γ ⌝
+use-all ε                 = ε
+use-all (γ :> σ !^ 0)     = use-all γ :> σ
+use-all (γ :> σ !^ suc m) = use-all γ :>[ σ !^suc m ]
+use-all (γ □)             = use-all γ □
+
 ⌞_⌟ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} → Γ ⊆ Δ → List Type!
 ⌞ ε                 ⌟ = []
 ⌞ Γ :>⊘             ⌟ = ⌞ Γ ⌟
 ⌞ Γ :>[ a !^suc m ] ⌟ = a !^ suc m ∷ ⌞ Γ ⌟
 ⌞ Γ :> a            ⌟ = a !^ 0 ∷ ⌞ Γ ⌟
 ⌞ Γ □               ⌟ = ⌞ Γ ⌟
+
+fromList : (xs : List Type!) → Context (length xs)
+fromList []      = ε
+fromList (σ ∷ γ) = fromList γ :> σ
+
+⌞use-all_⌟ : (γ : List Type!) → ⌞ use-all (fromList γ) ⌟ ≡ γ
+⌞use-all []             ⌟ = refl
+⌞use-all σ !^ 0     ∷ γ ⌟ = cong (_ ∷_) ⌞use-all γ ⌟
+⌞use-all σ !^ suc m ∷ γ ⌟ = cong (_ ∷_) ⌞use-all γ ⌟
 
 ⌞_⌟≡⌞_⌟ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} (p q : Γ ⊆ Δ) → ⌞ p ⌟ ≡ ⌞ q ⌟
 ⌞ ε                 ⌟≡⌞ ε                   ⌟ = refl
@@ -473,3 +500,11 @@ sound∋ (box T)                  p = !Rs _ (sound∋ T (p □)) {!!}
 sound∋ (neu T)                  p = sound∈ T p
 sound∋ (lam {σ = σ !^ 0}     T) p = ⊸R (sound∋ T (p :> σ))
 sound∋ (lam {σ = σ !^ suc m} T) p = ⊸R (sound∋ T (p :>[ σ !^suc m ]))
+
+soundness :
+  {γ : List Type!} {σ : Type!} →
+  (∃ λ t → f⌜ fromList γ ⌝ ⊢ σ ∋ t ⊠ s⌜ fromList γ ⌝) →
+  γ ⊢ σ
+soundness {γ} (t , pr) =
+  let prf = sound∋ pr (use-all (fromList γ))
+  in subst (_⊢ _) ⌞use-all γ ⌟ prf
