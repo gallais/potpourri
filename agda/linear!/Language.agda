@@ -194,15 +194,52 @@ _ = lam (box (neu (var z)))
 
 
 open import Data.Nat.Base
-open import Data.List as List hiding ([_])
+open import Data.List as List hiding ([_] ; _∷ʳ_)
 open import Data.List.All
 open import Algebra
 open import Function
+open import Relation.Binary.PropositionalEquality
 
 module LM {a} {A : Set a} = Monoid (List.monoid A)
 
 Banged : Type! → Set
 Banged = ((0 <_) ∘ Type!.bangs)
+
+module _ {A : Set} where
+
+ infix  1  _++_≅_
+ infixr 20 _∷ˡ_ _∷ʳ_
+ data _++_≅_ : (xs ys zs : List A) → Set where
+   []   : [] ++ [] ≅ []
+   _∷ˡ_ : (a : A) {xs ys zs : List A} → xs ++ ys ≅ zs → a ∷ xs ++ ys ≅ a ∷ zs
+   _∷ʳ_ : (a : A) {xs ys zs : List A} → xs ++ ys ≅ zs → xs ++ a ∷ ys ≅ a ∷ zs
+
+ infixr 20 _++ʳ_ _++ˡ_
+ _++ʳ_ : {xs ys zs : List A} (ts : List A) (eq : xs ++ ys ≅ zs) →
+         xs ++ ts List.++ ys ≅ ts List.++ zs
+ []       ++ʳ eq = eq
+ (t ∷ ts) ++ʳ eq = t ∷ʳ (ts ++ʳ eq)
+
+ _++ˡ_ : {xs ys zs : List A} (ts : List A) (eq : xs ++ ys ≅ zs) →
+         ts List.++ xs ++ ys ≅ ts List.++ zs
+ []       ++ˡ eq = eq
+ (t ∷ ts) ++ˡ eq = t ∷ˡ (ts ++ˡ eq)
+
+ right : {xs : List A} → [] ++ xs ≅ xs
+ right {xs = []}     = []
+ right {xs = x ∷ xs} = x ∷ʳ right
+
+ left : {xs : List A} → xs ++ [] ≅ xs
+ left {xs = []}     = []
+ left {xs = x ∷ xs} = x ∷ˡ left
+
+ trivial : (xs ys : List A) → xs ++ ys ≅ xs List.++ ys
+ trivial []       ys       = right
+ trivial (x ∷ xs) ys       = x ∷ˡ trivial xs ys
+
+ laivirt : (xs ys : List A) → ys ++ xs ≅ xs List.++ ys
+ laivirt []       ys = left
+ laivirt (x ∷ xs) ys = x ∷ʳ laivirt xs ys
 
 -- This presentation of ILL is taken from:
 -- http://llwiki.ens-lyon.fr/mediawiki/index.php/Intuitionistic_linear_logic
@@ -247,8 +284,10 @@ data _⊢_ : List Type! → Type! → Set where
         --------
         (σ !) ∷ γ ⊢ τ
 
-
---  mix : {γ δ θ : List Type} {σ : Type} → γ ++ δ ⊢ σ → γ ++ δ ≅ θ → θ ⊢ σ
+  mix : {γ δ θ : List Type!} {σ : Type!} →
+        γ ++ δ ≅ θ → γ ++ δ ⊢ σ →
+        --------------------------
+        θ ⊢ σ
 
 infix 1 _─_≡_─_
 data _─_≡_─_ : {n : ℕ} {γ : Context n} (Γ Δ θ ξ : Usages γ) → Set where
@@ -335,14 +374,50 @@ soundz! zero    zero    = !dL ax
 soundz! zero    (suc p) = !R (soundz! zero p) (s≤s z≤n ∷ [])
 soundz! (suc m) p       = !dL (soundz! m p)
 
-erasure : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} → Γ ⊆ Δ → List Type!
-erasure ε                   = []
-erasure (Γ :>⊘)             = erasure Γ
-erasure (Γ :>[ a !^suc m ]) = a !^ suc m ∷ erasure Γ
-erasure (Γ :> a)            = a !^ 0 ∷ erasure Γ
-erasure (Γ □)               = erasure Γ
+⌞_⌟ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} → Γ ⊆ Δ → List Type!
+⌞ ε                 ⌟ = []
+⌞ Γ :>⊘             ⌟ = ⌞ Γ ⌟
+⌞ Γ :>[ a !^suc m ] ⌟ = a !^ suc m ∷ ⌞ Γ ⌟
+⌞ Γ :> a            ⌟ = a !^ 0 ∷ ⌞ Γ ⌟
+⌞ Γ □               ⌟ = ⌞ Γ ⌟
 
-open import Relation.Binary.PropositionalEquality
+⌞_⌟≡⌞_⌟ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} (p q : Γ ⊆ Δ) → ⌞ p ⌟ ≡ ⌞ q ⌟
+⌞ ε                 ⌟≡⌞ ε                   ⌟ = refl
+⌞ p :>⊘             ⌟≡⌞ q :>⊘               ⌟ = ⌞ p ⌟≡⌞ q ⌟
+⌞ p :>[ a !^suc m ] ⌟≡⌞ q :>[ .a !^suc .m ] ⌟ = cong (_ ∷_) ⌞ p ⌟≡⌞ q ⌟
+⌞ p :> a            ⌟≡⌞ q :> .a             ⌟ = cong (_ ∷_) ⌞ p ⌟≡⌞ q ⌟
+⌞ p □               ⌟≡⌞ q □                 ⌟ = ⌞ p ⌟≡⌞ q ⌟
+
+cons-snoc : ∀ {A : Set} xs (y : A) ys → xs ++ y ∷ ys ≡ (xs ++ y ∷ []) ++ ys
+cons-snoc []       y ys = refl
+cons-snoc (x ∷ xs) y ys = cong (x ∷_) (cons-snoc xs y ys)
+ 
+⌞trans⌟ :
+  {n : ℕ} {γ : Context n} {Γ Δ Θ : Usages γ} {σ : Type!}
+  (δ : List Type!) (p : Γ ⊆ Δ) (q : Δ ⊆ Θ) →
+  δ ++ (⌞ p ⌟ ++ ⌞ q ⌟) ⊢ σ → δ ++ ⌞ trans-⊆ p q ⌟ ⊢ σ
+⌞trans⌟ δ ε                   ε                     t = t
+⌞trans⌟ δ (p :>⊘)             (q :>⊘)               t = ⌞trans⌟ δ p q t
+⌞trans⌟ δ (p :>⊘)             (q :> a)              t =
+  mix (δ ++ʳ (a !^ 0) ∷ˡ right)
+  $ ⌞trans⌟ (a !^ 0 ∷ δ) p q
+  $ mix ((a !^ 0) ∷ʳ δ ++ˡ ⌞ p ⌟ ++ˡ right)
+  $ subst (_⊢ _) (cong (_++ _) (cong (δ ++_) (sym $ proj₂ LM.identity _)))
+  $ subst (_⊢ _) (sym $ LM.assoc δ ⌞ p ⌟ _) t
+⌞trans⌟ δ (p :>[ a !^suc m ]) (q :>[ .a !^suc .m ]) t =
+  mix (δ ++ʳ (a !^ suc m) ∷ˡ right) 
+ $ !cL $ ⌞trans⌟ (a !^ suc m ∷ a !^ suc m ∷ δ) p q
+ $ mix ((a !^ suc m) ∷ʳ (a !^ suc m) ∷ʳ δ ++ˡ ⌞ p ⌟ ++ˡ right)
+ $ subst (_⊢ _) (cong (_++ _) (cong (δ ++_) (sym $ proj₂ LM.identity ⌞ p ⌟)))
+ $ subst (_⊢ _) (sym $ LM.assoc δ ⌞ p ⌟ _)
+ $ mix (δ ++ˡ ⌞ p ⌟ ++ʳ (a !^ suc m) ∷ˡ right)
+ $ subst (_⊢ _) (cons-snoc δ (a !^ suc m) _)
+ $ t
+⌞trans⌟ δ (p :> a)            (q :>⊘)               t =
+  subst (_⊢ _) (sym $ cons-snoc δ (a !^ 0) _)
+  $ ⌞trans⌟ (δ ++ a !^ 0 ∷ []) p q
+  $ subst (_⊢ _) (cons-snoc δ (a !^ 0) _) t
+⌞trans⌟ δ (p □)               (q □)                 t = ⌞trans⌟ δ p q t
 
 !wLs : {γ δ : List Type!} {σ : Type!} →
        All Banged δ → γ ⊢ σ → δ ++ γ ⊢ σ
@@ -351,18 +426,18 @@ open import Relation.Binary.PropositionalEquality
 
 !wLsᴿ : {γ δ : List Type!} {σ : Type!} →
         All Banged δ → γ ⊢ σ → γ ++ δ ⊢ σ
-!wLsᴿ = {!!}
+!wLsᴿ {γ} {δ} ps t = mix (laivirt γ δ) (!wLs ps t)
 
 
 Banged-auto : {n : ℕ} {γ : Context n} {Γ : Usages γ} (p : Γ ⊆ Γ) →
-              All Banged (erasure p)
+              All Banged ⌞ p ⌟
 Banged-auto ε                   = []
 Banged-auto (p :>⊘)             = Banged-auto p
 Banged-auto (p :>[ a !^suc m ]) = s≤s z≤n ∷ Banged-auto p
 Banged-auto (p □)               = Banged-auto p
 
 soundvar : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {σ : Type!} {k : Fin n} →
-           Γ ⊢var k ∈ σ ⊠ Δ → (p : Γ ⊆ Δ) → erasure p ⊢ σ
+           Γ ⊢var k ∈ σ ⊠ Δ → (p : Γ ⊆ Δ) → ⌞ p ⌟ ⊢ σ
 soundvar z!     (p :>[ a !^suc m ]) = !wLsᴿ (Banged-auto p) (soundz! _ _)
 soundvar z0     (p :> a)            = !wLsᴿ (Banged-auto p) ax
 soundvar (wk T) (p :>⊘)             = soundvar T p
@@ -380,14 +455,18 @@ soundvar (op T) (p □)               = rew $ cut (soundvar T p) (!dL ax)
 
 sound∈ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {σ : Type!} {t : Infer n} →
          Γ ⊢ t ∈ σ ⊠ Δ →
-         (p : Γ ⊆ Δ) → erasure p ⊢ σ
+         (p : Γ ⊆ Δ) → ⌞ p ⌟ ⊢ σ
 sound∋ : {n : ℕ} {γ : Context n} {Γ Δ : Usages γ} {σ : Type!} {t : Check n} →
          Γ ⊢ σ ∋ t ⊠ Δ →
-         (p : Γ ⊆ Δ) → erasure p ⊢ σ
+         (p : Γ ⊆ Δ) → ⌞ p ⌟ ⊢ σ
 
 sound∈ (var V)   p = soundvar V p
 sound∈ (cut T)   p = sound∋ T p
-sound∈ (app F T) p = {!!}
+sound∈ (app F T) p =
+  subst (_⊢ _) (⌞ trans-⊆ (infer-⊆ F) (check-⊆ T) ⌟≡⌞ p ⌟)
+  $ ⌞trans⌟ [] (infer-⊆ F) (check-⊆ T)
+  $ subst (_⊢ _) (cong (⌞ infer-⊆ F ⌟ ++_) (proj₂ LM.identity _))
+  $ cut (sound∈ F (infer-⊆ F)) (⊸L (sound∋ T (check-⊆ T)) ax)
 sound∈ (box T)   p = !Rs _ (sound∈ T (p □)) {!!}
 
 sound∋ (box T)                  p = !Rs _ (sound∋ T (p □)) {!!}
