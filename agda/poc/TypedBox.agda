@@ -1,14 +1,18 @@
 module poc.TypedBox where
 
+open import Data.Empty
 open import Agda.Builtin.Nat
-open import Agda.Builtin.List
+open import Data.List.Base hiding ([_] ; _∷ʳ_)
 open import Data.Product as P hiding (,_)
+open import Relation.Nullary
 open import Data.Sum
 open import Function
+open import Agda.Builtin.Equality as PEq using (_≡_)
 
 data Ty :      Set
 data Fo : Ty → Set
 
+infixr 5 _`×_
 data Ty where
   `Fin      : Nat → Ty
   _`×_ _`→_ : Ty → Ty → Ty
@@ -19,8 +23,39 @@ data Fo where
     `Fin : (n : Nat) → Fo (`Fin n)
     _`×_ : {σ τ : Ty} → Fo σ → Fo τ → Fo (σ `× τ)
 
-CTy = List (∃ Fo)
-Circuit = CTy → CTy → Set
+oF : {σ : Ty} → Fo σ → Ty
+oF {σ} _ = σ
+
+data C : Ty → Set where
+  C[_,_] : {s t : Ty} (σ : Fo s) (τ : Fo t) → C C[ σ , τ ]
+
+Fo? : (σ : Ty) → Dec (Fo σ)
+Fo? (`Fin k)   = yes (`Fin k)
+Fo? (s `× t)   with Fo? s | Fo? t
+... | yes p | yes q = yes (p `× q)
+... | _ | _ = no whatever where postulate whatever : _ -- not interested in the negative cases
+Fo? (s `→ t)   = no (λ ())
+Fo? C[ s , t ] = no (λ ()) 
+
+Fo?Fo! : {σ : Ty} (p : Fo σ) → Fo? σ ≡ yes p
+Fo?Fo! (`Fin k) = PEq.refl
+Fo?Fo! (p `× q) rewrite Fo?Fo! p | Fo?Fo! q = PEq.refl
+
+C? : (σ : Ty) → Dec (C σ)
+C? (`Fin k)   = no (λ ())
+C? (s `× t)   = no (λ ())
+C? (s `→ t)   = no (λ ())
+C? C[ s , t ] = yes C[ s , t ]
+
+⌞_⌟ : List Ty → List (∃ Fo)
+⌞ []     ⌟ = []
+⌞ σ ∷ Γ  ⌟ with Fo? σ
+⌞ σ ∷ Γ ⌟ | yes p = (σ , p) ∷ ⌞ Γ ⌟
+⌞ σ ∷ Γ ⌟ | no ¬p = ⌞ Γ ⌟
+
+`X : List (∃ Fo) → ∃ Fo
+`X []       = `Fin 1 , `Fin 1
+`X (σ ∷ Γ)  = P.zip _`×_ _`×_ σ (`X Γ)
 
 module _ {I : Set} where
 
@@ -144,12 +179,20 @@ th^□ t o p = t (trans o p)
 
 module Normal (𝓖 : {s t : Ty} (σ : Fo s) (τ : Fo t) → Set) where
 
+  data Neu : Ty → Set where
+    instance
+      `Fin    : (n : Nat) → Neu (`Fin n)
+      C[_,_]  : {s t : Ty} (σ : Fo s) (τ : Fo t) → Neu (C[ σ , τ ])
+
   data Ne  : Ty → List Ty → Set
   data Nf  : Ty → List Ty → Set
   data Abs : Ty → Ty → List Ty → Set
+  data Hdw : {s t : Ty} → Fo s → Fo t → List Ty → Set
 
   data Ne where
     `var : {σ : Ty} → Ne σ (σ ∷ [])
+    `run : {s t : Ty} {σ : Fo s} {τ : Fo t} → [ Ne C[ σ , τ ] ∙→ Ne (s `→ t) ]
+
     `app : {σ τ : Ty} {Γ Δ Γ⋈Δ : List Ty} →
            Ne (σ `→ τ) Γ → Nf σ Δ → Cover Γ Δ Γ⋈Δ → Ne τ Γ⋈Δ
     `fst : {σ τ : Ty} →
@@ -160,23 +203,52 @@ module Normal (𝓖 : {s t : Ty} (σ : Fo s) (τ : Fo t) → Set) where
            Ne (`Fin (suc n)) Γ → Nf σ Δ → Nf (`Fin n `→ σ) Θ →
            Cover Γ Δ Γ⋈Δ → Cover Γ⋈Δ Θ Γ⋈Δ⋈Θ → Ne σ Γ⋈Δ⋈Θ
     `bm! : (σ : Ty) → [ Ne (`Fin 0) ∙→ Ne σ ]
-
+    `box : {s t : Ty} {σ : Fo s} {τ : Fo t} →
+           [ Ne (s `→ t) ∙→ Ne C[ σ , τ ] ]
 
   data Nf where
-    `gat : {s t : Ty} {σ : Fo s} {τ : Fo t} →
-           𝓖 σ τ → Nf C[ σ , τ ] []
 
     `lam : {σ τ : Ty} → [ Abs σ τ ∙→ Nf (σ `→ τ) ]
     `prd : {σ τ : Ty} {Γ Δ Γ⋈Δ : List Ty} →
            Nf σ Γ → Nf τ Δ → Cover Γ Δ Γ⋈Δ → Nf (σ `× τ) Γ⋈Δ
     `zro : {n : Nat} → Nf (`Fin (suc n)) []
     `suc : {n : Nat} → [ Nf (`Fin n) ∙→ Nf (`Fin (suc n)) ]
-    `neu : {n : Nat} → [ Ne (`Fin n) ∙→ Nf (`Fin n) ]
+    `cct : {s t : Ty} → {σ : Fo s} {τ : Fo t} →
+           [ Hdw σ τ ∙→ Nf C[ σ , τ ] ]
+    `neu : {σ : Ty} {{_ : Neu σ}} → [ Ne σ ∙→ Nf σ ]
+
 
   data Abs where
     `cst : {σ τ : Ty} → [ Nf τ           ∙→ Abs σ τ ]
     `bnd : {σ τ : Ty} → [ (σ ∷_) ⊢ Nf τ  ∙→ Abs σ τ ]
 
+
+  data Hdw where
+    `gat : {s t : Ty} {σ : Fo s} {τ : Fo t} →
+           [ κ 𝓖 σ τ ∙→ Hdw σ τ ]
+    `seq : {s t u : Ty} {σ : Fo s} {τ : Fo t} {ν : Fo u} →
+           [ Hdw σ τ ∙→ Hdw τ ν ∙→ Hdw σ ν ]
+    `par : {s t u v : Ty} {σ : Fo s} {τ : Fo t} {ν : Fo u} {ω : Fo v} →
+           [ Hdw σ τ ∙→ Hdw ν ω ∙→ Hdw (σ `× ν) (τ `× ω) ]
+
+    -- captured
+    `neu : {s t : Ty} {σ : Fo s} {τ : Fo t} → [ Ne C[ σ , τ ]  ∙→ Hdw σ τ ]
+    `box : {s t : Ty} {σ : Fo s} {τ : Fo t} → [ Nf (s `→ t)    ∙→ Hdw σ τ ]
+
+    -- structural
+    `swp : {s t : Ty} {σ : Fo s} {τ : Fo t} → [ Hdw (σ `× τ) (τ `× σ) ]
+    `asr : {s t u : Ty} {σ : Fo s} {τ : Fo t} {ν : Fo u} →
+           [ Hdw ((σ `× τ) `× ν) (σ `× τ `× ν) ]
+    `asl : {s t u : Ty} {σ : Fo s} {τ : Fo t} {ν : Fo u} →
+           [ Hdw (σ `× τ `× ν) ((σ `× τ) `× ν) ]
+
+    -- basic gates
+    `wir : {s : Ty} {σ : Fo s}              → [ Hdw σ σ ]
+    `zro : {n : Nat}                        → [ Hdw (`Fin 1) (`Fin (suc n)) ]
+    `suc : {n : Nat}                        → [ Hdw (`Fin n) (`Fin (suc n)) ]
+    `dbl : {s : Ty} {σ : Fo s}              → [ Hdw σ (σ `× σ) ]
+    `pi1 : {s t : Ty} {σ : Fo s} {τ : Fo t} → [ Hdw (σ `× τ) σ ]
+    `pi2 : {s t : Ty} {σ : Fo s} {τ : Fo t} → [ Hdw (σ `× τ) τ ]
 
 record Emb {A : Set} (E : List A → Set) (Δ : List A) : Set where
   constructor `emb
@@ -186,6 +258,9 @@ record Emb {A : Set} (E : List A → Set) (Δ : List A) : Set where
 
 map^Emb : {A : Set} {E F : List A → Set} → [ E ∙→ F ] → [ Emb E ∙→ Emb F ]
 map^Emb f (`emb e pr) = `emb (f e) pr
+
+join^Emb : {A : Set} {E : List A → Set} → [ Emb (Emb E) ∙→ Emb E ]
+join^Emb (`emb (`emb e ope₂) ope₁) = `emb e (trans ope₂ ope₁)
 
 th^Emb : {A : Set} {E : List A → Set} → Thinnable (Emb E)
 th^Emb (`emb v ope) ρ = `emb v (trans ope ρ)
@@ -217,18 +292,17 @@ module Model (𝓖 : {s t : Ty} (σ : Fo s) (τ : Fo t) → Set) where
   _─Comp : (Γ : List Ty) (𝓥 : Ty → List Ty → Set) (Δ : List Ty) → Set
   (Γ ─Comp) 𝓒 Δ = {σ : Ty} → Tm σ Γ → 𝓒 σ Δ
 
-
   Mod : Ty → List Ty → Set
-  Mod (`Fin n)   = Emb (Nf (`Fin n))
-  Mod (σ `× τ)   = Mod σ ∙× Mod τ
-  Mod (σ `→ τ)   = □ OPE (Mod σ ∙→ Mod τ)
-  Mod C[ σ , τ ] = {!!}
+  Mod (`Fin n)             = Emb (Nf (`Fin n))
+  Mod (σ `× τ)             = Mod σ ∙× Mod τ
+  Mod (σ `→ τ)             = □ OPE (Mod σ ∙→ Mod τ)
+  Mod (C[_,_] {a} {b} σ τ) = Emb (Hdw σ τ) ∙× □ OPE (Mod a ∙→ Mod b)
 
   th^Mod : (σ : Ty) → Thinnable (Mod σ)
   th^Mod (`Fin n)   t       ope = th^Emb t ope
   th^Mod (σ `× τ)   (p , q) ope = th^Mod σ p ope , th^Mod τ q ope
   th^Mod (σ `→ τ)   f       ope = th^□ f ope
-  th^Mod C[ σ , τ ] c       ope = {!!}
+  th^Mod C[ σ , τ ] (c , f) ope = th^Emb c ope , th^□ f ope
 
   -- As usual: the model is defined so that it is possible
   -- to both extract normal forms from it and embed neutral
@@ -251,7 +325,7 @@ module Model (𝓖 : {s t : Ty} (σ : Fo s) (τ : Fo t) → Set) where
   ... | `emb b []         = `emb (`lam (`cst b)) []
   ... | `emb b (.σ ∷ʳ pr) = `emb (`lam (`cst b)) pr
 
-  reify C[ σ , τ ] = {!!}
+  reify C[ σ , τ ] = map^Emb `cct ∘ proj₁
 
   -- reflect
   reflect (`Fin n)   t = map^Emb `neu t
@@ -262,12 +336,20 @@ module Model (𝓖 : {s t : Ty} (σ : Fo s) (τ : Fo t) → Set) where
                              (_ , cover , ope) = merge (trans pr ope) pr'
                          in reflect τ (`emb (`app t u cover) ope)
 
-  reflect C[ σ , τ ] c = {!!}
+  reflect (C[_,_] {a} {b} σ τ) c = map^Emb `neu c
+                       , λ ope v →
+                         let (`emb t pr)       = c
+                             (`emb u pr')      = reify a v
+                             (_ , cover , ope) = merge (trans pr ope) pr'
+                         in reflect b (`emb (`app (`run t) u cover) ope)
+
+  fresh : (σ : Ty) → [ (σ ∷_) ⊢ Mod σ ]
+  fresh σ = reflect σ (`emb `var (σ ∷ []))
 
   eval : {Γ Δ : List Ty} → (Γ ─Env) Mod Δ → (Γ ─Comp) Mod Δ
-  eval ρ (`gat g)     = {!!}
-  eval ρ (`box t)     = {!!}
-  eval ρ (`run t)     = {!!}
+  eval ρ (`gat g)     = `emb (`gat g) [] , {!!}
+  eval ρ (`box t)     = map^Emb `box (reify (_ `→ _) (eval ρ t)) , eval ρ t
+  eval ρ (`run t)     = proj₂ (eval ρ t)
   eval ρ (`var v)     = lookup ρ v
   eval ρ (`lam b)     = λ ope v → eval (th^Env th^Mod ρ ope ∙ v) b
   eval ρ (`app t u)   = eval ρ t refl (eval ρ u) 
@@ -288,3 +370,47 @@ module Model (𝓖 : {s t : Ty} (σ : Fo s) (τ : Fo t) → Set) where
   ... | _ , ope⋈prr , ope' = reflect σ (`emb (`cas ne lnf rnf pr⋈prl ope⋈prr) ope')
   eval ρ (`bm! σ t) with eval ρ t
   ... | `emb (`neu ne) pr = reflect σ (`emb (`bm! σ ne) pr)
+
+
+  data Cct : {s t : Ty} → Fo s → Fo t → Set where
+    -- cf code commented out for ideas
+
+  cct : {s t : Ty} {σ : Fo s} {τ : Fo t} → Nf C[ σ , τ ] [] → Cct σ τ
+  cct = {!!}
+
+  specialise : {s t : Ty} {σ : Fo s} {τ : Fo t} → Tm C[ σ , τ ] [] → Cct σ τ
+  specialise t with reify C[ _ , _ ] {[]} (eval ε t)
+  ... | `emb nf [] = cct nf
+
+
+{-
+  dispatch : {Γ Δ Θ : List Ty} → Cover Γ Δ Θ →
+             [ Hdw (proj₂ (`X ⌞ Θ ⌟)) (proj₂ (`X ⌞ Γ ⌟) `× proj₂ (`X ⌞ Δ ⌟)) ]
+  dispatch []       = `dbl
+  dispatch (σ ∷ Γ)  with Fo? σ
+  ... | yes p = `seq (`par `dbl (dispatch Γ))
+              $ `seq `asl
+              $ `seq (`par (`seq `asr `swp) `wir)
+              $ `asr
+  ... | no ¬p = dispatch Γ
+  dispatch (σ ∷ˡ Γ) with Fo? σ
+  ... | yes p = `seq (`par `wir (dispatch Γ)) `asl
+  ... | no ¬p = dispatch Γ
+  dispatch (σ ∷ʳ Γ) with Fo? σ
+  ... | yes p = `seq (`par `wir (dispatch Γ)) $ `seq `asl $ `seq (`par `swp `wir) `asr
+  ... | no ¬p = dispatch Γ
+
+
+  cct  : {s t : Ty} (σ : Fo s) (τ : Fo t) → [ Nf (s `→ t) ∙→ Cct σ τ ]
+  cct' : {s : Ty} (σ : Fo s) {Γ : List Ty} → Nf s Γ → Hdw (proj₂ (`X ⌞ Γ ⌟)) σ Γ
+
+  cct _ τ (`lam (`cst t)) = `seq `pi2 (cct' τ t)
+  cct {a} σ τ (`lam (`bnd b)) with Fo? a | Fo?Fo! σ | cct' τ b
+  ... | yes p | PEq.refl | v = v
+  ... | no ¬p | ()       | _
+
+  cct' (σ `× τ)        (`prd a b split) = `seq (dispatch split) (`par (cct' σ a) (cct' τ b))
+  cct' (`Fin (suc n))  `zro             = `zro
+  cct' (`Fin (suc n))  (`suc k)         = `seq (cct' (`Fin n) k) `suc
+  cct' τ               (`neu ne)        = {!!}
+-}
