@@ -16,6 +16,7 @@ pull ↔-refl = id
 
 open import Data.Unit using (⊤ ; tt)
 open import Data.Empty
+import Data.Empty.Irrelevant as Irr
 
 IsYes : {A : Set} → Dec A → Set
 IsYes (no _)  = ⊥
@@ -36,22 +37,22 @@ module TrichotomousSpec
   ∃₃ : {A B C : Set} → (A → B → C → Set) → Set
   ∃₃ f = ∃ λ a → ∃ λ b → ∃ λ c → f a b c
 
-  ≈ : {x y : A} → x ≡ y → ∃₃ (λ a b c → x ⋖? y ≡ tri≈ a b c)
+  ≈ : {x y : A} → .(x ≡ y) → ∃₃ (λ a b c → x ⋖? y ≡ tri≈ a b c)
   ≈ {x} {y} eq with x ⋖? y
-  ... | tri< a ¬b ¬c = ⊥-elim (¬b eq)
+  ... | tri< a ¬b ¬c = Irr.⊥-elim (¬b eq)
   ... | tri≈ ¬a b ¬c = , , , refl
-  ... | tri> ¬a ¬b c = ⊥-elim (¬b eq)
+  ... | tri> ¬a ¬b c = Irr.⊥-elim (¬b eq)
 
-  < : {x y : A} (eq : x ⋖ y) → ∃₃ (λ a b c → x ⋖? y ≡ tri< a b c)
+  < : {x y : A} → .(x ⋖ y) → ∃₃ (λ a b c → x ⋖? y ≡ tri< a b c)
   < {x} {y} lt with x ⋖? y
   ... | tri< a ¬b ¬c = , , , refl
-  ... | tri≈ ¬a b ¬c = ⊥-elim (¬a lt)
-  ... | tri> ¬a ¬b c = ⊥-elim (¬a lt)
+  ... | tri≈ ¬a b ¬c = Irr.⊥-elim (¬a lt)
+  ... | tri> ¬a ¬b c = Irr.⊥-elim (¬a lt)
 
-  > : {x y : A} (eq : y ⋖ x) → ∃₃ (λ a b c → x ⋖? y ≡ tri> a b c)
+  > : {x y : A} → .(y ⋖ x) → ∃₃ (λ a b c → x ⋖? y ≡ tri> a b c)
   > {x} {y} gt with x ⋖? y
-  ... | tri< a ¬b ¬c = ⊥-elim (¬c gt)
-  ... | tri≈ ¬a b ¬c = ⊥-elim (¬c gt)
+  ... | tri< a ¬b ¬c = Irr.⊥-elim (¬c gt)
+  ... | tri≈ ¬a b ¬c = Irr.⊥-elim (¬c gt)
   ... | tri> ¬a ¬b c = , , , refl
 
 module Lift {A : Set}
@@ -115,8 +116,6 @@ module Lift {A : Set}
   ... | tri< a ¬b ¬c = tri< (lift a) (¬b ∘ lift-inj) (¬c ∘ <-lift-inj)
   ... | tri≈ ¬a b ¬c = tri≈ (¬a ∘ <-lift-inj) (cong lift b) (¬c ∘ <-lift-inj)
   ... | tri> ¬a ¬b c = tri> (¬a ∘ <-lift-inj) (¬b ∘ lift-inj) (lift c)
-
-  import Data.Empty.Irrelevant as Irr
 
   <-irrefl : {x : Bnd} → .(x < x) → ⊥
   <-irrefl {x} x<x with x <? x
@@ -191,6 +190,29 @@ module Lift {A : Set}
   open import Data.Product
   module ⋖?-spec = TrichotomousSpec _⋖_ _⋖?_
 
+  sllookup-≤ : {a b : Bnd} (x : A) .{{x≤a : lift x ≤ a}} (xs : SL a b) →
+               ∃ λ pr → sllookup x xs ≡ no pr
+  sllookup-≤ x []       = , refl
+  sllookup-≤ {a} x (y ∷ xs)
+    with ⋖?-spec.< (x ⋖ y ∋ <-lift-inj (≤<-trans trivial ((a < lift y) ∋ trivial)))
+  ... | (_ , _ , _ , eq) rewrite eq = , refl
+
+  SL-ext-tail : {a b : Bnd} {x : A} .{{a<x : a < lift x}} {xs ys : SL (lift x) b} →
+                SL-ext (SL a b ∋ x ∷ xs) (x ∷ ys) → SL-ext xs ys
+  SL-ext-tail {x = x} {xs = xs} {ys} ext y with y ⋖? x | ext y
+  SL-ext-tail {x = x} {xs = xs} {ys} ext y | tri< a ¬b ¬c | p
+    rewrite proj₂ (sllookup-≤ y {{inj₁ (lift a)}} xs)
+          | proj₂ (sllookup-≤ y {{inj₁ (lift a)}} ys) = ↔-refl
+  SL-ext-tail {x = x} {xs = xs} {ys} ext y | tri≈ ¬a b ¬c | p
+    rewrite proj₂ (sllookup-≤ y {{inj₂ (cong lift b)}} xs)
+          | proj₂ (sllookup-≤ y {{inj₂ (cong lift b)}} ys) = ↔-refl
+  SL-ext-tail {x = x} {xs = xs} {ys} ext y | tri> ¬a ¬b c | p
+    with sllookup y xs | sllookup y ys
+  ... | yes _ | yes _ = ↔-refl
+  ... | yes _ | no _  = p
+  ... | no _  | yes _ = p
+  ... | no _  | no _  = ↔-refl
+
   slintensional : {a b : Bnd} (xs ys : SL a b) → SL-ext xs ys → xs ≡ ys
   slintensional []       []       ext = refl
   slintensional []       (x ∷ ys) ext
@@ -205,7 +227,7 @@ module Lift {A : Set}
   ... | (_ , _ , _ , eq) | (_ , _ , _ , eq') | p
     rewrite eq | eq' = ⊥-elim (p tt)
   slintensional (x ∷ xs) (y ∷ ys) ext
-    | tri≈ ¬a refl ¬c = cong (x ∷_) (slintensional xs ys {!!})
+    | tri≈ ¬a refl ¬c = cong (x ∷_) (slintensional xs ys (SL-ext-tail ext))
   slintensional (x ∷ xs) (y ∷ ys) ext
     | tri> ¬a ¬b c
     with ⋖?-spec.< c | ⋖?-spec.≈ (y ≡ y ∋ refl) | pull (ext y)
