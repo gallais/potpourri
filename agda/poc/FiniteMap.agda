@@ -24,6 +24,36 @@ IsYes (yes _) = ⊤
 .trivial : {A : Set} {{a : A}} → A
 trivial {{a}} = a
 
+
+module TrichotomousSpec
+       {A : Set}
+       (_⋖_     : A → A → Set)
+       (_⋖?_    : Trichotomous _≡_ _⋖_)
+       where
+
+  open import Data.Product
+
+  ∃₃ : {A B C : Set} → (A → B → C → Set) → Set
+  ∃₃ f = ∃ λ a → ∃ λ b → ∃ λ c → f a b c
+
+  ≈ : {x y : A} → x ≡ y → ∃₃ (λ a b c → x ⋖? y ≡ tri≈ a b c)
+  ≈ {x} {y} eq with x ⋖? y
+  ... | tri< a ¬b ¬c = ⊥-elim (¬b eq)
+  ... | tri≈ ¬a b ¬c = , , , refl
+  ... | tri> ¬a ¬b c = ⊥-elim (¬b eq)
+
+  < : {x y : A} (eq : x ⋖ y) → ∃₃ (λ a b c → x ⋖? y ≡ tri< a b c)
+  < {x} {y} lt with x ⋖? y
+  ... | tri< a ¬b ¬c = , , , refl
+  ... | tri≈ ¬a b ¬c = ⊥-elim (¬a lt)
+  ... | tri> ¬a ¬b c = ⊥-elim (¬a lt)
+
+  > : {x y : A} (eq : y ⋖ x) → ∃₃ (λ a b c → x ⋖? y ≡ tri> a b c)
+  > {x} {y} gt with x ⋖? y
+  ... | tri< a ¬b ¬c = ⊥-elim (¬c gt)
+  ... | tri≈ ¬a b ¬c = ⊥-elim (¬c gt)
+  ... | tri> ¬a ¬b c = , , , refl
+
 module Lift {A : Set}
             (_⋖_     : A → A → Set)
             (_⋖?_    : Trichotomous _≡_ _⋖_)
@@ -131,9 +161,9 @@ module Lift {A : Set}
   sllookup : (x : A) {a b : Bnd} (xs : SL a b) → Dec (x ∈ xs)
   sllookup x []       = no (λ ())
   sllookup x (y ∷ xs) with x ⋖? y
-  ... | tri< a ¬b    ¬c = no ([ ¬b , x≤xs→x∉xs {{inj₁ (lift a)}} ]′ ∘ x∈y∷xs-inv)
-  ... | tri≈ ¬a refl ¬c = yes z
-  ... | tri> ¬a ¬b   c  with sllookup x xs
+  ... | tri< a ¬b ¬c = no ([ ¬b , x≤xs→x∉xs {{inj₁ (lift a)}} ]′ ∘ x∈y∷xs-inv)
+  ... | tri≈ ¬a b ¬c = yes (subst (_∈ _) (sym b) z)
+  ... | tri> ¬a ¬b c with sllookup x xs
   ... | yes p = yes (s p)
   ... | no ¬p = no ([ ¬b , ¬p ]′ ∘ x∈y∷xs-inv)
 
@@ -158,14 +188,29 @@ module Lift {A : Set}
   SL-ext : {a b : Bnd} (xs ys : SL a b) → Set
   SL-ext xs ys = ∀ x → IsYes (sllookup x xs) ↔ IsYes (sllookup x ys)
 
+  open import Data.Product
+  module ⋖?-spec = TrichotomousSpec _⋖_ _⋖?_
+
   slintensional : {a b : Bnd} (xs ys : SL a b) → SL-ext xs ys → xs ≡ ys
   slintensional []       []       ext = refl
-  slintensional []       (x ∷ ys) ext = ⊥-elim (pull (ext x) {!!})
-  slintensional (x ∷ xs) []       ext = ⊥-elim (push (ext x) {!!})
+  slintensional []       (x ∷ ys) ext
+    with ⋖?-spec.≈ (x ≡ x ∋ refl) | pull (ext x)
+  ... | (¬a , b , ¬c , eq) | p rewrite eq = ⊥-elim (p tt)
+  slintensional (x ∷ xs) []       ext
+    with ⋖?-spec.≈ (x ≡ x ∋ refl) | push (ext x)
+  ... | (¬a , b , ¬c , eq) | p rewrite eq = ⊥-elim (p tt)
   slintensional (x ∷ xs) (y ∷ ys) ext with x ⋖? y
-  ... | tri< a ¬b    ¬c = ⊥-elim {!push (ext x)!}
-  ... | tri≈ ¬a refl ¬c = cong (x ∷_) (slintensional xs ys {!!})
-  ... | tri> ¬a ¬b   c  = ⊥-elim {!pull (ext y)!}
+  ... | tri< a ¬b ¬c
+    with ⋖?-spec.< a | ⋖?-spec.≈ (x ≡ x ∋ refl) | push (ext x)
+  ... | (_ , _ , _ , eq) | (_ , _ , _ , eq') | p
+    rewrite eq | eq' = ⊥-elim (p tt)
+  slintensional (x ∷ xs) (y ∷ ys) ext
+    | tri≈ ¬a refl ¬c = cong (x ∷_) (slintensional xs ys {!!})
+  slintensional (x ∷ xs) (y ∷ ys) ext
+    | tri> ¬a ¬b c
+    with ⋖?-spec.< c | ⋖?-spec.≈ (y ≡ y ∋ refl) | pull (ext y)
+  ... | (_ , _ , _ , eq) | (_ , _ , _ , eq') | p
+    rewrite eq | eq' = ⊥-elim (p tt)
 
 module IntMap where
 
