@@ -90,7 +90,7 @@ step↑ val (apr (neu t)     stk)  = step↑ (neu (app t val)) stk
 step↓ : ∀ {σ} → [ Machine σ ⟶ Val σ ∙⊎ Machine σ ]
 step↓ < var k     [ id      ]∣ stk > = step↑ (neu (var k)) stk
 step↓ < var z     [ sub ∙ v ]∣ stk > = step↑ v stk
-step↓ < var (s k) [ sub ∙ v ]∣ stk > = step↓ < var k [ sub ]∣ stk >
+step↓ < var (s k) [ sub ∙ v ]∣ stk > = inj₂ < var k [ sub ]∣ stk >
 step↓ < lam b     [ sub     ]∣ stk > = step↑ (lam sub b) stk
 step↓ < app f t   [ sub     ]∣ stk > = inj₂ < f [ sub ]∣ (apl stk < t [ sub ]>) >
 
