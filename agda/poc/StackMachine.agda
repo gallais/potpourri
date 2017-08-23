@@ -59,7 +59,6 @@ data Neu where
 
 data Sub where
   id  : ∀ {Γ}   → Sub Γ Γ
-  wk  : ∀ {Γ σ} → [ Sub Γ          ⟶ (σ ∷_) ⊢ Sub (σ ∷ Γ) ]
   _∙_ : ∀ {Γ σ} → [ Sub Γ ⟶ Val σ ⟶ Sub (σ ∷ Γ) ]
 
 record Cls T σ Γ where
@@ -72,26 +71,6 @@ data Stk : Type → List Type → Type ─Scoped where
   []  : ∀ {σ Γ}     → Stk σ Γ σ Γ
   apl : ∀ {σ τ ν Γ} → [ Stk ν Γ τ ⟶ Cls Trm σ   ⟶ Stk ν Γ (σ ⇒ τ)    ]
   apr : ∀ {σ τ ν Γ} → [ Val (σ ⇒ τ) ⟶ Stk ν Γ τ ⟶ Stk ν Γ σ          ]
-
-data Ren : List Type → List Type → Set where
-  id : ∀ {Γ}    → Ren Γ Γ
-  cp : ∀ {Γ σ} → [ Ren Γ ⟶ (σ ∷_) ⊢ Ren (σ ∷ Γ) ]
-  wk : ∀ {Γ σ} → [ Ren Γ ⟶ (σ ∷_) ⊢ Ren Γ       ]
-  tr : ∀ {Γ Δ} → Ren Γ Δ → [ Ren Δ ⟶ Ren Γ ]
-
-ren! : ∀ {Γ Δ σ} → Var σ Γ → Ren Γ Δ → Var σ Δ
-ren! x     id       = x
-ren! x     (tr σ ρ) = ren! (ren! x σ) ρ
-ren! z     (cp σ)   = z
-ren! (s x) (cp σ)   = s (ren! x σ)
-ren! x     (wk σ)   = s (ren! x σ)
-
-sub! : ∀ {Γ Δ Θ σ} → Var σ Γ → Sub Γ Δ → Ren Δ Θ → Val σ Θ
-sub! x     id        ren = neu (var (ren! x ren))
-sub! z     (wk sub)  ren = neu (var (ren! z ren))
-sub! (s x) (wk sub)  ren = sub! x sub (tr (wk id) ren)
-sub! z     (sub ∙ v) ren = {!!}
-sub! (s x) (sub ∙ v) ren = sub! x sub ren
 
 record Machine σ Γ : Set where
   constructor <_[_]∣_>
@@ -109,10 +88,11 @@ step↑ val (apr (lam env b) stk)  = inj₂ < b [ env ∙ val ]∣ stk >
 step↑ val (apr (neu t)     stk)  = step↑ (neu (app t val)) stk
 
 step↓ : ∀ {σ} → [ Machine σ ⟶ Val σ ∙⊎ Machine σ ]
-step↓ < var k   [ sub ]∣ stk > = step↑ (sub! k sub id) stk
-step↓ < lam b   [ sub ]∣ stk > = step↑ (lam sub b) stk
-step↓ < app f t [ sub ]∣ stk > = inj₂ < f [ sub ]∣ (apl stk < t [ sub ]>) >
-
+step↓ < var k     [ id      ]∣ stk > = step↑ (neu (var k)) stk
+step↓ < var z     [ sub ∙ v ]∣ stk > = step↑ v stk
+step↓ < var (s k) [ sub ∙ v ]∣ stk > = step↓ < var k [ sub ]∣ stk >
+step↓ < lam b     [ sub     ]∣ stk > = step↑ (lam sub b) stk
+step↓ < app f t   [ sub     ]∣ stk > = inj₂ < f [ sub ]∣ (apl stk < t [ sub ]>) >
 
 open import Size
 
