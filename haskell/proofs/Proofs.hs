@@ -27,9 +27,9 @@ data By   (a :: *)          = By a
 type EQ a b = From a (To b (By (a == b)))
 pattern Eq p = From (To (By p))
 
-infixr 1 .>
-(.>) :: forall (a :: k) b c. EQ a b -> EQ b c -> EQ a c
-Eq Refl .> eq = eq
+infixl 1 .>
+(.>) :: forall (a :: k) b c. EQ a b -> To c (By (b == c)) -> EQ a c
+Eq Refl .> eq = From eq
 
 proof :: EQ a b -> a == b
 proof (Eq eq) = eq
@@ -37,8 +37,8 @@ proof (Eq eq) = eq
 trivial :: By (a == a)
 trivial = By Refl
 
-qed :: EQ a a
-qed = Eq Refl
+qed :: To a (By (a == a))
+qed = To trivial
 
 data Function :: * -> * -> *
 

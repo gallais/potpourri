@@ -45,10 +45,8 @@ plusComm (SS sm) sn = proof $
      From @Nat @(m + n) .-
      To   @Nat @('S (Pred m + n)) .-
      trivial
-  .> From @Nat @('S (Pred m + n)) .-
-     To   @Nat @('S (n + Pred m)) .-
+  .> To   @Nat @('S (n + Pred m)) .-
      By (cong @_ @_ @RS (plusComm sm sn))
-  .> From @Nat @('S (n + Pred m)) .-
-     To   @Nat @(n + m) .-
+  .> To   @Nat @(n + m) .-
      By (sym $ plusSr sn sm)
   .> qed
