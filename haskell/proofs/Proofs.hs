@@ -20,9 +20,9 @@ sym Refl = Refl
 trans :: a == b -> b == c -> a == c
 trans Refl eq = eq
 
-data From (a :: k) (b :: *) = From b
-data To   (a :: k) (b :: *) = To b
-data By   (a :: *)          = By a
+data From a (b :: *) = From b
+data To   a (b :: *) = To b
+data By     (a :: *) = By a
 
 type EQ a b = From a (To b (By (a == b)))
 pattern Eq p = From (To (By p))
@@ -44,6 +44,6 @@ data Function :: * -> * -> *
 
 type family Apply (f :: Function a b -> *) (t :: a) :: b
 
-cong :: forall (f :: Function k l -> *) a b. a == b -> Apply f a == Apply f b
+cong :: forall f a b. a == b -> Apply f a == Apply f b
 cong Refl = Refl
 

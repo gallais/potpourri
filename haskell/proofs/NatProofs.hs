@@ -30,11 +30,11 @@ type family (+) (m :: Nat) (n :: Nat) :: Nat where
 
 plusZr :: forall m. SNat m -> m + 'Z == m
 plusZr SZ      = Refl
-plusZr (SS sm) = cong @_ @_ @RS $ plusZr sm
+plusZr (SS sm) = cong @RS $ plusZr sm
 
 plusSr :: forall m n. SNat m -> SNat n -> m + 'S n == 'S (m + n)
 plusSr SZ      sn = Refl
-plusSr (SS sm) sn = cong @_ @_ @RS $ plusSr sm sn
+plusSr (SS sm) sn = cong @RS $ plusSr sm sn
 
 infixr 6 .-
 (.-) = ($)
@@ -42,11 +42,11 @@ infixr 6 .-
 plusComm :: forall m n. SNat m -> SNat n -> m + n == n + m
 plusComm SZ      sn = sym $ plusZr sn
 plusComm (SS sm) sn = proof $
-     From @Nat @(m + n) .-
-     To   @Nat @('S (Pred m + n)) .-
+     From @(m + n) .-
+     To   @('S (Pred m + n)) .-
      trivial
-  .> To   @Nat @('S (n + Pred m)) .-
-     By (cong @_ @_ @RS (plusComm sm sn))
-  .> To   @Nat @(n + m) .-
+  .> To   @('S (n + Pred m)) .-
+     By (cong @RS (plusComm sm sn))
+  .> To   @(n + m) .-
      By (sym $ plusSr sn sm)
   .> qed
