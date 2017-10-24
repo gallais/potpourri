@@ -19,3 +19,12 @@ sig
 end
 
 module Exception : EXCEPTION
+
+module type MAPEXCEPTION =
+  functor (T : TYPE) ->
+  functor (U : TYPE) ->
+  functor (E : EXCEPTION) ->
+  functor (F : EXCEPTION) ->
+sig
+ val map : (T.t -> U.t) -> 'a E(T).exn -> 'a F(U).exn
+end

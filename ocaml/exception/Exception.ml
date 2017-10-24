@@ -34,3 +34,25 @@ struct
   let bind (t : 'a exn) (f : 'a -> 'b exn) : 'b exn = f t
 
 end
+
+module type MAPEXCEPTION =
+  functor (T : TYPE) ->
+  functor (U : TYPE) ->
+  functor (E : EXCEPTION) ->
+  functor (F : EXCEPTION) ->
+sig
+ val map : (T.t -> U.t) -> 'a E(T).exn -> 'a F(U).exn
+end
+
+module MapException : MAPEXCEPTION =
+  functor (T : TYPE) ->
+  functor (U : TYPE) ->
+  functor (E : EXCEPTION) ->
+  functor (F : EXCEPTION) ->
+struct
+  module ET = E(T)
+  module FU = F(U)
+
+  let map (f : T.t -> U.t) (a : 'a ET.exn) : 'a FU.exn =
+    ET.catch (fun x -> FU.throw (f x)) (ET.map FU.pure a)
+end
