@@ -17,3 +17,5 @@ sig
   val bind  : 'a exn -> ('a -> 'b exn) -> 'b exn
 
 end
+
+module Exception : EXCEPTION
