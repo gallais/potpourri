@@ -22,16 +22,18 @@ end
 module Exception : EXCEPTION = functor (T : TYPE) ->
 struct
 
+  open Lazy
+
   exception Exc of T.t
-  type 'a exn = 'a
+  type 'a exn = 'a Lazy.t
 
-  let throw (t : T.t) : 'a exn = raise (Exc t)
-  let catch (k : T.t -> 'a) (e : 'a exn) : 'a = try e with Exc t -> k t
+  let throw (t : T.t) : 'a exn = lazy (raise (Exc t))
+  let catch (k : T.t -> 'a) (e : 'a exn) : 'a = try force e with Exc t -> k t
 
-  let pure (v : 'a) : 'a exn = v
-  let map (f : 'a -> 'b) (t : 'a exn) : 'b exn = f t
-  let app (f : ('a -> 'b) exn) (t : 'a exn) : 'b exn = f t
-  let bind (t : 'a exn) (f : 'a -> 'b exn) : 'b exn = f t
+  let pure (v : 'a) : 'a exn = lazy v
+  let map (f : 'a -> 'b) (t : 'a exn) : 'b exn = lazy (f (force t))
+  let app (f : ('a -> 'b) exn) (t : 'a exn) : 'b exn = lazy (force f (force t))
+  let bind (t : 'a exn) (f : 'a -> 'b exn) : 'b exn = f (force t)
 
 end
 
