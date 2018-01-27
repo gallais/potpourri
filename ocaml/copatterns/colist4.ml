@@ -1,8 +1,8 @@
-type _ tag =
-  | TNil  : unit tag
-  | TCons : ('a * 'a colist) tag
+type ('a, _) tag =
+  | TNil  : ('a, unit) tag
+  | TCons : ('a, 'a * 'a colist) tag
 and 'a colist =
-  { Tag : 'b tag
+  { Tag : ('a, 'b) tag
   ; Pld : 'b
   }
 
