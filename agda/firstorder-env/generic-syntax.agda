@@ -6,7 +6,7 @@ open import Data.List.Base
 open import Data.Product as Prod
 open import Data.Sum as Sum
 open import Function
-open import Agda.Builtin.Equality
+open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 
 module _ {ℓ^I ℓ^S} {I : Set ℓ^I} where
@@ -165,6 +165,7 @@ data Desc (I : Set) : Set₁ where
 
 module _ {I : Set} where
 
+  infixr 3 <_>_
   record Tag (D : Datoid) (F : set D → I ─Scoped) (σ : I) (Γ : Ctx I) : Set where
     constructor <_>_
     field tag : set D
@@ -185,6 +186,7 @@ module _ {I : Set} where
   dBr : I ─Scoped → Ctx I → I ─Scoped
   dBr T Δ i = (Δ ++_) ⊢ T i
 
+  infix 2 V[_] T[_]
   data Tm (d : Desc I) : Size → I ─Scoped where
     V[_] : ∀ {i σ Γ} → Var σ Γ → Tm d (↑ i) σ Γ
     T[_] : ∀ {i σ Γ} → ⟦ d ⟧ (dBr (Tm d i)) σ Γ → Tm d (↑ i) σ Γ
@@ -230,3 +232,51 @@ module _ {I : Set} where
   Sem.vl^V  (Sub d) = vl^Tm
   Sem.var   (Sub d) = id
   Sem.alg   (Sub d) = T[_] ∘′ fmap d (reify vl^Tm)
+
+
+infixr 10 _⇒_
+data ty : Set where
+  α   : ty
+  _⇒_ : ty → ty → ty
+
+ty-dec : (σ τ : ty) → Dec (σ ≡ τ)
+ty-dec α         α         = yes refl
+ty-dec (σ₁ ⇒ τ₁) (σ₂ ⇒ τ₂) with ty-dec σ₁ σ₂ | ty-dec τ₁ τ₂
+... | yes eqσ | yes eqτ = yes (cong₂ _⇒_ eqσ eqτ)
+... | _ | _ = no absurd where postulate absurd : _
+ty-dec _ _ = no absurd where postulate absurd : _
+
+data STLC : Set where
+  lam app : ty → ty → STLC
+
+STLC-dec : (s t : STLC) → Dec (s ≡ t)
+STLC-dec (lam σ₁ τ₁) (lam σ₂ τ₂) with ty-dec σ₁ σ₂ | ty-dec τ₁ τ₂
+... | yes eqσ | yes eqτ = yes (cong₂ lam eqσ eqτ)
+... | _ | _ = no absurd where postulate absurd : _
+STLC-dec (app σ₁ τ₁) (app σ₂ τ₂) with ty-dec σ₁ σ₂ | ty-dec τ₁ τ₂
+... | yes eqσ | yes eqτ = yes (cong₂ app eqσ eqτ)
+... | _ | _ = no absurd where postulate absurd : _
+STLC-dec _ _ = no absurd where postulate absurd : _
+
+Stlc : Datoid
+set Stlc = STLC
+dec Stlc = STLC-dec
+
+`STLC : Desc ty
+`STLC = `σ Stlc $ λ where
+  (lam σ τ) → `X (σ ∷ []) τ (`∎ (σ ⇒ τ))
+  (app σ τ) → `X [] (σ ⇒ τ) (`X [] σ (`∎ τ))
+
+infixr 5 `λ_
+infixl 6 _`$_
+pattern `λ_ b    = T[ < lam _ _ > b , refl ]
+pattern _`$_ f t = T[ < app _ _ > f , (t , refl) ]
+
+`id : ∀ {σ} → Tm `STLC ∞ (σ ⇒ σ) []
+`id = `λ V[ z ]
+
+`K : ∀ {σ τ} → Tm `STLC ∞ (σ ⇒ τ ⇒ σ) []
+`K = `λ `λ V[ s z ]
+
+`S : ∀ {σ τ ν} → Tm `STLC ∞ ((σ ⇒ τ ⇒ ν) ⇒ (σ ⇒ τ) ⇒ (σ ⇒ ν)) []
+`S = `λ `λ `λ V[ s (s z) ] `$ V[ z ] `$ (V[ s z ] `$ V[ z ])
