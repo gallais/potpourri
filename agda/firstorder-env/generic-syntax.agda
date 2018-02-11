@@ -47,27 +47,18 @@ module _ {I : Set} where
     z : ∀ {σ} →    ∀[           (σ ∷_) ⊢ Var σ ]
     s : ∀ {σ τ} →  ∀[ Var σ ∙→  (τ ∷_) ⊢ Var σ ]
 
-  infixl 4 _,_
-  data Env (T : I ─Scoped) : Ctx I → Ctx I → Set where
-    []   : ∀ {Δ} → Env T Δ []
-    _,_  : ∀ {Δ Γ σ} → Env T Δ Γ → T σ Δ → Env T Δ (σ ∷ Γ)
-    wk   : ∀ {Δ Γ σ} → Env T Δ Γ → Env T (σ ∷ Δ) (σ ∷ Γ)
-    st   : ∀ {Δ Γ σ} → Env T Δ Γ → Env T (σ ∷ Δ) Γ
+  infix 4 _≤_
+  data _≤_ : Ctx I → Ctx I → Set where
+    qed : ∀ {Γ} → Γ ≤ Γ
+    put : ∀ {Γ Δ σ} → Γ ≤ Δ → Γ ≤ σ ∷ Δ
 
-  infix 4 _⊇_
-  _⊇_ : Ctx I → Ctx I → Set
-  _⊇_ = Env Var
+  lce : ∀ {Γ Δ σ} → Γ ≤ Δ → Var σ Γ → Var σ Δ
+  lce qed      v      = v
+  lce (put th) v      = s (lce th v)
 
-  rename : ∀ {Γ Δ σ} → Δ ⊇ Γ → Var σ Γ → Var σ Δ
-  rename (_ , v) z     = v
-  rename (ρ , _) (s v) = rename ρ v
-  rename (wk ρ) z      = z
-  rename (wk ρ) (s v)  = s (rename ρ v)
-  rename (st ρ)  v     = s (rename ρ v)
-
-  ⊇-refl : ∀ {Γ} → Γ ⊇ Γ
-  ⊇-refl {[]}    = []
-  ⊇-refl {σ ∷ Γ} = wk ⊇-refl
+  cut : ∀ {Γ Δ Θ} → Γ ≤ Δ → Δ ≤ Θ → Γ ≤ Θ
+  cut th₁       qed       = th₁
+  cut th₁       (put th₂) = put (cut th₁ th₂)
 
   infixl 4 _^_
   infixl 5 _^^_
@@ -75,39 +66,54 @@ module _ {I : Set} where
     constructor _^^_
     field {thinner} : Ctx I
           value     : T thinner
-          thinning  : Γ ⊇ thinner
-  wk^ : ∀ {T Γ σ} → T ^ Γ → T ^ σ ∷ Γ
-  wk^ (t ^^ th) = t ^^ st th
+          thinning  : thinner ≤ Γ
+
+  infixl 4 _,_
+  data Env (T : I ─Scoped) : Ctx I → Ctx I → Set where
+    []   : ∀ {Δ}     → Env T [] Δ
+    _,_  : ∀ {σ Γ Δ} → Env T Γ Δ → T σ Δ → Env T (σ ∷ Γ) Δ
+    shft : ∀ {σ Γ Δ} → Env T Γ Δ → Env T (σ ∷ Γ) (σ ∷ Δ)
+    embd : ∀ {Γ Δ Θ} → Δ ≤ Θ → Env T Γ Δ → Env T Γ Θ
+
+  wk^ : ∀ {T Γ Δ} → Γ ≤ Δ → T ^ Γ → T ^ Δ
+  wk^ th₁ (t ^^ th₂) = t ^^ cut th₂ th₁
+
+  map^ : ∀ {T U} → ∀[ T ∙→ U ] → ∀[ T ^_ ∙→ U ^_ ]
+  map^ f (t ^^ th) = f t ^^ th
 
   infixr 6 □_
   □_ : (Ctx I → Set) → (Ctx I → Set)
-  (□ T) i = ∀[ _⊇ i ∙→ T ]
+  (□ T) i = ∀[ i ≤_ ∙→ T ]
 
   record Thinnable (T : Ctx I → Set) : Set where
     field thin : ∀[ T ∙→ □ T ]
   open Thinnable public
 
+  th^Env : ∀ {T Γ} → Thinnable (Env T Γ)
+  thin th^Env (embd th₁ ρ) th = embd (cut th₁ th) ρ
+  thin th^Env ρ            th = embd th ρ
+
   infixl 4 _vv_
   _vv_ : ∀ {T} → Thinnable T → ∀[ T ^_ ∙→ T ]
   th^T vv t ^^ th = thin th^T t th
 
-  lookup : {T : I ─Scoped} → ∀ {σ Δ Γ} → Env T Δ Γ → Var σ Γ →
-           Var σ Δ ⊎ T σ ^ Δ
-  lookup (ρ , t) z     = inj₂ (t ^^ ⊇-refl)
-  lookup (ρ , t) (s v) = lookup ρ v
-  lookup (wk ρ)  z     = inj₁ z
-  lookup (wk ρ)  (s v) = Sum.map s wk^ (lookup ρ v)
-  lookup (st ρ)  v     = Sum.map s wk^ (lookup ρ v)
+  lookup : {T : I ─Scoped} → ∀ {σ Δ Γ} → Env T Γ Δ → Var σ Γ →
+           (Var σ ∙⊎ T σ) ^ Δ
+  lookup (ρ , t)     z      = inj₂ t ^^ qed
+  lookup (ρ , t)     (s v)  = lookup ρ v
+  lookup (shft ρ)    z      = inj₁ z ^^ qed
+  lookup (shft ρ)    (s v)  = wk^ (put qed) (lookup ρ v)
+  lookup (embd th ρ) v      = wk^ th (lookup ρ v)
 
   record VarLike (T : I ─Scoped) : Set where
     field thinnable : ∀[ Thinnable ∘′ T ]
           fromVar   : ∀ {σ} → ∀[ Var σ ∙→ T σ ]
   open VarLike public
 
-  ⟦var⟧ : ∀ {T σ Γ Δ} → VarLike T → Env T Δ Γ → Var σ Γ → T σ Δ
+  ⟦var⟧ : ∀ {T σ Γ Δ} → VarLike T → Env T Γ Δ → Var σ Γ → T σ Δ
   ⟦var⟧ vl^T ρ v = case lookup ρ v of λ where
-    (inj₁ v') → fromVar vl^T v'
-    (inj₂ t^) → thinnable vl^T vv t^
+    (inj₁ w ^^ th) → fromVar vl^T (lce th w)
+    (inj₂ t ^^ th) → thinnable vl^T vv (t ^^ th)
 
 record Datoid : Set₁ where
   constructor _by_
@@ -146,9 +152,17 @@ module _ {I : Set} where
     V[_] : ∀ {i σ Γ} → Var σ Γ → Tm d (↑ i) σ Γ
     T[_] : ∀ {i σ Γ} → ⟦ d ⟧ (dBr (Tm d i)) σ Γ → Tm d (↑ i) σ Γ
 
+  data Ass (V : I ─Scoped) : Ctx I → Ctx I → Set where
+    []   : ∀ {Δ}     → Ass V [] Δ
+    _,_  : ∀ {σ Γ Δ} → Ass V Γ Δ → V σ Δ → Ass V (σ ∷ Γ) Δ
+
+  _,,_ : ∀ {V Γ Δ Θ} → Ass V Γ Θ → Env V Δ Θ → Env V (Γ ++ Δ) Θ
+  []       ,, ρ = ρ
+  (vs , v) ,, ρ = (vs ,, ρ) , v
+
   Krp : (V C : I ─Scoped) → Ctx I → I ─Scoped
   Krp V C []  σ = C σ
-  Krp V C Δ   σ = □ (flip (Env V) Δ ∙→ C σ)
+  Krp V C Δ   σ = □ (Ass V Δ ∙→ C σ)
 
   record Sem (d : Desc I) (V C : I ─Scoped) : Set where
     field vl^V : VarLike V
@@ -156,13 +170,13 @@ module _ {I : Set} where
           alg  : ∀ {σ} → ∀[ ⟦ d ⟧ (Krp V C) σ  ∙→ C σ ]
 
     Cmp : (T C : I ─Scoped) → Ctx I → Ctx I → Set
-    Cmp T C Δ Γ = ∀ {σ} → T σ Γ → C σ Δ
+    Cmp T C Γ Δ = ∀ {σ} → T σ Γ → C σ Δ
 
-    sem : ∀ {Δ Γ i} → Env V Δ Γ → Cmp (Tm d i) C Δ Γ
-    krp : ∀ {Δ Γ i} → Env V Δ Γ → ∀ Θ → Cmp (dBr (Tm d i) Θ) (Krp V C Θ) Δ Γ
+    sem : ∀ {Δ Γ i} → Env V Γ Δ → Cmp (Tm d i) C Γ Δ
+    krp : ∀ {Δ Γ i} → Env V Γ Δ → ∀ Θ → Cmp (dBr (Tm d i) Θ) (Krp V C Θ) Γ Δ
 
     sem ρ V[ v ] = var (⟦var⟧ vl^V ρ v)
     sem ρ T[ t ] = alg (fmap d (krp ρ) t)
 
     krp ρ []        t = sem ρ t
-    krp ρ Θ@(_ ∷ _) t = λ ρ′ vs → sem {!!} t
+    krp ρ Θ@(_ ∷ _) t = λ th vs → sem (vs ,, thin th^Env ρ th) t
