@@ -47,10 +47,18 @@ module _ {I : Set} where
     z : ∀ {σ} →    ∀[           (σ ∷_) ⊢ Var σ ]
     s : ∀ {σ τ} →  ∀[ Var σ ∙→  (τ ∷_) ⊢ Var σ ]
 
+  lvlUp : ∀ {σ Δ} → ∀[ Var σ ∙→ (_++ Δ) ⊢ Var σ ]
+  lvlUp z     = z
+  lvlUp (s v) = s (lvlUp v)
+
   infix 4 _≤_
   data _≤_ : Ctx I → Ctx I → Set where
     qed : ∀ {Γ} → Γ ≤ Γ
     put : ∀ {Γ Δ σ} → Γ ≤ Δ → Γ ≤ σ ∷ Δ
+
+  _≤++_ : ∀ Δ Γ → Γ ≤ Δ ++ Γ
+  []      ≤++ Δ = qed
+  (σ ∷ Γ) ≤++ Δ = put (Γ ≤++ Δ)
 
   lce : ∀ {Γ Δ σ} → Γ ≤ Δ → Var σ Γ → Var σ Δ
   lce qed      v      = v
@@ -72,8 +80,16 @@ module _ {I : Set} where
   data Env (T : I ─Scoped) : Ctx I → Ctx I → Set where
     []   : ∀ {Δ}     → Env T [] Δ
     _,_  : ∀ {σ Γ Δ} → Env T Γ Δ → T σ Δ → Env T (σ ∷ Γ) Δ
-    shft : ∀ {σ Γ Δ} → Env T Γ Δ → Env T (σ ∷ Γ) (σ ∷ Δ)
+    shft : ∀ {Γ Θ} Δ → Env T Γ Θ → Env T (Δ ++ Γ) (Δ ++ Θ)
     embd : ∀ {Γ Δ Θ} → Δ ≤ Θ → Env T Γ Δ → Env T Γ Θ
+
+  shift : ∀ {T Γ Δ σ} → Env T Γ Δ → Env T (σ ∷ Γ) (σ ∷ Δ)
+  shift (shft Δ ρ) = shft (_ ∷ Δ) ρ
+  shift ρ          = shft (_ ∷ []) ρ
+
+  shft-refl : ∀ {T} Γ → Env T Γ Γ
+  shft-refl []      = []
+  shft-refl (σ ∷ Γ) = shift (shft-refl Γ)
 
   wk^ : ∀ {T Γ Δ} → Γ ≤ Δ → T ^ Γ → T ^ Δ
   wk^ th₁ (t ^^ th₂) = t ^^ cut th₂ th₁
@@ -89,6 +105,9 @@ module _ {I : Set} where
     field thin : ∀[ T ∙→ □ T ]
   open Thinnable public
 
+  th^Var : ∀ {σ} → Thinnable (Var σ)
+  thin th^Var v th = lce th v
+
   th^Env : ∀ {T Γ} → Thinnable (Env T Γ)
   thin th^Env (embd th₁ ρ) th = embd (cut th₁ th) ρ
   thin th^Env ρ            th = embd th ρ
@@ -99,16 +118,34 @@ module _ {I : Set} where
 
   lookup : {T : I ─Scoped} → ∀ {σ Δ Γ} → Env T Γ Δ → Var σ Γ →
            (Var σ ∙⊎ T σ) ^ Δ
-  lookup (ρ , t)     z      = inj₂ t ^^ qed
-  lookup (ρ , t)     (s v)  = lookup ρ v
-  lookup (shft ρ)    z      = inj₁ z ^^ qed
-  lookup (shft ρ)    (s v)  = wk^ (put qed) (lookup ρ v)
-  lookup (embd th ρ) v      = wk^ th (lookup ρ v)
+  lookup [] ()
+  lookup (ρ , t)           z     = inj₂ t ^^ qed
+  lookup (ρ , t)           (s v) = lookup ρ v
+  lookup (shft [] ρ)       v     = lookup ρ v
+  lookup (shft (σ ∷ _) ρ)  z     = inj₁ z ^^ qed
+  lookup (shft (_ ∷ Δ) ρ)  (s v) = wk^ (put qed) (lookup (shft Δ ρ) v)
+  lookup (embd th ρ)       v     = wk^ th (lookup ρ v)
+
+  data Ass (V : I ─Scoped) : Ctx I → Ctx I → Set where
+    []   : ∀ {Δ}     → Ass V [] Δ
+    _,_  : ∀ {σ Γ Δ} → Ass V Γ Δ → V σ Δ → Ass V (σ ∷ Γ) Δ
+
+  _,,_ : ∀ {V Γ Δ Θ} → Ass V Γ Θ → Env V Δ Θ → Env V (Γ ++ Δ) Θ
+  []       ,, ρ = ρ
+  (vs , v) ,, ρ = (vs ,, ρ) , v
 
   record VarLike (T : I ─Scoped) : Set where
     field thinnable : ∀[ Thinnable ∘′ T ]
           fromVar   : ∀ {σ} → ∀[ Var σ ∙→ T σ ]
+
+    ass : ∀ Γ {Δ} → (∀ {σ} → Var σ Γ → Var σ Δ) → Ass T Γ Δ
+    ass []      f = []
+    ass (σ ∷ Γ) f = ass Γ (f ∘′ s) , fromVar (f z)
   open VarLike public
+
+  vl^Var : VarLike Var
+  thinnable  vl^Var = th^Var
+  fromVar    vl^Var = id
 
   ⟦var⟧ : ∀ {T σ Γ Δ} → VarLike T → Env T Γ Δ → Var σ Γ → T σ Δ
   ⟦var⟧ vl^T ρ v = case lookup ρ v of λ where
@@ -152,14 +189,6 @@ module _ {I : Set} where
     V[_] : ∀ {i σ Γ} → Var σ Γ → Tm d (↑ i) σ Γ
     T[_] : ∀ {i σ Γ} → ⟦ d ⟧ (dBr (Tm d i)) σ Γ → Tm d (↑ i) σ Γ
 
-  data Ass (V : I ─Scoped) : Ctx I → Ctx I → Set where
-    []   : ∀ {Δ}     → Ass V [] Δ
-    _,_  : ∀ {σ Γ Δ} → Ass V Γ Δ → V σ Δ → Ass V (σ ∷ Γ) Δ
-
-  _,,_ : ∀ {V Γ Δ Θ} → Ass V Γ Θ → Env V Δ Θ → Env V (Γ ++ Δ) Θ
-  []       ,, ρ = ρ
-  (vs , v) ,, ρ = (vs ,, ρ) , v
-
   Krp : (V C : I ─Scoped) → Ctx I → I ─Scoped
   Krp V C []  σ = C σ
   Krp V C Δ   σ = □ (Ass V Δ ∙→ C σ)
@@ -180,3 +209,24 @@ module _ {I : Set} where
 
     krp ρ []        t = sem ρ t
     krp ρ Θ@(_ ∷ _) t = λ th vs → sem (vs ,, thin th^Env ρ th) t
+
+  reify : ∀ {d V Γ} → VarLike V → ∀ Δ {σ} → Krp V (Tm d ∞) Δ σ Γ → dBr (Tm d ∞) Δ σ Γ
+  reify vl^V []        kr = kr
+  reify vl^V Δ@(_ ∷ _) kr = kr (Δ ≤++ _) (ass vl^V Δ lvlUp)
+
+  Ren : ∀ d → Sem d Var (Tm d ∞)
+  Sem.vl^V  (Ren d) = vl^Var
+  Sem.var   (Ren d) = V[_]
+  Sem.alg   (Ren d) = T[_] ∘′ fmap d (reify vl^Var)
+
+  th^Tm : ∀ {d σ} → Thinnable (Tm d ∞ σ)
+  thin th^Tm t th = Sem.sem (Ren _) (embd th (shft-refl _)) t
+
+  vl^Tm : ∀ {d} → VarLike (Tm d ∞)
+  thinnable  vl^Tm = th^Tm
+  fromVar    vl^Tm = V[_]
+
+  Sub : ∀ d → Sem d (Tm d ∞) (Tm d ∞)
+  Sem.vl^V  (Sub d) = vl^Tm
+  Sem.var   (Sub d) = id
+  Sem.alg   (Sub d) = T[_] ∘′ fmap d (reify vl^Tm)
