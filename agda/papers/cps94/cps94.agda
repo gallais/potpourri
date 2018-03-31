@@ -67,7 +67,7 @@ wk inc (f `$ t) = wk inc f `$ wk inc t
 -----------------------------------------------------------------
 -- Calculus based on Moggi's computational meta-language (onwards: ML)
 -- Compared to STLC, it adds a computation type and "monadic"
--- operations (that is, there semantics should be a monad)
+-- operations (that is, their semantics should be a monad)
 -- Well-typed & scoped by construction. Using de Bruijn indices
 
 
