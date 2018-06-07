@@ -33,8 +33,9 @@ module _ (L O : Set) where
     LIT : L → Expr
     OPE : O → Expr → Expr → Expr
 
-pattern [PAR]   = nothing
-pattern [OPE] x = just x
+data OPEPAR (O : Set) : Set where
+  [PAR] : OPEPAR O
+  [OPE] : Ope O → OPEPAR O
 
 module _ {L O : Set} where
 
@@ -42,15 +43,15 @@ module _ {L O : Set} where
   parse = go [] [] where
 
     -- unrolling the stack of operators looking for an opening parenthesis
-    pop[PAR] : List (Maybe (Ope O)) → List (Expr L O) →
-               Maybe (List (Maybe (Ope O)) × List (Expr L O))
+    pop[PAR] : List (OPEPAR O) → List (Expr L O) →
+               Maybe (List (OPEPAR O) × List (Expr L O))
     pop[PAR] ([PAR]   ∷ os) es             = just (os , es)
     pop[PAR] ([OPE] o ∷ os) (e₁ ∷ e₂ ∷ es) = pop[PAR] os (OPE (operator o) e₂ e₁ ∷ es)
     pop[PAR] _ _ = nothing
 
     open RawMonad Maybe.monad
 
-    go : List (Maybe (Ope O)) → List (Expr L O) → List (Token L O) → Maybe (Expr L O)
+    go : List (OPEPAR O) → List (Expr L O) → List (Token L O) → Maybe (Expr L O)
     -- finishing up
     go []             (e ∷ [])       [] = just e
     go ([OPE] o ∷ os) (e₁ ∷ e₂ ∷ es) [] = go os (OPE (operator o) e₂ e₁ ∷ es) []
