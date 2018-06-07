@@ -6,6 +6,7 @@
 
 module poc.InfixParser where
 
+import Level as L
 open import Data.Nat
 open import Data.Maybe as Maybe
 open import Data.Product
@@ -39,17 +40,21 @@ data OPEPAR (O : Set) : Set where
 
 module _ {L O : Set} where
 
+  fold : Ope O → List (Expr L O) → Maybe (List (Expr L O))
+  fold o (e₂ ∷ e₁ ∷ es) = just (OPE (operator o) e₁ e₂ ∷ es)
+  fold o _ = nothing
+
+  open RawMonad (Maybe.monad {L.zero})
+
   parse : List (Token L O) → Maybe (Expr L O)
   parse = go [] [] where
 
     -- unrolling the stack of operators looking for an opening parenthesis
     pop[PAR] : List (OPEPAR O) → List (Expr L O) →
                Maybe (List (OPEPAR O) × List (Expr L O))
-    pop[PAR] ([PAR]   ∷ os) es             = just (os , es)
-    pop[PAR] ([OPE] o ∷ os) (e₁ ∷ e₂ ∷ es) = pop[PAR] os (OPE (operator o) e₂ e₁ ∷ es)
-    pop[PAR] _ _ = nothing
-
-    open RawMonad Maybe.monad
+    pop[PAR] ([PAR]   ∷ os) es = just (os , es)
+    pop[PAR] ([OPE] o ∷ os) es = pop[PAR] os =<< fold o es
+    pop[PAR] []             es = nothing
 
     go : List (OPEPAR O) → List (Expr L O) → List (Token L O) → Maybe (Expr L O)
     -- finishing up
@@ -63,11 +68,10 @@ module _ {L O : Set} where
     -- operator
     go []                  es       (OPE o ∷ ts) = go ([OPE] o ∷ []) es ts
     go os@([PAR]    ∷ _)   es       (OPE o ∷ ts) = go ([OPE] o ∷ os) es ts
-    go os@([OPE] o′ ∷ os′) es       (OPE o ∷ ts) = case suc (fixity o′) ≤? fixity o of λ
-      { (yes p) → go ([OPE] o ∷ os) es ts
-      ; (no ¬p) → case es of λ
-                   { (e₁ ∷ e₂ ∷ es) → go ([OPE] o ∷ os′) (OPE (operator o′) e₂ e₁ ∷ es) ts
-                   ; _ → nothing } }
+    go os@([OPE] o′ ∷ os′) es       (OPE o ∷ ts) =
+      case suc (fixity o′) ≤? fixity o of λ where
+        (yes p) → go ([OPE] o ∷ os) es ts
+        (no ¬p) → fold o′ es >>= λ es′ → go ([OPE] o ∷ os′) es′ ts
     go _ _ _ = nothing
 
 
