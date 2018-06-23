@@ -23,8 +23,6 @@ type (`μ cs)  = mu cs
 data mu cs where
   con : ∀ {c} → c ∈ cs → All (maybe type (mu cs)) c → mu cs
 
-
-{-
 nat : Type
 nat = `μ ([] ∷ (nothing ∷ []) ∷ [])
 
@@ -34,8 +32,8 @@ list a = `μ ([] ∷ (just a ∷ nothing ∷ []) ∷ [])
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 
-pattern z   = con (here refl) tt
-pattern s n = con (there (here refl)) (n , tt)
+pattern z   = con (here refl) []
+pattern s n = con (there (here refl)) (n ∷ [])
 
 fromNat : Nat → type nat
 fromNat zero    = z
@@ -45,4 +43,3 @@ toNat : type nat → Nat
 toNat z     = zero
 toNat (s n) = suc (toNat n)
 toNat (con (there (there ())) _)
--}
