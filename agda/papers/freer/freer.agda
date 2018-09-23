@@ -4,6 +4,9 @@ open import Level
 open import Size
 open import Function
 
+open import Category.Functor
+open import Category.Monad
+
 open import Data.Unit as ⊤ using (⊤)
 open import Data.Nat as ℕ using (ℕ)
 open import Data.List as List using (List)
@@ -75,3 +78,29 @@ module Section-2-2 {i o} (I : Set i) (O : Set o) where
       loop acc (Get k)   = loop acc (k i)
       loop acc (Put o k) = loop (acc ∙ o) (k ⊤.tt)
 
+module Section-2-3 where
+
+  {-# NO_POSITIVITY_CHECK #-}
+  data Free {ℓ} (F : Set ℓ → Set ℓ) (i : Size) (A : Set ℓ) : Set ℓ where
+    Pure   : A → Free F i A
+    Impure : {j : Size< i} → F (Free F j A) → Free F i A
+
+
+  monad : ∀ {ℓ} {F : Set ℓ → Set ℓ} → RawFunctor F → RawMonad (Free F ∞)
+  monad {ℓ} {F} Fun = record
+    { return = Pure
+    ; _>>=_  = _>>=_
+    } where
+
+    open RawFunctor Fun
+
+    _>>=_ : ∀ {A B : Set ℓ} {i} → Free F i A → (A → Free F ∞ B) → Free F ∞ B
+    Pure a   >>= f = f a
+    Impure e >>= f = Impure ((_>>= f) <$> e)
+
+  data ReaderWriter {i o a} (I : Set i) (O : Set o) (A : Set a) : Set (i ⊔ o ⊔ a) where
+    Get : (I → A)     → ReaderWriter I O A
+    Put : O → (⊤ → A) → ReaderWriter I O A
+
+  It : ∀ {i o a} (I : Set i) (O : Set o) → Set _ → Set _
+  It {i} {o} {a} I O = Free {i ⊔ o ⊔ a} (ReaderWriter I O) ∞
