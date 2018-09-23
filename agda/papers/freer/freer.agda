@@ -3,10 +3,15 @@ module papers.freer.freer where
 open import Level
 open import Size
 open import Function
+
+open import Data.Unit as ⊤ using (⊤)
 open import Data.Nat as ℕ using (ℕ)
 open import Data.List as List using (List)
-open import Data.Product as Prod using (_,_)
+open import Data.Product as Prod using (_×_; _,_)
 open import Codata.Stream as Stream using (Stream)
+
+open import Algebra.Structures using (IsMonoid)
+open import Relation.Binary using (Rel)
 
 module Section-2-1 where
 
@@ -46,4 +51,27 @@ module Section-2-1 where
   feedAll is (Pure a) = a
   feedAll is (Get k)  = let (i , is′) = Stream.uncons is in feedAll is′ (k i)
 
+module Section-2-2 {i o} (I : Set i) (O : Set o) where
+
+  data It {a} (A : Set a) : Set (i ⊔ o ⊔ a) where
+    Pure : A → It A
+    Get  : (I → It A) → It A
+    Put  : O → (⊤ → It A) → It A
+
+  infixl 1 _>>=_
+  _>>=_ : ∀ {a b} {A : Set a} {B : Set b} →
+          It A → (A → It B) → It B
+  Pure a  >>= f = f a
+  Get k   >>= f = Get $ λ i → k i >>= f
+  Put o k >>= f = Put o $ λ u → k u >>= f
+
+  module _ {e ε _∙_} {_≈_ : Rel O e} (𝕄 : IsMonoid _≈_ _∙_ ε) {a} {A : Set a} where
+
+    runRdWriter : I → It A → (O × A)
+    runRdWriter i = loop ε where
+
+      loop : O → It A → (O × A)
+      loop acc (Pure a)  = acc , a
+      loop acc (Get k)   = loop acc (k i)
+      loop acc (Put o k) = loop (acc ∙ o) (k ⊤.tt)
 
