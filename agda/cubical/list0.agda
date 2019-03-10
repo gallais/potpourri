@@ -23,6 +23,14 @@ del x y i ++ f = del x (y ++ f) i
   -- s.t   i = 0 -> (x ∷ y) ++ f = x ∷ (y ++ f)
   --       i = 1 ->                     y ++ f
 
+++-idˡ : (e : List⁰ A) → [] ++ e ≡ e
+++-idˡ e = refl
+
+++-idʳ : (e : List⁰ A) → e ++ [] ≡ e
+++-idʳ []          = refl
+++-idʳ (x ∷ e)     = cong (x ∷_) (++-idʳ e)
+++-idʳ (del x e i) = cong (λ e → del x e i) (++-idʳ e)
+
 dels : (e f : List⁰ A) → e ++ f ≡ f
 dels []          f j = f
 dels (x ∷ e)     f j = del x (dels e f j) j
