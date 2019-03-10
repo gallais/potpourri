@@ -80,6 +80,13 @@ instance (Known a c l, Known b d r) => Known (a, b) (c, d) '(l , r) where
   sing              = SPair sing sing
   erase (SPair l r) = (erase l, erase r)
 
+bool :: [Bool]
+bool = collapseDefault <$>
+     [ Value False
+     , Value True
+     , Default :: WithDefault Bool 'True
+     ]
+
 test :: [[(Bool, Text)]]
 test = collapseDefault <$>
      [ Default :: WithDefault' [(Bool, Text)] [(Bool, Symbol)] '[ '( 'True , "Hello"), '( 'False , "World") ]
