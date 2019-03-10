@@ -63,8 +63,8 @@ data instance Sing [a] [b] xs where
 
 instance Known [a] [b] '[] where sing = SNil; erase _ = []
 instance (Known a b x, Known [a] [b] xs) => Known [a] [b] (x ': xs) where
-  sing    = SCons sing sing
-  erase _ = erase (sing :: Sing a b x) : erase (sing :: Sing [a] [b] xs)
+  sing               = SCons sing sing
+  erase (SCons x xs) = erase x : erase xs
 
 data instance Sing Text Symbol s where
   SText :: KnownSymbol s => Sing Text Symbol s
