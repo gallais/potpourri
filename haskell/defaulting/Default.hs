@@ -22,7 +22,7 @@ data WithDefault' k l (a :: l) where
 
 type WithDefault (k :: Type) (a :: k) = WithDefault' k k a
 
-setDefault :: k -> WithDefault k a -> WithDefault k a
+setDefault :: k -> WithDefault' k l a -> WithDefault' k l a
 setDefault k v = case v of
   Default -> Value k
   _ -> v
