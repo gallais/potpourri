@@ -24,8 +24,9 @@ data K {a} (A : Set a) : Set a where
 
 private
   variable
-    a : Level
+    a b : Level
     A : Set a
+    B : Set b
 
 isProp-isSet : isProp A → isSet A
 isProp-isSet A-prop = Discrete→isSet λ x y → yes (A-prop x y)
@@ -130,7 +131,6 @@ idem-isProp p q = Ktrunc _ _
 idem : (k : K A) → _∪_ IdempotentOn k
 idem = K-elimᴾ (λ k → KisSet (k ∪ k) k) (Knl ∅) Kidem (idem-∪ _ _)
 
-{-
 data Squashed {a} (A : Set a) : Set a where
   elt   : A → Squashed A
   trunc : ∀ (x y : Squashed A) → x ≡ y
@@ -138,10 +138,84 @@ data Squashed {a} (A : Set a) : Set a where
 Squashed-isSet : isSet (Squashed A)
 Squashed-isSet = Discrete→isSet (λ x y → yes (trunc x y))
 
-idem : Squashed (Squashed A) → Squashed A
-idem (elt x)       = x
-idem (trunc x y i) = Squashed-isSet (idem x) (idem y) (trunc _ _) (trunc _ _) i i
--}
+open import Level using (Lift)
+open import Data.Empty
+open import Data.Sum.Base
+
+open import Cubical.Core.Glue
+
+⊎-comm : (A ⊎ B) ≡ (B ⊎ A)
+⊎-comm = ua (to , prf) where
+
+  to : A ⊎ B → B ⊎ A
+  to (inj₁ a) = inj₂ a
+  to (inj₂ b) = inj₁ b
+
+  to² : ∀ (x : A ⊎ B) → to (to x) ≡ x
+  to² (inj₁ a) = refl
+  to² (inj₂ b) = refl
+
+  prf : isEquiv to
+  prf .equiv-proof y .fst               = to y , to² y
+  prf .equiv-proof y .snd (inj₁ a , eq) =
+    J (λ y eq → (to y , to² y) ≡ (_ , eq)) refl eq
+  prf .equiv-proof y .snd (inj₂ b , eq) =
+    J (λ y eq → (to y , to² y) ≡ (_ , eq)) refl eq
+
+open import Function
+
+⊎-idˡ : ∀ {a} {A : Set a} → (Lift a ⊥ ⊎ A) ≡ A
+⊎-idˡ {a} {A} = ua (to , prf) where
+
+  to : Lift a ⊥ ⊎ A → A
+  to (inj₂ a) = a
+
+  prf : isEquiv to
+  prf .equiv-proof a .fst               = inj₂ a , refl
+  prf .equiv-proof a .snd (inj₂ b , eq) =
+    J (λ y eq → (inj₂ y , _) ≡ (fiber to y ∋ _ , eq)) refl eq
+
+⊎-idʳ : ∀ {a} {A : Set a} → (A ⊎ Lift a ⊥) ≡ A
+⊎-idʳ = ⊎-comm ∙ ⊎-idˡ
+
+open import Cubical.Foundations.HLevels
+
+Squashed-id : isProp A → Squashed A ≡ A
+Squashed-id {A = A} pr = ua (to , prf) where
+
+  to : Squashed A → A
+  to (elt a)       = a
+  to (trunc a b i) = pr (to a) (to b) i
+
+  prf : isEquiv to
+  prf .equiv-proof a =
+    isContrSigma (elt a , trunc _) λ x →
+      inhProp→isContr (pr (to x) a) (isProp→isSet pr (to x) a)
+
+infixr 6 _+_
+_+_ : Set a → Set b → Set _
+A + B = Squashed (A ⊎ B)
+
++-comm : A + B ≡ B + A
++-comm = cong Squashed ⊎-comm
+
++-idˡ : isProp {a} A → Lift a ⊥ + A ≡ A
++-idˡ pr = cong Squashed ⊎-idˡ ∙ Squashed-id pr
+
++-idʳ : isProp {a} A → A + Lift a ⊥ ≡ A
++-idʳ pr = +-comm ∙ +-idˡ pr
+
+-- Definition 2.4
+_∈_ : A → K A → Set _
+a ∈ ∅                  = Lift _ ⊥
+a ∈ ⟨ b ⟩              = Squashed (a ≡ b)
+a ∈ (k ∪ l)            = a ∈ k + a ∈ l
+a ∈ Knl k i            = {!!}
+a ∈ Knr k i            = {!!}
+a ∈ Kidem x i          = {!!}
+a ∈ Kassoc k l m i     = {!!}
+a ∈ Kcomm k l i        = {!!}
+a ∈ Ktrunc k l p q i j = {!!}
 
 {-
 open import Cubical
