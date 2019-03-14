@@ -63,14 +63,19 @@ module _ {p} {P : Set p} (pr : isProp P)
                     (λ i → K-recᴾ (p i)) (λ i → K-recᴾ (q i))
                     i j
 
+
+JisProp : ∀ {p} {P : A → Set p} → (∀ a → isProp (P a)) →
+          ∀ {a b} (eq : a ≡ b) (p : P a) (q : P b) → PathP (λ i → P (eq i)) p q
+JisProp {P = P} pr = J (λ k eq → ∀ p q → PathP (λ i → P (eq i)) p q) (pr _)
+
 module _ {p} {P : K A → Set p}
          (pr' : ∀ k → isProp (P k))
          (n : P ∅) (s : (a : A) → P ⟨ a ⟩)
          (u : ∀ {k l} → P k → P l → P (k ∪ l)) where
 
   private
-    pr : ∀ {k l} (eq : k ≡ l) (p : P k) (q : P l) → PathP (λ i → P (eq i)) p q
-    pr = J (λ k eq → ∀ p q → PathP (λ i → P (eq i)) p q) (pr' _)
+
+    pr = JisProp pr'
 
     PR : ∀ {k l} (p q : k ≡ l) (pk : P k) (pl : P l)
          (v : PathP (λ j → P (p j)) pk pl) →
@@ -298,6 +303,97 @@ A + B = Squashed (A ⊎ B)
   prf .equiv-proof a = isContrSigma (elt (inj₁ a) , trunc _) λ x →
     inhProp→isContr (pr (to x) a) (isProp→isSet pr (to x) a)
 
+open import Cubical.Foundations.Univalence as U using (univalencePath)
+open import Cubical.Foundations.Equiv
+
+{-
+
+h : ∀ {ℓ} (A B : hProp {ℓ}) → fst A ≡ fst B → A ≡ B
+h A B eq =
+  J (λ s eq → ∀ (t : isProp s) → (s , t) ≡ B)
+     (λ t i → (_ , isPropIsProp t (snd B) i))
+     (sym eq)
+     (snd A)
+
+-}
+
+module _ {p} {P : A → Set p} where
+
+  dcong : ∀ (f : ∀ a → P a) {a a′} (p : a ≡ a′) →
+          PathP (λ i → P (p i)) (f a) (f a′)
+  dcong f p i = f (p i)
+
+module _ {p} {P : A → Set p} where
+
+  Σ-unfold : (p q : Σ A P) → Set _
+  Σ-unfold p q = Σ[ eq ∈ fst p ≡ fst q ]
+                    PathP (λ i → P (eq i)) (snd p) (snd q)
+
+  unfold : ∀ p q → (p ≡ q) ≃ (Σ-unfold p q)
+  unfold p q = isoToEquiv (iso to from to-from from-to) where
+
+    to : p ≡ q → Σ-unfold p q
+    to eq = cong fst eq , dcong snd eq
+
+    from : Σ-unfold p q → p ≡ q
+    from (f , s) i = f i , s i
+
+    to-from : section to from
+    to-from (f , s) = refl
+
+    from-to : retract to from
+    from-to eq = refl
+
+  Σ-Prop : (pr : ∀ a → isContr (P a)) → Σ A P ≃ A
+  Σ-Prop kr = isoToEquiv (iso to from to-from from-to) where
+
+    to : Σ A P → A
+    to = fst
+
+    from : A → Σ A P
+    from a = a , fst (kr a)
+
+    to-from : section to from
+    to-from b = refl
+
+    from-to : retract to from
+    from-to a i = fst a , snd (kr (fst a)) (snd a) i
+
+i : ∀ {p} {P : A → Set p} (pr : ∀ a → isProp (P a)) →
+    (p q : Σ A P) → (fst p ≡ fst q) ≃ (p ≡ q)
+i {P = P} pr p q = compEquiv (invEquiv (Σ-Prop contr))(invEquiv (unfold p q))
+
+  where
+
+  contr : (a : fst p ≡ fst q) → isContr (PathP (λ i → P (a i)) (snd p) (snd q))
+  contr a = inhProp→isContr (JisProp pr a (snd p) (snd q))
+                            (isProp-isSetP pr a (snd p) (snd q))
+
+
+h : ∀ {ℓ} (A B : hProp {ℓ}) → (fst A ≡ fst B) ≃ (A ≡ B)
+h = i (λ a → isPropIsProp)
+
+weqeqmap : ∀ {ℓ} {A B : Set ℓ} → A ≃ B → A ≡ B
+weqeqmap f = subst id (sym univalencePath) (U.lift f)
+
+hProp-isSet : ∀ {ℓ} → isSet (hProp {ℓ})
+hProp-isSet A@(s , prs) B@(t , prt) =
+  subst isProp (weqeqmap (h A B)) g
+
+   where
+
+   d : isProp (s → t)
+   d f g i a = prt (f a) (g a) i
+
+   e : isProp (s ≃ t)
+   e (f , prf) (g , prg) = equivEq (f , prf) (g , prg) (d f g)
+
+   f : isProp (U.Lift (s ≃ t))
+   f = λ x y → cong U.lift (e (U.lower x) (U.lower y))
+
+   g : isProp (s ≡ t)
+   g = subst isProp (sym U.univalencePath) f
+
 -- Definition 2.4
 _∈_ : A → K A → hProp
 a ∈ ∅                  = Lift _ ⊥ , λ ()
@@ -337,8 +433,8 @@ a ∈ Kcomm k l i        =
      (sym (+-comm A B))
      Squashed-isProp
      i
-a ∈ Ktrunc k l p q i j = {!!}
-
+a ∈ Ktrunc k l p q i j =
+  hProp-isSet (a ∈ k) (a ∈ l) (λ i → a ∈ p i) (λ i → a ∈ q i) i j
 
 {-
 infixr 6 _∷_
