@@ -201,11 +201,6 @@ open import Function
   to-from (inj₁ (inj₂ b)) = refl
   to-from (inj₂ c)        = refl
 
-  from-to : ∀ b → from (to b) ≡ b
-  from-to (inj₁ a)        = refl
-  from-to (inj₂ (inj₁ b)) = refl
-  from-to (inj₂ (inj₂ c)) = refl
-
   to-from-id : ∀ b → (from (to b) , to-from (to b))
                    ≡ (fiber to (to b) ∋ b , refl)
   to-from-id (inj₁ a)        = refl
