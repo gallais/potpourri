@@ -298,16 +298,24 @@ A + B = Squashed (A ⊎ B)
     inhProp→isContr (pr (to x) a) (isProp→isSet pr (to x) a)
 
 -- Definition 2.4
-_∈_ : A → K A → Set _
-a ∈ ∅                  = Lift _ ⊥
+_∈_ : A → K A → hProp
+a ∈ ∅                  = Lift _ ⊥ , λ ()
 a ∈ ⟨ b ⟩              = Squashed (a ≡ b)
-a ∈ (k ∪ l)            = a ∈ k + a ∈ l
-a ∈ Knl k i            = {!!}
-a ∈ Knr k i            = {!!}
-a ∈ Kidem x i          = {!!}
-a ∈ Kassoc k l m i     = {!!}
-a ∈ Kcomm k l i        = {!!}
+                       , Squashed-isProp
+a ∈ (k ∪ l)            = fst (a ∈ k) + fst (a ∈ l)
+                       , Squashed-isProp
+a ∈ Knl k i            = +-idˡ (snd (a ∈ k)) i
+                       , {!!}
+a ∈ Knr k i            = +-idʳ (snd (a ∈ k)) i
+                       , {!!}
+a ∈ Kidem b i          = +-idem (Squashed-isProp {A = a ≡ b}) i
+                       , {!!}
+a ∈ Kassoc k l m i     = +-assoc {A = fst (a ∈ k)} {B = fst (a ∈ l)} {C = fst (a ∈ m)} i
+                       , {!!}
+a ∈ Kcomm k l i        = +-comm {A = fst (a ∈ k)} {B = fst (a ∈ l)} i
+                       , {!!}
 a ∈ Ktrunc k l p q i j = {!!}
+                       , {!!}
 
 
 {-
