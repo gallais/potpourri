@@ -243,8 +243,8 @@ infixr 6 _+_
 _+_ : Set a → Set b → Set _
 A + B = Squashed (A ⊎ B)
 
-+-comm : A + B ≡ B + A
-+-comm = cong Squashed ⊎-comm
++-comm : ∀ {a b} (A : Set a) (B : Set b) → A + B ≡ B + A
++-comm A B = cong Squashed ⊎-comm
 
 +-squashedʳ : A + Squashed B ≡ A + B
 +-squashedʳ {A = A} {B = B} = ua (to , prf) where
@@ -268,13 +268,14 @@ A + B = Squashed (A ⊎ B)
 
 +-squashedˡ : Squashed A + B ≡ A + B
 +-squashedˡ {A = A} {B = B} =
-  Squashed A + B ≡⟨ +-comm ⟩
+  Squashed A + B ≡⟨ +-comm _ _ ⟩
   B + Squashed A ≡⟨ +-squashedʳ ⟩
-  B + A          ≡⟨ +-comm ⟩
+  B + A          ≡⟨ +-comm _ _ ⟩
   A + B          ∎
 
-+-assoc : A + (B + C) ≡ (A + B) + C
-+-assoc {A = A} {B = B} {C = C} =
++-assoc : ∀ {a b c} (A : Set a) (B : Set b) (C : Set c) →
+          A + (B + C) ≡ (A + B) + C
++-assoc A B C =
   A + B + C              ≡⟨ +-squashedʳ ⟩
   Squashed (A ⊎ B ⊎ C)   ≡⟨ cong Squashed ⊎-assoc ⟩
   Squashed ((A ⊎ B) ⊎ C) ≡⟨ sym +-squashedˡ ⟩
@@ -284,10 +285,10 @@ A + B = Squashed (A ⊎ B)
 +-idˡ pr = cong Squashed ⊎-idˡ ∙ Squashed-id pr
 
 +-idʳ : isProp {a} A → A + Lift a ⊥ ≡ A
-+-idʳ pr = +-comm ∙ +-idˡ pr
++-idʳ pr = +-comm _ _ ∙ +-idˡ pr
 
-+-idem : isProp A → A + A ≡ A
-+-idem {A = A} pr = ua (to , prf) where
++-idem : ∀ {a} (A : Set a) → isProp A → A + A ≡ A
++-idem A pr = ua (to , prf) where
 
   to : A + A → A
   to (elt a)       = [ id , id ]′ a
@@ -304,18 +305,39 @@ a ∈ ⟨ b ⟩              = Squashed (a ≡ b)
                        , Squashed-isProp
 a ∈ (k ∪ l)            = fst (a ∈ k) + fst (a ∈ l)
                        , Squashed-isProp
-a ∈ Knl k i            = +-idˡ (snd (a ∈ k)) i
-                       , {!!}
-a ∈ Knr k i            = +-idʳ (snd (a ∈ k)) i
-                       , {!!}
-a ∈ Kidem b i          = +-idem (Squashed-isProp {A = a ≡ b}) i
-                       , {!!}
-a ∈ Kassoc k l m i     = +-assoc {A = fst (a ∈ k)} {B = fst (a ∈ l)} {C = fst (a ∈ m)} i
-                       , {!!}
-a ∈ Kcomm k l i        = +-comm {A = fst (a ∈ k)} {B = fst (a ∈ l)} i
-                       , {!!}
+a ∈ Knl k i            =
+  J (λ s eq → ∀ t → (s , t) ≡ (a ∈ k))
+    (λ t i → _ , isPropIsProp t (snd (a ∈ k)) i)
+    (sym (+-idˡ (snd (a ∈ k))))
+    Squashed-isProp
+    i
+a ∈ Knr k i            =
+  J (λ s eq → ∀ t → (s , t) ≡ (a ∈ k))
+    (λ t i → _ , isPropIsProp t (snd (a ∈ k)) i)
+    (sym (+-idʳ (snd (a ∈ k))))
+    Squashed-isProp
+    i
+a ∈ Kidem b i          =
+  J (λ s eq → ∀ (t : isProp s) → (s , t) ≡ (Squashed (a ≡ b) , Squashed-isProp))
+     (λ t i → _ , isPropIsProp t Squashed-isProp i)
+     (sym (+-idem (Squashed (a ≡ b)) Squashed-isProp))
+     Squashed-isProp
+     i
+a ∈ Kassoc k l m i     =
+  let A = fst (a ∈ k); B = fst (a ∈ l); C = fst (a ∈ m) in
+  J (λ s eq → ∀ (t : isProp s) → (s , t) ≡ ((A + B) +  C , Squashed-isProp))
+     (λ t i → _ , isPropIsProp t Squashed-isProp i)
+     (sym (+-assoc A B C))
+     Squashed-isProp
+     i
+a ∈ Kcomm k l i        =
+  let A = fst (a ∈ k); B = fst (a ∈ l) in
+  J (λ s eq → ∀ (t : isProp s) → (s , t) ≡ (B + A , Squashed-isProp))
+     (λ t i → _ , isPropIsProp t Squashed-isProp i)
+     (sym (+-comm A B))
+     Squashed-isProp
+     i
 a ∈ Ktrunc k l p q i j = {!!}
-                       , {!!}
 
 
 {-
