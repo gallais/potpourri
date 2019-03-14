@@ -24,9 +24,10 @@ data K {a} (A : Set a) : Set a where
 
 private
   variable
-    a b : Level
+    a b c : Level
     A : Set a
     B : Set b
+    C : Set c
 
 isProp-isSet : isProp A → isSet A
 isProp-isSet A-prop = Discrete→isSet λ x y → yes (A-prop x y)
@@ -135,6 +136,24 @@ data Squashed {a} (A : Set a) : Set a where
   elt   : A → Squashed A
   trunc : ∀ (x y : Squashed A) → x ≡ y
 
+
+module _ {p} {P : Squashed A → Set p}
+         (pr : ∀ a → isProp (P a))
+         (pa : ∀ a → P (elt a)) where
+
+  private
+
+    pr' : ∀ {k l} (eq : k ≡ l) (p : P k) (q : P l) → PathP (λ i → P (eq i)) p q
+    pr' = J (λ k eq → ∀ p q → PathP (λ i → P (eq i)) p q) (pr _)
+
+  Squashed-elimᴾ : ∀ a → P a
+  Squashed-elimᴾ (elt a)       = pa a
+  Squashed-elimᴾ (trunc a b i) = pr' (trunc a b) (Squashed-elimᴾ a) (Squashed-elimᴾ b) i
+
+
+Squashed-isProp : isProp (Squashed A)
+Squashed-isProp = trunc
+
 Squashed-isSet : isSet (Squashed A)
 Squashed-isSet = Discrete→isSet (λ x y → yes (trunc x y))
 
@@ -164,6 +183,40 @@ open import Cubical.Core.Glue
 
 open import Function
 
+⊎-assoc : (A ⊎ (B ⊎ C)) ≡ ((A ⊎ B) ⊎ C)
+⊎-assoc {A = A} {B = B} {C = C} = ua (to , prf) where
+
+  to : A ⊎ (B ⊎ C) → (A ⊎ B) ⊎ C
+  to (inj₁ a)        = inj₁ (inj₁ a)
+  to (inj₂ (inj₁ b)) = inj₁ (inj₂ b)
+  to (inj₂ (inj₂ c)) = inj₂ c
+
+  from : (A ⊎ B) ⊎ C → A ⊎ (B ⊎ C)
+  from (inj₁ (inj₁ a)) = inj₁ a
+  from (inj₁ (inj₂ b)) = inj₂ (inj₁ b)
+  from (inj₂ c)        = inj₂ (inj₂ c)
+
+  to-from : ∀ a → to (from a) ≡ a
+  to-from (inj₁ (inj₁ a)) = refl
+  to-from (inj₁ (inj₂ b)) = refl
+  to-from (inj₂ c)        = refl
+
+  from-to : ∀ b → from (to b) ≡ b
+  from-to (inj₁ a)        = refl
+  from-to (inj₂ (inj₁ b)) = refl
+  from-to (inj₂ (inj₂ c)) = refl
+
+  to-from-id : ∀ b → (from (to b) , to-from (to b))
+                   ≡ (fiber to (to b) ∋ b , refl)
+  to-from-id (inj₁ a)        = refl
+  to-from-id (inj₂ (inj₁ b)) = refl
+  to-from-id (inj₂ (inj₂ c)) = refl
+
+  prf : isEquiv to
+  prf .equiv-proof a .fst          = from a , to-from a
+  prf .equiv-proof a .snd (b , eq) =
+    J (λ a eq → (from a , to-from a) ≡ (b , eq)) (to-from-id b) eq
+
 ⊎-idˡ : ∀ {a} {A : Set a} → (Lift a ⊥ ⊎ A) ≡ A
 ⊎-idˡ {a} {A} = ua (to , prf) where
 
@@ -184,8 +237,7 @@ Squashed-id : isProp A → Squashed A ≡ A
 Squashed-id {A = A} pr = ua (to , prf) where
 
   to : Squashed A → A
-  to (elt a)       = a
-  to (trunc a b i) = pr (to a) (to b) i
+  to = Squashed-elimᴾ (const pr) id
 
   prf : isEquiv to
   prf .equiv-proof a =
@@ -199,11 +251,56 @@ A + B = Squashed (A ⊎ B)
 +-comm : A + B ≡ B + A
 +-comm = cong Squashed ⊎-comm
 
++-squashedʳ : A + Squashed B ≡ A + B
++-squashedʳ {A = A} {B = B} = ua (to , prf) where
+
+  to : A + Squashed B → A + B
+  to = Squashed-elimᴾ (const Squashed-isProp)
+     [ elt ∘′ inj₁
+     , Squashed-elimᴾ (const Squashed-isProp) (elt ∘′ inj₂)
+     ]′
+
+  from : A + B → A + Squashed B
+  from = Squashed-elimᴾ (const Squashed-isProp)
+       [ elt ∘′ inj₁
+       , elt ∘′ inj₂ ∘′ elt
+       ]′
+
+  prf : isEquiv to
+  prf .equiv-proof a = isContrSigma (from a , trunc _) λ x →
+    inhProp→isContr (Squashed-isProp (to x) a)
+                    (isProp→isSet Squashed-isProp (to x) a)
+
++-squashedˡ : Squashed A + B ≡ A + B
++-squashedˡ {A = A} {B = B} =
+  Squashed A + B ≡⟨ +-comm ⟩
+  B + Squashed A ≡⟨ +-squashedʳ ⟩
+  B + A          ≡⟨ +-comm ⟩
+  A + B          ∎
+
++-assoc : A + (B + C) ≡ (A + B) + C
++-assoc {A = A} {B = B} {C = C} =
+  A + B + C              ≡⟨ +-squashedʳ ⟩
+  Squashed (A ⊎ B ⊎ C)   ≡⟨ cong Squashed ⊎-assoc ⟩
+  Squashed ((A ⊎ B) ⊎ C) ≡⟨ sym +-squashedˡ ⟩
+  (A + B) + C            ∎
+
 +-idˡ : isProp {a} A → Lift a ⊥ + A ≡ A
 +-idˡ pr = cong Squashed ⊎-idˡ ∙ Squashed-id pr
 
 +-idʳ : isProp {a} A → A + Lift a ⊥ ≡ A
 +-idʳ pr = +-comm ∙ +-idˡ pr
+
++-idem : isProp A → A + A ≡ A
++-idem {A = A} pr = ua (to , prf) where
+
+  to : A + A → A
+  to (elt a)       = [ id , id ]′ a
+  to (trunc a b i) = pr (to a) (to b) i
+
+  prf : isEquiv to
+  prf .equiv-proof a = isContrSigma (elt (inj₁ a) , trunc _) λ x →
+    inhProp→isContr (pr (to x) a) (isProp→isSet pr (to x) a)
 
 -- Definition 2.4
 _∈_ : A → K A → Set _
