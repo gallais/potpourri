@@ -87,26 +87,44 @@ raiseClauses r (c ∷ cs) = raiseClause r c ∷ raiseClauses r cs
 private
 
   record Absₙ (T : Set) (n : ℕ) : Set where
-    field unAbsₙ : T
+    constructor mkAbsₙ
+    field
+      names  : Vec String n
+      unAbsₙ : T
 
-  mkAbsₙ : ∀ {T n} → T → Absₙ T n
-  mkAbsₙ t = record { unAbsₙ = t }
-
-  wkAbsₙ : ∀ {T n} → Absₙ T n → Absₙ T (suc n)
-  wkAbsₙ t .Absₙ.unAbsₙ = t .Absₙ.unAbsₙ
+  wkAbsₙ : ∀ {T n} → String → Absₙ T n → Absₙ T (suc n)
+  wkAbsₙ x (mkAbsₙ xs t) = mkAbsₙ (x ∷ xs) t
 
   unAbsₙTerm : ∀ {n} → Absₙ Term n → Term
   unAbsₙTerm {n} t = raiseTerm (initRaise n) (t .Absₙ.unAbsₙ)
+
+  runAbsₙ : ∀ {T} → Absₙ T 0 → T
+  runAbsₙ = Absₙ.unAbsₙ
+
+  enterAbsₙ : ∀ {T m} → Absₙ T (suc m) → Absₙ (Abs T) m
+  enterAbsₙ (mkAbsₙ (x ∷ xs) t) = mkAbsₙ xs (abs x t)
+
+  infixl 5 _<$>_
+  infixl 4 _<*>_
+
+  _<$>_ : ∀ {S T n} → (S → T) → Absₙ S n → Absₙ T n
+  f <$> (mkAbsₙ xs t) = mkAbsₙ xs (f t)
+
+  _<*>_ : ∀ {S T n} → Absₙ (S → T) n → Absₙ S n → Absₙ T n
+  (mkAbsₙ xs f) <*> (mkAbsₙ _ t) = mkAbsₙ xs (f t)
 
 data Telescope (T : Set) : ℕ → Set where
   []   : Telescope T 0
   _,-_ : ∀ {m} → Telescope T m → Absₙ T m → Telescope T (suc m)
 
 telView : Type → ∃⟨ Telescope (Arg Type) ∩ Absₙ Type ⟩
-telView (pi a (abs _ b)) = let (_ , (as , r)) = telView b
-                           in -, (as ,- mkAbsₙ a , wkAbsₙ r)
-telView e                = -, ([] , mkAbsₙ e)
+telView (pi a (abs x b)) = let (_ , (as , r@(mkAbsₙ xs _))) = telView b
+                           in -, (as ,- mkAbsₙ xs a , wkAbsₙ x r)
+telView e                = -, ([] , mkAbsₙ [] e)
 
+untelView : ∀ {n} → Telescope (Arg Type) n → Absₙ Type n → Type
+untelView []       ty = runAbsₙ ty
+untelView (Γ ,- a) ty = untelView Γ (pi <$> a <*> enterAbsₙ ty)
 
 telToArg-infoVec : ∀ {T n} → Telescope (Arg T) n → Vec Arg-info n
 telToArg-infoVec = Vec.reverse ∘ go where
@@ -127,11 +145,11 @@ showArgTerms : List (Arg Term) → String
 showTerm = showType
 
 showType (var x args) = ℕₛ.show x
-showType (con c args) = showName c ++ " " ++ showArgTerms args
-showType (def f args) = showName f ++ " " ++ showArgTerms args
+showType (con c args) = showName c ++ (if List.null args then "" else " " ++ showArgTerms args)
+showType (def f args) = showName f ++ (if List.null args then "" else " " ++ showArgTerms args)
 showType (lam v t) = "lam"
 showType (pat-lam cs args) = "plam"
-showType (pi (arg _ a) (abs _ b)) = "Π" ++ showType a ++ showType b
+showType (pi (arg _ a) (abs _ b)) = "Π (x : " ++ showType a ++ ") " ++ showType b
 showType (sort (set t)) = "Set ?"
 showType (sort (lit n)) = "Set " ++ ℕₛ.show n
 showType (sort unknown) = "?"
@@ -149,11 +167,11 @@ showTele (Γ ,- record { unAbsₙ = arg _ x }) = showTele Γ ++ "(" ++ showType 
 fType : Name → TC Type
 fType nm = do
   ty ← getType nm
-  let (n , ts , t) = telView ty
+  let (n , ts , t@(mkAbsₙ xs _)) = telView ty
   let infos = telToArg-infoVec ts
   let vars  = Vec.reverse (Vec.allFin n)
   let args  = Vec.zipWith (λ i k → arg i (var (Fin.toℕ k) [])) infos vars
-  return (def nm (Vec.toList args))
+  return (untelView ts $ mkAbsₙ xs $ def nm (Vec.toList args))
 
 
 view : TC String
@@ -169,4 +187,4 @@ macro
     unify hole (lit (string n))
 
 _ : String
-_ = {!!}
+_ = "Π (x : Agda.Builtin.Nat.ℕ) poc.view.View 0 "
