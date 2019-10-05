@@ -93,14 +93,34 @@ import Data.List.Categorical as List
 module T {ℓ} = List.TraversableM (monad {ℓ})
 open T
 
+parametersOf : Name → TC ℕ
+parametersOf cnm = let open Reflection in do
+  ty ← getType cnm
+  let (_ , _ , mkAbsₙ _ t) = telView ty
+  (def nm args) ← return t where
+    _ → typeError $ strErr "The impossible has happened: the constructor"
+                  ∷ nameErr cnm
+                  ∷ strErr "does not construct a value of a datatype."
+                  ∷ []
+  (data-type pars _) ← getDefinition nm where
+    _ → typeError $ nameErr nm
+                  ∷ strErr "is not a datatype \
+                           \so I cannot generate a view for it."
+                  ∷ []
+  return pars
+
 module _ where
 
   open import Category.Monad.State
   open RawMonadState (StateTMonadState (List ℕ) monad)
   open import Data.List.Membership.DecPropositional ℕ._≟_
 
-  termToPattern   : Term → StateT (List ℕ) TC Pattern
-  termsToPatterns : List (Arg Term) → StateT (List ℕ) TC (List (Arg Pattern))
+  liftTC : ∀ {a} {A : Set a} {S : Set a} → TC A → StateT S TC A
+  liftTC tc s = bindTC tc (λ a → Reflection.return (a , s))
+
+  termToPattern    : Term → StateT (List ℕ) TC Pattern
+  termsToPatterns  : List (Arg Term) → StateT (List ℕ) TC (List (Arg Pattern))
+  termsToPatterns' : ℕ → List (Arg Term) → StateT (List ℕ) TC (List (Arg Pattern))
 
   termToPattern (var x [])   = do
     ns   ← get
@@ -109,12 +129,20 @@ module _ where
     put (x ∷ ns)
     pure (var ("var" ++ ℕₛ.show x))
   termToPattern (con c args) = do
-    pargs ← termsToPatterns args
+    pars  ← liftTC $ parametersOf c
+    pargs ← termsToPatterns' pars args
     return $ con c pargs
   termToPattern (lit l)      = return (lit l)
   termToPattern _            = return dot
 
-  termsToPatterns []             = return []
+  termsToPatterns' zero    ts       = termsToPatterns ts
+  termsToPatterns' (suc n) (t ∷ ts) = termsToPatterns' n ts
+  termsToPatterns' (suc n) []       = liftTC $
+    typeError $ strErr "The impossible has happened: \
+                       \fewer arguments than parameters"
+              ∷ []
+
+  termsToPatterns []           = return []
   termsToPatterns (arg i t ∷ ts) = do
     p  ← termToPattern t
     ps ← termsToPatterns ts
@@ -197,3 +225,14 @@ eq? m n with view2 m n | inspect (view2 m) n
 ... | zz       | _      = yes refl
 ... | ss m' n' | _      = Dec.map′ (cong suc) ℕₚ.suc-injective (eq? m' n')
 ... | any      | [ eq ] = no (view2-invert m n eq)
+
+data Empty? {a} {A : Set a} : List A → Set a where
+  yes : Empty? []
+  no  : ∀ x xs → Empty? (x ∷ xs)
+
+unquoteDecl empty? = mkView empty? (quote Empty?)
+
+sum : List ℕ → ℕ
+sum xs with empty? xs
+... | yes      = 0
+... | no hd tl = hd + sum tl
