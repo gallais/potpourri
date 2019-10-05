@@ -1,6 +1,6 @@
 module poc.view where
 
-open import Data.Unit
+open import Data.Unit using (⊤)
 open import Reflection hiding (return; _>>_; _>>=_)
 open import Reflection.Term as Term
 open import Reflection.Argument as Arg
@@ -10,8 +10,7 @@ open import Reflection.Argument.Information
 open import Reflection.Name as Name
 open import Reflection.Abstraction
 
-open import Data.Bool.Base
-open import Data.Nat as ℕ using (ℕ; zero; suc; _+_; _<ᵇ_)
+open import Data.Nat as ℕ using (ℕ; zero; suc; _+_; _*_; _<ᵇ_; _≤_; ∣_-_∣)
 import Data.Nat.Show as ℕₛ
 import Data.Nat.Properties as ℕₚ
 import Data.Fin.Base as Fin
@@ -69,15 +68,6 @@ untelView (a -: abs x Γ) ty = pi a (abs x (untelView Γ (unAbs (closeAbs ty))))
 telToArgInfoVec : ∀ {T n} → Telescope (Arg T) n → Vec ArgInfo n
 telToArgInfoVec []                   = []
 telToArgInfoVec (arg i _ -: abs _ Γ) = i ∷ telToArgInfoVec Γ
-
-data View : ℕ → Set where
-  2+  : ∀ n → View (suc (suc n))
-  any : ∀ n → View n
-
-data View2 : ℕ → ℕ → Set where
-  zz  : View2 0 0
-  ss  : ∀ m n → View2 (suc m) (suc n)
-  any : ∀ {n m} → View2 m n
 
 {-
 showTele : ∀ {n} → Telescope (Arg Type) n → String
@@ -137,28 +127,30 @@ module _ where
 
 fClauses : Name → TC (List Clause)
 fClauses nm = let open Reflection in do
-  (data-type pars cs) ← getDefinition nm
-    where _ → {!!}
+  (data-type pars cs) ← getDefinition nm where
+    _ → typeError $ nameErr nm
+                  ∷ strErr "is not a datatype \
+                           \so I cannot generate a view for it."
+                  ∷ []
   forM cs $ λ cnm → do
     ty ← getType cnm
     let (n , ts , mkAbsₙ xs t) = telView ty
-    (def nm′ args) ← return t
-      where _ → {!!}
-    yes p ← return (nm Name.≟ nm′)
-      where _ → {!!}
+    (def nm′ args) ← return t where
+      _ → typeError $ strErr "The impossible has happened: the constructor"
+                    ∷ nameErr cnm
+                    ∷ strErr "does not construct a value of a datatype."
+                    ∷ []
+    yes p ← return (nm Name.≟ nm′) where
+      _ → typeError $ strErr "The impossible has happened: the constructor"
+                    ∷ nameErr cnm
+                    ∷ strErr "does not construct a value of type"
+                    ∷ nameErr nm
+                    ∷ []
     (pargs , π) ← termsToPatterns args []
     let infos = telToArgInfoVec ts
     let vars  = Vec.map (renameVar π ∘′ Fin.toℕ) $ Vec.reverse (Vec.allFin n)
     let args  = Vec.zipWith (λ i k → arg i (var k [])) infos vars
     return (clause pargs (con cnm (Vec.toList args)))
-
-viewString : TC String
-viewString = let open Reflection in do
-  fty ← fType (quote View2)
-  fcl ← fClauses (quote View2)
-  return $ unlines
-    $ Term.show fty
-    ∷ List.map showClause fcl
 
 mkView : Name → Name → TC ⊤
 mkView v ty = let open Reflection in do
@@ -167,12 +159,32 @@ mkView v ty = let open Reflection in do
   declareDef (arg (arg-info visible relevant) v) viewTy
   defineFun v viewCl
 
+
+data View : ℕ → Set where
+  2+  : ∀ n → View (suc (suc n))
+  any : ∀ {n} → View n
+
 unquoteDecl view  = mkView view (quote View)
 
 half : ℕ → ℕ
 half n with view n
-... | 2+ m  = suc (half m)
-... | any _ = zero
+... | 2+ m = suc (half m)
+... | any  = zero
+
+half-dist : ∀ n → ∣ 2 * half n - n ∣ ≤ 1
+half-dist n with view n | inspect view n
+half-dist 0 | any | _ = ℕ.z≤n
+half-dist 1 | any | _ = ℕ.s≤s ℕ.z≤n
+... | 2+ m | _ = let open ℕₚ.≤-Reasoning; h = half m in begin
+  ∣ h + (suc h + 0) - suc m ∣ ≡⟨ cong ∣_- suc m ∣ (ℕₚ.+-comm h (suc h + 0)) ⟩
+  ∣ (h + 0) + h     - m     ∣ ≡⟨ cong ∣_- m ∣ (ℕₚ.+-comm (h + 0) h) ⟩
+  ∣ 2 * h           - m     ∣ ≤⟨ half-dist m ⟩
+  1                           ∎
+
+data View2 : ℕ → ℕ → Set where
+  zz  : View2 0 0
+  ss  : ∀ m n → View2 (suc m) (suc n)
+  any : ∀ {n m} → View2 m n
 
 unquoteDecl view2 = mkView view2 (quote View2)
 
@@ -185,13 +197,3 @@ eq? m n with view2 m n | inspect (view2 m) n
 ... | zz       | _      = yes refl
 ... | ss m' n' | _      = Dec.map′ (cong suc) ℕₚ.suc-injective (eq? m' n')
 ... | any      | [ eq ] = no (view2-invert m n eq)
-
-macro
-
-  runTC : TC String → Term → TC ⊤
-  runTC tc hole = let open Reflection in do
-    n ← tc
-    unify hole (lit (string n))
-
-_ : String
-_ = {!!}
