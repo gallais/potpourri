@@ -27,73 +27,6 @@ open import Relation.Nary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 
-record Raise : Set where
-  constructor mkRaise
-  field protected : ℕ
-        offset    : ℕ
-
-initRaise : ℕ → Raise
-initRaise = mkRaise 0
-
-wkRaise : ℕ → Raise → Raise
-wkRaise n (mkRaise protected offset) = mkRaise (n + protected) (n + offset)
-
-raiseVar : Raise → ℕ → ℕ
-raiseVar r k = if k <ᵇ protected then k else offset + k
-  where open Raise r
-
-raiseSort     : Raise → Sort → Sort
-raiseAbsTerm  : Raise → Abs Term → Abs Term
-raiseTerm     : Raise → Term → Term
-raiseArgTerm  : Raise → Arg Term → Arg Term
-raiseArgTerms : Raise → List (Arg Term) → List (Arg Term)
-raiseClause   : Raise → Clause → Clause
-raiseClauses  : Raise → List Clause → List Clause
-
-raiseSort r (set t) = set (raiseTerm r t)
-raiseSort r (lit n) = lit n
-raiseSort r unknown = unknown
-
-raiseAbsTerm r (abs s t) = abs s (raiseTerm (wkRaise 1 r) t)
-
-raiseTerm r (var x args)      = var (raiseVar r x) (raiseArgTerms r args)
-raiseTerm r (con c args)      = con c (raiseArgTerms r args)
-raiseTerm r (def f args)      = def f (raiseArgTerms r args)
-raiseTerm r (lam v t)         = lam v (raiseAbsTerm r t)
-raiseTerm r (pat-lam cs args) = pat-lam (raiseClauses r cs) (raiseArgTerms r args)
-raiseTerm r (pi a b)          = pi (raiseArgTerm r a) (raiseAbsTerm r b)
-raiseTerm r (sort s)          = sort (raiseSort r s)
-raiseTerm r (lit l)           = lit l
-raiseTerm r (meta id args)    = meta id (raiseArgTerms r args)
-raiseTerm r unknown           = unknown
-
-raiseArgTerm r (arg i x) = arg i (raiseTerm r x)
-
-raiseArgTerms r []       = []
-raiseArgTerms r (t ∷ ts) = raiseArgTerm r t ∷ raiseArgTerms r ts
-
-raiseClause r (absurd-clause ps) = absurd-clause ps
-raiseClause r (clause ps t)      = clause ps (raiseTerm (wkRaise count r) t)
-  where
-    measure  : Pattern → ℕ
-    measures : List (Arg Pattern) → ℕ
-
-    measure (con c ps) = measures ps
-    measure dot        = 0
-    measure (var s)    = 1
-    measure (lit l)    = 0
-    measure (proj f)   = 0
-    measure absurd     = 0
-
-    measures []             = 0
-    measures (arg _ p ∷ ps) = measure p + measures ps
-
-    count = measures ps
-
-
-raiseClauses r []       = []
-raiseClauses r (c ∷ cs) = raiseClause r c ∷ raiseClauses r cs
-
 private
 
   record Absₙ (T : Set) (n : ℕ) : Set where
@@ -104,9 +37,6 @@ private
 
   openAbs : ∀ {T n} → Abs (Absₙ T n) → Absₙ T (suc n)
   openAbs (abs x (mkAbsₙ xs t)) = mkAbsₙ (x ∷ xs) t
-
-  unAbsₙTerm : ∀ {n} → Absₙ Term n → Term
-  unAbsₙTerm {n} t = raiseTerm (initRaise n) (t .Absₙ.unAbsₙ)
 
   runAbsₙ : ∀ {T} → Absₙ T 0 → T
   runAbsₙ = Absₙ.unAbsₙ
