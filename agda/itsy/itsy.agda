@@ -15,6 +15,12 @@ record ITSY : Set where
         MEM : Vec ℕ 4
 open ITSY
 
+mem : Vec ℕ 4
+mem = 0 ∷ 1 ∷ 2 ∷ 3 ∷ []
+
+itsy : ITSY
+itsy = 0 < mem >
+
 data ADDR : Set where
   `0 `1 `2 `3 : ADDR
 
@@ -67,12 +73,24 @@ instr (STORE a) (ac < mem >) = ac              < mem [ a ]:= ac > , []
 instr (ADD a)   (ac < mem >) = ac + (mem !! a) < mem            > , []
 instr PRINT     (ac < mem >) = ac              < mem            > , ac ∷ []
 
+_ : instr PRINT itsy ≡ (0 < mem > , 0 ∷ [])
+_ = trivial
+
+_ : instr (LOAD `2) itsy ≡ (2 < mem > , [])
+_ = trivial
+
 asm : ASM → ACTION
 asm []       itsy = (itsy , [])
 asm (i ∷ is) itsy =
   let (itsy₁ , ns₁) = instr i itsy
       (itsy₂ , ns₂) = asm is itsy₁
   in (itsy₂ , ns₁ ++ ns₂)
+
+_ : asm swap-03 itsy ≡ (0 < 3 ∷ 0 ∷ 2 ∷ 0 ∷ [] > , [])
+_ = trivial
+
+_ : asm sum-MEM itsy ≡ (6 < mem > , 6 ∷ [])
+_ = trivial
 
 theorem-sum-MEM : ∀ ac mem →
   let sum = mem !! `0 + mem !! `1 + mem !! `2 + mem !! `3 in
@@ -107,9 +125,9 @@ theorem-append : ∀ is js itsy →
                          in (itsy₂ , ns₁ ++ ns₂))
 theorem-append []       js itsy = trivial
 theorem-append (i ∷ is) js itsy
-  with (itsyi   , ni)   ← instr i itsy         | λeq  ← theorem-append is js
-  with (itsyis  , nis)  ← asm is itsyi         | eqis ← λeq itsyi
-  with (itsyjs  , njs)  ← asm js itsyis        | eqjs ← eqis
+  with (itsyi   , ni)   ← instr i itsy         | λeq   ← theorem-append is js
+  with (itsyis  , nis)  ← asm is itsyi         | eqis  ← λeq itsyi
+  with (itsyjs  , njs)  ← asm js itsyis        | eqjs  ← eqis
   with (itsyijs , nijs) ← asm (is ++ js) itsyi | eqijs ← eqjs
   rewrite ++-assoc ni nis njs
   with eqijs
