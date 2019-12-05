@@ -1,0 +1,3 @@
+name: itsy
+include: .
+depend: standard-library
