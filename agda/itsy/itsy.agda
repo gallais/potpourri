@@ -7,6 +7,8 @@ open import Data.Product   using (_×_ ; _,_; ∃)
 open import Relation.Binary.PropositionalEquality
   using (_≡_) renaming (refl to trivial)
 
+infix 5 _<_>
+
 record ITSY : Set where
   constructor _<_>
   field AC  : ℕ
@@ -60,10 +62,10 @@ _[_]:=_ : Vec ℕ 4 → ADDR → ℕ → Vec ℕ 4
 (a ∷ b ∷ c ∷ d ∷ []) [ `3 ]:= v = a ∷ b ∷ c ∷ v ∷ []
 
 instr : INSTR → ACTION
-instr (LOAD a)  itsy = (record itsy { AC  = MEM itsy !! a             }, [])
-instr (STORE a) itsy = (record itsy { MEM = MEM itsy [ a ]:= AC itsy  }, [])
-instr (ADD a)   itsy = (record itsy { AC  = AC itsy + (MEM itsy !! a) }, [])
-instr PRINT     itsy = itsy , (AC itsy ∷ [])
+instr (LOAD a)  (ac < mem >) = mem !! a        < mem            > , []
+instr (STORE a) (ac < mem >) = ac              < mem [ a ]:= ac > , []
+instr (ADD a)   (ac < mem >) = ac + (mem !! a) < mem            > , []
+instr PRINT     (ac < mem >) = ac              < mem            > , ac ∷ []
 
 asm : ASM → ACTION
 asm []       itsy = (itsy , [])
