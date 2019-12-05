@@ -3,7 +3,7 @@ module itsy where
 open import Data.Nat.Base  using (ℕ; _+_)
 open import Data.List.Base using (List; []; _∷_; _++_)
 open import Data.Vec.Base  using (Vec; []; _∷_)
-open import Data.Product   using (_×_ ; _,_; ∃)
+open import Data.Product   using (_×_ ; _,_; ∃; proj₁)
 open import Relation.Binary.PropositionalEquality
   using (_≡_) renaming (refl to trivial)
 
@@ -86,13 +86,46 @@ theorem-swap03 : ∀ ac mem → ∃ λ mem₂ →
 theorem-swap03 ac (a ∷ b ∷ c ∷ d ∷ []) =
   _ , trivial , trivial , trivial
 
-theorem-loadload : ∀ itsy l₁ l₂ is →
-  asm (LOAD l₁ ∷ LOAD l₂ ∷ is) itsy ≡ asm (LOAD l₂ ∷ is) itsy
-theorem-loadload (ac < a ∷ b ∷ c ∷ d ∷ [] >) l₁ l₂ is = trivial
+_≅_ : ASM → ASM → Set
+is ≅ js = ∀ itsy → asm is itsy ≡ asm js itsy
 
-theorem-storeload : ∀ itsy l is →
-  asm (STORE l ∷ LOAD l ∷ is) itsy ≡ asm (STORE l ∷ is) itsy
-theorem-storeload (ac < a ∷ b ∷ c ∷ d ∷ [] >) `0 is = trivial
-theorem-storeload (ac < a ∷ b ∷ c ∷ d ∷ [] >) `1 is = trivial
-theorem-storeload (ac < a ∷ b ∷ c ∷ d ∷ [] >) `2 is = trivial
-theorem-storeload (ac < a ∷ b ∷ c ∷ d ∷ [] >) `3 is = trivial
+theorem-loadload : ∀ l₁ l₂ →
+  (LOAD l₁ ∷ LOAD l₂ ∷ []) ≅ (LOAD l₂ ∷ [])
+theorem-loadload l₁ l₂ (ac < a ∷ b ∷ c ∷ d ∷ [] >) = trivial
+
+theorem-storeload : ∀ l → (STORE l ∷ LOAD l ∷ []) ≅ (STORE l ∷ [])
+theorem-storeload `0 (ac < a ∷ b ∷ c ∷ d ∷ [] >) = trivial
+theorem-storeload `1 (ac < a ∷ b ∷ c ∷ d ∷ [] >) = trivial
+theorem-storeload `2 (ac < a ∷ b ∷ c ∷ d ∷ [] >) = trivial
+theorem-storeload `3 (ac < a ∷ b ∷ c ∷ d ∷ [] >) = trivial
+
+open import Data.List.Properties using (++-assoc)
+
+theorem-append : ∀ is js itsy →
+  asm (is ++ js) itsy ≡ (let (itsy₁ , ns₁) = asm is itsy
+                             (itsy₂ , ns₂) = asm js itsy₁
+                         in (itsy₂ , ns₁ ++ ns₂))
+theorem-append []       js itsy = trivial
+theorem-append (i ∷ is) js itsy
+  with (itsyi   , ni)   ← instr i itsy         | λeq  ← theorem-append is js
+  with (itsyis  , nis)  ← asm is itsyi         | eqis ← λeq itsyi
+  with (itsyjs  , njs)  ← asm js itsyis        | eqjs ← eqis
+  with (itsyijs , nijs) ← asm (is ++ js) itsyi | eqijs ← eqjs
+  rewrite ++-assoc ni nis njs
+  with eqijs
+... | trivial = trivial
+
+theorem-cong : ∀ is js ks ls →
+  js ≅ ks → (is ++ js ++ ls) ≅ (is ++ ks ++ ls)
+theorem-cong is js ks ls equiv itsy
+  with asm is itsy
+     | {asm (is ++ js ++ ls) itsy}
+     | {asm (is ++ ks ++ ls) itsy}
+     | {asm (js ++ ls) (proj₁ (asm is itsy))}
+     | {asm (ks ++ ls) (proj₁ (asm is itsy))}
+     | theorem-append is (js ++ ls) itsy
+     | theorem-append is (ks ++ ls) itsy
+     | theorem-append js ls (proj₁ (asm is itsy))
+     | theorem-append ks ls (proj₁ (asm is itsy))
+... | (itsyis , _) | trivial | trivial | trivial | trivial
+  rewrite equiv itsyis = trivial
