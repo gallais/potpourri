@@ -1,10 +1,11 @@
 module itsy where
 
-open import Data.Nat.Base
+open import Data.Nat.Base  using (ℕ; _+_)
 open import Data.List.Base using (List; []; _∷_; _++_)
-open import Data.Vec.Base using (Vec; []; _∷_)
-open import Data.Product
+open import Data.Vec.Base  using (Vec; []; _∷_)
+open import Data.Product   using (_×_ ; _,_; ∃)
 open import Relation.Binary.PropositionalEquality
+  using (_≡_) renaming (refl to trivial)
 
 record ITSY : Set where
   constructor _<_>
@@ -74,11 +75,11 @@ asm (i ∷ is) itsy =
 theorem-sum-MEM : ∀ ac mem →
   let sum = mem !! `0 + mem !! `1 + mem !! `2 + mem !! `3 in
   asm sum-MEM (ac < mem >) ≡ (sum < mem > , sum ∷ [])
-theorem-sum-MEM ac (a ∷ b ∷ c ∷ d ∷ []) = refl
+theorem-sum-MEM ac (a ∷ b ∷ c ∷ d ∷ []) = trivial
 
 theorem-swap03 : ∀ ac mem → ∃ λ mem₂ →
     asm swap-03 (ac < mem >) ≡ ((mem !! `0) < mem₂ > , [])
   × mem₂ !! `0 ≡ mem !! `3
   × mem₂ !! `3 ≡ mem !! `0
 theorem-swap03 ac (a ∷ b ∷ c ∷ d ∷ []) =
-  _ , refl , refl , refl
+  _ , trivial , trivial , trivial
