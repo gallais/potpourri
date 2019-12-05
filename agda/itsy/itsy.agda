@@ -85,3 +85,14 @@ theorem-swap03 : ∀ ac mem → ∃ λ mem₂ →
   × mem₂ !! `3 ≡ mem !! `0
 theorem-swap03 ac (a ∷ b ∷ c ∷ d ∷ []) =
   _ , trivial , trivial , trivial
+
+theorem-loadload : ∀ itsy l₁ l₂ is →
+  asm (LOAD l₁ ∷ LOAD l₂ ∷ is) itsy ≡ asm (LOAD l₂ ∷ is) itsy
+theorem-loadload (ac < a ∷ b ∷ c ∷ d ∷ [] >) l₁ l₂ is = trivial
+
+theorem-storeload : ∀ itsy l is →
+  asm (STORE l ∷ LOAD l ∷ is) itsy ≡ asm (STORE l ∷ is) itsy
+theorem-storeload (ac < a ∷ b ∷ c ∷ d ∷ [] >) `0 is = trivial
+theorem-storeload (ac < a ∷ b ∷ c ∷ d ∷ [] >) `1 is = trivial
+theorem-storeload (ac < a ∷ b ∷ c ∷ d ∷ [] >) `2 is = trivial
+theorem-storeload (ac < a ∷ b ∷ c ∷ d ∷ [] >) `3 is = trivial
