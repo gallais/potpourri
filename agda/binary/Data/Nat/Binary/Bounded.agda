@@ -1,15 +1,9 @@
 module Data.Nat.Binary.Bounded where
 
 open import Data.Bool.Base
-open import Data.Fin.Base as Fin using (Fin; zero; suc)
-open import Data.Nat.Base as ℕ using (ℕ; zero; suc)
+open import Data.Nat.Base as ℕ using (ℕ; zero; suc; _+_; _*_; _^_)
 import Data.Nat.Properties as ℕₚ
 open import Data.Product as Prod using (_×_; _,_; proj₁; proj₂)
-open import Data.Vec.Base as Vec
-  using (Vec; [])
-  hiding (module Vec)
-  renaming (_∷_ to infixr 10 _∷_)
-open import Data.Vec.Properties as Vecₚ
 open import Function
 
 open import Relation.Binary.PropositionalEquality as P
@@ -25,34 +19,58 @@ mux : ∀ {a} {A : Set a} → Digit → A → A → A
 mux O x y = x
 mux I x y = y
 
+double : ℕ → ℕ
+double m = m + m
+
+unfold-double : ∀ m → double m ≡ 2 * m
+unfold-double m = cong (m +_) (sym (ℕₚ.+-identityʳ _))
+
+*-double : ∀ m n → m * double n ≡ double (m * n)
+*-double m n = ℕₚ.*-distribˡ-+ m n n
+
+double-+ : ∀ m n → double (m + n) ≡ double m + double n
+double-+ m n = begin
+  m + n + (m + n)   ≡⟨ ℕₚ.+-assoc m n (m + n) ⟩
+  m + (n + (m + n)) ≡⟨ cong (m +_) (ℕₚ.+-comm n (m + n)) ⟩
+  m + (m + n + n)   ≡⟨ cong (m +_) (ℕₚ.+-assoc m n n) ⟩
+  m + (m + (n + n)) ≡⟨ sym $ ℕₚ.+-assoc m m (n + n) ⟩
+  m + m + (n + n)   ∎ where open ≡-Reasoning
+
+2^_ : ℕ → ℕ
+2^ zero  = 1
+2^ suc n = double (2^ n)
+
+unfold-2^ : ∀ n → 2^ n ≡ 2 ^ n
+unfold-2^ zero    = refl
+unfold-2^ (suc n) = begin
+  2^ suc n       ≡⟨⟩
+  double (2^ n)  ≡⟨ cong double (unfold-2^ n) ⟩
+  double (2 ^ n) ≡⟨ unfold-double (2 ^ n) ⟩
+  2 * 2 ^ n      ≡⟨⟩
+  (2 ^ suc n)    ∎ where open ≡-Reasoning
+
 infix 1 ⟦_⟧ᵈ
 ⟦_⟧ᵈ : Digit → ℕ
-⟦ d ⟧ᵈ = mux d 0 1
+⟦ O ⟧ᵈ = 0
+⟦ I ⟧ᵈ = 1
 
 Carry = Digit
-Word  = Vec Digit
+
+infixl 5 _▹_
+data Word : ℕ → Set where
+  []  : Word 0
+  _▹_ : ∀ {n} → Word n → Digit → Word (suc n)
 
 2ⁿ-1 : ∀ {n} → Word n
-2ⁿ-1 = Vec.replicate I
-
-wordToℕ² : ∀ {n} → Word n → ℕ × ℕ
-wordToℕ² []      = 0 , 1
-wordToℕ² (x ∷ w) = let (n , 2ⁿ) = wordToℕ² w in
-                   ⟦ x ⟧ᵈ ℕ.* 2ⁿ ℕ.+ n , 2 ℕ.* 2ⁿ
+2ⁿ-1 {zero}  = []
+2ⁿ-1 {suc n} = 2ⁿ-1 ▹ I
 
 infix 1 ⟦_⟧ʷ
 ⟦_⟧ʷ : ∀ {n} → Word n → ℕ
-⟦ w ⟧ʷ = proj₁ (wordToℕ² w)
+⟦ []    ⟧ʷ = 0
+⟦ w ▹ d ⟧ʷ = ⟦ d ⟧ᵈ + double ⟦ w ⟧ʷ
 
-wordToℕ²-sound : ∀ {n} (w : Word n) → proj₂ (wordToℕ² w) ≡ 2 ℕ.^ n
-wordToℕ²-sound []      = refl
-wordToℕ²-sound (_ ∷ w) = cong (2 ℕ.*_) (wordToℕ²-sound w)
-
-⟦_∷_⟧ʷ-unfold : ∀ {n} x (w : Word n) →
-                ⟦ x ∷ w ⟧ʷ ≡ ⟦ x ⟧ᵈ ℕ.* 2 ℕ.^ n ℕ.+ ⟦ w ⟧ʷ
-⟦ x ∷ w ⟧ʷ-unfold rewrite wordToℕ²-sound w = refl
-
-_ : ⟦ I ∷ O ∷ I ∷ O ∷ [] ⟧ʷ ≡ 10
+_ : ⟦ [] ▹ I ▹ O ▹ I ▹ O ⟧ʷ ≡ 10
 _ = refl
 
 hadd : Digit → Digit → Carry × Digit
@@ -62,12 +80,12 @@ sucᵈ : Digit → Carry × Digit
 sucᵈ d = d , not d
 
 sucᵈ-sound : ∀ d → let (c , u) = sucᵈ d in
-             ⟦ c ⟧ᵈ ℕ.* 2 ℕ.+ ⟦ u ⟧ᵈ ≡ suc ⟦ d ⟧ᵈ
+             double ⟦ c ⟧ᵈ + ⟦ u ⟧ᵈ ≡ suc ⟦ d ⟧ᵈ
 sucᵈ-sound O = refl
 sucᵈ-sound I = refl
 
 hadd-sound : ∀ x y → let (c , z) = hadd x y in
-             ⟦ c ⟧ᵈ ℕ.* 2  ℕ.+ ⟦ z ⟧ᵈ ≡ ⟦ x ⟧ᵈ ℕ.+ ⟦ y ⟧ᵈ
+             double ⟦ c ⟧ᵈ  + ⟦ z ⟧ᵈ ≡ ⟦ x ⟧ᵈ + ⟦ y ⟧ᵈ
 hadd-sound O y = refl
 hadd-sound I O = refl
 hadd-sound I I = refl
@@ -79,94 +97,99 @@ fadd x y cᵢ =
       in c₀ xor c₁ , u
 
 fadd-sound : ∀ x y cᵢ → let (cₒ , z) = fadd x y cᵢ in
-             ⟦ cₒ ⟧ᵈ ℕ.* 2 ℕ.+ ⟦ z ⟧ᵈ ≡ ⟦ x ⟧ᵈ ℕ.+ ⟦ y ⟧ᵈ ℕ.+ ⟦ cᵢ ⟧ᵈ
+             double ⟦ cₒ ⟧ᵈ + ⟦ z ⟧ᵈ ≡ ⟦ x ⟧ᵈ + ⟦ y ⟧ᵈ + ⟦ cᵢ ⟧ᵈ
 fadd-sound O y cᵢ = hadd-sound y cᵢ
 fadd-sound I O cᵢ = sucᵈ-sound cᵢ
 fadd-sound I I cᵢ = refl
 
 rca : ∀ {n} → Word n → Word n → Carry → Carry × Word n
-rca {zero}  w₁        w₂        cᵢ = cᵢ , []
-rca {suc n} (xₙ ∷ w₁) (yₙ ∷ w₂) cᵢ =
-  let (cₙ , w)  = rca w₁ w₂ cᵢ
-      (cₒ , zₙ) = fadd xₙ yₙ cₙ
-  in cₒ , zₙ ∷ w
+rca {zero}  ds        es        cᵢ = cᵢ , []
+rca {suc n} (ds ▹ d₀) (es ▹ e₀) cᵢ =
+  let (c₁ , r₀) = fadd d₀ e₀ cᵢ
+      (cₒ , rs) = rca ds es c₁
+  in cₒ , rs ▹ r₀
 
 module _ where
 
   open ≡-Reasoning
 
-  rca-sound : ∀ {n} (w₁ w₂ : Word n) cᵢ → let (cₒ , w) = rca w₁ w₂ cᵢ in
-              ⟦ cₒ ⟧ᵈ ℕ.* 2 ℕ.^ n ℕ.+ ⟦ w ⟧ʷ ≡ ⟦ w₁ ⟧ʷ ℕ.+ ⟦ w₂ ⟧ʷ ℕ.+ ⟦ cᵢ ⟧ᵈ
-  rca-sound {zero}  [] [] cᵢ = let v = mux cᵢ 0 1 in begin
-    v ℕ.* 1 ℕ.+ 0 ≡⟨ ℕₚ.+-identityʳ (v ℕ.* 1) ⟩
-    v ℕ.* 1       ≡⟨ ℕₚ.*-identityʳ v ⟩
-    v             ∎
-  rca-sound {suc n} (xₙ ∷ w₁) (yₙ ∷ w₂) cᵢ =
-    let (cₙ , w) = rca w₁ w₂ cᵢ; (cₒ , zₙ) = fadd xₙ yₙ cₙ; 2ⁿ = 2 ℕ.^ n
-        c₀22ⁿ = (⟦ cₒ ⟧ᵈ ℕ.* 2) ℕ.* 2ⁿ
-        xₙ2ⁿ = ⟦ xₙ ⟧ᵈ ℕ.* 2 ℕ.^ n; yₙ2ⁿ = ⟦ yₙ ⟧ᵈ ℕ.* 2 ℕ.^ n
-        cₙ2ⁿ = ⟦ cₙ ⟧ᵈ ℕ.* 2 ℕ.^ n; zₙ2ⁿ = ⟦ zₙ ⟧ᵈ ℕ.* 2 ℕ.^ n
-        xyₙ2ⁿ = (⟦ xₙ ⟧ᵈ ℕ.+ ⟦ yₙ ⟧ᵈ) ℕ.* 2ⁿ
-        rcaₙ = ⟦ w₁ ⟧ʷ ℕ.+ ⟦ w₂ ⟧ʷ ℕ.+ ⟦ cᵢ ⟧ᵈ
-    in begin
-    ⟦ cₒ ⟧ᵈ ℕ.* 2 ℕ.^ suc n ℕ.+ ⟦ zₙ ∷ w ⟧ʷ
-      ≡⟨ cong₂ ℕ._+_ (sym (ℕₚ.*-assoc ⟦ cₒ ⟧ᵈ 2 2ⁿ)) ⟦ zₙ ∷ w ⟧ʷ-unfold ⟩
-    c₀22ⁿ ℕ.+ (zₙ2ⁿ ℕ.+ ⟦ w ⟧ʷ)
-      ≡⟨ sym (ℕₚ.+-assoc c₀22ⁿ zₙ2ⁿ ⟦ w ⟧ʷ) ⟩
-    c₀22ⁿ ℕ.+ zₙ2ⁿ ℕ.+ ⟦ w ⟧ʷ
-      ≡⟨ cong (ℕ._+ ⟦ w ⟧ʷ) (sym (ℕₚ.*-distribʳ-+ 2ⁿ (⟦ cₒ ⟧ᵈ ℕ.* 2) ⟦ zₙ ⟧ᵈ)) ⟩
-    (⟦ cₒ ⟧ᵈ ℕ.* 2 ℕ.+ ⟦ zₙ ⟧ᵈ) ℕ.* 2ⁿ ℕ.+ ⟦ w ⟧ʷ
-      ≡⟨ cong (λ n → n ℕ.* 2ⁿ ℕ.+ ⟦ w ⟧ʷ) (fadd-sound xₙ yₙ cₙ) ⟩
-    (⟦ xₙ ⟧ᵈ ℕ.+ ⟦ yₙ ⟧ᵈ ℕ.+ ⟦ cₙ ⟧ᵈ) ℕ.* 2ⁿ ℕ.+ ⟦ w ⟧ʷ
-      ≡⟨ cong (ℕ._+ ⟦ w ⟧ʷ) (ℕₚ.*-distribʳ-+ 2ⁿ (⟦ xₙ ⟧ᵈ ℕ.+ ⟦ yₙ ⟧ᵈ) ⟦ cₙ ⟧ᵈ) ⟩
-    xyₙ2ⁿ ℕ.+ cₙ2ⁿ ℕ.+ ⟦ w ⟧ʷ
-      ≡⟨ ℕₚ.+-assoc xyₙ2ⁿ cₙ2ⁿ ⟦ w ⟧ʷ ⟩
-    xyₙ2ⁿ ℕ.+ (cₙ2ⁿ ℕ.+ ⟦ w ⟧ʷ)
-      ≡⟨ cong (xyₙ2ⁿ ℕ.+_) (rca-sound w₁ w₂ cᵢ) ⟩
-    xyₙ2ⁿ ℕ.+ rcaₙ
-      ≡⟨ cong (ℕ._+ (rcaₙ)) (ℕₚ.*-distribʳ-+ 2ⁿ ⟦ xₙ ⟧ᵈ ⟦ yₙ ⟧ᵈ) ⟩
-    xₙ2ⁿ ℕ.+ yₙ2ⁿ ℕ.+ rcaₙ
-      ≡⟨ ℕₚ.+-assoc xₙ2ⁿ yₙ2ⁿ rcaₙ ⟩
-    xₙ2ⁿ ℕ.+ (yₙ2ⁿ ℕ.+ rcaₙ)
-      ≡⟨ cong (xₙ2ⁿ ℕ.+_) (ℕₚ.+-comm yₙ2ⁿ rcaₙ) ⟩
-    xₙ2ⁿ ℕ.+ (rcaₙ ℕ.+ yₙ2ⁿ)
-      ≡⟨ sym (ℕₚ.+-assoc xₙ2ⁿ rcaₙ yₙ2ⁿ) ⟩
-    (xₙ2ⁿ ℕ.+ rcaₙ) ℕ.+ yₙ2ⁿ
-      ≡⟨ cong (ℕ._+ yₙ2ⁿ) (sym (ℕₚ.+-assoc xₙ2ⁿ (⟦ w₁ ⟧ʷ ℕ.+ ⟦ w₂ ⟧ʷ) ⟦ cᵢ ⟧ᵈ)) ⟩
-    xₙ2ⁿ ℕ.+ (⟦ w₁ ⟧ʷ ℕ.+ ⟦ w₂ ⟧ʷ) ℕ.+ ⟦ cᵢ ⟧ᵈ ℕ.+ yₙ2ⁿ
-      ≡⟨ cong (λ n → n ℕ.+ ⟦ cᵢ ⟧ᵈ ℕ.+ yₙ2ⁿ) (sym (ℕₚ.+-assoc xₙ2ⁿ ⟦ w₁ ⟧ʷ ⟦ w₂ ⟧ʷ)) ⟩
-    (xₙ2ⁿ ℕ.+ ⟦ w₁ ⟧ʷ) ℕ.+ ⟦ w₂ ⟧ʷ ℕ.+ ⟦ cᵢ ⟧ᵈ ℕ.+ yₙ2ⁿ
-      ≡⟨ cong (λ n → n ℕ.+ ⟦ w₂ ⟧ʷ ℕ.+ ⟦ cᵢ ⟧ᵈ ℕ.+ yₙ2ⁿ) (sym ⟦ xₙ ∷ w₁ ⟧ʷ-unfold) ⟩
-    ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ ⟦ w₂ ⟧ʷ ℕ.+ ⟦ cᵢ ⟧ᵈ ℕ.+ yₙ2ⁿ
-      ≡⟨ ℕₚ.+-assoc (⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ ⟦ w₂ ⟧ʷ) ⟦ cᵢ ⟧ᵈ yₙ2ⁿ ⟩
-    ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ ⟦ w₂ ⟧ʷ ℕ.+ (⟦ cᵢ ⟧ᵈ ℕ.+ yₙ2ⁿ)
-      ≡⟨ cong (λ n → ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ ⟦ w₂ ⟧ʷ ℕ.+ n) (ℕₚ.+-comm ⟦ cᵢ ⟧ᵈ yₙ2ⁿ) ⟩
-   ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ ⟦ w₂ ⟧ʷ ℕ.+ (yₙ2ⁿ ℕ.+ ⟦ cᵢ ⟧ᵈ)
-      ≡⟨ ℕₚ.+-assoc ⟦ xₙ ∷ w₁ ⟧ʷ ⟦ w₂ ⟧ʷ (yₙ2ⁿ ℕ.+ ⟦ cᵢ ⟧ᵈ) ⟩
-    ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ (⟦ w₂ ⟧ʷ ℕ.+ (yₙ2ⁿ ℕ.+ ⟦ cᵢ ⟧ᵈ))
-      ≡⟨ cong (⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+_) (sym (ℕₚ.+-assoc ⟦ w₂ ⟧ʷ yₙ2ⁿ ⟦ cᵢ ⟧ᵈ)) ⟩
-    ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ ((⟦ w₂ ⟧ʷ ℕ.+ yₙ2ⁿ) ℕ.+ ⟦ cᵢ ⟧ᵈ)
-      ≡⟨ cong (λ n → ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ (n ℕ.+ ⟦ cᵢ ⟧ᵈ)) (ℕₚ.+-comm ⟦ w₂ ⟧ʷ yₙ2ⁿ) ⟩
-    ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ ((yₙ2ⁿ ℕ.+ ⟦ w₂ ⟧ʷ) ℕ.+ ⟦ cᵢ ⟧ᵈ)
-      ≡⟨ cong (λ n → ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ (n ℕ.+ ⟦ cᵢ ⟧ᵈ)) (sym ⟦ yₙ ∷ w₂ ⟧ʷ-unfold) ⟩
-    ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ (⟦ yₙ ∷ w₂ ⟧ʷ ℕ.+ ⟦ cᵢ ⟧ᵈ)
-      ≡⟨ sym (ℕₚ.+-assoc ⟦ xₙ ∷ w₁ ⟧ʷ ⟦ yₙ ∷ w₂ ⟧ʷ ⟦ cᵢ ⟧ᵈ) ⟩
-    ⟦ xₙ ∷ w₁ ⟧ʷ ℕ.+ ⟦ yₙ ∷ w₂ ⟧ʷ ℕ.+ ⟦ cᵢ ⟧ᵈ
+  rca-sound : ∀ {n} (ds es : Word n) cᵢ → let (cₒ , rs) = rca ds es cᵢ in
+              ⟦ cₒ ⟧ᵈ * 2^ n + ⟦ rs ⟧ʷ ≡ ⟦ ds ⟧ʷ + ⟦ es ⟧ʷ + ⟦ cᵢ ⟧ᵈ
+  rca-sound {zero}  [] [] cᵢ
+    with ⟦cᵢ⟧ ← ⟦ cᵢ ⟧ᵈ
+    = begin
+    ⟦cᵢ⟧ * 1 + 0 ≡⟨ ℕₚ.+-identityʳ (⟦cᵢ⟧ * 1) ⟩
+    ⟦cᵢ⟧ * 1     ≡⟨ ℕₚ.*-identityʳ ⟦cᵢ⟧ ⟩
+    ⟦cᵢ⟧         ∎
+  rca-sound {suc n} (ds ▹ d₀) (es ▹ e₀) cᵢ
+    with c₁  ← proj₁ (fadd d₀ e₀ cᵢ)
+       | r₀  ← proj₂ (fadd d₀ e₀ cᵢ)
+       | eq₀ ← fadd-sound d₀ e₀ cᵢ
+    with cₒ  ← proj₁ (rca ds es c₁)
+       | rs  ← proj₂ (rca ds es c₁)
+       | ih  ← rca-sound ds es c₁
+    with ⟦d₀⟧ ← ⟦ d₀ ⟧ᵈ
+       | ⟦e₀⟧ ← ⟦ e₀ ⟧ᵈ
+       | ⟦cₒ⟧ ← ⟦ cₒ ⟧ᵈ
+       | ⟦cᵢ⟧ ← ⟦ cᵢ ⟧ᵈ
+       | ⟦c₁⟧ ← ⟦ c₁ ⟧ᵈ
+       | ⟦r₀⟧ ← ⟦ r₀ ⟧ᵈ
+       | ⟦rs⟧ ← ⟦ rs ⟧ʷ
+       | ⟦ds⟧ ← ⟦ ds ⟧ʷ
+       | ⟦es⟧ ← ⟦ es ⟧ʷ
+    = begin
+    ⟦cₒ⟧ * (double (2^ n)) + (⟦r₀⟧ + double ⟦rs⟧)
+      ≡⟨ cong (_+ (⟦r₀⟧ + double ⟦rs⟧)) (*-double ⟦cₒ⟧ (2^ n)) ⟩
+    double (⟦cₒ⟧ * 2^ n) + (⟦r₀⟧ + double ⟦rs⟧)
+      ≡⟨ cong ((double (⟦cₒ⟧ * 2^ n)) +_) (ℕₚ.+-comm ⟦r₀⟧ (double ⟦rs⟧)) ⟩
+    double (⟦cₒ⟧ * 2^ n) + (double ⟦rs⟧ + ⟦r₀⟧)
+      ≡⟨ sym $ ℕₚ.+-assoc (double (⟦cₒ⟧ * 2^ n)) (double ⟦rs⟧) ⟦r₀⟧ ⟩
+    double (⟦cₒ⟧ * 2^ n) + double ⟦rs⟧ + ⟦r₀⟧
+      ≡⟨ cong (_+ ⟦r₀⟧) (sym $ double-+ (⟦cₒ⟧ * 2^ n) ⟦rs⟧) ⟩
+    double (⟦cₒ⟧ * (2^ n) + ⟦rs⟧) + ⟦r₀⟧
+      ≡⟨ cong (λ p → double p + ⟦r₀⟧) ih ⟩
+    double (⟦ds⟧ + ⟦es⟧ + ⟦c₁⟧) + ⟦r₀⟧
+      ≡⟨ cong (_+ ⟦r₀⟧) (double-+ (⟦ds⟧ + ⟦es⟧) ⟦c₁⟧) ⟩
+    double (⟦ds⟧ + ⟦es⟧) + double ⟦c₁⟧ + ⟦r₀⟧
+      ≡⟨ ℕₚ.+-assoc (double (⟦ds⟧ + ⟦es⟧)) (double ⟦c₁⟧) ⟦r₀⟧ ⟩
+    double (⟦ds⟧ + ⟦es⟧) + (double ⟦c₁⟧ + ⟦r₀⟧)
+      ≡⟨ cong ((double (⟦ds⟧ + ⟦es⟧)) +_) eq₀ ⟩
+    double (⟦ds⟧ + ⟦es⟧) + (⟦d₀⟧ + ⟦e₀⟧ + ⟦cᵢ⟧)
+      ≡⟨ cong ((double (⟦ds⟧ + ⟦es⟧)) +_) (ℕₚ.+-assoc ⟦d₀⟧ ⟦e₀⟧ ⟦cᵢ⟧) ⟩
+    double (⟦ds⟧ + ⟦es⟧) + (⟦d₀⟧ + (⟦e₀⟧ + ⟦cᵢ⟧))
+      ≡⟨ sym $ ℕₚ.+-assoc (double (⟦ds⟧ + ⟦es⟧)) ⟦d₀⟧ (⟦e₀⟧ + ⟦cᵢ⟧) ⟩
+    double (⟦ds⟧ + ⟦es⟧) + ⟦d₀⟧ + (⟦e₀⟧ + ⟦cᵢ⟧)
+      ≡⟨ cong (_+ (⟦e₀⟧ + ⟦cᵢ⟧)) (ℕₚ.+-comm (double (⟦ds⟧ + ⟦es⟧)) ⟦d₀⟧) ⟩
+    ⟦d₀⟧ + double (⟦ds⟧ + ⟦es⟧) + (⟦e₀⟧ + ⟦cᵢ⟧)
+      ≡⟨ cong (λ p → ⟦d₀⟧ + p + (⟦e₀⟧ + ⟦cᵢ⟧)) (double-+ ⟦ds⟧ ⟦es⟧) ⟩
+    ⟦d₀⟧ + (double ⟦ds⟧ + double ⟦es⟧) + (⟦e₀⟧ + ⟦cᵢ⟧)
+      ≡⟨ ℕₚ.+-assoc ⟦d₀⟧ (double ⟦ds⟧ + double ⟦es⟧) (⟦e₀⟧ + ⟦cᵢ⟧) ⟩
+    ⟦d₀⟧ + (double ⟦ds⟧ + double ⟦es⟧ + (⟦e₀⟧ + ⟦cᵢ⟧))
+      ≡⟨ cong (⟦d₀⟧ +_) (ℕₚ.+-assoc (double ⟦ds⟧) (double ⟦es⟧) (⟦e₀⟧ + ⟦cᵢ⟧)) ⟩
+    ⟦d₀⟧ + (double ⟦ds⟧ + (double ⟦es⟧ + (⟦e₀⟧ + ⟦cᵢ⟧)))
+      ≡⟨ sym $ ℕₚ.+-assoc ⟦d₀⟧ (double ⟦ds⟧) (double ⟦es⟧ + (⟦e₀⟧ + ⟦cᵢ⟧)) ⟩
+    ⟦d₀⟧ + double ⟦ds⟧ + (double ⟦es⟧ + (⟦e₀⟧ + ⟦cᵢ⟧))
+      ≡⟨ cong (λ p → ⟦d₀⟧ + double ⟦ds⟧ + p) (sym $ ℕₚ.+-assoc (double ⟦es⟧) ⟦e₀⟧ ⟦cᵢ⟧) ⟩
+    ⟦d₀⟧ + double ⟦ds⟧ + (double ⟦es⟧ + ⟦e₀⟧ + ⟦cᵢ⟧)
+      ≡⟨ cong (λ p → ⟦d₀⟧ + double ⟦ds⟧ + (p + ⟦cᵢ⟧)) (ℕₚ.+-comm (double ⟦es⟧) ⟦e₀⟧) ⟩
+    ⟦d₀⟧ + double ⟦ds⟧ + (⟦e₀⟧ + double ⟦es⟧ + ⟦cᵢ⟧)
+      ≡⟨ sym $ ℕₚ.+-assoc (⟦d₀⟧ + double ⟦ds⟧) (⟦e₀⟧ + double ⟦es⟧) ⟦cᵢ⟧ ⟩
+    ⟦d₀⟧ + double ⟦ds⟧ + (⟦e₀⟧ + double ⟦es⟧) + ⟦cᵢ⟧
       ∎
 
-_ : rca (I ∷ O ∷ O ∷ I ∷ []) -- 9
-        (I ∷ I ∷ I ∷ O ∷ []) -- 14
+_ : rca ([] ▹ I ▹ O ▹ O ▹ I) -- 9
+        ([] ▹ I ▹ I ▹ I ▹ O) -- 14
                           I  -- 1
     --------------------------
-  ≡ (I , I ∷ O ∷ O ∷ O ∷ []) -- 24
+  ≡ (I , [] ▹ I ▹ O ▹ O ▹ O) -- 24
 _ = refl
 
-infix 6 _+_
-_+_ : ∀ {n} → Word n → Word n → Word n
-m + n = proj₂ (rca m n O)
+infix 3 _+ʷ_
+_+ʷ_ : ∀ {n} → Word n → Word n → Word n
+m +ʷ n = proj₂ (rca m n O)
 
-_ : ⟦   I ∷ O ∷ I ∷ O ∷ []     -- 10
-    +   O ∷ O ∷ I ∷ I ∷ [] ⟧ʷ  -- 3
+_ : ⟦   [] ▹ I ▹ O ▹ I ▹ O     -- 10
+    +ʷ  [] ▹ O ▹ O ▹ I ▹ I ⟧ʷ  -- 3
      ------------------------
-    ≡ ⟦ I ∷ I ∷ O ∷ I ∷ [] ⟧ʷ  -- 13
+    ≡ ⟦ [] ▹ I ▹ I ▹ O ▹ I ⟧ʷ  -- 13
 _ = refl
