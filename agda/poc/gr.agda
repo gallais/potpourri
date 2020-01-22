@@ -7,9 +7,9 @@ variable
 
 -- GR is an indexed monad reifying what it means to be able
 -- to make arbitrary recursive calls
-data GR (A : Set) (B : A → Set) (a : A) : Set where
-  pure : B a → GR A B a
-  ask  : ∀ q → (B q → GR A B a) → GR A B a
+data GR (A : Set) (B : A → Set) (X : Set) : Set where
+  pure : X → GR A B X
+  ask  : ∀ a → (B a → GR A B X) → GR A B X
 
 open import IO
 open import Codata.Musical.Notation
@@ -17,10 +17,10 @@ open import Codata.Musical.Notation
 -- If for any input we can compute a bunch of recursive calls
 -- and then an output, then we can compute an IO-function making
 -- these recursive calls as needed
-runGR : (∀ a → GR A B a) → ∀ a → IO (B a)
+runGR : (∀ a → GR A B (B a)) → ∀ a → IO (B a)
 runGR {A = A} {B = B} f a = go (f a) where
 
-  go : ∀ {a} → GR A B a → IO (B a)
+  go : ∀ {a} → GR A B (B a) → IO (B a)
   go (pure b)  = return b
   go (ask q k) = ♯ go (f q) >>= λ r → ♯ go (k r)
 
@@ -30,10 +30,10 @@ open import Data.String.Base using (String; toList; _++_)
 -- here is an instrumented version of runGR that prints the successive
 -- values the program uses for its recursive calls
 -- ᴵ for Instrumented
-runGRᴵ : (A → String) → (∀ a → GR A B a) → ∀ a → IO (B a)
+runGRᴵ : (A → String) → (∀ a → GR A B (B a)) → ∀ a → IO (B a)
 runGRᴵ {A = A} {B = B} toStr f a = go (f a) where
 
-  go : ∀ {a} → GR A B a → IO (B a)
+  go : ∀ {a} → GR A B (B a) → IO (B a)
   go (pure b)  = return b
   go (ask q k) =
     ♯ (putStrLn (toStr q)) >> ♯ (♯ go (f q) >>= λ r → ♯ go (k r))
@@ -43,7 +43,7 @@ open import Data.Nat.DivMod
 
 -- Collatz sequence
 
-collatzGR : ∀ n → GR ℕ (λ _ → ℕ) n
+collatzGR : ℕ → GR ℕ (λ _ → ℕ) ℕ
 -- stop if you started at 0 / when you reach 1
 collatzGR 0 = pure 0
 collatzGR 1 = pure 1
