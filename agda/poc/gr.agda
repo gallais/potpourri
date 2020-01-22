@@ -5,7 +5,7 @@ variable
   B : A → Set
   a a′ : A
 
--- GR is an indexed monad reifying what it means to be able
+-- GR is a monad reifying what it means to be able
 -- to make arbitrary recursive calls
 data GR (A : Set) (B : A → Set) (X : Set) : Set where
   pure : X → GR A B X
