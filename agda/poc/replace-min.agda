@@ -1,3 +1,6 @@
+-- Based on Bird's
+-- Using circular programs to eliminate multiple traversals of data
+
 module poc.replace-min where
 
 open import Data.Nat.Base
