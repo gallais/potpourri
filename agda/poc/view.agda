@@ -14,13 +14,15 @@ open import Reflection.Abstraction
 open import Data.Nat as ℕ using (ℕ; zero; suc; _+_; _*_; _<ᵇ_; _≤_; ∣_-_∣)
 import Data.Nat.Show as ℕₛ
 import Data.Nat.Properties as ℕₚ
-open import Data.Fin.Base as Fin using (Fin)
-open import Data.Maybe.Base as Maybe using (Maybe)
+open import Data.Fin.Base as Fin using (Fin; zero; suc)
+open import Data.Maybe.Base as Maybe using (Maybe; nothing; just)
 open import Data.Vec.Base as Vec using (Vec; []; _∷_)
-open import Data.List.Base as List using (List; []; _∷_)
+open import Data.List.Base as List using (List; []; _∷_; _∷ʳ_)
 import Data.List.Relation.Unary.Any as Any
 open import Data.Product
 open import Data.String
+open import Data.Empty using (⊥)
+open import Data.Sum.Base using (_⊎_; inj₁; inj₂)
 open import Function
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
@@ -68,15 +70,18 @@ untelView []             ty = runAbsₙ ty
 untelView (a -: abs x Γ) ty = pi a (abs x (untelView Γ (unAbs (closeAbs ty))))
 
 telToSigma : ∀ {n} → Telescope (Arg Type) n → Type
-telToSigma []             = def (quote ⊤) []
-telToSigma (A -: abs x B) =
+telToSigma []              = def (quote ⊤) []
+telToSigma (A -: abs x []) = unArg A
+telToSigma (A -: abs x B)  =
   let sigs = telToSigma B in
   def (quote Σ) (vArg (unArg A) ∷ vArg (vLam x sigs) ∷ [])
 
 telToSigmaProjs : ∀ {n} → Telescope (Arg Type) n → Term → Vec Term n
-telToSigmaProjs []             p = []
-telToSigmaProjs (A -: abs x B) p = def (quote proj₁) (vArg p ∷ [])
-                                 ∷ telToSigmaProjs B (def (quote proj₂) (vArg p ∷ []))
+telToSigmaProjs []              p = []
+telToSigmaProjs (A -: abs x []) p = p ∷ []
+telToSigmaProjs (A -: abs x B)  p =
+  def (quote proj₁) (vArg p ∷ [])
+  ∷ telToSigmaProjs B (def (quote proj₂) (vArg p ∷ []))
 
 telToArgInfoVec : ∀ {T n} → Telescope (Arg T) n → Vec ArgInfo n
 telToArgInfoVec []                   = []
@@ -88,29 +93,36 @@ showTele []       = ""
 showTele (Γ ,- record { unAbsₙ = arg _ x }) = showTele Γ ++ "(" ++ showType x ++ ") → "
 -}
 
-mkViewC : Name → TC Type
-mkViewC nm = let open Reflection in do
+infixr 5 _`×_
+_`×_ : Type → Type → Type
+A `× B = def (quote Σ) (vArg A ∷ vArg (vLam "_" $ {- TODO: weaken -} B) ∷ [])
+
+infix 1 _`≡_
+_`≡_ : Term → Term → Type
+t `≡ u = def (quote _≡_) $ vArg t ∷ vArg u ∷ []
+
+mkViewC : Term → Term → Name → TC Type
+mkViewC t u nm = let open Reflection in do
   ty ← getType nm
   let (n , ts , mkAbsₙ xs _) = telView ty
   let sigs    = telToSigma ts
   let vals    = telToSigmaProjs ts
   let arginfo = telToArgInfoVec ts
-  return $ def (quote Σ) $ vArg (def (quote Σ) (vArg sigs ∷ vArg (vLam "_" sigs) ∷ []))
+  return $ def (quote Σ) $ vArg (sigs `× sigs)
          ∷ vArg (vLam "pq" $ let p = def (quote proj₁) (vArg (var zero []) ∷ [])
                                  vs₁ = vals p
                                  q = def (quote proj₂) (vArg (var zero []) ∷ [])
                                  vs₂ = vals q
-                             in def (quote _≡_)$ vArg (con nm (Vec.toList (Vec.zipWith arg arginfo vs₁)))
-                                               ∷ vArg (con nm (Vec.toList (Vec.zipWith arg arginfo vs₂)))
-                                               ∷ []
+                                 v₁ = con nm (Vec.toList (Vec.zipWith arg arginfo vs₁))
+                                 v₂ = con nm (Vec.toList (Vec.zipWith arg arginfo vs₂))
+                             in (t `≡ v₁) `× (u `≡ v₂)
                 )
          ∷ []
 
 
-
-debug : Name → TC String
-debug nm = let open Reflection in do
-  ty ← mkViewC nm
+debugC : TC String
+debugC = let open Reflection in do
+  ty ← mkViewC (lit (nat 1)) (lit (nat 2)) (quote ℕ.suc)
   return (Term.show ty)
 
 macro
@@ -121,12 +133,12 @@ macro
      `v ← quoteTC v
      unify hole `v
 
--- C-u C-u C-c C-m RET runTC (debug (quote suc)) RET
+-- C-u C-u C-c C-m RET runTC debugC RET
 
-test : String
-test = "Σ (Σ (Σ Nat (λ n → ⊤)) (λ _ → Σ Nat (λ n → ⊤)))
-       (λ pq → _≡_ (Nat.suc (Σ.proj₁ (Σ.proj₁ (var 0))))
-                   (Nat.suc (Σ.proj₁ (Σ.proj₂ (var 0)))))"
+_ : String
+_ = "Σ (Σ Nat (λ _ → Nat))
+       (λ pq → Σ (_≡_ 1 (Nat.suc (Σ.proj₁ (var 0))))
+           (λ _ → _≡_ 2 (Nat.suc (Σ.proj₂ (var 0)))))"
 
 open import Category.Monad
 
@@ -139,21 +151,97 @@ module VecT {ℓ} n = Vec.TraversableM {0ℓ} {n = n} (monad {ℓ})
 import Data.List.Categorical as List
 module ListT {ℓ} = List.TraversableM (monad {ℓ})
 
-mkViewT : Name → TC Type
-mkViewT d = let open Reflection in do
+_`⊎_ : Type → Type → Type
+A `⊎ B = def (quote _⊎_) (vArg A ∷ vArg B ∷ [])
+
+`⨄ : List Type → Type
+`⨄ []       = def (quote ⊥) []
+`⨄ (A ∷ []) = A
+`⨄ (A ∷ As) = A `⊎ (`⨄ As)
+
+injₙ : ∀ {n} → Fin n → Term → Term
+injₙ {1} zero    t = t
+injₙ     zero    t = con (quote inj₁) (vArg t ∷ [])
+injₙ     (suc k) t = con (quote inj₂) (vArg (injₙ k t) ∷ [])
+
+mkViewT : Term → Term → Name → TC Type
+mkViewT t u d = let open Reflection in do
   (data-type pars cs) ← getDefinition d where
     _ → typeError $ nameErr d
                   ∷ strErr "is not a datatype \
                            \so I cannot generate a view for it."
                   ∷ []
+  views ← ListT.mapM (mkViewC t u) cs
+  return $ def (quote Maybe) (vArg (`⨄ views) ∷ [])
+
+debugT : TC String
+debugT = let open Reflection in do
+  ty ← mkViewT (lit (nat 1)) (lit (nat 2)) (quote ℕ)
+  return (Term.show ty)
+
+-- C-u C-u C-c C-m RET runTC debugT RET
+
+_ : String
+_ = "Maybe (_⊎_ (Σ (Σ ⊤ (λ _ → ⊤))
+                   (λ pq → Σ (_≡_ 1 Nat.zero)
+                       (λ _ → _≡_ 2 Nat.zero)))
+                (Σ (Σ Nat (λ _ → Nat))
+                   (λ pq → Σ (_≡_ 1 (Nat.suc (Σ.proj₁ (var 0))))
+                       (λ _ → _≡_ 2 (Nat.suc (Σ.proj₂ (var 0)))))))"
+
+
+`nothing : Term
+`nothing = con (quote nothing) []
+
+`just : Term → Term
+`just t = con (quote just) (vArg t ∷ [])
+
+infixr 3 _`,_
+_`,_ : Term → Term → Term
+a `, b = con (quote _,_) (vArg a ∷ vArg b ∷ [])
+
+`refl : Term
+`refl = con (quote refl) []
+
+mkViewF : Name → TC (List Clause)
+mkViewF nm = let open Reflection in do
+  (data-type pars cs) ← getDefinition nm where
+    _ → typeError $ nameErr nm
+                  ∷ strErr "is not a datatype \
+                           \so I cannot generate a view for it."
+                  ∷ []
   let n = List.length cs
-  let cs = Vec.fromList cs
-  views ← VecT.mapM n mkViewC cs
-  ↑views ← quoteTC views
-  let idx = def (quote Fin) (vArg (lit (nat n)) ∷ [])
-  let fam = vLam "k" $ def (quote Vec.lookup) (vArg ↑views ∷ vArg (var 0 []) ∷ [])
-  let sum = def (quote Σ) (vArg idx ∷ vArg fam ∷ [])
-  return $ def (quote Maybe) (vArg sum ∷ [])
+  cls ← ListT.forM (List.zip (List.allFin n) cs) $ λ (k , cnm) → do
+    ty ← getType cnm
+    let (n , ts , mkAbsₙ xs t) = telView ty
+    (def nm′ args) ← return t where
+      _ → typeError $ strErr "The impossible has happened: the constructor"
+                    ∷ nameErr cnm
+                    ∷ strErr "does not construct a value of a datatype."
+                    ∷ []
+    yes p ← return (nm Name.≟ nm′) where
+      _ → typeError $ strErr "The impossible has happened: the constructor"
+                    ∷ nameErr cnm
+                    ∷ strErr "does not construct a value of type"
+                    ∷ nameErr nm
+                    ∷ []
+    let infos = telToArgInfoVec ts
+    let pat   = con cnm (Vec.toList (Vec.map (λ i → arg i (var "_")) infos))
+    return $ clause (vArg pat ∷ vArg pat ∷ [])
+                    (`just (injₙ k (unknown `, (`refl `, `refl))))
+  let catchall = clause (vArg (var "_") ∷ vArg (var "_") ∷ []) `nothing
+  return $ cls ∷ʳ catchall
+
+debugF : TC String
+debugF = let open Reflection in do
+  ty ← mkViewF (quote ℕ)
+  return (unlines $ List.map Term.showClause ty)
+
+_ : String
+_ = "Nat.zero   Nat.zero    → Maybe.just (_⊎_.inj₁ (_,_ unknown (_,_ _≡_.refl _≡_.refl)))
+    (Nat.suc _) (Nat.suc _) → Maybe.just (_⊎_.inj₂ (_,_ unknown (_,_ _≡_.refl _≡_.refl)))
+    _ _ → Maybe.nothing"
+
 
 fType : Name → TC Type
 fType nm = let open Reflection in do
