@@ -1,5 +1,6 @@
 module poc.view where
 
+open import Level using (0ℓ)
 open import Data.Unit using (⊤)
 open import Reflection hiding (return; _>>_; _>>=_)
 open import Reflection.Term as Term
@@ -13,7 +14,8 @@ open import Reflection.Abstraction
 open import Data.Nat as ℕ using (ℕ; zero; suc; _+_; _*_; _<ᵇ_; _≤_; ∣_-_∣)
 import Data.Nat.Show as ℕₛ
 import Data.Nat.Properties as ℕₚ
-import Data.Fin.Base as Fin
+open import Data.Fin.Base as Fin using (Fin)
+open import Data.Maybe.Base as Maybe using (Maybe)
 open import Data.Vec.Base as Vec using (Vec; []; _∷_)
 open import Data.List.Base as List using (List; []; _∷_)
 import Data.List.Relation.Unary.Any as Any
@@ -65,6 +67,17 @@ untelView : ∀ {n} → Telescope (Arg Type) n → Absₙ Type n → Type
 untelView []             ty = runAbsₙ ty
 untelView (a -: abs x Γ) ty = pi a (abs x (untelView Γ (unAbs (closeAbs ty))))
 
+telToSigma : ∀ {n} → Telescope (Arg Type) n → Type
+telToSigma []             = def (quote ⊤) []
+telToSigma (A -: abs x B) =
+  let sigs = telToSigma B in
+  def (quote Σ) (vArg (unArg A) ∷ vArg (vLam x sigs) ∷ [])
+
+telToSigmaProjs : ∀ {n} → Telescope (Arg Type) n → Term → Vec Term n
+telToSigmaProjs []             p = []
+telToSigmaProjs (A -: abs x B) p = def (quote proj₁) (vArg p ∷ [])
+                                 ∷ telToSigmaProjs B (def (quote proj₂) (vArg p ∷ []))
+
 telToArgInfoVec : ∀ {T n} → Telescope (Arg T) n → Vec ArgInfo n
 telToArgInfoVec []                   = []
 telToArgInfoVec (arg i _ -: abs _ Γ) = i ∷ telToArgInfoVec Γ
@@ -75,6 +88,73 @@ showTele []       = ""
 showTele (Γ ,- record { unAbsₙ = arg _ x }) = showTele Γ ++ "(" ++ showType x ++ ") → "
 -}
 
+mkViewC : Name → TC Type
+mkViewC nm = let open Reflection in do
+  ty ← getType nm
+  let (n , ts , mkAbsₙ xs _) = telView ty
+  let sigs    = telToSigma ts
+  let vals    = telToSigmaProjs ts
+  let arginfo = telToArgInfoVec ts
+  return $ def (quote Σ) $ vArg (def (quote Σ) (vArg sigs ∷ vArg (vLam "_" sigs) ∷ []))
+         ∷ vArg (vLam "pq" $ let p = def (quote proj₁) (vArg (var zero []) ∷ [])
+                                 vs₁ = vals p
+                                 q = def (quote proj₂) (vArg (var zero []) ∷ [])
+                                 vs₂ = vals q
+                             in def (quote _≡_)$ vArg (con nm (Vec.toList (Vec.zipWith arg arginfo vs₁)))
+                                               ∷ vArg (con nm (Vec.toList (Vec.zipWith arg arginfo vs₂)))
+                                               ∷ []
+                )
+         ∷ []
+
+
+
+debug : Name → TC String
+debug nm = let open Reflection in do
+  ty ← mkViewC nm
+  return (Term.show ty)
+
+macro
+
+  runTC : ∀ {a} {A : Set a} → TC A → Term → TC ⊤
+  runTC c hole = let open Reflection in do
+     v ← c
+     `v ← quoteTC v
+     unify hole `v
+
+-- C-u C-u C-c C-m RET runTC (debug (quote suc)) RET
+
+test : String
+test = "Σ (Σ (Σ Nat (λ n → ⊤)) (λ _ → Σ Nat (λ n → ⊤)))
+       (λ pq → _≡_ (Nat.suc (Σ.proj₁ (Σ.proj₁ (var 0))))
+                   (Nat.suc (Σ.proj₁ (Σ.proj₂ (var 0)))))"
+
+open import Category.Monad
+
+monad : ∀ {ℓ} → RawMonad {ℓ} TC
+monad = record { return = Reflection.return ; _>>=_ = Reflection._>>=_ }
+
+import Data.Vec.Categorical as Vec
+module VecT {ℓ} n = Vec.TraversableM {0ℓ} {n = n} (monad {ℓ})
+
+import Data.List.Categorical as List
+module ListT {ℓ} = List.TraversableM (monad {ℓ})
+
+mkViewT : Name → TC Type
+mkViewT d = let open Reflection in do
+  (data-type pars cs) ← getDefinition d where
+    _ → typeError $ nameErr d
+                  ∷ strErr "is not a datatype \
+                           \so I cannot generate a view for it."
+                  ∷ []
+  let n = List.length cs
+  let cs = Vec.fromList cs
+  views ← VecT.mapM n mkViewC cs
+  ↑views ← quoteTC views
+  let idx = def (quote Fin) (vArg (lit (nat n)) ∷ [])
+  let fam = vLam "k" $ def (quote Vec.lookup) (vArg ↑views ∷ vArg (var 0 []) ∷ [])
+  let sum = def (quote Σ) (vArg idx ∷ vArg fam ∷ [])
+  return $ def (quote Maybe) (vArg sum ∷ [])
+
 fType : Name → TC Type
 fType nm = let open Reflection in do
   ty ← getType nm
@@ -83,15 +163,6 @@ fType nm = let open Reflection in do
   let vars  = Vec.reverse (Vec.allFin n)
   let args  = Vec.zipWith (λ i k → arg i (var (Fin.toℕ k) [])) infos vars
   return (untelView ts $ mkAbsₙ xs $ def nm (Vec.toList args))
-
-open import Category.Monad
-
-monad : ∀ {ℓ} → RawMonad {ℓ} TC
-monad = record { return = Reflection.return ; _>>=_ = Reflection._>>=_ }
-
-import Data.List.Categorical as List
-module T {ℓ} = List.TraversableM (monad {ℓ})
-open T
 
 parametersOf : Name → TC ℕ
 parametersOf cnm = let open Reflection in do
@@ -160,7 +231,7 @@ fClauses nm = let open Reflection in do
                   ∷ strErr "is not a datatype \
                            \so I cannot generate a view for it."
                   ∷ []
-  forM cs $ λ cnm → do
+  ListT.forM cs $ λ cnm → do
     ty ← getType cnm
     let (n , ts , mkAbsₙ xs t) = telView ty
     (def nm′ args) ← return t where
@@ -227,12 +298,12 @@ eq? m n with view2 m n | inspect (view2 m) n
 ... | any      | [ eq ] = no (view2-invert m n eq)
 
 data Empty? {a} {A : Set a} : List A → Set a where
-  yes : Empty? []
-  no  : ∀ x xs → Empty? (x ∷ xs)
+  []  : Empty? []
+  _∷_ : ∀ x xs → Empty? (x ∷ xs)
 
 unquoteDecl empty? = mkView empty? (quote Empty?)
 
 sum : List ℕ → ℕ
 sum xs with empty? xs
-... | yes      = 0
-... | no hd tl = hd + sum tl
+... | []      = 0
+... | hd ∷ tl = hd + sum tl
