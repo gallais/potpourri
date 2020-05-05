@@ -3,10 +3,12 @@ module records where
 open import Size
 open import Level
 open import Data.Bool.Base
+open import Data.Empty
 open import Data.List.Base
 open import Data.Product
 open import Data.String using (String; _≟_)
 open import Data.Unit.Base
+open import Function.Base
 open import Relation.Nullary using (does)
 
 variable
@@ -41,6 +43,19 @@ fresh str (node nm bef zp aft) = not (does (str ≟ nm))
                                -- do not look to the right
 
 ------------------------------------------------------------------------
+-- LIB
+------------------------------------------------------------------------
+
+-- Because it's annoying to write `_ , e` everywhere because we have
+-- types of the form `T true × A`, we introduce this auxiliary definition.
+
+infixr 2 _ᵇ×_
+_ᵇ×_ : ∀ {ℓ} → Bool → Set ℓ → Set ℓ
+true  ᵇ× A = A
+false ᵇ× _ = Lift _ ⊥
+
+
+------------------------------------------------------------------------
 -- RECORD TYPES
 ------------------------------------------------------------------------
 
@@ -57,11 +72,13 @@ fresh str (node nm bef zp aft) = not (does (str ≟ nm))
 Recordᴿ : Zipper → Rose i → Set → Set₁
 Recordᴸ : String → List (Rose ∞) → Zipper → List (Rose i) → Set → Set₁
 
-Recordᴿ zp (node str rs) A = T (fresh str zp)
-                           × Σ[ B ∈ (A → Set) ]
+Recordᴿ zp (node str []) A = fresh str zp ᵇ× (A → Set)
+Recordᴿ zp (node str rs) A = fresh str zp
+                          ᵇ× Σ[ B ∈ (A → Set) ]
                              Recordᴸ str [] zp rs (Σ A B)
 
 Recordᴸ str bef zp []        A = Lift _ ⊤
+Recordᴸ str bef zp (r ∷ [])  A = Recordᴿ (node str bef zp []) r A
 Recordᴸ str bef zp (r ∷ aft) A = Recordᴿ (node str bef zp aft) r A
                                × Recordᴸ str (r ∷ bef) zp aft A
 
@@ -82,12 +99,18 @@ Valueᴸ : (nm : String) (bef : List (Rose ∞)) (zp : Zipper)
        → (aft : List (Rose i)) (A : Set)
        → Recordᴸ {i = i} nm bef zp aft A → A → Set
 
-
-Valueᴿ zp (node str rs) A (_ , B , rec) a =
-  Σ[ b ∈ B a ] Valueᴸ str [] zp rs (Σ A B) rec (a , b)
+Valueᴿ zp (node str []) A B a with fresh str zp
+... | true  = B a
+... | false = case B of λ ()
+Valueᴿ zp (node str rs@(_ ∷ _)) A Brec a with fresh str zp
+... | true = let (B , rec) = Brec in
+             Σ[ b ∈ B a ] Valueᴸ str [] zp rs (Σ A B) rec (a , b)
+... | false = case Brec of λ ()
 
 Valueᴸ nm bef zp []        A recs a = ⊤
-Valueᴸ nm bef zp (r ∷ aft) A (rec , recs) a
+Valueᴸ nm bef zp (r ∷ []) A rec a
+  = Valueᴿ (node nm bef zp []) r A rec a
+Valueᴸ nm bef zp (r ∷ aft@(_ ∷ _)) A (rec , recs) a
   = Valueᴿ (node nm bef zp aft) r A rec a
   × Valueᴸ nm (r ∷ bef) zp aft A recs a
 
@@ -114,22 +137,15 @@ MyFields = node "length" (node "vec₁" [] ∷ node "vec₂" [] ∷ [])
          ∷ node "val₁" (node "val₂" (node "prf" [] ∷ []) ∷ [])
          ∷ []
 
-open import Function.Base
 open import Data.Nat.Base
 open import Data.Vec.Base
 open import Relation.Binary.PropositionalEquality
 
 MyRecord : Record MyFields
-MyRecord = (_ , (λ _ → ℕ) , (_ , Vec ℕ ∘ proj₂ , _)
-                          , (_ , Vec ℕ ∘ proj₂ , _)
-                          , _)
-         , (_ , (λ _ → ℕ) , (_ , (λ _ → ℕ) , (_ , (λ ((_ , m) , n) → m ≡ n) , _)
-                                           , _)
-                          , _)
-         , _
-
+MyRecord = ((λ _ → ℕ) , Vec ℕ ∘ proj₂
+                      , Vec ℕ ∘ proj₂)
+         , ((λ _ → ℕ) , (λ _ → ℕ) , (λ ((_ , m) , n) → m ≡ n))
 
 MyValue : Value MyFields MyRecord
-MyValue = (3 , (1 ∷ 2 ∷ 3 ∷ [] , _) , (5 ∷ 6 ∷ 7 ∷ [] , _) , _)
-        , (4 , (2 + 2 , (refl , _) , _) , _)
-        , _
+MyValue = (3 , 1 ∷ 2 ∷ 3 ∷ [] , 5 ∷ 6 ∷ 7 ∷ [])
+        , (4 , 2 + 2 , refl)
