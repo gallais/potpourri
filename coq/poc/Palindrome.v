@@ -22,21 +22,6 @@ Proof.
 intro prf; rewrite rev_alt, <- (PalAccRevAcc _ _ prf); reflexivity.
 Qed.
 
-Theorem PalAccNext {A : Type} (acc xs : list A) x :
-  PalAcc acc xs -> PalAcc (acc ++ (x :: nil)) (xs ++ (x :: nil)).
-Proof.
-induction 1; constructor; trivial.
-Qed.
-
-
-Theorem removelast_rev_append {A : Type} (acc xs : list A) :
-  acc <> nil -> removelast (rev_append xs acc) = rev_append xs (removelast acc).
-Proof.
-revert acc; induction xs as [|a xs]; intros acc neq.
- - reflexivity.
- - simpl; destruct acc; [contradiction | apply IHxs; inversion 1].
-Qed.
-
 Theorem rev_append_cancel {A : Type} x (xs : list A) :
   x :: xs = rev xs ++ (x :: nil) -> { ys | xs = ys ++ (x :: nil) } + { xs = nil }.
 Proof.
