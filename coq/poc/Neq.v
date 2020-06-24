@@ -1,3 +1,5 @@
+From Equations Require Import Equations.
+
 Inductive BTree : Type
   := Leaf
    | Node : BTree -> BTree -> BTree.
@@ -11,7 +13,7 @@ Inductive Neq : BTree -> BTree -> Set
    | NodeRight : forall l1 l2 r1 r2, l1 = l2 -> Neq r1 r2 -> Neq (Node l1 r1) (Node l2 r2)
    .
 
-Theorem Neq_is_neq : forall t1 t2, Neq t1 t2 -> t1 <> t2.
+Theorem Neq_is_neq : forall {t1 t2}, Neq t1 t2 -> t1 <> t2.
 Proof.
 intros t1 t2; induction 1; inversion 1; contradiction.
 Qed.
@@ -27,21 +29,38 @@ intro t1; induction t1 as [| l1 IHl1 r1 IHr1]; intros [|l2 r2].
   + now (right; constructor; trivial).
 Qed.
 
-Theorem eq_dec : forall (t1 t2 : BTree), { t1 = t2 } + { t1 <> t2 }.
+Instance eq_dec : EqDec.EqDec BTree.
 Proof.
 intros t1 t2; destruct (eq_or_Neq t1 t2);
  now (constructor; try (apply Neq_is_neq); assumption).
 Qed.
 
-
-(*
-Theorem leafNode_pi : forall l r (p : Neq Leaf (Node l r)), p = LeafNode l r.
-intros l r p; dependent induction p; reflexivity.
+Theorem LeafNode_pi : forall l r (p : Neq Leaf (Node l r)), p = LeafNode l r.
+intros l r p; dependent induction p; inversion H; subst.
+apply EqDec.inj_right_sigma in H; assumption.
 Qed.
 
-Print Assumptions leafNode_pi.
+Theorem NodeLeaf_pi : forall l r (p : Neq (Node l r) Leaf), p = NodeLeaf l r.
+intros l r p; dependent induction p; inversion H; subst.
+apply EqDec.inj_right_sigma in H; assumption.
+Qed.
+
+Theorem NodeNode_inversion : forall {l1 r1 l2 r2} (p : Neq (Node l1 r1) (Node l2 r2)),
+  { q : Neq l1 l2 | p = NodeLeft l1 l2 r1 r2 q }
+  + { eq : l1 = l2 & { q : Neq r1 r2 | p = NodeRight l1 l2 r1 r2 eq q } }.
+intros l1 r1 l2 r2 p; dependent induction p; inversion H; subst.
+  all: apply EqDec.inj_right_sigma in H; now (constructor; repeat eexists; eassumption).
+Qed.
 
 Theorem Neq_pi : forall t1 t2 (p q : Neq t1 t2), p = q.
 Proof.
-intros t1 t2 p; induction p; intro q; dependent induction q.
-*)
+intros t1 t2 p; induction p; intro q.
+  + symmetry; apply LeafNode_pi.
+  + symmetry; apply NodeLeaf_pi.
+  + destruct (NodeNode_inversion q) as [[p0 eqn] | [eq [_ _]]].
+    * rewrite (IHp p0); symmetry; assumption.
+    * assert (argh := Neq_is_neq p); contradiction.
+  + destruct (NodeNode_inversion q) as [[p0 _] | [eq [p0 eqn]]].
+    * assert (argh := Neq_is_neq p0); contradiction.
+    * rewrite (IHp p0), (UIP BTree l1 l2 e eq); symmetry; assumption.
+Qed.
