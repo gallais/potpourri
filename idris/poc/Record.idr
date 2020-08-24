@@ -34,6 +34,7 @@ mutual
     App : LR (Arr a b) g -> LR a g -> LR b g
     -- Record specific functions
     Prj : IsField f ty fs -> LR (Arr (Rec fs) ty) g
+    Upd : IsField f ty fs -> LR (Arr (Rec fs) (Rec fs)) g
     MkR : LRs fs g -> LR (Rec fs) g 
 
   data LRs : RecTy -> List Ty -> Type where
