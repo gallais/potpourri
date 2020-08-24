@@ -10,7 +10,7 @@ mutual
 
   data RecTy : Type where
     Unit : RecTy
-    Pair : (f : String) -> Ty -> (fs : RecTy) -> IsFresh f fs -> RecTy
+    Pair : (f : String) -> Ty -> (fs : RecTy) -> (0 prf : IsFresh f fs) -> RecTy
 
   data IsFresh : String -> RecTy -> Type where
     FreshUnit : IsFresh f Unit
