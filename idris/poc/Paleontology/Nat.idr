@@ -5,24 +5,45 @@ import Data.DPair
 
 %default total
 
-public export
 data Fossil : (Nat -> Type) -> (Nat -> Type) where
   Z : Fossil k Z
   S : k n -> Fossil k (S n)
 
-public export
 interface Dig (k : Nat -> Type) where
 
   %inline
   dig : k n -> Fossil k n
 
-public export
+iteration : (0 p : Nat -> Type) ->
+            (pZ : p Z) ->
+            (pS : (0 n : Nat) -> p n -> p (S n)) -> -- note that n is runtime irrelevant
+            (0 k : Nat -> Type) -> Dig k => k n -> p n
+iteration p pZ pS k pit = case dig pit of
+  Z      => pZ
+  S pit' => pS _ (iteration p pZ pS k pit')
+
+recursion : (0 p : Nat -> Type) ->
+            (pZ : p Z) ->
+            (pS : (n : Nat) -> p n -> p (S n)) ->
+            (0 k : Nat -> Type) -> Dig k => k n -> p n
+recursion p pZ pS k pit =
+  let 0 p' : Nat -> Type
+      p' n = (m : Nat ** (m = n, p m))
+
+      pZ' : p' Z
+      pZ' = (Z ** (Refl, pZ))
+
+      pS' : (0 n : Nat) -> p' n -> p' (S n)
+      pS' m (m ** (Refl, ih)) = (S m ** (Refl, pS m ih))
+  in
+  let (_ ** (Refl, v)) = iteration p' pZ' pS' k pit
+  in v
+
 greplicate : (0 k : Nat -> Type) -> Dig k => k n -> a -> Vect n a
 greplicate _ pit a = case dig pit of
   Z      => []
   S pit' => a :: greplicate _ pit' a
 
-public export
 Dig (\ n => Vect n a) where
 
   dig [] = Z
