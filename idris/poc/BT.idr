@@ -124,20 +124,20 @@ view arr lbI ubI bt with (lbI > ubI)
     (Element v prf) <- readValue arr (middle lbI ubI)
     pure (viewNode bt v prf)
 
-data Trichotomy : (lt : a -> a -> Type) -> (a -> a -> Type) where
-  LT : {0 x, y : a} -> lt x y -> Trichotomy lt x y
-  EQ : {0 x : a} -> Trichotomy lt x x
-  GT : {0 x, y : a} -> lt y x -> Trichotomy lt x y
+data Trichotomy : (eq, lt : a -> a -> Type) -> (a -> a -> Type) where
+  LT : {0 x, y : a} -> lt x y -> Trichotomy eq lt x y
+  EQ : {0 x, y : a} -> eq x y -> Trichotomy eq lt x x
+  GT : {0 x, y : a} -> lt y x -> Trichotomy eq lt x y
 
-interface Trichotomous (a : Type) (lt : a -> a -> Type) where
+interface Trichotomous (a : Type) (eq, lt : a -> a -> Type) where
 
-  trichotomy' : (x, y : a) -> Trichotomy lt x y
+  trichotomy' : (x, y : a) -> Trichotomy eq lt x y
 
-trichotomy : (0 lt : a -> a -> Type) -> Trichotomous a lt =>
-             (x, y : a) -> Trichotomy lt x y
+trichotomy : (0 lt : a -> a -> Type) -> Trichotomous a (===) lt =>
+             (x, y : a) -> Trichotomy (===) lt x y
 trichotomy lt = trichotomy' {lt}
 
-search : (Storable a, Trichotomous a lt) =>
+search : (Storable a, Trichotomous a (===) lt) =>
          (arr : Array a) ->
          (lbI : Int) -> (lbV : Extended a) ->
          (ubI : Int) -> (ubV : Extended a) ->
@@ -152,6 +152,6 @@ search arr lbI lbV ubI ubV bt val with (the (IO _) (view arr lbI ubI bt))
       case !tag of
         ViewEmpty => pure (No ?contra)
         ViewNode v prf lb ub left right => case trichotomy lt v val of
-          LT p => ?a
-          EQ => pure $ Yes (index ** ?hole)
-          GT p => ?b
+          LT lt => ?a
+          EQ eq => pure $ Yes (index ** ?hole)
+          GT gt => ?b
