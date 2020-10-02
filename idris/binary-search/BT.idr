@@ -3,31 +3,9 @@ module BT
 import Data.Buffer
 import Data.Nat
 import Data.DPair
+import Data.Array.ReadOnly
 
 %default total
-
-export
-record Array (a : Type) where
-  constructor MkArray
-  size   : Int
-  buffer : Buffer
-
-export
-data ValueAt : (arr : Array a) -> (i : Int) -> a -> Type where
-  MkValueAt : ValueAt arr i v
-
-export
-uniqueValueAt : ValueAt {a} arr i v -> ValueAt arr i w -> v === w
-uniqueValueAt = believe_me (the (v === v) Refl)
-
-interface Storable a where
-
-  getValueAt : HasIO io => (arr : Array a) -> (i : Int) -> io a
-
-export
-readValue : (HasIO io, Storable a) => (arr : Array a) -> (i : Int) ->
-            io (Subset a (ValueAt arr i))
-readValue arr i = map (\ v => Element v MkValueAt) $ getValueAt arr i
 
 data Extended a = MInf | PInf | Lift a
 
@@ -37,11 +15,6 @@ data ExtendedLT : (a -> a -> Type) -> (Extended a -> Extended a -> Type) where
   LiftLift : {0 v, w : a} -> lt v w -> ExtendedLT lt (Lift v) (Lift w)
   LiftPInf : ExtendedLT lt (Lift v) PInf
 
-
--- ||| Assuming that `lb < ub`, `lb <= middle < ub`
--- ||| No risk of overflow.
-middle : (lb, ub : Int) -> Int
-middle lb ub = lb + shiftR (ub - lb) 1
 
 -- ||| The inductive type `BT lt arr lbI lbV ubI ubV` is a proof that between
 -- ||| the indices `lbI` and `ubI` the array `arr` is sorted containing values
@@ -121,7 +94,7 @@ view : (HasIO io, Storable a) =>
 view arr lbI ubI bt with (lbI > ubI)
   view arr lbI ubI bt | True = pure (viewEmpty bt)
   view arr lbI ubI bt | False = do
-    (Element v prf) <- readValue arr (middle lbI ubI)
+    (Element v prf) <- readValue arr (middle lbI ubI) ?prf
     pure (viewNode bt v prf)
 
 data Trichotomy : (eq, lt : a -> a -> Type) -> (a -> a -> Type) where

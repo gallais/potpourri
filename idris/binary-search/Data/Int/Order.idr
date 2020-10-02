@@ -153,3 +153,15 @@ trichotomous a b with (LTE.decide a b)
   trichotomous a b | Yes (MkLT p) = let lt = MkLT p in MkLT lt (LT_not_EQ lt) (LT_not_GT lt)
   trichotomous a b | Yes (MkEQ p) = let eq = MkEQ p in MkEQ (EQ_not_LT eq) eq (EQ_not_GT eq)
   trichotomous a b | No notLTE    = let gt = MkLT unsafeRefl in MkGT (GT_not_LT gt) (GT_not_EQ gt) gt
+
+unsafeLTE : (a, b : Int) -> LTE a b
+unsafeLTE a b with (LTE.decide a b)
+  unsafeLTE a b | Yes p = p
+  unsafeLTE a b | No np = assert_total $ idris_crash "Error: invalid call to unsafeLTE"
+
+export
+middle : {a, b : Int} -> LT a b ->
+         let mid = a + ((b - a) `shiftR` 1) in (LTE a mid, LT mid b)
+middle (MkLT p) = strictRefl p $
+  let mid : Int; mid = a + ((b - a) `shiftR` 1) in
+  (unsafeLTE a mid, MkLT unsafeRefl)
