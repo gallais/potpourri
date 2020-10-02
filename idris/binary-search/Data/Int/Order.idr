@@ -125,10 +125,6 @@ namespace LTE
   refl = MkEQ unsafeRefl
 
 export
-not_LTE_GT : Not (LTE a b) -> GT a b
-not_LTE_GT p = MkLT unsafeRefl
-
-export
 inject_EQ_LTE : EQ a b -> LTE a b
 inject_EQ_LTE (MkEQ p) = MkEQ p
 
@@ -156,4 +152,4 @@ trichotomous : (a, b : Int) -> Trichotomous LT EQ GT a b
 trichotomous a b with (LTE.decide a b)
   trichotomous a b | Yes (MkLT p) = let lt = MkLT p in MkLT lt (LT_not_EQ lt) (LT_not_GT lt)
   trichotomous a b | Yes (MkEQ p) = let eq = MkEQ p in MkEQ (EQ_not_LT eq) eq (EQ_not_GT eq)
-  trichotomous a b | No notLTE    = let gt = not_LTE_GT notLTE in MkGT (GT_not_LT gt) (GT_not_EQ gt) gt
+  trichotomous a b | No notLTE    = let gt = MkLT unsafeRefl in MkGT (GT_not_LT gt) (GT_not_EQ gt) gt
