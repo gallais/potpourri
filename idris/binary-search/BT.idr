@@ -7,14 +7,6 @@ import Data.Array.ReadOnly
 
 %default total
 
-data Extended a = MInf | PInf | Lift a
-
-data ExtendedLT : (a -> a -> Type) -> (Extended a -> Extended a -> Type) where
-  MInfPInf : ExtendedLT lt MInf PInf
-  MInfLift : ExtendedLT lt MInf (Lift v)
-  LiftLift : {0 v, w : a} -> lt v w -> ExtendedLT lt (Lift v) (Lift w)
-  LiftPInf : ExtendedLT lt (Lift v) PInf
-
 
 -- ||| The inductive type `BT lt arr lbI lbV ubI ubV` is a proof that between
 -- ||| the indices `lbI` and `ubI` the array `arr` is sorted containing values
