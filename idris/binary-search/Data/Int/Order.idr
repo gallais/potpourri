@@ -124,6 +124,10 @@ namespace LTE
   refl : LTE a a
   refl = MkEQ unsafeRefl
 
+public export
+GTE : Int -> Int -> Type
+GTE = flip LTE
+
 export
 inject_EQ_LTE : EQ a b -> LTE a b
 inject_EQ_LTE (MkEQ p) = MkEQ p
@@ -143,7 +147,7 @@ trans_LTE_LT (MkLT p) q = trans (MkLT p) q
 trans_LTE_LT (MkEQ p) q = trans_EQ_LT (MkEQ p) q
 
 export
-caseLTE : {0 a, b : Int} -> LTE a b -> Either (LT a b) (EQ a b)
+caseLTE : LTE a b -> Either (LT a b) (EQ a b)
 caseLTE (MkLT p) = Left (MkLT p)
 caseLTE (MkEQ p) = Right (MkEQ p)
 
@@ -154,14 +158,35 @@ trichotomous a b with (LTE.decide a b)
   trichotomous a b | Yes (MkEQ p) = let eq = MkEQ p in MkEQ (EQ_not_LT eq) eq (EQ_not_GT eq)
   trichotomous a b | No notLTE    = let gt = MkLT unsafeRefl in MkGT (GT_not_LT gt) (GT_not_EQ gt) gt
 
-unsafeLTE : (a, b : Int) -> LTE a b
-unsafeLTE a b with (LTE.decide a b)
-  unsafeLTE a b | Yes p = p
-  unsafeLTE a b | No np = assert_total $ idris_crash "Error: invalid call to unsafeLTE"
+export
+decide_LT_GTE : (a, b : Int) -> Either (LT a b) (GTE a b)
+decide_LT_GTE a b with (trichotomous a b)
+  decide_LT_GTE a b | MkLT lt _ _ = Left lt
+  decide_LT_GTE a b | MkEQ _ eq _ = Right (inject_EQ_LTE (sym eq))
+  decide_LT_GTE a b | MkGT _ _ gt = Right (inject_LT_LTE gt)
+
 
 export
 middle : {a, b : Int} -> LT a b ->
          let mid = a + ((b - a) `shiftR` 1) in (LTE a mid, LT mid b)
-middle (MkLT p) = strictRefl p $
-  let mid : Int; mid = a + ((b - a) `shiftR` 1) in
-  (unsafeLTE a mid, MkLT unsafeRefl)
+middle (MkLT p) = strictRefl p $ (unsafeLTE, MkLT unsafeRefl)
+
+  where
+
+    -- ||| DO NOT re-export!
+    unsafeLTE : LTE a (a + ((b - a) `shiftR` 1))
+    unsafeLTE with (LTE.decide a (a + ((b - a) `shiftR` 1)))
+    unsafeLTE | Yes p = p
+    unsafeLTE | No np = assert_total $ idris_crash "Error: invalid call to unsafeLTE"
+
+export
+suc_LT_LTE : {a, b : Int} -> LT a b -> LTE (a + 1) b
+suc_LT_LTE p with (the (test : Bool ** (a + 1 == b) === test) (a + 1 == b ** Refl))
+  suc_LT_LTE p | (True  ** q) = MkEQ q
+  suc_LT_LTE p | (False ** _) = MkLT unsafeRefl
+
+export
+pred_LT_LTE : {a, b : Int} -> LT a b -> LTE a (b - 1)
+pred_LT_LTE p with (the (test : Bool ** (a == b - 1) === test) (a == b - 1 ** Refl))
+  pred_LT_LTE p | (True  ** q) = MkEQ q
+  pred_LT_LTE p | (False ** _) = MkLT unsafeRefl

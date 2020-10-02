@@ -2,6 +2,9 @@ module Data.Order.Extended
 
 import Data.Order
 
+%default total
+
+public export
 data Extended a = MInf | PInf | Lift a
 
 namespace LT
@@ -17,7 +20,7 @@ namespace LT
   LiftInversion : ExtendedLT lt (Lift x) (Lift y) -> lt x y
   LiftInversion (LiftLift p) = p
 
-
+public export
 ExtendedGT : (a -> a -> Type) -> (Extended a -> Extended a -> Type)
 ExtendedGT gt = flip (ExtendedLT (flip gt))
 

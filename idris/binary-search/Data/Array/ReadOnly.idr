@@ -50,11 +50,13 @@ interface Storable a where
 
   unsafeGetValueAt : HasIO io => (arr : Array a) -> (i : Int) -> io a
 
+ -- TODO: bring back the range check in `readValue`!
+
 -- ||| The blessed mode of interaction with a read-only array: not only do you
 -- ||| read the value but you get your hands on a proof that it is indeed the
 -- ||| value at the index you requested.
 export
 readValue : (HasIO io, Storable a) => (arr : Array a) ->
-            (i : Int) -> (0 prf : InRange 0 (size arr) i) ->
+            (i : Int) -> -- (0 prf : InRange 0 (size arr) i) ->
             io (Subset a (ValueAt arr i))
-readValue arr i p = map (\ v => Element v MkValueAt) $ unsafeGetValueAt arr i
+readValue arr i {-p-} = map (\ v => Element v MkValueAt) $ unsafeGetValueAt arr i
