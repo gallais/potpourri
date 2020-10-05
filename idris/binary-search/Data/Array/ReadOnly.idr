@@ -34,6 +34,10 @@ public export
 boundaries : SubArray arr -> (Int, Int)
 boundaries sub = (fst (begin sub), fst (end sub))
 
+public export
+middle : SubArray arr -> Int
+middle = uncurry middle . boundaries
+
 export
 whole : (arr : Array a) -> SubArray arr
 whole arr =
@@ -68,7 +72,7 @@ inSubRange
 export
 middleInRange : {0 a : Type} -> {arr : Array a} -> {sub : SubArray {a} arr} ->
                 let (lb, ub) = boundaries sub in
-                LT lb ub -> InRange sub (middle lb ub)
+                LT lb ub -> InRange sub (middle sub)
 middleInRange = middleInInterval
 
 public export

@@ -1,4 +1,4 @@
-module BT
+module BT.Unsafe
 
 import Data.Buffer
 import Data.Int.Order
@@ -83,21 +83,17 @@ viewNode prf (Node _ val' lb ub left right) v val =
     (rewrite uniqueValueAt val val' in left)
     (rewrite uniqueValueAt val val' in right)
 
-
-------------------------------------------------------------------------
--- Unsafe first attempt: no bound checking
-
-unsafeView : (HasIO io, Storable a) =>
+view : (HasIO io, Storable a) =>
        {arr : Array a} -> {lbI, ubI : Int} ->
        {tag : Either (LT lbI ubI) (GTE lbI ubI)} ->
        (0 bt : BT' lt arr lbI lbV ubI ubV tag) ->
        io (View bt)
-unsafeView {tag = Right p} bt = pure (viewEmpty p bt)
-unsafeView {tag = Left p}  bt = do
+view {tag = Right p} bt = pure (viewEmpty p bt)
+view {tag = Left p}  bt = do
     (Element v val) <- unsafeReadValue arr (middle lbI ubI)
     pure (viewNode p bt v val)
 
-unsafeSearch : (Storable a) =>
+search : (Storable a) =>
          -- looking for a needle
          (tri : (x, y : a) -> Trichotomous lt (===) (flip lt) x y) ->
          (needle : a) ->
@@ -109,81 +105,9 @@ unsafeSearch : (Storable a) =>
          (0 bt : BT' lt arr lbI lbV ubI ubV tag) ->
          -- may succeed
          IO (Maybe (Subset Int (\ i => ValueAt arr i needle)))
-unsafeSearch tri needle bt = case !(unsafeView bt) of
+search tri needle bt = case !(view bt) of
   ViewEmpty prf => pure Nothing
   ViewNode _ v val _ _ lft rgt => case tri needle v of
-    MkLT _ _ _ => unsafeSearch tri needle lft
+    MkLT _ _ _ => search tri needle lft
     MkEQ _ p _ => pure $ Just (Element (middle lbI ubI) (rewrite p in val))
-    MkGT _ _ _ => unsafeSearch tri needle rgt
-
-
-------------------------------------------------------------------------
--- Safe search (with bound checking)
-
-view : (HasIO io, Storable a) =>
-       {arr : Array a} -> {lbI, ubI : Int} ->
-       {tag : Either (LT lbI ubI) (GTE lbI ubI)} ->
-       (0 bt : BT' lt arr lbI lbV ubI ubV tag) ->
-       io (View bt)
-view {tag = Right p} bt = pure (viewEmpty p bt)
-view {tag = Left p}  bt = do
-    (Element v val) <- unsafeReadValue arr (middle lbI ubI)
-    pure (viewNode p bt v val)
-
-
-search : {0 a : Type} -> {0 lt : a -> a -> Type} -> (Storable a) =>
-         -- looking for a needle
-         (tri : (x, y : a) -> Trichotomous lt (===) (flip lt) x y) ->
-         (needle : a) ->
-         -- in a sorted subarray
-         {arr : Array a} -> (sub : SubArray arr) ->
-         let (lbI, ubI) = boundaries sub in
-         {lbV : Extended a} ->
-         {ubV : Extended a} ->
-         {tag : Either (LT lbI ubI) (GTE lbI ubI)} ->
-         (0 bt : BT' lt arr lbI lbV ubI ubV tag) ->
-         -- may succeed
-         IO (Maybe (Subset Int (\ i => ValueAt arr i needle)))
-search tri needle sub bt = case !(view bt) of
-  ViewEmpty prf => pure Nothing
-  ViewNode prf v val _ _ lft rgt =>
-    let cuts : (SubArray arr, SubArray arr); cuts = cut sub (middleInRange prf) in
-    case tri needle v of
-      MkLT _ _ _ => search tri needle (fst cuts) lft
-      MkEQ _ p _ => pure $ Just (Element _ (rewrite p in val))
-      MkGT _ _ _ => search tri needle (snd cuts) rgt
-
-
-{-
-with (the (IO _) (view arr lbI ubI bt))
-  search arr lbI lbV ubI ubV bt val | tag with (lbI > ubI)
-    search arr lbI lbV ubI ubV bt val | tag | b = do
-      let index : Int
-          index = middle lbI ubI
-      case !tag of
-        ViewEmpty => pure (No ?contra)
-        ViewNode v prf lb ub left right => case trichotomy lt v val of
-          LT lt => ?a
-          EQ eq => pure $ Yes (index ** ?hole)
-          GT gt => ?b
--}
-
-
-{-
--- Next level:
-
-decide : (...) -> (Dec (i : Int ** Inside lt arr lbI lbV ubI ubV i val))
-
-Inside : (lt : a -> a -> Type) -> (arr : Array a) ->
-         Int -> Extended a ->
-         Int -> Extended a ->
-         Int -> a -> Type
-Inside lt arr lbI lbV ubI ubV i val =
-  ( (lbI <= i) === True
-  , (i <= ubI) === True
-  , ValueAt arr i val
-  , ExtendedLT lt lbV (Lift val)
-  , ExtendedLT lt (Lift val) ubV
-  )
-
--}
+    MkGT _ _ _ => search tri needle rgt
