@@ -20,6 +20,14 @@ namespace LT
   LiftInversion : ExtendedLT lt (Lift x) (Lift y) -> lt x y
   LiftInversion (LiftLift p) = p
 
+  export
+  trans : (tr : {x, y, z : a} -> lt x y -> lt y z -> lt x z) ->
+          {x, y, z : Extended a} -> ExtendedLT lt x y -> ExtendedLT lt y z -> ExtendedLT lt x z
+  trans tr MInfLift (LiftLift q) = MInfLift
+  trans tr MInfLift LiftPInf = MInfPInf
+  trans tr (LiftLift p) (LiftLift q) = LiftLift (tr p q)
+  trans tr (LiftLift p) LiftPInf = LiftPInf
+
 public export
 ExtendedGT : (a -> a -> Type) -> (Extended a -> Extended a -> Type)
 ExtendedGT gt = flip (ExtendedLT (flip gt))

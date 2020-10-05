@@ -202,6 +202,10 @@ suc_LT_LTE p with (the (test : Bool ** (a + 1 == b) === test) (a + 1 == b ** Ref
   suc_LT_LTE p | (False ** _) = MkLT unsafeRefl
 
 export
+sucBounded : LT a b -> LT a (a + 1)
+sucBounded (MkLT p) = strictRefl p $ MkLT unsafeRefl
+
+export
 pred_LT_LTE : {a, b : Int} -> LT a b -> LTE a (b - 1)
 pred_LT_LTE p with (the (test : Bool ** (a == b - 1) === test) (a == b - 1 ** Refl))
   pred_LT_LTE p | (True  ** q) = MkEQ q
@@ -231,6 +235,16 @@ intervalBounds {lbI = True} {ubI = True} i = LTE.trans (lowerBound i) (upperBoun
 intervalBounds {lbI = False} {ubI = True} i = trans_LT_LTE (lowerBound i) (upperBound i)
 intervalBounds {lbI = True} {ubI = False} i = trans_LTE_LT (lowerBound i) (upperBound i)
 intervalBounds {lbI = False} {ubI = False} i = trans (lowerBound i) (upperBound i)
+
+export
+expandIntervalLeft : {lbI : Bool} -> LTE a lb -> Interval lbI ubI lb ub i -> Interval lbI ubI a ub i
+expandIntervalLeft {lbI = True} p (MkInterval isLB isUB) = MkInterval (trans p isLB) isUB
+expandIntervalLeft {lbI = False} p (MkInterval isLB isUB) = MkInterval (trans_LTE_LT p isLB) isUB
+
+export
+expandIntervalRight : {ubI : Bool} -> Interval lbI ubI lb ub i -> LTE ub a -> Interval lbI ubI lb a i
+expandIntervalRight {ubI = True} (MkInterval isLB isUB) p = MkInterval isLB (trans isUB p)
+expandIntervalRight {ubI = False} (MkInterval isLB isUB) p = MkInterval isLB (trans_LT_LTE isUB p)
 
 public export
 ClosedInterval : (lb, ub : Int) -> (Int -> Type)

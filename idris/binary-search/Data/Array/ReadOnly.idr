@@ -49,13 +49,15 @@ whole arr =
 
 namespace Array
 
-  export
+  ||| We do not export the type publically so that the goals are more readable
+  public export
   InRange : Array a -> (Int -> Type)
   InRange arr = Interval True False 0 (fst (size arr))
 
 namespace SubArray
 
-  export
+  ||| We do not export the type publically so that the goals are more readable
+  public export
   InRange : SubArray arr -> (Int -> Type)
   InRange sub = Interval True False (fst (begin sub)) (fst (end sub))
 
@@ -78,7 +80,7 @@ middleInRange = middleInInterval
 public export
 cut : {i : Int} -> (sub : SubArray arr) -> (0 _ : InRange sub i) -> (SubArray arr, SubArray arr)
 cut sub inR
-  = let 0 inR' = inSubRange inR in
+  = let 0 inR' : InRange arr i; inR' = inSubRange inR in
     ( MkSubArray (begin sub) (Element i (inClosedInterval inR'))
     , MkSubArray (Element (i + 1) (inClosedInterval (sucInterval inR'))) (end sub)
     )

@@ -132,6 +132,69 @@ search tri needle bt = case !(view bt) of
       MkEQ _ p _ => pure $ Just (Element _ (inSubRange (middleInRange prf), rewrite p in val))
       MkGT _ _ _ => search tri needle rgt
 
+------------------------------------------------------------------------
+-- Decidability proof
+
+bounded : {0 lt : Rel a} -> (trans : {x, y, z : a} -> lt x y -> lt y z -> lt x z) ->
+          {sub : SubArray arr} -> {tag : EmptinessCheck sub} -> BT' lt sub lbV ubV tag ->
+          {i : Int} -> InRange sub i -> {v : a} -> ValueAt arr i v ->
+          (ExtendedLT lt lbV (Lift v), ExtendedLT lt (Lift v) ubV)
+bounded trans (Empty prf) inR val
+  = void $ irrefl $ trans_LTE_LT prf (intervalBounds inR)
+bounded tr (Node prf {v = v'} val' lb ub lft rgt) inR val = case trichotomous i (middle sub) of
+  MkLT p _ _ =>
+    let sub' : SubArray arr
+        sub' = fst (cut sub (middleInRange prf))
+
+        inR' : InRange sub' i
+        inR' = MkInterval (lowerBound inR) p
+
+        (ih1, ih2) := bounded tr lft inR' val
+    in (ih1, trans tr ih2 ub)
+
+  MkEQ _ p _ => rewrite uniqueValueAt (elimEQ (\ i => ValueAt arr i v) p val) val' in (lb, ub)
+  MkGT _ _ p =>
+    let sub' : SubArray arr
+        sub' = snd (cut sub (middleInRange prf))
+
+        inR' : InRange sub' i
+        inR' = MkInterval (suc_LT_LTE p) (upperBound inR)
+
+        (ih1, ih2) := bounded tr rgt inR' val
+    in (trans tr lb ih1, ih2)
+
+
+decide : Storable a =>
+         -- looking for a needle
+         (tri : (x, y : a) -> Trichotomous lt (===) (flip lt) x y) ->
+         (needle : a) ->
+         -- in a sorted subarray
+         {arr : Array a} -> {sub : SubArray arr} -> {tag : EmptinessCheck sub} ->
+         (0 bt : BT' lt sub lbV ubV tag) ->
+         -- may succeed
+         IO (Dec (Subset Int (\ i => (InRange sub i, ValueAt arr i needle))))
+decide tri needle bt = case !(view bt) of
+  ViewEmpty prf => pure $ No \ (Element i p) =>
+    void $ irrefl $ trans_LTE_LT prf (intervalBounds (fst p))
+  ViewNode prf v val _ _ lft rgt =>
+    case tri needle v of
+      MkLT _ _ _ => case !(decide tri needle lft) of
+        Yes (Element i p) => do
+          let 0 inR : InRange sub i
+              := expandIntervalRight (fst p) (inject_LT_LTE (upperBound (middleInRange prf)))
+          pure $ Yes (Element i (inR, snd p))
+        No contra => pure $ No ?ca -- TODO
+      MkEQ _ p _ => pure $ Yes (Element _ (middleInRange prf, rewrite p in val))
+      MkGT _ _ _ => case !(decide tri needle rgt) of
+        Yes (Element i p) => do
+          let 0 lte : LTE (fst (begin sub)) (middle sub + 1)
+                    := let (MkInterval p q) := middleInRange prf in trans p (inject_LT_LTE (sucBounded q))
+              0 inR : InRange sub i
+              := expandIntervalLeft lte (fst p)
+          pure $ Yes (Element i (inR, snd p))
+        No contra => pure $ No ?cb -- TODO
+
+
 {-
 -- Next level:
 
