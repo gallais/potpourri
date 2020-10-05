@@ -231,6 +231,14 @@ public export
 ClosedInterval : (lb, ub : Int) -> (Int -> Type)
 ClosedInterval = Interval True True
 
+export
+lbInClosedInterval : LTE lb ub -> ClosedInterval lb ub lb
+lbInClosedInterval = MkInterval refl
+
+export
+ubInClosedInterval : LTE lb ub -> ClosedInterval lb ub ub
+ubInClosedInterval p = MkInterval p refl
+
 public export
 OpenInterval : (lb, ub : Int) -> (Int -> Type)
 OpenInterval = Interval False False

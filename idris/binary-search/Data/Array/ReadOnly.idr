@@ -17,7 +17,7 @@ import Data.Int.Order
 export
 record Array (a : Type) where
   constructor MkArray
-  size   : Int
+  size   : Subset Int (LTE 0)
   buffer : Buffer
 
 ||| A sub-array is delimited by two bounds
@@ -27,25 +27,31 @@ record Array (a : Type) where
 public export
 record SubArray {a : Type} (arr : Array a) where
   constructor MkSubArray
-  begin : Subset Int (ClosedInterval 0 (size arr))
-  end   : Subset Int (ClosedInterval 0 (size arr))
+  begin : Subset Int (ClosedInterval 0 (fst (size arr)))
+  end   : Subset Int (ClosedInterval 0 (fst (size arr)))
 
 public export
 boundaries : SubArray arr -> (Int, Int)
 boundaries sub = (fst (begin sub), fst (end sub))
+
+export
+whole : (arr : Array a) -> SubArray arr
+whole arr =
+  let 0 p : LTE 0 (fst (size arr)); p = snd (size arr)
+  in MkSubArray (Element 0 (lbInClosedInterval p)) (Element _ (ubInClosedInterval p))
 
 ------------------------------------------------------------------------
 -- Array ranges
 
 namespace Array
 
-  public export
+  export
   InRange : Array a -> (Int -> Type)
-  InRange arr = Interval True False 0 (size arr)
+  InRange arr = Interval True False 0 (fst (size arr))
 
 namespace SubArray
 
-  public export
+  export
   InRange : SubArray arr -> (Int -> Type)
   InRange sub = Interval True False (fst (begin sub)) (fst (end sub))
 
