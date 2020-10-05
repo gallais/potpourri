@@ -82,6 +82,10 @@ namespace EQ
   elimEQ p (MkEQ eq) v = strictRefl eq $ believe_me v
 
   export
+  reflect : EQ a b -> a === b
+  reflect p = elimEQ (\ b => a === b) p Refl
+
+  export
   sym : EQ a b -> EQ b a
   sym p = elimEQ (\ b => EQ b a) p refl
 

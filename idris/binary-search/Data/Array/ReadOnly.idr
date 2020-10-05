@@ -72,9 +72,8 @@ inSubRange
   = MkInterval (trans prfb isLB) (trans_LT_LTE isUB prfe)
 
 export
-middleInRange : {0 a : Type} -> {arr : Array a} -> {sub : SubArray {a} arr} ->
-                let (lb, ub) = boundaries sub in
-                LT lb ub -> InRange sub (middle sub)
+middleInRange : {sub : SubArray arr} ->
+                uncurry LT (boundaries sub) -> InRange sub (middle sub)
 middleInRange = middleInInterval
 
 public export

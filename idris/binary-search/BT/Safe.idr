@@ -13,14 +13,16 @@ public export
 Rel : Type -> Type
 Rel a = a -> a -> Type
 
+||| A type corresponding to a proof that a subarray is non-empty
+public export
+NonEmpty : SubArray arr -> Type
+NonEmpty = uncurry LT . boundaries
+
 ||| A type corresponding to a check on whether a subarray is empty
 public export
 EmptinessCheck : SubArray arr -> Type
-EmptinessCheck sub =
-  let bnds : (Int, Int); bnds = boundaries sub
-      start : Int; start = fst bnds
-      finish : Int; finish = snd bnds
-  in Either (LT start finish) (GTE start finish)
+EmptinessCheck sub
+  = Either (NonEmpty sub) (uncurry GTE (boundaries sub))
 
 public export
 emptinessCheck : (sub : SubArray arr) -> EmptinessCheck sub
@@ -73,6 +75,14 @@ mutual
 ------------------------------------------------------------------------
 -- Safe search (with bound checking)
 
+public export
+leftSubArray : (sub : SubArray arr) -> NonEmpty sub -> SubArray arr
+leftSubArray sub prf = fst (cut sub (middleInRange prf))
+
+public export
+rightSubArray : (sub : SubArray arr) -> NonEmpty sub -> SubArray arr
+rightSubArray sub prf = snd (cut sub (middleInRange prf))
+
 data View : (sub : SubArray arr) -> {b : EmptinessCheck sub} ->
             BT' lt sub lbV ubV b -> Type where
   ViewEmpty : {0 arr : Array a} -> {0 sub : SubArray arr} -> (prf : _) -> View {arr} sub (Empty prf)
@@ -83,10 +93,8 @@ data View : (sub : SubArray arr) -> {b : EmptinessCheck sub} ->
               (0 val : ValueAt arr (middle sub) v) ->
               (0 lb : ExtendedLT lt lbV (Lift v)) ->
               (0 ub : ExtendedLT lt (Lift v) ubV) ->
-              let cuts : (SubArray arr, SubArray arr)
-                  cuts = cut sub (middleInRange prf) in
-              (0 left : BT lt (fst cuts) lbV (Lift v)) ->
-              (0 right : BT lt (snd cuts) (Lift v) ubV) ->
+              (0 left : BT lt (leftSubArray sub prf) lbV (Lift v)) ->
+              (0 right : BT lt (rightSubArray sub prf) (Lift v) ubV) ->
               View sub (Node prf val lb ub left right)
 
 viewEmpty : {0 arr : Array a} -> {sub : SubArray arr} ->
@@ -135,34 +143,64 @@ search tri needle bt = case !(view bt) of
 ------------------------------------------------------------------------
 -- Decidability proof
 
-bounded : {0 lt : Rel a} -> (trans : {x, y, z : a} -> lt x y -> lt y z -> lt x z) ->
-          {sub : SubArray arr} -> {tag : EmptinessCheck sub} -> BT' lt sub lbV ubV tag ->
+data Position : (sub : SubArray arr) -> NonEmpty sub -> Int -> Type where
+  MkLT : InRange (leftSubArray sub prf) i -> Position sub prf i
+  MkEQ : i === middle sub -> Position sub prf i
+  MkGT : InRange (rightSubArray sub prf) i -> Position sub prf i
+
+position : (sub : SubArray arr) -> (prf : NonEmpty sub) ->
+           {i : Int} -> InRange sub i -> Position sub prf i
+position sub prf inR = case trichotomous i (middle sub) of
+  MkLT p _ _ => MkLT $ MkInterval (lowerBound inR) p
+  MkEQ _ p _ => MkEQ (reflect p)
+  MkGT _ _ p => MkGT $ MkInterval (suc_LT_LTE p) (upperBound inR)
+
+bounded : (tr : {x, y, z : a} -> lt x y -> lt y z -> lt x z) ->
+          {sub : SubArray arr} -> {tag : _} -> BT' lt sub lbV ubV tag ->
           {i : Int} -> InRange sub i -> {v : a} -> ValueAt arr i v ->
           (ExtendedLT lt lbV (Lift v), ExtendedLT lt (Lift v) ubV)
-bounded trans (Empty prf) inR val
+bounded tr (Empty prf) inR val
   = void $ irrefl $ trans_LTE_LT prf (intervalBounds inR)
-bounded tr (Node prf {v = v'} val' lb ub lft rgt) inR val = case trichotomous i (middle sub) of
-  MkLT p _ _ =>
-    let sub' : SubArray arr
-        sub' = fst (cut sub (middleInRange prf))
+bounded tr (Node prf {v = v'} val' lb ub lft rgt) inR val =
+  case position sub prf inR of
+    MkLT inR' => let (ih1, ih2) := bounded tr lft inR' val
+                 in (ih1, trans tr ih2 ub)
+    MkEQ Refl => rewrite uniqueValueAt val val' in (lb, ub)
+    MkGT inR' => let (ih1, ih2) := bounded tr rgt inR' val
+                 in (trans tr lb ih1, ih2)
 
-        inR' : InRange sub' i
-        inR' = MkInterval (lowerBound inR) p
-
-        (ih1, ih2) := bounded tr lft inR' val
-    in (ih1, trans tr ih2 ub)
-
-  MkEQ _ p _ => rewrite uniqueValueAt (elimEQ (\ i => ValueAt arr i v) p val) val' in (lb, ub)
-  MkGT _ _ p =>
-    let sub' : SubArray arr
-        sub' = snd (cut sub (middleInRange prf))
-
-        inR' : InRange sub' i
-        inR' = MkInterval (suc_LT_LTE p) (upperBound inR)
-
-        (ih1, ih2) := bounded tr rgt inR' val
-    in (trans tr lb ih1, ih2)
-
+increasing : (tr : {x, y, z : a} -> lt x y -> lt y z -> lt x z) ->
+             {sub : SubArray arr} -> {tag : EmptinessCheck sub} -> BT' lt sub lbV ubV tag ->
+             {i, j : Int} -> InRange sub i -> InRange sub j ->
+             {v, w : _} -> ValueAt arr i v -> ValueAt arr j w ->
+             LT i j -> lt v w
+increasing tr (Empty prf) iinR jinR vali valj p
+  = void $ irrefl $ trans_LTE_LT prf (intervalBounds iinR)
+increasing tr (Node prf {v = v'} val' lb ub lft rgt) iinR jinR vali valj p =
+  case (position sub prf iinR, position sub prf jinR) of
+    (MkLT iinR', MkLT jinR') => increasing tr lft iinR' jinR' vali valj p
+    (MkLT iinR', MkEQ Refl) =>
+      rewrite uniqueValueAt valj val'
+      in LiftInversion (snd (bounded tr lft iinR' vali))
+    (MkLT iinR', MkGT jinR') =>
+      let bndL := snd (bounded tr lft iinR' vali)
+          bndR := fst (bounded tr rgt jinR' valj)
+      in LiftInversion (trans tr bndL bndR)
+    (MkEQ Refl, MkLT jinR') => void $ irrefl $ trans p (upperBound jinR')
+    (MkEQ Refl, MkEQ Refl) => void $ irrefl p
+    (MkEQ Refl, MkGT jinR') =>
+      rewrite uniqueValueAt vali val'
+      in LiftInversion (fst (bounded tr rgt jinR' valj))
+    (MkGT iinR', MkLT jinR') => void $ irrefl $
+      let 0 q : LT j (middle sub) := upperBound jinR'
+          0 r : LT (middle sub) (middle sub + 1) := sucBounded (upperBound (middleInRange prf))
+          0 s : LTE (middle sub + 1) i := lowerBound iinR'
+      in trans p (trans q (trans_LT_LTE r s))
+    (MkGT iinR', MkEQ Refl) => void $ irrefl $
+      let 0 q : LT (middle sub) (middle sub + 1) := sucBounded (upperBound (middleInRange prf))
+          0 r : LTE (middle sub + 1) i := lowerBound iinR'
+      in trans q (trans_LTE_LT r p)
+    (MkGT iinR', MkGT jinR') => increasing tr rgt iinR' jinR' vali valj p
 
 decide : Storable a =>
          -- looking for a needle
