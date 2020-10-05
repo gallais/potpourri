@@ -4,6 +4,9 @@ import Data.Order
 
 %default total
 
+------------------------------------------------------------------------
+-- Prelude
+
 -- Because we are going to essentially postulate that some equality hold
 -- using `believe_me`, we better be careful about the kind of proofs we
 -- trust.
@@ -11,8 +14,12 @@ public export
 strictRefl : a === b -> Lazy c -> c
 strictRefl Refl p = p
 
+-- Do NOT re-export
 unsafeRefl : {0 a, b : t} -> a === b
 unsafeRefl = believe_me (the (a === a) Refl)
+
+------------------------------------------------------------------------
+-- LT
 
 namespace LT
 
@@ -50,6 +57,9 @@ LT_not_GT p q = irrefl (trans p q)
 export
 GT_not_LT : GT a b -> Not (LT a b)
 GT_not_LT = flip LT_not_GT
+
+------------------------------------------------------------------------
+-- EQ
 
 namespace EQ
 
@@ -103,6 +113,9 @@ export
 GT_not_EQ : GT a b -> Not (EQ a b)
 GT_not_EQ = flip EQ_not_GT
 
+------------------------------------------------------------------------
+-- LTE
+
 namespace LTE
 
   public export
@@ -124,32 +137,41 @@ namespace LTE
   refl : LTE a a
   refl = MkEQ unsafeRefl
 
+  export
+  trans_LT_LTE : LT a b -> LTE b c -> LT a c
+  trans_LT_LTE p (MkLT q) = trans p (MkLT q)
+  trans_LT_LTE p (MkEQ q) = trans_LT_EQ p (MkEQ q)
+
+  export
+  trans_LTE_LT : LTE a b -> LT b c -> LT a c
+  trans_LTE_LT (MkLT p) q = trans (MkLT p) q
+  trans_LTE_LT (MkEQ p) q = trans_EQ_LT (MkEQ p) q
+
+  export
+  inject_LT_LTE : LT a b -> LTE a b
+  inject_LT_LTE (MkLT p) = MkLT p
+
+  export
+  inject_EQ_LTE : EQ a b -> LTE a b
+  inject_EQ_LTE (MkEQ p) = MkEQ p
+
+  export
+  trans : LTE a b -> LTE b c -> LTE a c
+  trans (MkLT p) q = inject_LT_LTE (trans_LT_LTE (MkLT p) q)
+  trans p (MkLT q) = inject_LT_LTE (trans_LTE_LT p (MkLT q))
+  trans (MkEQ p) (MkEQ q) = inject_EQ_LTE (trans (MkEQ p) (MkEQ q))
+
 public export
 GTE : Int -> Int -> Type
 GTE = flip LTE
 
 export
-inject_EQ_LTE : EQ a b -> LTE a b
-inject_EQ_LTE (MkEQ p) = MkEQ p
-
-export
-inject_LT_LTE : LT a b -> LTE a b
-inject_LT_LTE (MkLT p) = MkLT p
-
-export
-trans_LT_LTE : LT a b -> LTE b c -> LT a c
-trans_LT_LTE p (MkLT q) = trans p (MkLT q)
-trans_LT_LTE p (MkEQ q) = trans_LT_EQ p (MkEQ q)
-
-export
-trans_LTE_LT : LTE a b -> LT b c -> LT a c
-trans_LTE_LT (MkLT p) q = trans (MkLT p) q
-trans_LTE_LT (MkEQ p) q = trans_EQ_LT (MkEQ p) q
-
-export
 caseLTE : LTE a b -> Either (LT a b) (EQ a b)
 caseLTE (MkLT p) = Left (MkLT p)
 caseLTE (MkEQ p) = Right (MkEQ p)
+
+------------------------------------------------------------------------
+-- Trichotomy and other decidability results
 
 export
 trichotomous : (a, b : Int) -> Trichotomous LT EQ GT a b
@@ -165,19 +187,8 @@ decide_LT_GTE a b with (trichotomous a b)
   decide_LT_GTE a b | MkEQ _ eq _ = Right (inject_EQ_LTE (sym eq))
   decide_LT_GTE a b | MkGT _ _ gt = Right (inject_LT_LTE gt)
 
-
-export
-middle : {a, b : Int} -> LT a b ->
-         let mid = a + ((b - a) `shiftR` 1) in (LTE a mid, LT mid b)
-middle (MkLT p) = strictRefl p $ (unsafeLTE, MkLT unsafeRefl)
-
-  where
-
-    -- ||| DO NOT re-export!
-    unsafeLTE : LTE a (a + ((b - a) `shiftR` 1))
-    unsafeLTE with (LTE.decide a (a + ((b - a) `shiftR` 1)))
-    unsafeLTE | Yes p = p
-    unsafeLTE | No np = assert_total $ idris_crash "Error: invalid call to unsafeLTE"
+------------------------------------------------------------------------
+-- Some properties
 
 export
 suc_LT_LTE : {a, b : Int} -> LT a b -> LTE (a + 1) b
@@ -190,3 +201,53 @@ pred_LT_LTE : {a, b : Int} -> LT a b -> LTE a (b - 1)
 pred_LT_LTE p with (the (test : Bool ** (a == b - 1) === test) (a == b - 1 ** Refl))
   pred_LT_LTE p | (True  ** q) = MkEQ q
   pred_LT_LTE p | (False ** _) = MkLT unsafeRefl
+
+------------------------------------------------------------------------
+-- Intervals
+
+||| And interval is an `Int -> Type` predicate characterised by 4 parameters:
+||| @lbI for whether the lower bound is inclusive
+||| @ubI for whether the upper bound is inclusive
+||| @lb  for the lower bound
+||| @ub  for the upper bound
+||| @i   is the integer being talked about
+public export
+record Interval (lbI, ubI : Bool) (lb, ub : Int) (i : Int) where
+  constructor MkInterval
+  lowerBound : (ifThenElse lbI LTE LT) lb i
+  upperBound : (ifThenElse ubI LTE LT) i ub
+
+||| If an interval is non-empty then we can conclude that the lower bound is less
+||| than (or equal to potentially) the upper bound
+export
+intervalBounds : {lbI, ubI : Bool} -> Interval lbI ubI lb ub i ->
+                 ifThenElse (lbI && ubI) LTE LT lb ub
+intervalBounds {lbI = True} {ubI = True} i = LTE.trans (lowerBound i) (upperBound i)
+intervalBounds {lbI = False} {ubI = True} i = trans_LT_LTE (lowerBound i) (upperBound i)
+intervalBounds {lbI = True} {ubI = False} i = trans_LTE_LT (lowerBound i) (upperBound i)
+intervalBounds {lbI = False} {ubI = False} i = trans (lowerBound i) (upperBound i)
+
+public export
+ClosedInterval : (lb, ub : Int) -> (Int -> Type)
+ClosedInterval = Interval True True
+
+public export
+OpenInterval : (lb, ub : Int) -> (Int -> Type)
+OpenInterval = Interval False False
+
+
+------------------------------------------------------------------------
+-- Convenient
+
+export
+middle : {a, b : Int} -> LT a b ->
+         let mid = a + ((b - a) `shiftR` 1) in Interval True False a b mid
+middle (MkLT p) = strictRefl p $ MkInterval unsafeLTE (MkLT unsafeRefl)
+
+  where
+
+    ||| DO NOT re-export!
+    unsafeLTE : LTE a (a + ((b - a) `shiftR` 1))
+    unsafeLTE with (LTE.decide a (a + ((b - a) `shiftR` 1)))
+    unsafeLTE | Yes p = p
+    unsafeLTE | No np = assert_total $ idris_crash "Error: invalid call to unsafeLTE"
