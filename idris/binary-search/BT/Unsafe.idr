@@ -4,6 +4,7 @@ import Data.Buffer
 import Data.Int.Order
 import Data.DPair
 import Data.Array.ReadOnly
+import Data.Array.ReadOnly.Unsafe
 import Data.Order
 import Data.Order.Extended
 

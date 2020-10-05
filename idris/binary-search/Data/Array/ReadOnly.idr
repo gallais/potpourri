@@ -109,12 +109,6 @@ interface Storable a where
 
 namespace Array
 
-  -- TODO: purge once we have the fully-certified proof
-  export
-  unsafeReadValue : (HasIO io, Storable a) =>
-    (arr : Array a) -> (i : Int) -> io (Subset a (ValueAt arr i))
-  unsafeReadValue arr i = map (\ v => Element v MkValueAt) $ unsafeGetValueAt arr i
-
   ||| The blessed mode of interaction with a read-only array: not only do you
   ||| read the value but you get your hands on a proof that it is indeed the
   ||| value at the index you requested.
