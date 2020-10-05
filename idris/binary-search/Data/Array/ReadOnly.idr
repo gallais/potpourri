@@ -6,57 +6,106 @@ import Data.Int.Order
 
 %default total
 
--- ||| Read-only array of elements of type `a`
+------------------------------------------------------------------------
+-- Arrays
+
+||| Read-only array of elements of type `a`
+||| @size is the size of the Buffer. It should be safe to access any element
+|||       between 0 and `size`
+||| @buffer contains the actual array
+||| We do not export the constructor so that users may not unsafely manufacture arrays.
 export
 record Array (a : Type) where
   constructor MkArray
   size   : Int
   buffer : Buffer
 
--- ||| Index in range of the array bounds
-export
-record InRange (lb, ub, i : Int) where
-  constructor MkInRange
-  lowerBound : LTE lb i
-  upperBound : LT i ub
-
--- ||| Assuming that `lb < ub`, `lb <= middle < ub`
--- ||| No risk of overflow.
+||| A sub-array is delimited by two bounds
+||| @begin for the beginning (0 for the full array)
+||| @end   for the end       (size arr for the full array)
+||| It is non empty if and only if `LT begin end`
 public export
-middle : (lb, ub : Int) -> Int
-middle lb ub = lb + ((ub - lb) `shiftR` 1)
+record SubArray {a : Type} (arr : Array a) where
+  constructor MkSubArray
+  begin : Subset Int (ClosedInterval 0 (size arr))
+  end   : Subset Int (ClosedInterval 0 (size arr))
+
+public export
+boundaries : SubArray arr -> (Int, Int)
+boundaries sub = (fst (begin sub), fst (end sub))
+
+------------------------------------------------------------------------
+-- Array ranges
+
+namespace Array
+
+  public export
+  InRange : Array a -> (Int -> Type)
+  InRange arr = Interval True False 0 (size arr)
+
+namespace SubArray
+
+  public export
+  InRange : SubArray arr -> (Int -> Type)
+  InRange sub = Interval True False (fst (begin sub)) (fst (end sub))
+
+||| Theorem: sub range inclusion
+||| If a value is in range for a subarray then it is in range for the full array
+export
+0 inSubRange : {sub : SubArray arr} -> InRange sub i -> InRange arr i
+inSubRange
+  {sub = MkSubArray (Element b (MkInterval prfb _))
+                    (Element e (MkInterval _ prfe))
+  } (MkInterval isLB isUB)
+  = MkInterval (trans prfb isLB) (trans_LT_LTE isUB prfe)
 
 export
-middleInRange : {lb, ub : Int} -> LT lb ub -> InRange lb ub (middle lb ub)
-middleInRange p = let (lb, ub) = Order.middle p in MkInRange lb ub
+middleInRange : {0 a : Type} -> {arr : Array a} -> {sub : SubArray {a} arr} ->
+                let (lb, ub) = boundaries sub in
+                LT lb ub -> InRange sub (middle lb ub)
+middleInRange = Order.middleInRange
 
--- ||| Predicate specifying what the value in a given read-only array is at a
--- ||| given index. The constructor for this predicate is proof-free because
--- ||| the array is effectively external. It is not exported so that users may
--- ||| craft their own, invalid, proofs.
+------------------------------------------------------------------------
+-- Array value at position
+
+||| Predicate specifying what the value in a given read-only array is at a
+||| given index. The constructor for this predicate is proof-free because
+||| the array is effectively external. It is not exported so that users may
+||| craft their own, invalid, proofs.
 export
 data ValueAt : (arr : Array a) -> (i : Int) -> a -> Type where
   MkValueAt : ValueAt arr i v
 
--- ||| Magic function stating that the predicate guarantees values are unique.
+||| Magic function stating that the predicate guarantees values are unique.
 export
 uniqueValueAt : ValueAt {a} arr i v -> ValueAt arr i w -> v === w
 uniqueValueAt = believe_me (the (v === v) Refl)
 
--- ||| The only mode of interaction with a read-only array: you may read it if
--- ||| you are using an index.
+||| The only mode of interaction with a read-only array: you may read it if
+||| you are using an index.
 export
 interface Storable a where
 
   unsafeGetValueAt : HasIO io => (arr : Array a) -> (i : Int) -> io a
 
- -- TODO: bring back the range check in `readValue`!
+namespace Array
 
--- ||| The blessed mode of interaction with a read-only array: not only do you
--- ||| read the value but you get your hands on a proof that it is indeed the
--- ||| value at the index you requested.
-export
-readValue : (HasIO io, Storable a) => (arr : Array a) ->
-            (i : Int) -> -- (0 prf : InRange 0 (size arr) i) ->
-            io (Subset a (ValueAt arr i))
-readValue arr i {-p-} = map (\ v => Element v MkValueAt) $ unsafeGetValueAt arr i
+  ||| The blessed mode of interaction with a read-only array: not only do you
+  ||| read the value but you get your hands on a proof that it is indeed the
+  ||| value at the index you requested.
+  export
+  readValue : (HasIO io, Storable a) => (arr : Array a) ->
+              (i : Int) -> (0 prf : InRange arr i) ->
+              io (Subset a (ValueAt arr i))
+  readValue arr i p = map (\ v => Element v MkValueAt) $ unsafeGetValueAt arr i
+
+namespace SubArray
+
+  ||| The blessed mode of interaction with a read-only subarray: not only do you
+  ||| read the value but you get your hands on a proof that it is indeed the
+  ||| value at the index you requested.
+  export
+  readValue : (HasIO io, Storable a) => {arr : Array a} -> (sub : SubArray arr) ->
+              (i : Int) -> (0 prf : InRange sub i) ->
+              io (Subset a (ValueAt arr i))
+  readValue sub i p = readValue arr i (inSubRange p)

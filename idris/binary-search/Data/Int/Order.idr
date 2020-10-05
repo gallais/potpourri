@@ -237,17 +237,22 @@ OpenInterval = Interval False False
 
 
 ------------------------------------------------------------------------
--- Convenient
+-- Middle point
 
+||| Provided that `LTE a b`, the computation of middle should not overflow
+public export
+middle : (a, b : Int) -> Int
+middle a b = a + ((b - a) `shiftR` 1)
+
+||| Provided that `LT a b`, we can guarantee that `middle a b` is in [|a,b[|.
 export
-middle : {a, b : Int} -> LT a b ->
-         let mid = a + ((b - a) `shiftR` 1) in Interval True False a b mid
-middle (MkLT p) = strictRefl p $ MkInterval unsafeLTE (MkLT unsafeRefl)
+middleInRange : {a, b : Int} -> LT a b -> Interval True False a b (middle a b)
+middleInRange (MkLT p) = strictRefl p $ MkInterval unsafeLTE (MkLT unsafeRefl)
 
   where
 
     ||| DO NOT re-export!
-    unsafeLTE : LTE a (a + ((b - a) `shiftR` 1))
-    unsafeLTE with (LTE.decide a (a + ((b - a) `shiftR` 1)))
+    unsafeLTE : LTE a (middle a b)
+    unsafeLTE with (LTE.decide a (middle a b))
     unsafeLTE | Yes p = p
     unsafeLTE | No np = assert_total $ idris_crash "Error: invalid call to unsafeLTE"
