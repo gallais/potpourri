@@ -83,17 +83,21 @@ viewNode prf (Node _ val' lb ub left right) v val =
     (rewrite uniqueValueAt val val' in left)
     (rewrite uniqueValueAt val val' in right)
 
-view : (HasIO io, Storable a) =>
+
+------------------------------------------------------------------------
+-- Unsafe first attempt: no bound checking
+
+unsafeView : (HasIO io, Storable a) =>
        {arr : Array a} -> {lbI, ubI : Int} ->
        {tag : Either (LT lbI ubI) (GTE lbI ubI)} ->
        (0 bt : BT' lt arr lbI lbV ubI ubV tag) ->
        io (View bt)
-view {tag = Right p} bt = pure (viewEmpty p bt)
-view {tag = Left p}  bt = do
-    (Element v val) <- readValue arr (middle lbI ubI)
+unsafeView {tag = Right p} bt = pure (viewEmpty p bt)
+unsafeView {tag = Left p}  bt = do
+    (Element v val) <- unsafeReadValue arr (middle lbI ubI)
     pure (viewNode p bt v val)
 
-search : (Storable a) =>
+unsafeSearch : (Storable a) =>
          -- looking for a needle
          (tri : (x, y : a) -> Trichotomous lt (===) (flip lt) x y) ->
          (needle : a) ->
@@ -105,13 +109,49 @@ search : (Storable a) =>
          (0 bt : BT' lt arr lbI lbV ubI ubV tag) ->
          -- may succeed
          IO (Maybe (Subset Int (\ i => ValueAt arr i needle)))
-search tri needle bt = case !(view bt) of
+unsafeSearch tri needle bt = case !(unsafeView bt) of
   ViewEmpty prf => pure Nothing
   ViewNode _ v val _ _ lft rgt => case tri needle v of
-    MkLT _ _ _ => search tri needle lft
+    MkLT _ _ _ => unsafeSearch tri needle lft
     MkEQ _ p _ => pure $ Just (Element (middle lbI ubI) (rewrite p in val))
-    MkGT _ _ _ => search tri needle rgt
+    MkGT _ _ _ => unsafeSearch tri needle rgt
 
+
+------------------------------------------------------------------------
+-- Safe search (with bound checking)
+
+view : (HasIO io, Storable a) =>
+       {arr : Array a} -> {lbI, ubI : Int} ->
+       {tag : Either (LT lbI ubI) (GTE lbI ubI)} ->
+       (0 bt : BT' lt arr lbI lbV ubI ubV tag) ->
+       io (View bt)
+view {tag = Right p} bt = pure (viewEmpty p bt)
+view {tag = Left p}  bt = do
+    (Element v val) <- unsafeReadValue arr (middle lbI ubI)
+    pure (viewNode p bt v val)
+
+
+search : {0 a : Type} -> {0 lt : a -> a -> Type} -> (Storable a) =>
+         -- looking for a needle
+         (tri : (x, y : a) -> Trichotomous lt (===) (flip lt) x y) ->
+         (needle : a) ->
+         -- in a sorted subarray
+         {arr : Array a} -> (sub : SubArray arr) ->
+         let (lbI, ubI) = boundaries sub in
+         {lbV : Extended a} ->
+         {ubV : Extended a} ->
+         {tag : Either (LT lbI ubI) (GTE lbI ubI)} ->
+         (0 bt : BT' lt arr lbI lbV ubI ubV tag) ->
+         -- may succeed
+         IO (Maybe (Subset Int (\ i => ValueAt arr i needle)))
+search tri needle sub bt = case !(view bt) of
+  ViewEmpty prf => pure Nothing
+  ViewNode prf v val _ _ lft rgt =>
+    let cuts : (SubArray arr, SubArray arr); cuts = cut sub (middleInRange prf) in
+    case tri needle v of
+      MkLT _ _ _ => search tri needle (fst cuts) lft
+      MkEQ _ p _ => pure $ Just (Element _ (rewrite p in val))
+      MkGT _ _ _ => search tri needle (snd cuts) rgt
 
 
 {-

@@ -69,7 +69,15 @@ export
 middleInRange : {0 a : Type} -> {arr : Array a} -> {sub : SubArray {a} arr} ->
                 let (lb, ub) = boundaries sub in
                 LT lb ub -> InRange sub (middle lb ub)
-middleInRange = Order.middleInRange
+middleInRange = middleInInterval
+
+public export
+cut : {i : Int} -> (sub : SubArray arr) -> (0 _ : InRange sub i) -> (SubArray arr, SubArray arr)
+cut sub inR
+  = let 0 inR' = inSubRange inR in
+    ( MkSubArray (begin sub) (Element i (inClosedInterval inR'))
+    , MkSubArray (Element (i + 1) (inClosedInterval (sucInterval inR'))) (end sub)
+    )
 
 ------------------------------------------------------------------------
 -- Array value at position
@@ -95,6 +103,12 @@ interface Storable a where
   unsafeGetValueAt : HasIO io => (arr : Array a) -> (i : Int) -> io a
 
 namespace Array
+
+  -- TODO: purge once we have the fully-certified proof
+  export
+  unsafeReadValue : (HasIO io, Storable a) =>
+    (arr : Array a) -> (i : Int) -> io (Subset a (ValueAt arr i))
+  unsafeReadValue arr i = map (\ v => Element v MkValueAt) $ unsafeGetValueAt arr i
 
   ||| The blessed mode of interaction with a read-only array: not only do you
   ||| read the value but you get your hands on a proof that it is indeed the

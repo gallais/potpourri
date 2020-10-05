@@ -162,6 +162,11 @@ namespace LTE
   trans (MkEQ p) (MkEQ q) = inject_EQ_LTE (trans (MkEQ p) (MkEQ q))
 
 public export
+strictLTE : LTE a b -> Lazy c -> c
+strictLTE (MkLT p) q = strictRefl p q
+strictLTE (MkEQ p) q = strictRefl p q
+
+public export
 GTE : Int -> Int -> Type
 GTE = flip LTE
 
@@ -232,6 +237,19 @@ ClosedInterval : (lb, ub : Int) -> (Int -> Type)
 ClosedInterval = Interval True True
 
 export
+inClosedInterval : {lbI, ubI : Bool} -> Interval lbI ubI lb ub i -> ClosedInterval lb ub i
+inClosedInterval (MkInterval isLB isUB) = MkInterval (relax _ isLB) (relax _ isUB) where
+
+  relax : (b : Bool) -> ifThenElse b LTE LT v w -> LTE v w
+  relax True p = p
+  relax False p = inject_LT_LTE p
+
+export
+sucInterval : {i, ub : Int} -> Interval True False lb ub i -> Interval False True lb ub (i + 1)
+sucInterval (MkInterval isLB isUB)
+  = MkInterval (strictLTE isLB (MkLT unsafeRefl)) (suc_LT_LTE isUB)
+
+export
 lbInClosedInterval : LTE lb ub -> ClosedInterval lb ub lb
 lbInClosedInterval = MkInterval refl
 
@@ -243,7 +261,6 @@ public export
 OpenInterval : (lb, ub : Int) -> (Int -> Type)
 OpenInterval = Interval False False
 
-
 ------------------------------------------------------------------------
 -- Middle point
 
@@ -254,8 +271,8 @@ middle a b = a + ((b - a) `shiftR` 1)
 
 ||| Provided that `LT a b`, we can guarantee that `middle a b` is in [|a,b[|.
 export
-middleInRange : {a, b : Int} -> LT a b -> Interval True False a b (middle a b)
-middleInRange (MkLT p) = strictRefl p $ MkInterval unsafeLTE (MkLT unsafeRefl)
+middleInInterval : {a, b : Int} -> LT a b -> Interval True False a b (middle a b)
+middleInInterval (MkLT p) = strictRefl p $ MkInterval unsafeLTE (MkLT unsafeRefl)
 
   where
 
