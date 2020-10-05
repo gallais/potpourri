@@ -38,7 +38,7 @@ public export
 middle : SubArray arr -> Int
 middle = uncurry middle . boundaries
 
-export
+public export
 whole : (arr : Array a) -> SubArray arr
 whole arr =
   let 0 p : LTE 0 (fst (size arr)); p = snd (size arr)

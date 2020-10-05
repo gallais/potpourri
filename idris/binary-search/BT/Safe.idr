@@ -202,52 +202,58 @@ increasing tr (Node prf {v = v'} val' lb ub lft rgt) iinR jinR vali valj p =
       in trans q (trans_LTE_LT r p)
     (MkGT iinR', MkGT jinR') => increasing tr rgt iinR' jinR' vali valj p
 
-decide : Storable a =>
+decide' : Storable a =>
          -- looking for a needle
+         (irr : {x : a} -> Not (lt x x)) ->
+         (tr : {x, y, z : a} -> lt x y -> lt y z -> lt x z) ->
          (tri : (x, y : a) -> Trichotomous lt (===) (flip lt) x y) ->
          (needle : a) ->
          -- in a sorted subarray
          {arr : Array a} -> {sub : SubArray arr} -> {tag : EmptinessCheck sub} ->
          (0 bt : BT' lt sub lbV ubV tag) ->
-         -- may succeed
+         -- is decidable
          IO (Dec (Subset Int (\ i => (InRange sub i, ValueAt arr i needle))))
-decide tri needle bt = case !(view bt) of
+decide' irr tr tri needle bt = case !(view bt) of
   ViewEmpty prf => pure $ No \ (Element i p) =>
     void $ irrefl $ trans_LTE_LT prf (intervalBounds (fst p))
   ViewNode prf v val _ _ lft rgt =>
     case tri needle v of
-      MkLT _ _ _ => case !(decide tri needle lft) of
-        Yes (Element i p) => do
+      MkLT p _ _ => case !(decide' irr tr tri needle lft) of
+        Yes (Element i q) => do
           let 0 inR : InRange sub i
-              := expandIntervalRight (fst p) (inject_LT_LTE (upperBound (middleInRange prf)))
-          pure $ Yes (Element i (inR, snd p))
-        No contra => pure $ No ?ca -- TODO
+              := expandIntervalRight (fst q) (inject_LT_LTE (upperBound (middleInRange prf)))
+          pure $ Yes (Element i (inR, snd q))
+        No contra => pure $ No $ \ (Element i q) => void $ case position sub prf (fst q) of
+          MkLT inR => contra (Element i (inR, snd q)) -- TODO
+          MkEQ Refl => irr (replace {p = lt needle} (uniqueValueAt val (snd q)) p)
+          MkGT inR =>
+            let r : lt v needle := LiftInversion (fst (bounded tr rgt inR (snd q)))
+            in irr (tr p r)
       MkEQ _ p _ => pure $ Yes (Element _ (middleInRange prf, rewrite p in val))
-      MkGT _ _ _ => case !(decide tri needle rgt) of
+      MkGT _ _ p => case !(decide' irr tr tri needle rgt) of
         Yes (Element i p) => do
           let 0 lte : LTE (fst (begin sub)) (middle sub + 1)
                     := let (MkInterval p q) := middleInRange prf in trans p (inject_LT_LTE (sucBounded q))
               0 inR : InRange sub i
               := expandIntervalLeft lte (fst p)
           pure $ Yes (Element i (inR, snd p))
-        No contra => pure $ No ?cb -- TODO
+        No contra => pure $ No $ \ (Element i q) => void $ case position sub prf (fst q) of
+          MkLT inR =>
+            let r : lt needle v := LiftInversion (snd (bounded tr lft inR (snd q)))
+            in irr (tr p r)
+          MkEQ Refl => irr (replace {p = lt v} (uniqueValueAt (snd q) val) p)
+          MkGT inR => contra (Element i (inR, snd q))
 
 
-{-
--- Next level:
-
-decide : (...) -> (Dec (i : Int ** Inside lt arr lbI lbV ubI ubV i val))
-
-Inside : (lt : a -> a -> Type) -> (arr : Array a) ->
-         Int -> Extended a ->
-         Int -> Extended a ->
-         Int -> a -> Type
-Inside lt arr lbI lbV ubI ubV i val =
-  ( (lbI <= i) === True
-  , (i <= ubI) === True
-  , ValueAt arr i val
-  , ExtendedLT lt lbV (Lift val)
-  , ExtendedLT lt (Lift val) ubV
-  )
-
--}
+decide : Storable a =>
+         -- provided the order has good properties
+         (irr : {x : a} -> Not (lt x x)) ->
+         (tr : {x, y, z : a} -> lt x y -> lt y z -> lt x z) ->
+         (tri : (x, y : a) -> Trichotomous lt (===) (flip lt) x y) ->
+         -- looking a needle up
+         (needle : a) ->
+         -- in a sorted array
+         (arr : Array a) -> (0 bt : BT lt (whole arr) lbV ubV) ->
+         -- is decidable
+         IO (Dec (Subset Int (\ i => (InRange arr i, ValueAt arr i needle))))
+decide irr tr tri needle arr bt = decide' irr tr tri needle bt
