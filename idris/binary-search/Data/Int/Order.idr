@@ -10,7 +10,7 @@ import Data.Order
 -- Because we are going to essentially postulate that some equality hold
 -- using `believe_me`, we better be careful about the kind of proofs we
 -- trust.
-public export
+export
 strictRefl : a === b -> Lazy c -> c
 strictRefl Refl p = p
 
@@ -28,6 +28,10 @@ namespace LT
     MkLT : (a < b) === True -> LT a b
 
   export
+  strictLT : LT a b -> Lazy c -> c
+  strictLT (MkLT p) c = strictRefl p c
+
+  export
   decide : (a, b : Int) -> Dec (LT a b)
   decide a b with (the (test : Bool ** (a < b) === test) (a < b ** Refl))
     decide a b | (True ** p)  = Yes (MkLT p)
@@ -35,16 +39,12 @@ namespace LT
 
   export
   trans : LT a b -> LT b c -> LT a (the Int c)
-  trans (MkLT p) (MkLT q)
-    = strictRefl p
-    $ strictRefl q
-    $ MkLT unsafeRefl
+  trans p q = strictLT p $ strictLT q $ MkLT unsafeRefl
 
   export
   irrefl : Not (LT a a)
-  irrefl (MkLT p)
-    = strictRefl p $ the Void
-    $ assert_total $ idris_crash "IMPOSSIBLE: LT is irreflexive"
+  irrefl p = strictLT p $ the Void
+           $ assert_total $ idris_crash "IMPOSSIBLE: LT is irreflexive"
 
 public export
 GT : Int -> Int -> Type
@@ -68,6 +68,10 @@ namespace EQ
     MkEQ : (a == b) === True -> EQ a b
 
   export
+  strictEQ : EQ a b -> Lazy c -> c
+  strictEQ (MkEQ p) c = strictRefl p c
+
+  export
   decide : (a, b : Int) -> Dec (EQ a b)
   decide a b with (the (test : Bool ** (a == b) === test) (a == b ** Refl))
     decide a b | (True  ** p) = Yes (MkEQ p)
@@ -79,7 +83,7 @@ namespace EQ
 
   export
   elimEQ : (0 p : Int -> Type) -> EQ a b -> p a -> p b
-  elimEQ p (MkEQ eq) v = strictRefl eq $ believe_me v
+  elimEQ _ p v = strictEQ p $ believe_me v
 
   export
   reflect : EQ a b -> a === b
@@ -165,7 +169,7 @@ namespace LTE
   trans p (MkLT q) = inject_LT_LTE (trans_LTE_LT p (MkLT q))
   trans (MkEQ p) (MkEQ q) = inject_EQ_LTE (trans (MkEQ p) (MkEQ q))
 
-public export
+export
 strictLTE : LTE a b -> Lazy c -> c
 strictLTE (MkLT p) q = strictRefl p q
 strictLTE (MkEQ p) q = strictRefl p q
@@ -207,7 +211,7 @@ suc_LT_LTE p with (the (test : Bool ** (a + 1 == b) === test) (a + 1 == b ** Ref
 
 export
 sucBounded : LT a b -> LT a (a + 1)
-sucBounded (MkLT p) = strictRefl p $ MkLT unsafeRefl
+sucBounded p = strictLT p $ MkLT unsafeRefl
 
 export
 pred_LT_LTE : {a, b : Int} -> LT a b -> LTE a (b - 1)
@@ -290,7 +294,7 @@ middle a b = a + ((b - a) `shiftR` 1)
 ||| Provided that `LT a b`, we can guarantee that `middle a b` is in [|a,b[|.
 export
 middleInInterval : {a, b : Int} -> LT a b -> Interval True False a b (middle a b)
-middleInInterval (MkLT p) = strictRefl p $ MkInterval unsafeLTE (MkLT unsafeRefl)
+middleInInterval p = strictLT p $ MkInterval unsafeLTE (MkLT unsafeRefl)
 
   where
 
