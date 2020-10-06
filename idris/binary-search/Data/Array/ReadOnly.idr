@@ -100,12 +100,31 @@ export
 uniqueValueAt : ValueAt {a} arr i v -> ValueAt arr i w -> v === w
 uniqueValueAt = believe_me (the (v === v) Refl)
 
+------------------------------------------------------------------------
+-- Reading and writing values
+
 ||| The only mode of interaction with a read-only array: you may read it if
 ||| you are using an index.
 export
 interface Storable a where
 
-  unsafeGetValueAt : HasIO io => (arr : Array a) -> (i : Int) -> io a
+  unsafeGetValueAt   : HasIO io => Buffer -> Int -> io a
+  unsafeCreateBuffer : HasIO io => (size : Int) -> (Int -> a) -> io Buffer
+
+export
+initialise : (HasIO io, Storable a) =>
+             (size : Subset Int (LTE 0)) ->
+             (f : (i : Int) -> Interval True False 0 (fst size) i -> a) ->
+             io (Subset (Array a) $ \ arr => (i : Int) -> (prf : _) -> ValueAt arr i (f i prf))
+initialise s@(Element size _) f
+  = do buffer <- unsafeCreateBuffer size f'
+       pure $ Element (MkArray s buffer) (\ _,_ => MkValueAt)
+
+  where
+    f' : Int -> a
+    f' i = case decide 0 size i of
+      Yes prf => f i prf
+      No contra => assert_total $ idris_crash "Error: invalid access by unsafeCreateBuffer"
 
 namespace Array
 
@@ -116,7 +135,7 @@ namespace Array
   readValue : (HasIO io, Storable a) => (arr : Array a) ->
               (i : Int) -> (0 prf : InRange arr i) ->
               io (Subset a (ValueAt arr i))
-  readValue arr i p = map (\ v => Element v MkValueAt) $ unsafeGetValueAt arr i
+  readValue arr i p = map (\ v => Element v MkValueAt) $ unsafeGetValueAt (buffer arr) i
 
 namespace SubArray
 

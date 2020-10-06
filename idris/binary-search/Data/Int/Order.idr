@@ -234,6 +234,22 @@ record Interval (lbI, ubI : Bool) (lb, ub : Int) (i : Int) where
   lowerBound : (ifThenElse lbI LTE LT) lb i
   upperBound : (ifThenElse ubI LTE LT) i ub
 
+namespace Interval
+
+  export
+  decide : {lbI, ubI : Bool} -> (lb, ub, i : Int) -> Dec (Interval lbI ubI lb ub i)
+  decide lb ub i = case decide lbI lb i of
+    No contra => No (contra . lowerBound)
+    Yes p => case decide ubI i ub of
+      No contra => No (contra . upperBound)
+      Yes q => Yes (MkInterval p q)
+
+    where
+
+      decide : (b : Bool) -> (v, w : Int) -> Dec (ifThenElse b LTE LT v w)
+      decide True = LTE.decide
+      decide False = LT.decide
+
 ||| If an interval is non-empty then we can conclude that the lower bound is less
 ||| than (or equal to potentially) the upper bound
 export
