@@ -42,52 +42,24 @@ check₂ pol cs = checkIndex (pred min) cs xor checkIndex (pred max) cs where
   checkIndex (suc n) (_ ∷ cs) = checkIndex n cs
   checkIndex _ _ = false
 
-
-module Parser where
+module _ where
 
   open import Level using (0ℓ)
+  open import Text.Parser 0ℓ
   open import Level.Bounded as Level≤ using ([_]; _×_; List; ⊤; ⊥; lift; lower)
 
-  open import Data.List.Sized.Interface
-  open import Data.Subset
-
-  open import Text.Parser.Types
-  open import Text.Parser.Monad
-  open import Text.Parser.Position
-  open import Text.Parser.Combinators hiding (_>>=_)
-  open import Text.Parser.Combinators.Char
-  open import Text.Parser.Combinators.Numbers
-
-  private
-    P : Parameters 0ℓ
-    P = Agdarsec′.vec [ Char ]
-
-  instance
-
-    Agdarsec′M : RawMonad (Agdarsec {0ℓ} ⊤ ⊥)
-    Agdarsec′M  = Agdarsec′.monad
-
-    Agdarsec′M0 : RawMonadZero (Agdarsec {0ℓ} ⊤ ⊥)
-    Agdarsec′M0 = Agdarsec′.monadZero
-
-    Agdarsec′M+ : RawMonadPlus (Agdarsec {0ℓ} ⊤ ⊥)
-    Agdarsec′M+ = Agdarsec′.monadPlus
-
-  policy : ∀[ Parser P [ Policy ] ]
+  policy : ∀[ Parser [ Policy ] ]
   policy = uncurryₙ 3 MkPolicy
              <$> (decimalℕ
              <&> box ((char '-' &> box decimalℕ)
              <&> box (spaces &> box anyTok)))
 
-  problem : ∀[ Parser P ( [ Policy ] × Level≤.List [ Char ]) ]
+  problem : ∀[ Parser ( [ Policy ] × Level≤.List [ Char ]) ]
   problem = policy
         <&> box (toList <$> ((char ':' <&> box spaces)
                          &> box (list⁺ alpha)))
 
-  parse : String → Maybe (Policy Prod.× List.List Char)
-  parse str = case runParser problem ℕₚ.≤-refl (lift (String.toVec str)) (lift (start , [])) of λ where
-    (Value ((value ^ _ , _) , _)) → just (lower value)
-    _ → nothing
+  parse = runParser problem
 
 open import IO
 open import System.Environment
@@ -102,6 +74,6 @@ getInput = do
 main = run $ do
   fp ← getInput
   content ← lines <$> readFiniteFile fp
-  let table = List.mapMaybe Parser.parse content
+  let table = List.mapMaybe parse content
   putStrLn $ show $ length (filter (T? ∘ uncurryₙ 2 check₁) table)
   putStrLn $ show $ length (filter (T? ∘ uncurryₙ 2 check₂) table)
