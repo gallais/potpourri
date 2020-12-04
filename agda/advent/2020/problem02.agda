@@ -67,13 +67,12 @@ open import System.Environment
 getInput : IO String
 getInput = do
   args ← getArgs
-  pure $ case args of λ where
-    (fp ∷ []) → fp
-    _ → ""
+  (just fp) ← pure (List.head args)
+    where _ → pure ""
+  readFiniteFile fp
 
 main = run $ do
-  fp ← getInput
-  content ← lines <$> readFiniteFile fp
+  content ← String.lines <$> getInput
   let table = List.mapMaybe parse content
   putStrLn $ show $ length (filter (T? ∘ uncurryₙ 2 check₁) table)
   putStrLn $ show $ length (filter (T? ∘ uncurryₙ 2 check₂) table)

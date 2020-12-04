@@ -67,17 +67,16 @@ open import System.Environment
 getInput : IO String
 getInput = do
   args ← getArgs
-  pure $ case args of λ where
-    (fp ∷ []) → fp
-    _ → ""
+  (just fp) ← pure (List.head args)
+    where _ → pure ""
+  readFiniteFile fp
 
 showTest : (ℕ × ℕ) → ℕ → String
 showTest (right , down) trees = let open String hiding (show) in
   "(" ++ show right ++ ":" ++ show down ++ ") = " ++ show trees
 
 main = run $ do
-  fp ← getInput
-  content ← String.lines <$> readFiniteFile fp
+  content ← String.lines <$> getInput
   let terrain = readTerrain content
   let tests   = ((1 , 1) ∷ (3 , 1) ∷ (5 , 1) ∷ (7 , 1) ∷ (1 , 2) ∷ [])
   let results = List.map (check terrain) tests
