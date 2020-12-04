@@ -3,6 +3,7 @@ module problem04 where
 open import Category.Applicative
 
 open import Data.Bool.Base
+open import Data.Bool.Properties using (T?)
 open import Data.Char.Base using (Char)
 open import Data.List.Base as List using (List; []; _∷_)
 open import Data.List.NonEmpty as List⁺ using (List⁺)
@@ -10,7 +11,7 @@ open import Data.Maybe.Base as Maybe using (Maybe; nothing; just; maybe′)
 import Data.Maybe.Categorical as Maybe
 open import Data.Nat.Base
 open import Data.Nat.Show using (show)
-open import Data.Product using (_×_; _,_; uncurry)
+open import Data.Product using (_×_; _,_; proj₁; proj₂; uncurry)
 open import Data.String.Base as String using (String)
 open import Data.Sum.Base
 
@@ -138,8 +139,25 @@ getInput = do
     where _ → pure ""
   readFiniteFile fp
 
+check : Passport → Bool
+check p = let open Passport' p in List.and
+  $ (1920 ≤ᵇ byr) ∷ (byr ≤ᵇ 2002)
+  ∷ (2010 ≤ᵇ iyr) ∷ (iyr ≤ᵇ 2020)
+  ∷ (2020 ≤ᵇ eyr) ∷ (eyr ≤ᵇ 2030)
+  ∷ maybe′ (heightCheck (proj₁ hgt)) false (proj₂ hgt)
+  ∷ [ (λ ds → List⁺.length ds ≡ᵇ 6) , const false ]′ hcl
+  ∷ [ const true , const false ]′ ecl
+  ∷ [ (λ ds → List⁺.length ds ≡ᵇ 9) , const false ]′ pid
+  ∷ [] where
+
+  heightCheck : ℕ → Unit → Bool
+  heightCheck val CM = (150 ≤ᵇ val) ∧ (val ≤ᵇ 193)
+  heightCheck val IN = (59 ≤ᵇ val) ∧ (val ≤ᵇ 76)
+
 main = run $ do
   content ← getInput
   passports ← runParserIO passports content
-  let valid = List.mapMaybe validate (List⁺.toList passports)
-  putStrLn $ show $ List.length valid
+  let valid₁ = List.mapMaybe validate (List⁺.toList passports)
+  putStrLn $ show $ List.length valid₁
+  let valid₂ = List.filter (T? ∘ check) valid₁
+  putStrLn $ show $ List.length valid₂
