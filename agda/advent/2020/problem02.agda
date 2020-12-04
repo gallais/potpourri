@@ -14,6 +14,7 @@ open import Data.Nat.Show
 open import Data.Product as Prod using (_,_)
 open import Data.Product.Nary.NonDependent using (uncurryₙ)
 open import Data.String as String using (String; lines)
+open import Data.Sum.Base using ([_,_]′)
 open import Function.Base
 
 open import Relation.Nullary
@@ -59,7 +60,7 @@ module _ where
         <&> box (toList <$> ((char ':' <&> box spaces)
                          &> box (list⁺ alpha)))
 
-  parse = runParser problem
+  parse = [ const nothing , just ]′ ∘′ runParser problem
 
 open import IO
 open import System.Environment
