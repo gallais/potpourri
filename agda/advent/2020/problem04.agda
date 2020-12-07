@@ -18,10 +18,9 @@ open import Data.Sum.Base
 open import Function.Base
 open import Function.Identity.Categorical using (Identity)
 open import Level using (0ℓ)
-open import Level.Bounded using ([_])
 
 open import Relation.Unary
-open import Text.Parser 0ℓ as Combinators using (Parser; runParserIO)
+open import Text.Parser 0ℓ as Combinators using ([_]; Parser; runParserIO)
 
 data Unit : Set where CM IN : Unit
 

@@ -14,7 +14,7 @@ open import Data.Nat.Show
 open import Data.Product as Prod using (_,_)
 open import Data.Product.Nary.NonDependent using (uncurryₙ)
 open import Data.String as String using (String; lines)
-open import Data.Sum.Base using ([_,_]′)
+open import Data.Sum using (isInj₂)
 open import Function.Base
 
 open import Relation.Nullary
@@ -47,7 +47,7 @@ module _ where
 
   open import Level using (0ℓ)
   open import Text.Parser 0ℓ
-  open import Level.Bounded as Level≤ using ([_]; _×_; List; ⊤; ⊥; lift; lower)
+  open import Level.Bounded as Level≤ using (_×_; List; ⊤; ⊥; lift; lower)
 
   policy : ∀[ Parser [ Policy ] ]
   policy = uncurryₙ 3 MkPolicy
@@ -60,7 +60,7 @@ module _ where
         <&> box (toList <$> ((char ':' <&> box spaces)
                          &> box (list⁺ alpha)))
 
-  parse = [ const nothing , just ]′ ∘′ runParser problem
+  parse = isInj₂ ∘′ runParser problem
 
 open import IO
 open import lib
