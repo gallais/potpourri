@@ -130,14 +130,7 @@ validate (MkPassport byr iyr eyr hgt hcl ecl pid cid) =
 
 
 open import IO
-open import System.Environment
-
-getInput : IO String
-getInput = do
-  args ← getArgs
-  (just fp) ← pure (List.head args)
-    where _ → pure ""
-  readFiniteFile fp
+open import lib
 
 check : Passport → Bool
 check p = let open Passport' p in List.and

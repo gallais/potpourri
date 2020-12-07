@@ -51,14 +51,7 @@ read = foldl (λ acc c → 10 * acc + char c) 0 ∘′ toList where
   char c = toℕ c ∸ toℕ '0'
 
 open import IO
-open import System.Environment
-
-getInput : IO String
-getInput = do
-  args ← getArgs
-  (just fp) ← pure (List.head args)
-    where _ → pure ""
-  readFiniteFile fp
+open import lib
 
 main = run $ do
   content ← String.lines <$> getInput

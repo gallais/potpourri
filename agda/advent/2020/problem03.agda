@@ -62,14 +62,7 @@ check t (right , down) = go height 0 height 0 0 where
     in seq acc′ (go measure acc′ (h ∸ down) (i + down) ((j + right) % suc width))
 
 open import IO
-open import System.Environment
-
-getInput : IO String
-getInput = do
-  args ← getArgs
-  (just fp) ← pure (List.head args)
-    where _ → pure ""
-  readFiniteFile fp
+open import lib
 
 showTest : (ℕ × ℕ) → ℕ → String
 showTest (right , down) trees = let open String hiding (show) in

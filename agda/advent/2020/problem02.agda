@@ -63,14 +63,7 @@ module _ where
   parse = [ const nothing , just ]′ ∘′ runParser problem
 
 open import IO
-open import System.Environment
-
-getInput : IO String
-getInput = do
-  args ← getArgs
-  (just fp) ← pure (List.head args)
-    where _ → pure ""
-  readFiniteFile fp
+open import lib
 
 main = run $ do
   content ← String.lines <$> getInput
