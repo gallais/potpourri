@@ -5,7 +5,7 @@ open import Data.Bool.Base using (true; false)
 open import Data.Integer.Base
 open import Data.List.Base as List using (List; _∷_; [])
 import Data.List.NonEmpty as List⁺
-open import Data.List.Zipper as Zipper using (Zipper)
+open import Data.List.Zipper as Zipper using (Zipper; mkZipper)
 open import Data.Maybe.Base as Maybe using (Maybe; nothing; just; maybe′)
 open import Data.Nat.Base as ℕ using (ℕ; suc)
 import Data.Nat.Properties as ℕₚ
@@ -49,10 +49,10 @@ module _ where
   instruction : ∀[ Parser [ Instruction ] ]
   instruction = uncurry _∙_ <$> (operation <&> box (withSpaces decimalℤ))
 
-  machine : ∀[ Parser [ Machine ] ]
-  machine = (initMachine ∘′ List⁺.toList) <$> list⁺ instruction
+  instructions : ∀[ Parser [ List Instruction ] ]
+  instructions = List⁺.toList <$> list⁺ instruction
 
-  parse = runParserIO machine
+  parse = runParserIO instructions
 
 jmp : ℤ → Zipper Instruction → Maybe (Zipper Instruction)
 jmp (+ 0)        zp = just zp
@@ -103,12 +103,41 @@ loopy m = Sum.map₁ finish <$> go Sets.empty m (execute m) where
   ... | true  = pure (inj₁ old)
   ... | false = bind (♯ go (Sets.insert ip visited) m (ms .force)) (λ x → ♯ pure x)
 
+flip1 : List Instruction → List (List Instruction)
+flip1 = List.mapMaybe (Maybe.map Zipper.toList ∘′ flipFocus)
+      ∘′ Zipper.allFoci
+
+  where
+
+    flipJMPNOP : Instruction → List Instruction → Maybe (List Instruction)
+    flipJMPNOP (JMP ∙ arg) is = just (NOP ∙ arg ∷ is)
+    flipJMPNOP (NOP ∙ arg) is = just (JMP ∙ arg ∷ is)
+    flipJMPNOP _ _ = nothing
+
+    flipFocus : Zipper Instruction → Maybe (Zipper Instruction)
+    flipFocus (mkZipper ctx (i ∷ is)) = Maybe.map (mkZipper ctx) (flipJMPNOP i is)
+    flipFocus _ = nothing
+
+firstStopping : List Machine → IO (Maybe ℤ)
+firstStopping []       = pure nothing
+firstStopping (m ∷ ms) = do
+  res ← loopy m
+  case res of λ where
+    (inj₂ acc) → pure (just acc)
+    (inj₁ _)   → firstStopping ms
+
+
 open import lib
 
 main = run $ do
   input ← getInput
-  m ← parse input
+  instrs ← parse input
+  let m = initMachine instrs
   acc ← loopy m
   case acc of λ where
     (inj₁ (_ , acc)) → putStrLn $ showℤ acc
     (inj₂ _) → putStrLn "No loop!"
+  res ← firstStopping (List.map initMachine (flip1 instrs))
+  case res of λ where
+    nothing → putStrLn "No solution!"
+    (just acc) → putStrLn $ showℤ acc
