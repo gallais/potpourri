@@ -1,5 +1,6 @@
 module lib where
 
+open import Data.Bool.Base using (Bool)
 open import Data.Char as Char using (Char)
 open import Data.Integer.Base using (ℤ; +_; -[1+_])
 open import Data.List.Base as List using (List; []; _∷_; [_]; reverse)
@@ -22,14 +23,16 @@ getInput = do
 open import Data.Bool.Base using (_∧_)
 open import Data.Nat.Base as ℕ using (ℕ; _∸_; _+_; _*_)
 
+when : ∀ {a} {A : Set a} → Bool → A → Maybe A
+when b a = Maybe.map (const a) (Maybe.boolToMaybe b)
+
 readMaybe : String → Maybe ℕ
 readMaybe = List.foldl step (just 0) ∘′ String.toList where
 
   digit : Char → Maybe ℕ
   digit c = let check = (Char.toℕ '0' ℕ.≤ᵇ Char.toℕ c)
                       ∧ (Char.toℕ c ℕ.≤ᵇ Char.toℕ '9')
-            in Maybe.map (const (Char.toℕ c ∸ Char.toℕ '0'))
-                         (Maybe.boolToMaybe check)
+            in when check (Char.toℕ c ∸ Char.toℕ '0')
 
   step : Maybe ℕ → Char → Maybe ℕ
   step nothing _ = nothing
