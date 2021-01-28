@@ -1,5 +1,7 @@
 module Data
 
+import Data.Stream
+
 %default total
 
 namespace Data
@@ -67,6 +69,12 @@ namespace Colist
     Nothing => []
     Just (a, seed) => a :: unfold next seed
 
+  public export
+  take : Nat -> Colist a -> List a
+  take Z _ = []
+  take _ [] = []
+  take (S k) (x :: xs) = x :: take k xs
+
 namespace Codata
 
   public export
@@ -94,11 +102,30 @@ Codata (Colist a) where
 
   ana = unfold
 
+Codata (Stream a) where
+
+  Cobase' = (a,)
+  functor = FUNCTOR {arg = map}
+
+  wrap = uncurry (::)
+  unwrap = \ (x :: xs) => (x, xs)
+
+  ana = unfoldr
+
 inf : a -> Inf a
 inf x = x
+
+fni : Inf a -> a
+fni x = x
 
 fromData : (Data d, Codata c) => ({0 a : Type} -> Base d a -> Cobase c a) -> d -> c
 fromData f = cata (Codata.wrap . f . map @{Data.functor} inf)
 
+fromCodata : (Codata c1, Codata c2) => ({0 a : Type} -> Cobase c1 a -> Cobase c2 a) -> c1 -> c2
+fromCodata f = ana (map @{Codata.functor} fni . f . Codata.unwrap)
+
 fromList : List a -> Colist a
 fromList = fromData id
+
+fromStream : Stream a -> Colist a
+fromStream = fromCodata Just
