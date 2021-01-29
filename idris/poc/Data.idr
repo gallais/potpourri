@@ -24,6 +24,24 @@ namespace Data
   0 Base : (0 t : Type) -> Data t => Type -> Type
   Base t @{d} = Base' @{d}
 
+  public export
+  data Mu : (Type -> Type) -> Type where
+    MkMu : f (Mu f) -> Mu f
+
+  public export
+  partial
+  fold : Functor f => (f a -> a) -> Mu f -> a
+  fold alg (MkMu p) = alg (map (fold alg) p)
+
+  partial
+  toMu : Data t => t -> Mu (Base t)
+  toMu = cata MkMu
+
+  partial
+  fromMu : Data t => Mu (Base t) -> t
+  fromMu = fold @{functor} wrap
+
+
 [FUNCTOR] {arg : {0 a, b : Type} -> (a -> b) -> f a -> f b} -> Functor f where map = arg
 
 namespace List
@@ -75,6 +93,12 @@ namespace Colist
   take _ [] = []
   take (S k) (x :: xs) = x :: take k xs
 
+inf : a -> Inf a
+inf x = x
+
+fni : Inf a -> a
+fni x = x
+
 namespace Codata
 
   public export
@@ -91,6 +115,23 @@ namespace Codata
   public export
   0 Cobase : (0 t : Type) -> Codata t => Type -> Type
   Cobase t @{d} = Cobase' @{d}
+
+  public export
+  data Nu : (Type -> Type) -> Type where
+    MkNu : {0 f : Type -> Type} -> f (Inf (Nu f)) -> Nu f
+
+  public export
+  partial
+  unfold : Functor f => (s -> f s) -> s -> Nu f
+  unfold coalg seed = MkNu $ (map (inf . unfold coalg) (coalg seed))
+
+  partial
+  toNu : Codata t => t -> Nu (Cobase t)
+  toNu = unfold @{Codata.functor} (map @{Codata.functor} fni . Codata.unwrap)
+
+  partial
+  fromNu : Codata t => Nu (Cobase t) -> t
+  fromNu = ana ?b
 
 Codata (Colist a) where
 
@@ -111,12 +152,6 @@ Codata (Stream a) where
   unwrap = \ (x :: xs) => (x, xs)
 
   ana = unfoldr
-
-inf : a -> Inf a
-inf x = x
-
-fni : Inf a -> a
-fni x = x
 
 fromData : (Data d, Codata c) => ({0 a : Type} -> Base d a -> Cobase c a) -> d -> c
 fromData f = cata (Codata.wrap . f . map @{Data.functor} inf)
