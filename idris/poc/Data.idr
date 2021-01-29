@@ -6,20 +6,56 @@ import Data.Stream
 
 namespace Data
 
+  ||| Inductive datatypes are seen as fixpoints of their base functor.
+  ||| They are caracterised by the iterator `cata` (for catamorphism)
+  ||| consuming such an inductive type layer by layer to produce a value.
+
   public export
   interface Data t where
+
+    ||| @Base' is a functor representing one layer of the inductive type
+    ||| The functor's argument is used as a placeholder for the subterm.
+    ||| For instance, `Maybe` is the base functor of `Nat`. Each natural
+    ||| number is either:
+    |||   `Z` and has no subterm  (`Nothing` constructor)
+    |||   `S` and has one subterm (`Just` constructor)
+    ||| So `Nat` is isomorphic to `Maybe Nat`.
 
     0 Base' : Type -> Type
     functor : Functor Base'
 
+    ||| @wrap is evidence that one layer of the Base functor with subterms
+    ||| elements of the inductive type `t` can be wrapped to create element
+    ||| of the inductive type.
+    ||| In our `Nat` running example, this amounts to:
+    |||   + mapping `Nothing` to `Z`
+    |||   + mapping `Just n`  to `S n`
+
     wrap : Base' t -> t
+
+    ||| @unwrap is evidence that a value of the inductive type can be observed
+    ||| to be of the following shape: one layer of `Base` functor with subterms
+    ||| values of the inductive type.
+    ||| In our `Nat` running example, this amounts to:
+    |||   + mapping `Z`   to `Nothing`
+    |||   + mapping `S n` to `Just n`
     unwrap : t -> Base' t
 
+    ||| @cata demonstrates that if we are given an algebra that turns one `Base`
+    ||| layer with subterms values of type `a` into a value of type `a` then we
+    ||| can turn a whole inductive value of type `t` into a value of type `a`.
+    ||| We do so by applying the algebra to every single layer of the inductive
+    ||| type, after having performed recursive calls on all of the subterms.
     cata : (Base' a -> a) -> t -> a
 
+    ||| @para provides slightly more powerful algebra than `cata`: not only is
+    ||| the result of the recursive call available, but the subterm it was computed
+    ||| from also is.
+    ||| This can be implemented generically (but not efficiently) using `cata`.
     para : (Base' (a, t) -> a) -> t -> a
     para alg = fst . cata (\ ih => (alg ih, wrap (map @{functor} snd ih)))
 
+  ||| @Base is an alias for `Base'` that makes the `t` parameter explicit.
   public export
   0 Base : (0 t : Type) -> Data t => Type -> Type
   Base t @{d} = Base' @{d}
