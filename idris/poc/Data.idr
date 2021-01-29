@@ -60,19 +60,31 @@ namespace Data
   0 Base : (0 t : Type) -> Data t => Type -> Type
   Base t @{d} = Base' @{d}
 
+
+  ||| /!\ This unsafe definition takes the least fixpoint of a functor.
+  ||| Take fixpoints of functors that are not strictly positive at your own risks.
+
+  ||| It is used to demonstrate the relationship between types satisfying
+  ||| the `Data` interface and the fixpoint of their respective `Base` functors.
+  ||| For instance `Nat`, whose `Base` functor is `Maybe`, is isomorphic to `Mu Maybe`.
   public export
   data Mu : (Type -> Type) -> Type where
     MkMu : f (Mu f) -> Mu f
 
+  ||| Iterator for inductive types of the form `Mu f`
   public export
   partial
   fold : Functor f => (f a -> a) -> Mu f -> a
   fold alg (MkMu p) = alg (map (fold alg) p)
 
+  ||| Conversion from an inductive type to the fixpoint of its base functor.
+  ||| We are using `cata` to wrap each `Base` layer using an `MkMu` constructor.
   partial
   toMu : Data t => t -> Mu (Base t)
   toMu = cata MkMu
 
+  ||| Conversion from the fixpoint of a base functor to its inductive type.
+  ||| We are using `fold` to `wrap` every layer of `Mu`.
   partial
   fromMu : Data t => Mu (Base t) -> t
   fromMu = fold @{functor} wrap
