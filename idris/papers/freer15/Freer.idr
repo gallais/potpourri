@@ -8,6 +8,6 @@ import Freer.Section2p1
 import Freer.Section2p2
 import Freer.Section2p3
 import Freer.Section2p4
-
-import Union
 import Freer.Section2p5
+
+import Freer.Section3p1
