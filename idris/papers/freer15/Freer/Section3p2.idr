@@ -1,6 +1,9 @@
 module Freer.Section3p2
 
+import Data.DPair
 import Data.List
+import Data.List.HasLength
+import Data.List.AtIndex
 import Data.OpenUnion
 import Relation.Binary.Closure.Transitive
 import Freer.Section3p1
@@ -67,6 +70,29 @@ tell : Member (Writer o) ts => o -> Eff ts ()
 tell = send . Put
 
 public export
+rdwr : (Member (Reader Int) ts, Member (Writer String) ts) => Eff ts Int
+rdwr = do
+  tell "begin"
+  r <- addN 10
+  tell "end"
+  pure r
+
+public export
 runWriter : Eff (Writer o :: ts) a -> Eff ts (a, List o)
 runWriter = handleOrRelay (\ a => pure (a, []))
           $ \ (Put o), k => map (map (o::)) (k ())
+
+public export
+runState : Eff (Writer s :: Reader s :: ts) a -> s -> Eff ts (a, s)
+runState m v = loop v m where
+
+  0 EFFECTS : List (Type -> Type)
+  EFFECTS = (\ a => Writer s a) :: (\ a => Reader s a) :: ts
+
+  loop : s -> Eff EFFECTS a -> Eff ts (a, s)
+  loop s (Pure x) = pure (x, s)
+  loop s t@(Impure x k) = case decomp x of
+    Right (Put o) => loop o (assert_smaller t (qApp k ()))
+    Left x => case decomp x of
+      Right Get => loop s (assert_smaller t (qApp k s))
+      Left x => Impure x (^ \ v => loop s (assert_smaller t (qApp k v)))
