@@ -1,6 +1,6 @@
 module Freer.Section3p1
 
-import Union
+import Data.OpenUnion
 import Relation.Binary.Closure.Transitive
 
 %default total
@@ -21,7 +21,7 @@ mutual
   public export
   data Eff : (ts : List (Type -> Type)) -> (Type -> Type) where
     Pure : a -> Eff ts a
-    Impure : Union t v -> Arrs ts v a -> Eff ts a
+    Impure : Union ts v -> Arrs ts v a -> Eff ts a
 
 ------------------------------------------------------------------------
 -- Implementations

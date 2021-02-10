@@ -1,6 +1,6 @@
 module Freer.Section2p5
 
-import Union
+import Data.OpenUnion
 
 %default total
 

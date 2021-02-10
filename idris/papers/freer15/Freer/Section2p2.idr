@@ -67,7 +67,7 @@ addGet inc = do i <- ask
 
 public export
 addN : Nat -> It Int o Int
-addN n = foldl (>>>) pure (replicate n addGet) 0
+addN n = foldl (>=>) pure (replicate n addGet) 0
 
 ------------------------------------------------------------------------
 -- Execution

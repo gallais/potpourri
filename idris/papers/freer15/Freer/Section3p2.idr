@@ -1,7 +1,7 @@
 module Freer.Section3p2
 
 import Data.List
-import Union
+import Data.OpenUnion
 import Relation.Binary.Closure.Transitive
 import Freer.Section3p1
 
@@ -23,9 +23,11 @@ handleOrRelay : (a -> Eff ts w) ->
                 (forall v. t v -> Arr ts v w -> Eff ts w) ->
                 Eff (t :: ts) a -> Eff ts w
 handleOrRelay ret h (Pure a) = ret a
-handleOrRelay ret h t@(Impure x k) = case decomp x of
-  Right x => h x (\ v => handleOrRelay ret h (assert_smaller t (qApp k v)))
-  Left x => Impure x (^ \ v => handleOrRelay ret h (assert_smaller t (qApp k v)))
+handleOrRelay ret h t@(Impure x k) =
+  case decomp x of
+    Right x => h x (\ v => handleOrRelay ret h (assert_smaller t (qApp k v)))
+    Left x =>
+      Impure x (^ \ v => handleOrRelay ret h (assert_smaller t (qApp k v)))
 
 public export
 run : Eff [] a -> a
@@ -50,7 +52,7 @@ addGet x = do i <- ask
 
 public export
 addN : Member (Reader Int) ts => Nat -> Eff ts Int
-addN n = foldl (>>>) pure (replicate n addGet) 0
+addN n = foldl (>=>) pure (replicate n addGet) 0
 
 public export
 runReader : i -> Eff (Reader i :: ts) a -> Eff ts a
