@@ -12,3 +12,5 @@ import Freer.Section2p5
 
 import Freer.Section3p1
 import Freer.Section3p2
+
+import Freer.Section5
