@@ -1,6 +1,7 @@
 module Freer.Section2p5
 
 import Data.OpenUnion
+import Data.List.AtIndex
 
 %default total
 
@@ -10,7 +11,7 @@ import Data.OpenUnion
 public export
 data FEFree : (ts : List (Type -> Type)) -> Type -> Type where
   Pure : a -> FEFree ts a
-  Impure : Union ts x -> (x -> FEFree ts a) -> FEFree ts a
+  Impure : Union ($ x) ts -> (x -> FEFree ts a) -> FEFree ts a
 
 ------------------------------------------------------------------------
 -- Examples

@@ -1,6 +1,7 @@
 module Freer.Section5
 
 import Relation.Binary.Closure.Transitive
+import Data.List.AtIndex
 import Data.OpenUnion
 import Freer.Section3p1
 import Freer.Section3p2

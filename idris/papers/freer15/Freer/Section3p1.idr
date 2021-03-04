@@ -21,7 +21,7 @@ mutual
   public export
   data Eff : (ts : List (Type -> Type)) -> (Type -> Type) where
     Pure : a -> Eff ts a
-    Impure : Union ts v -> Arrs ts v a -> Eff ts a
+    Impure : Union ($ v) ts -> Arrs ts v a -> Eff ts a
 
 ------------------------------------------------------------------------
 -- Implementations

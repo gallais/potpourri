@@ -26,8 +26,8 @@ interface Last (0 t : a) (0 ts : List a) where
   0 atIndex : AtIndex t ts (minus (length ts) 1)
 
 public export
-[LAST] {ts : _} -> Last t ts => FindElement t ts where
-  findElement = Element _ atIndex
+[LAST] {ts : _} -> Last t ts => Member t ts where
+  isMember' = Element _ atIndex
 
 public export
 Last t (v :: w :: ws) => Last t (u :: v :: w :: ws) where

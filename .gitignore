@@ -20,3 +20,5 @@
 *.ps
 *.pdf
 *.sty
+*input
+*input2

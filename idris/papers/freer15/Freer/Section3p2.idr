@@ -38,36 +38,71 @@ run (Pure a) = a
 run (Impure x k) = absurd x
 
 ------------------------------------------------------------------------
--- Examples
+-- Reader
 
 public export
 data Reader : Rel Type where
-  Get : Reader i i
+  Ask : Reader i i
 
 public export
 ask : Member (Reader i) ts => Eff ts i
-ask = send Get
+ask = send Ask
 
 public export
-addGet : Member (Reader Int) ts => Int -> Eff ts Int
-addGet x = do i <- ask
+runReader : i -> Eff (Reader i :: ts) a -> Eff ts a
+runReader v = handleOrRelay pure (\ Ask, k => k v)
+
+------------------------------------------------------------------------
+-- Writer
+
+public export
+data Writer : Rel Type where
+  Tell : o -> Writer o ()
+
+public export
+tell : Member (Writer o) ts => o -> Eff ts ()
+tell = send . Tell
+
+public export
+runWriter : Eff (Writer o :: ts) a -> Eff ts (a, List o)
+runWriter = handleOrRelay (\ a => pure (a, []))
+          $ \ (Tell o), k => map (map (o::)) (k ())
+
+------------------------------------------------------------------------
+-- State
+
+public export
+data State : Rel Type where
+  Get : State s s
+  Put : s -> State s ()
+
+public export
+get : Member (State s) ts => Eff ts s
+get = send Get
+
+public export
+put : Member (State s) ts => s -> Eff ts ()
+put = send . Put
+
+public export
+runState : s -> Eff (State s :: ts) a -> Eff ts (a, s)
+runState s (Pure x) = pure (x, s)
+runState s t@(Impure x k) = case decomp x of
+  Right (Put s') => runState s' (assert_smaller t (qApp k ()))
+  Right Get => runState s (assert_smaller t (qApp k s))
+  Left x => Impure x (^ \ v => runState s (assert_smaller t (qApp k v)))
+
+------------------------------------------------------------------------
+-- Examples
+
+public export
+addAsk : Member (Reader Int) ts => Int -> Eff ts Int
+addAsk x = do i <- ask
               pure (i + x)
 
 public export
 addN : Member (Reader Int) ts => Nat -> Eff ts Int
-addN n = foldl (>=>) pure (replicate n addGet) 0
-
-public export
-runReader : i -> Eff (Reader i :: ts) a -> Eff ts a
-runReader v = handleOrRelay pure (\ Get, k => k v)
-
-public export
-data Writer : Rel Type where
-  Put : o -> Writer o ()
-
-public export
-tell : Member (Writer o) ts => o -> Eff ts ()
-tell = send . Put
+addN n = foldl (>=>) pure (replicate n addAsk) 0
 
 public export
 rdwr : (Member (Reader Int) ts, Member (Writer String) ts) => Eff ts Int
@@ -78,13 +113,8 @@ rdwr = do
   pure r
 
 public export
-runWriter : Eff (Writer o :: ts) a -> Eff ts (a, List o)
-runWriter = handleOrRelay (\ a => pure (a, []))
-          $ \ (Put o), k => map (map (o::)) (k ())
-
-public export
-runState : Eff (Writer s :: Reader s :: ts) a -> s -> Eff ts (a, s)
-runState m v = loop v m where
+runRW : Eff (Writer s :: Reader s :: ts) a -> s -> Eff ts (a, s)
+runRW m v = loop v m where
 
   0 EFFECTS : List (Type -> Type)
   EFFECTS = (\ a => Writer s a) :: (\ a => Reader s a) :: ts
@@ -92,7 +122,7 @@ runState m v = loop v m where
   loop : s -> Eff EFFECTS a -> Eff ts (a, s)
   loop s (Pure x) = pure (x, s)
   loop s t@(Impure x k) = case decomp x of
-    Right (Put o) => loop o (assert_smaller t (qApp k ()))
+    Right (Tell o) => loop o (assert_smaller t (qApp k ()))
     Left x => case decomp x of
-      Right Get => loop s (assert_smaller t (qApp k s))
+      Right Ask => loop s (assert_smaller t (qApp k s))
       Left x => Impure x (^ \ v => loop s (assert_smaller t (qApp k v)))
