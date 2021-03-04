@@ -17,15 +17,19 @@ Member Ndet ts => Alternative (Eff ts) where
   empty = send MZero
   l <|> r = send MPlus >>= \ b => if b then l else r
 
+infixr 5 <|!>
+(<|!>) : Alternative f => f a -> f a -> f a
+f <|!> g = f <|> g
+
 public export
 makeChoiceA : Alternative f => Eff (Ndet :: ts) a -> Eff ts (f a)
 makeChoiceA = handleOrRelay (pure . pure) $ \ m, k => case m of
   MZero => pure empty
-  MPlus => [| k True <|> k False |]
+  MPlus => [| k True <|!> k False |]
 
 public export
 msum : Alternative f => List (f a) -> f a
-msum = foldr (<|>) empty
+msum = foldr (<|!>) empty
 
 public export
 covering
