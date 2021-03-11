@@ -8,12 +8,11 @@ module poc.InfixParser where
 
 import Level as L
 open import Data.Nat
-open import Data.Maybe as Maybe
+open import Data.Maybe.Base as Maybe renaming (map to _<$>_)
 open import Data.Product
-open import Data.List
+open import Data.List.Base
 open import Relation.Nullary
-open import Category.Monad
-open import Function
+open import Function.Base
 
 record Ope (O : Set) : Set where
   constructor _at_
@@ -44,8 +43,6 @@ module _ {L O : Set} where
   fold o (e₂ ∷ e₁ ∷ es) = just (OPE (operator o) e₁ e₂ ∷ es)
   fold o _ = nothing
 
-  open RawMonad (Maybe.monad {L.zero})
-
   parse : List (Token L O) → Maybe (Expr L O)
   parse = go [] [] where
 
@@ -53,7 +50,7 @@ module _ {L O : Set} where
     pop[PAR] : List (OPEPAR O) → List (Expr L O) →
                Maybe (List (OPEPAR O) × List (Expr L O))
     pop[PAR] ([PAR]   ∷ os) es = just (os , es)
-    pop[PAR] ([OPE] o ∷ os) es = pop[PAR] os =<< fold o es
+    pop[PAR] ([OPE] o ∷ os) es = fold o es >>= pop[PAR] os
     pop[PAR] []             es = nothing
 
     go : List (OPEPAR O) → List (Expr L O) → List (Token L O) → Maybe (Expr L O)
@@ -98,25 +95,26 @@ private
     tokens = LIT 10 ∷ MUL ∷ LIT 20 ∷ ADD ∷ LIT 30 ∷ MUL ∷ LP ∷ LIT 40 ∷ ADD ∷ LIT 50 ∷ RP ∷ []
 
     expr : Expr ℕ String
-    expr = OPE "plus" (OPE "mult" (LIT 10) (LIT 20)) (OPE "mult" (LIT 30) (OPE "plus" (LIT 40) (LIT 50))) 
+    expr = OPE "plus" (OPE "mult" (LIT 10) (LIT 20)) (OPE "mult" (LIT 30) (OPE "plus" (LIT 40) (LIT 50)))
 
     test : parse tokens ≡ just expr
     test = refl
+
+    -- Oh! Bug!
+    test2 : parse (LIT 10 ∷ LIT 20 ∷ MUL ∷ []) ≡ just (OPE "mult" (LIT 10) (LIT 20))
+    test2 = refl
 
 private
 
   module Example2 where
 
-    open import Data.Char
+    open import Data.Char.Base using (Char)
 
     PLUS : Ope Char
     PLUS = '+' at 1
 
     MULT : Ope Char
     MULT = '*' at 2
-
-    open import Level
-    open RawMonad (Maybe.monad {Level.zero})
 
     tokenise : List Char → Maybe (List (Token ℕ Char))
     tokenise = go nothing where
