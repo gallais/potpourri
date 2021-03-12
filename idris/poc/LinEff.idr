@@ -32,8 +32,10 @@ data M : List Type -> List Type -> Type -> Type where
   With : (r : Type) -> Member r res1 =>
          (1 f : (1 _ : r) -> M (Leftovers r res1) res2 a) ->
          M res1 res2 a
-  Put : (1 _ : r) -> M res (r :: res) ()
-  Back : Member r res => (1 _ : r) -> M (Leftovers r res) res ()
+  Put : Member r res => (1 _ : r) -> M (Leftovers r res) res ()
+
+New : (1 _ : r) -> M res (r :: res) ()
+New = Put
 
 (>>=) : M res1 res2 a -> (a -> M res2 res3 b) -> M res1 res3 b
 (>>=) = Bind
@@ -55,8 +57,7 @@ namespace Handle
   openFile : (fp : String) -> (m : Mode) -> M res (Handle fp :: res) ()
   openFile fp m = do
     Right rawH <- Lift (openFile fp m)
-    Put (MkHandle rawH)
-    Pure ()
+    New (MkHandle rawH)
 
   export
   partial
@@ -64,7 +65,7 @@ namespace Handle
   readLine fp = do
     With (Handle fp) $ \(MkHandle rawH) => do
       Right str <- Lift (fGetLine rawH)
-      Back (MkHandle rawH)
+      Put (MkHandle rawH)
       Pure str
 
   export
@@ -95,8 +96,7 @@ runM (Bind m f) vs k = runM m vs (\ ws, a => runM (f a) ws k)
 runM (With r f) vs k =
   let (r # ws) = remove vs in
   runM (f r) ws k
-runM (Put r) vs k = k (r # vs) ()
-runM (Back r) vs k = k (insert (r # vs)) ()
+runM (Put r) vs k = k (insert (r # vs)) ()
 
 runEFF : (1 e : EFF a) -> IO a
 runEFF m = run (runM m () (\ (), a => pure a))
