@@ -1,0 +1,17 @@
+package freer
+
+opts = "-p contrib"
+
+modules
+  = Freer.Section3p1
+  , Freer.Section2p4
+  , Freer.Section6
+  , Freer.Section2p5
+  , Freer.Section2p1
+  , Freer.Section2p3
+  , Freer.Examples
+  , Freer.Section2p2
+  , Freer.Section3p2
+  , Freer.Section5
+  , Relation.Binary.Closure.Transitive
+  , Freer
