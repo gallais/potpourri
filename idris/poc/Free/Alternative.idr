@@ -1,5 +1,6 @@
 module Free.Alternative
 
+import Data.List
 import Data.List1
 import Free.Common
 
@@ -46,49 +47,78 @@ choice (t :: ts) = Bind (t ::: ts) BNil
 record Alts (m : Pred Type) (j : Type) where
   constructor MkAlts
   {0 i : Type}
-  alternatives : List (Free m i)
+  alternatives : List1 (Free m i)
   continuation : FCont m i j
 
-noAlts : Alts m i
-noAlts = MkAlts {i} [] FNil
+(::) : (List (Free m i), FCont m i j) ->
+       List (Alts m j) -> List (Alts m j)
+([], _)        :: alts = alts
+((m :: ms), k) :: alts = MkAlts (m ::: ms) k :: alts
 
 fold : (alg : {0 a : Type} -> m a -> a) ->
        (Free m a -> Maybe a)
-fold alg t = freeK t FNil where
+fold alg t = freeK t [] FNil where
 
-  cont   : i -> FCont m i j -> Maybe j
-  freeK  : Free m i -> FCont m i j -> Maybe j
-  freeKs : Free m i -> Alts m j -> FCont m i j -> Maybe j
-  first  : Alts m j -> Maybe j
+  cont   : i -> List (Alts m j) -> FCont m i j -> Maybe j
+  freeK : Free m i -> List (Alts m j) -> FCont m i j -> Maybe j
+  first  : List (Alts m j) -> Maybe j
 
-  cont i FNil = pure i
-  cont i (f :> fs) = assert_total $ freeK (f i) fs
+  cont i alts FNil = Just i
+  cont i alts (f :> fs) = assert_total $ freeK (f i) alts fs
 
-  freeK m k = freeKs m noAlts k
+  freeK (Pure a)             alts k = cont a alts k
+  freeK Fail                 alts k = first alts
+  freeK (Lift m)             alts k = cont (alg m) alts k
+  freeK (Bind (m ::: ms) fs) alts k
+    = let k = fs <>> k in
+      freeK m ((ms, k) :: alts) k
 
-  freeKs (Pure a)             alts k = cont a k
-  freeKs Fail                 alts k = first alts
-  freeKs (Lift m)             alts k = cont (alg m) k
-  freeKs (Bind (m ::: ms) fs) alts k
-    = let k = fs <>> k in freeKs m (MkAlts ms k) k
+  first [] = Nothing
+  first (MkAlts (m ::: ms) k :: alts)
+    = assert_total $ freeK m ((ms, k) :: alts) k
 
-  first (MkAlts [] _) = Nothing
-  first (MkAlts (m :: ms) k)
-    = assert_total $ freeKs m (MkAlts ms k) k
-
-{-
 homo : Monad n =>
        (f : {0 a : Type} -> m a -> n a) ->
-       (Free m a -> n a)
-homo f t = freeK t FNil where
+       (Free m a -> n (Maybe a))
+homo f t = freeK t [] FNil where
 
-  cont  : i -> FCont m i j -> n j
-  freeK : Free m i -> FCont m i j -> n j
+  cont   : i -> List (Alts m j) -> FCont m i j -> n (Maybe j)
+  freeK  : Free m i -> List (Alts m j) -> FCont m i j -> n (Maybe j)
+  first  : List (Alts m j) -> n (Maybe j)
 
-  cont i FNil      = pure i
-  cont i (f :> fs) = assert_total $ freeK (f i) fs
+  cont i alts FNil      = pure (Just i)
+  cont i alts (f :> fs) = assert_total $ freeK (f i) alts fs
 
-  freeK (Pure a)    k = cont a k
-  freeK (Lift m)    k = f m >>= \ x => cont x k
-  freeK (Bind m fs) k = freeK m (fs <>> k)
--}
+  freeK (Pure a)             alts k = cont a alts k
+  freeK Fail                 alts k = first alts
+  freeK (Lift m)             alts k = f m >>= \ x => cont x alts k
+  freeK (Bind (m ::: ms) fs) alts k
+    = let k = fs <>> k in
+      freeK m ((ms,k) :: alts) k
+
+  first [] = pure Nothing
+  first (MkAlts (m ::: ms) k :: alts)
+    = assert_total $ freeK m ((ms, k) :: alts) k
+
+--------------------------------------------------------------
+-- Example
+
+data Eff : Type -> Type where
+  Get      : Eff Nat
+  PutStrLn : String -> Eff ()
+
+prog : Free Eff ()
+prog = sequence_ (replicate 3 printInput)
+   <|> Lift (PutStrLn "Failed!")
+
+  where
+
+  printInput : Free Eff ()
+  printInput = do
+    n <- Lift Get
+    if n == Z then Fail else Lift (PutStrLn (show n))
+
+run : IO ()
+run = ignore $ flip homo prog $ \case
+  Get          => length <$> getLine
+  (PutStrLn x) => putStrLn x
