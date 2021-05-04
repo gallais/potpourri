@@ -63,7 +63,23 @@ fold alg t = freeK t FNil where
   freeK : Free m i -> FCont m i j -> j
 
   cont i FNil = i
-  cont i (f :> fs) = freeK (f i) fs
+  cont i (f :> fs) = assert_total $ freeK (f i) fs
 
-  freeK (Pure a) k = assert_total (cont a k)
-  freeK (Bind m fs) k = assert_total (cont (alg m) (fs <>> k))
+  freeK (Pure a)    k = cont a k
+  freeK (Bind m fs) k = cont (alg m) (fs <>> k)
+
+homo : Monad n =>
+       (f : {0 a : Type} -> m a -> n a) ->
+       (Free m a -> n a)
+homo f t = freeK t FNil where
+
+  cont  : i -> FCont m i j -> n j
+  freeK : Free m i -> FCont m i j -> n j
+
+  cont i FNil      = pure i
+  cont i (f :> fs) = assert_total $ freeK (f i) fs
+
+  freeK (Pure a)    k = cont a k
+  freeK (Bind m fs) k
+    = do x <- f m
+         cont x (fs <>> k)
