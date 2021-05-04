@@ -23,9 +23,6 @@ infixr 3 <>>
 BNil <>> gs = gs
 (fs :< f) <>> gs = fs <>> (f :> gs)
 
-reverse : Bwd r i j -> Fwd r i j
-reverse fs = fs <>> FNil
-
 Kleisli : Pred Type -> Rel Type
 Kleisli m a b = a -> m b
 
