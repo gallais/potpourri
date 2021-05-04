@@ -8,23 +8,23 @@ Pred a = a -> Type
 Rel : Type -> Type
 Rel a = a -> a -> Type
 
-infixr 5 <|
+infixr 5 :>
 data Fwd : Rel a -> Rel a where
   FNil : Fwd r i i
-  (<|) : {0 r : Rel a} -> r i j -> Fwd r j k -> Fwd r i k
+  (:>) : {0 r : Rel a} -> r i j -> Fwd r j k -> Fwd r i k
 
-infixl 5 |>
+infixl 5 :<
 data Bwd : Rel a -> Rel a where
   BNil : Bwd r i i
-  (|>) : {0 r : Rel a} -> Bwd r i j -> r j k -> Bwd r i k
+  (:<) : {0 r : Rel a} -> Bwd r i j -> r j k -> Bwd r i k
 
-infixr 3 ><<
-(><<) : Bwd r i j -> Fwd r j k -> Fwd r i k
-BNil ><< gs = gs
-(fs |> f) ><< gs = fs ><< (f <| gs)
+infixr 3 <>>
+(<>>) : Bwd r i j -> Fwd r j k -> Fwd r i k
+BNil <>> gs = gs
+(fs :< f) <>> gs = fs <>> (f :> gs)
 
 reverse : Bwd r i j -> Fwd r i j
-reverse fs = fs ><< FNil
+reverse fs = fs <>> FNil
 
 Kleisli : Pred Type -> Rel Type
 Kleisli m a b = a -> m b
@@ -42,7 +42,7 @@ BCont m = Bwd (Kleisli (Free m))
 
 Functor (Free m) where
   map f (Pure x) = Pure (f x)
-  map f (Bind m fs) = Bind m (fs |> (Pure . f))
+  map f (Bind m fs) = Bind m (fs :< (Pure . f))
 
 fold : (alg : {0 a : Type} -> m a -> a) ->
        (Free m a -> a)
@@ -52,7 +52,7 @@ fold alg t = freeK t FNil where
   freeK : Free m i -> FCont m i j -> j
 
   cont i FNil = i
-  cont i (f <| fs) = freeK (f i) fs
+  cont i (f :> fs) = freeK (f i) fs
 
   freeK (Pure a) k = assert_total (cont a k)
-  freeK (Bind m fs) k = freeK m (fs ><< k)
+  freeK (Bind m fs) k = freeK m (fs <>> k)
