@@ -1,5 +1,6 @@
 module Free.Monad
 
+import Data.List
 import Free.Common
 
 %default total
@@ -59,3 +60,25 @@ homo f t = freeK t FNil where
   freeK (Pure a)    k = cont a k
   freeK (Lift m)    k = f m >>= \ x => cont x k
   freeK (Bind m fs) k = freeK m (fs <>> k)
+
+
+--------------------------------------------------------------
+-- Example
+
+
+data Eff : Type -> Type where
+  Get      : Eff Nat
+  PutStrLn : String -> Eff ()
+
+prog : Free Eff ()
+prog = sequence_ (replicate 3 printInput) where
+
+  printInput : Free Eff ()
+  printInput = do
+    n <- Lift Get
+    Lift (PutStrLn (show n))
+
+run : IO ()
+run = flip homo prog $ \case
+  Get          => length <$> getLine
+  (PutStrLn x) => putStrLn x
