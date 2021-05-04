@@ -32,18 +32,19 @@ BCont : Pred Type -> Rel Type
 
 data Free : Pred Type -> Pred Type where
   Pure : a -> Free m a
-  Bind : m a -> BCont m a b -> Free m b
+  Lift : m a -> Free m a
+  Bind : Free m a -> BCont m a b -> Free m b
 
 FCont m = Fwd (Kleisli (Free m))
 BCont m = Bwd (Kleisli (Free m))
 
 bind : Free m a -> (a -> Free m b) -> Free m b
 bind (Pure a)     f = f a
+bind (Lift m)     f = Bind (Lift m) (BNil :< f)
 bind (Bind act k) f = Bind act (k :< f)
 
 Functor (Free m) where
-  map f (Pure x) = Pure (f x)
-  map f (Bind m fs) = Bind m (fs :< (Pure . f))
+  map f t = bind t (Pure . f)
 
 Applicative (Free m) where
   pure = Pure
@@ -63,7 +64,8 @@ fold alg t = freeK t FNil where
   cont i (f :> fs) = assert_total $ freeK (f i) fs
 
   freeK (Pure a)    k = cont a k
-  freeK (Bind m fs) k = cont (alg m) (fs <>> k)
+  freeK (Lift m)    k = cont (alg m) k
+  freeK (Bind m fs) k = freeK m (fs <>> k)
 
 homo : Monad n =>
        (f : {0 a : Type} -> m a -> n a) ->
@@ -77,6 +79,5 @@ homo f t = freeK t FNil where
   cont i (f :> fs) = assert_total $ freeK (f i) fs
 
   freeK (Pure a)    k = cont a k
-  freeK (Bind m fs) k
-    = do x <- f m
-         cont x (fs <>> k)
+  freeK (Lift m)    k = f m >>= \ x => cont x k
+  freeK (Bind m fs) k = freeK m (fs <>> k)
