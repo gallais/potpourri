@@ -109,7 +109,9 @@ data Eff : Type -> Type where
 
 prog : Free Eff ()
 prog = sequence_ (replicate 3 printInput)
-   <|> Lift (PutStrLn "Failed!")
+   <|> (Lift (PutStrLn "Failed!") >> Fail)
+   <|> Lift (PutStrLn "Ouch: error in the error handler!")
+   <|> Lift (PutStrLn "This better not show up!")
 
   where
 
