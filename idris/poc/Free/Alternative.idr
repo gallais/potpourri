@@ -2,6 +2,7 @@ module Free.Alternative
 
 import Data.List
 import Data.List1
+import Data.Maybe
 import Free.Common
 
 %default total
@@ -47,35 +48,33 @@ choice (t :: ts) = Bind (t ::: ts) BNil
 record Alts (m : Pred Type) (j : Type) where
   constructor MkAlts
   {0 i : Type}
-  alternatives : List1 (Free m i)
+  alternatives : List (Free m i)
   continuation : FCont m i j
-
-(::) : (List (Free m i), FCont m i j) ->
-       List (Alts m j) -> List (Alts m j)
-([], _)        :: alts = alts
-((m :: ms), k) :: alts = MkAlts (m ::: ms) k :: alts
 
 fold : (alg : {0 a : Type} -> m a -> a) ->
        (Free m a -> Maybe a)
 fold alg t = freeK t [] FNil where
 
-  cont   : i -> List (Alts m j) -> FCont m i j -> Maybe j
+  cont  : i -> List (Alts m j) -> FCont m i j -> Maybe j
   freeK : Free m i -> List (Alts m j) -> FCont m i j -> Maybe j
-  first  : List (Alts m j) -> Maybe j
+  first : List (Alts m j) -> Maybe j
 
   cont i alts FNil = Just i
-  cont i alts (f :> fs) = assert_total $ freeK (f i) alts fs
+  cont i alts (f :> fs) =
+    let alts = fromMaybe [] (tail' alts) in
+    assert_total $ freeK (f i) alts fs
 
   freeK (Pure a)             alts k = cont a alts k
   freeK Fail                 alts k = first alts
   freeK (Lift m)             alts k = cont (alg m) alts k
   freeK (Bind (m ::: ms) fs) alts k
     = let k = fs <>> k in
-      freeK m ((ms, k) :: alts) k
+      freeK m (MkAlts ms k :: alts) k
 
   first [] = Nothing
-  first (MkAlts (m ::: ms) k :: alts)
-    = assert_total $ freeK m ((ms, k) :: alts) k
+  first (MkAlts [] k :: alts) = Nothing
+  first (MkAlts (m :: ms) k :: alts)
+    = assert_total $ freeK m (MkAlts ms k :: alts) k
 
 homo : Monad n =>
        (f : {0 a : Type} -> m a -> n a) ->
@@ -87,18 +86,21 @@ homo f t = freeK t [] FNil where
   first  : List (Alts m j) -> n (Maybe j)
 
   cont i alts FNil      = pure (Just i)
-  cont i alts (f :> fs) = assert_total $ freeK (f i) alts fs
+  cont i alts (f :> fs) =
+    let alts = fromMaybe [] (tail' alts) in
+    assert_total $ freeK (f i) alts fs
 
   freeK (Pure a)             alts k = cont a alts k
   freeK Fail                 alts k = first alts
   freeK (Lift m)             alts k = f m >>= \ x => cont x alts k
   freeK (Bind (m ::: ms) fs) alts k
     = let k = fs <>> k in
-      freeK m ((ms,k) :: alts) k
+      freeK m (MkAlts ms k :: alts) k
 
   first [] = pure Nothing
-  first (MkAlts (m ::: ms) k :: alts)
-    = assert_total $ freeK m ((ms, k) :: alts) k
+  first (MkAlts [] k :: alts) = pure Nothing
+  first (MkAlts (m :: ms) k :: alts)
+    = assert_total $ freeK m (MkAlts ms k :: alts) k
 
 --------------------------------------------------------------
 -- Example
@@ -107,20 +109,43 @@ data Eff : Type -> Type where
   Get      : Eff Nat
   PutStrLn : String -> Eff ()
 
+putStrLn : String -> Free Eff ()
+putStrLn = Lift . PutStrLn
+
+fail : String -> Free Eff a
+fail err = do
+  putStrLn err
+  Fail
+
+guard : Bool -> Free Eff ()
+guard b = if b then Pure () else Fail
+
 prog : Free Eff ()
 prog = sequence_ (replicate 3 printInput)
-   <|> (Lift (PutStrLn "Failed!") >> Fail)
-   <|> Lift (PutStrLn "Ouch: error in the error handler!")
-   <|> Lift (PutStrLn "This better not show up!")
+   <|> fail "Failed!"
+   <|> putStrLn "Ouch: error in the error handler!"
+   <|> putStrLn "This better not show up!"
 
   where
 
   printInput : Free Eff ()
   printInput = do
     n <- Lift Get
-    if n == Z then Fail else Lift (PutStrLn (show n))
+    guard (n /= Z)
+    putStrLn (show n)
 
-run : IO ()
-run = ignore $ flip homo prog $ \case
+echo : Nat -> Free Eff Nat
+echo n = do
+  putStrLn ("Passing " ++ show n)
+  pure n
+
+nested : Free Eff ()
+nested = do n <- (fail "Not here" <|> echo Z <|> echo (S Z))
+            if n /= Z
+              then putStrLn (show n)
+              else fail "No backtracking in the first bind"
+
+run : Free Eff () -> IO ()
+run prog = ignore $ flip homo prog $ \case
   Get          => length <$> getLine
   (PutStrLn x) => putStrLn x
