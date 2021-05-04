@@ -11,10 +11,6 @@ import Relation.Binary.Closure.Transitive
 mutual
 
   public export
-  Arr : List (Type -> Type) -> Rel Type
-  Arr ts a b = a -> Eff ts b
-
-  public export
   Arrs : List (Type -> Type) -> Rel Type
   Arrs ts a b = Closure (Arr ts) a b
 
@@ -22,6 +18,10 @@ mutual
   data Eff : (ts : List (Type -> Type)) -> (Type -> Type) where
     Pure : a -> Eff ts a
     Impure : Union ($ v) ts -> Arrs ts v a -> Eff ts a
+
+  public export
+  Arr : List (Type -> Type) -> Rel Type
+  Arr ts a b = a -> Eff ts b
 
 ------------------------------------------------------------------------
 -- Implementations
