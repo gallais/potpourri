@@ -1,30 +1,8 @@
-module Free
+module Free.Monad
+
+import Free.Common
 
 %default total
-
-Pred : Type -> Type
-Pred a = a -> Type
-
-Rel : Type -> Type
-Rel a = a -> a -> Type
-
-infixr 5 :>
-data Fwd : Rel a -> Rel a where
-  FNil : Fwd r i i
-  (:>) : {0 r : Rel a} -> r i j -> Fwd r j k -> Fwd r i k
-
-infixl 5 :<
-data Bwd : Rel a -> Rel a where
-  BNil : Bwd r i i
-  (:<) : {0 r : Rel a} -> Bwd r i j -> r j k -> Bwd r i k
-
-infixr 3 <>>
-(<>>) : Bwd r i j -> Fwd r j k -> Fwd r i k
-BNil <>> gs = gs
-(fs :< f) <>> gs = fs <>> (f :> gs)
-
-Kleisli : Pred Type -> Rel Type
-Kleisli m a b = a -> m b
 
 data Free : Pred Type -> Pred Type
 FCont : Pred Type -> Rel Type
