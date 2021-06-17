@@ -29,12 +29,13 @@ module Left where
 
 module Right where
 
-  Sets : ∀ n (ls : Levels n) → Set (Level.suc (⨆ n ls))
-  Tele : ∀ n {ls} → Sets n ls → Set (⨆ n ls)
+  -- Note that here the definitions do not need to be mutual
 
+  Sets : ∀ n (ls : Levels n) → Set (Level.suc (⨆ n ls))
   Sets zero    ls       = ⊤
   Sets (suc n) (l , ls) = Σ[ A ∈ Set l ] (A → Sets n ls)
 
+  Tele : ∀ n {ls} → Sets n ls → Set (⨆ n ls)
   Tele zero    _       = ⊤
   Tele (suc n) (A , Γ) = Σ[ a ∈ A ] (Tele n (Γ a))
 
