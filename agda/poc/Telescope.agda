@@ -1,9 +1,10 @@
 module poc.Telescope where
 
-import Level
-open import Data.Nat.Base
+open import Level using (_⊔_)
+open import Data.Nat.Base using (ℕ; zero; suc)
 open import Data.Product
 open import Data.Unit.Polymorphic.Base
+open import Function.Base using (_∘_)
 open import Function.Nary.NonDependent.Base using (Levels; ⨆)
 
 module Left where
@@ -22,10 +23,16 @@ module Left where
   EqSets : ∀ ℓ → Sets 3 _
   EqSets ℓ = ((_ , (λ _ → Set ℓ)) , proj₂) , proj₂ ∘ proj₁
 
+  Arrows : ∀  n {ls} → (Γ : Sets n ls) →
+           ∀ {r} (R : Tele n Γ → Set r) →
+           Set (r ⊔ ⨆ n ls)
+  Arrows zero    Γ       R = R _
+  Arrows (suc n) (Γ , A) R = Arrows n Γ λ γ → (a : A γ) → R (γ , a)
+
   open import Agda.Builtin.Equality
 
-  Eq : ∀ {ℓ} → Tele 3 (EqSets ℓ) → Set ℓ
-  Eq (((_ , A) , x) , y) = x ≡ y
+  Eq : ∀ {ℓ} → Arrows 3 (EqSets ℓ) (λ _ → Set ℓ)
+  Eq A = _≡_
 
 module Right where
 
@@ -39,6 +46,12 @@ module Right where
   Tele zero    _       = ⊤
   Tele (suc n) (A , Γ) = Σ[ a ∈ A ] (Tele n (Γ a))
 
+  Arrows : ∀  n {ls} → (Γ : Sets n ls) →
+           ∀ {r} (R : Tele n Γ → Set r) →
+           Set (r ⊔ ⨆ n ls)
+  Arrows zero    Γ       R = R _
+  Arrows (suc n) (A , Γ) R = (a : A) → Arrows n (Γ a) (R ∘ (a ,_))
+
   open import Function.Base using (_∘_)
 
   EqSets : ∀ ℓ → Sets 3 _
@@ -46,5 +59,5 @@ module Right where
 
   open import Agda.Builtin.Equality
 
-  Eq : ∀ {ℓ} → Tele 3 (EqSets ℓ) → Set ℓ
-  Eq (A , x , y , _) = x ≡ y
+  Eq : ∀ {ℓ} → Arrows 3 (EqSets ℓ) (λ _ → Set ℓ)
+  Eq A = _≡_
