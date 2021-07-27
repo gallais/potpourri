@@ -21,7 +21,7 @@ modules = AlmostFull
 -- name of executable
 -- executable =
 -- opts =
--- sourcedir =
+sourcedir = "src/"
 -- builddir =
 -- outputdir =
 
