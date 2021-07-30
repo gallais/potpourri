@@ -13,6 +13,8 @@ import Data.Fun
 import Data.Rel
 import Decidable.Decidable
 import Control.WellFounded
+import Data.Relation.Closure.Transitive
+import Data.Relation.Closure.ReflexiveTransitive
 
 %hide Data.Rel.Rel
 %hide DPair.DPair.bimap
@@ -166,3 +168,25 @@ almostFullFromWf @{wf} @{dec}
 ||| 2. The negation LT embeds into LTE
 AlmostFullLTE : AlmostFull LTE
 AlmostFullLTE = mapAlmostFull (\ a, b => notLTImpliesGTE) almostFullFromWf
+
+
+accessibleFromAF :
+  (p : WFT x) -> (v : x) ->
+  ((a, b : x) -> RTList t b v -> Not (TList t a b, rel b a)) ->
+  SecureBy rel p -> Accessible t v
+accessibleFromAF ZT      v prop sec
+  = Access $ \ w, twv => absurd (prop w v [] ([twv], sec v w))
+accessibleFromAF (SUP f) v prop sec
+  = Access $ \ w, twv =>
+    let prop' = \ a, b, tbw => uncurry $ \ tab, r =>
+                either (\ rba => prop a b (tbw ++ [twv]) (tab, rba))
+                       (\ rvb => prop b v [] (tbw ++ [twv], rvb))
+                       r
+    in accessibleFromAF (f v) w prop' (sec v)
+
+wellFoundedFromAF :
+  (p : WFT x) ->
+  ((a, b : x) -> Not (TList t a b, rel b a)) ->
+  SecureBy rel p -> (v : x) -> Accessible t v
+wellFoundedFromAF p prop sec v
+  = accessibleFromAF p v (\ a, b, _, p => prop a b p) sec
