@@ -315,11 +315,11 @@ seqUnaryAndAux :
 seqUnaryAndAux ZT q secp secq
   = forSecureBy q secq
   $ either Left
-  $ \ b => either Left (Right . (,b)) (secp _ _)
+  $ \ b => mapSnd (, b) (secp _ _)
 seqUnaryAndAux p@(SUP _) ZT secp secq
   = forSecureBy p secp
   $ either Left
-  $ \ a => either Left (Right . (a,)) (secq _ _)
+  $ \ a => mapSnd (a,) (secq _ _)
 seqUnaryAndAux p@(SUP f) q@(SUP g) secp secq = \ v =>
   let ih1  := seqUnaryAndAux (f v) q
                 (forSecureBy (f v) (secp v)
@@ -355,3 +355,61 @@ seqUnaryAnd p q secp secq
   $ seqUnaryAndAux {rel = Const Void} p q
      (mapSecureBy Right p secp)
      (mapSecureBy Right q secq)
+
+seq2 : (p, q : WFT x) -> WFT x
+seq2 ZT q = q
+seq2 p ZT = p
+seq2 p@(SUP f) q@(SUP g)
+  = SUP $ \ x => seq1 (seq2 (f x) q) (seq2 p (g x))
+
+seqBinaryAndAux :
+  (p, q : WFT x) ->
+  SecureBy (Or rel a) p ->
+  SecureBy (Or rel b) q ->
+  SecureBy (Or rel (And a b)) (p `seq2` q)
+seqBinaryAndAux ZT q secp secq
+  = forSecureBy q secq
+  $ either Left
+  $ \bxy => mapSnd (, bxy) (secp _ _)
+seqBinaryAndAux p@(SUP f) ZT secp secq
+  = forSecureBy p secp
+  $ either Left
+  $ \ axy => mapSnd (axy,) (secq _ _)
+seqBinaryAndAux p@(SUP f) q@(SUP g) secp secq = \ v =>
+  let ih1  := seqBinaryAndAux (f v) q
+                (forSecureBy (f v) (secp v)
+                  $ either (mapSnd Left) (Right . Right))
+                secq
+      ih2  := seqBinaryAndAux p (g v)
+                secp
+                (forSecureBy (g v) (secq v)
+                  $ either (mapSnd Left) (Right . Right))
+  in mapSecureBy (either (either Left (Right . Left)) (Right . Right)) ?
+   $ seqUnaryAndAux (seq2 (f v) q) (seq2 p (g v))
+       (forSecureBy ? ih1
+         $ either (Left . Left . Left)
+         $ Prelude.uncurry $ \ e, bx =>
+           either (\ ax => Left $ Left $ Right $ MkPair ax bx)
+                  (mapFst Right)
+                  e)
+       (forSecureBy ? ih2
+         $ either (Left . Left . Left)
+         $ Prelude.uncurry $ \ax, e =>
+           either (\ bx => Left $ Left $ Right $ MkPair ax bx)
+                  (mapFst Right)
+                  e)
+
+secureByIntersection :
+  (p, q : WFT x) ->
+  SecureBy a p ->
+  SecureBy b q ->
+  SecureBy (And a b) (p `seq2` q)
+secureByIntersection p q secp secq
+  = mapSecureBy (either absurd id) _
+  $ seqBinaryAndAux {rel = Const Void} p q
+     (mapSecureBy Right p secp)
+     (mapSecureBy Right q secq)
+
+almostFullIntersection : AlmostFull p -> AlmostFull q -> AlmostFull (And p q)
+almostFullIntersection (p ** secp) (q ** secq)
+  = (? ** secureByIntersection p q secp secq)
