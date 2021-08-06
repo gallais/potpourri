@@ -49,7 +49,7 @@ SecureBy rel (SUP f)
   -- * either find two related elements in the tail of the sequence
   -- * or be able to find an element related to it in the tail of the sequence
   -- That is to say the modified relation is secured by the subtree
-  = (a : x) -> SecureBy (\ b, c => Either (rel b c) (rel a b)) (f a)
+  = (a : x) -> SecureBy (Or rel (const . rel a)) (f a)
 
 ||| An almost full relation is one for which a securing tree exists
 0 AlmostFull : Rel x -> Type
@@ -61,17 +61,19 @@ AlmostFull rel = (p ** SecureBy rel p)
 
 ||| If a relation can be embedded into another then a tree securing the
 ||| tighter relation is also securing the other.
-mapSecureBy : {0 p, q : Rel x} -> ((a, b : x) -> p a b -> q a b) ->
+mapSecureBy : (p ~> q) ->
       (t : WFT x) -> SecureBy p t -> SecureBy q t
-mapSecureBy implies ZT      sec = \ a, b => implies a b (sec a b)
+mapSecureBy implies ZT      sec = \ a, b => implies (sec a b)
 mapSecureBy implies (SUP f) sec = \ a =>
-  let implies' = \ a, b => Prelude.bimap (implies _ _) (implies _ _) in
-  mapSecureBy implies' (f a) (sec a)
+  mapSecureBy (bimap implies implies) (f a) (sec a)
+
+forSecureBy : (t : WFT x) -> SecureBy p t ->
+              (p ~> q) -> SecureBy q t
+forSecureBy t sec f = mapSecureBy f t sec
 
 ||| If a relation can be embedded into another and if the tighter relation
 ||| is Almost full then so is the one it embeds into.
-mapAlmostFull : {0 p, q : Rel x} -> ((a, b : x) -> p a b -> q a b) ->
-                AlmostFull p -> AlmostFull q
+mapAlmostFull : (p ~> q) -> AlmostFull p -> AlmostFull q
 mapAlmostFull f (p ** sec) = (p ** mapSecureBy f p sec)
 
 ------------------------------------------------------------------------
@@ -137,14 +139,13 @@ secureFromAccFun :
 secureFromAccFun      (Access rec) w (No nprf) = \ a, b => Right (Right nprf)
 secureFromAccFun @{p} (Access rec) w (Yes prf) = \ a =>
   let p := secureFromAccFun (rec w prf) a (decide @{p} a w)
-      f := \a, b =>  bimap (bimap Left Left) (bimap Left Left)
-  in mapSecureBy f ? p
+  in mapSecureBy (bimap (bimap Left Left) (bimap Left Left)) ? p
 
 ||| The well founded tree associated to an element accessible wrt rel
 ||| is securing the relation rel
 secureFromAcc :
   (dec : Decidable 2 [x,x] rel) => {v : x} -> (acc : Accessible rel v) ->
-  SecureBy (\x, y => Either (Not (rel y x)) (Not (rel x v)))
+  SecureBy (Or (Not (flip rel)) (Not (\ x, y => rel x v)))
            (accessibleIsAlmostFull acc)
 secureFromAcc @{p} acc w = secureFromAccFun acc w (decide @{p} w v)
 
@@ -155,7 +156,7 @@ almostFullTree v = accessibleIsAlmostFull {rel} (wellFounded v)
 
 ||| The well founded tree associated to a well founded relation is securing it
 secureFromWf : (wf : WellFounded x rel) => (dec : Decidable 2 [x,x] rel) =>
-  SecureBy (\ x, y => Not (rel y x)) (SUP (almostFullTree @{wf} @{dec}))
+  SecureBy (Not (flip rel)) (SUP (almostFullTree @{wf} @{dec}))
 secureFromWf v = secureFromAcc (wellFounded v)
 
 ||| The negation of a well founded relation is Almost full
@@ -164,12 +165,11 @@ almostFullFromWf : WellFounded x rel => Decidable 2 [x,x] rel =>
 almostFullFromWf @{wf} @{dec}
   = (SUP (almostFullTree @{wf} @{dec}) ** secureFromWf @{wf} @{dec})
 
-
 ||| Example: LTE on natural numbers is Almost Full because
 ||| 1. LT is well founded
 ||| 2. The negation LT embeds into LTE
 AlmostFullLTE : AlmostFull LTE
-AlmostFullLTE = mapAlmostFull (\ a, b => notLTImpliesGTE) almostFullFromWf
+AlmostFullLTE = mapAlmostFull notLTImpliesGTE almostFullFromWf
 
 ------------------------------------------------------------------------
 -- Almostfull implies well founded for well quasi order (WQO)
@@ -204,15 +204,14 @@ wellFoundedFromAFWQO af v = wellFoundedFromAF af prop v where
   0 STRICT : Rel x
   STRICT x y = (rel x y, Not (rel y x))
 
-  tcontra : {a, b : x} -> TList STRICT a b -> Not (rel b a)
+  tcontra : TList STRICT ~> Not (flip rel)
   tcontra ((ray, nrya) :: rs) rba = nrya $ tlist (map fst rs ++ [rba])
 
-  prop : (a, b : x) -> Not (TList STRICT a b, rel b a)
+  prop : (a, b : x) -> Not (And (TList STRICT) (flip rel)) a b
   prop a b (ts, rba) = tcontra ts rba
 
 -- TODO: move to base's `Control.Wellfounded`
-map : ({x, y : a} -> p x y -> q x y) ->
-      {x : a} -> Accessible q x -> Accessible p x
+map : (p ~> q) -> {x : a} -> Accessible q x -> Accessible p x
 map f (Access rec) = Access $ \ y, pyx => map f (rec y (f pyx))
 
 ||| Example: LT on natural numbers is well founded because
@@ -227,7 +226,7 @@ wellFoundedLT n
 
 almostFullInduction :
   AlmostFull rel ->
-  ((x, y : a) -> Not (TList t x y, rel y x)) ->
+  ((x, y : a) -> Not (And (TList t) (flip rel)) x y) ->
   {p : a -> Type} ->
   (acc : (x : a) -> (ih : (y : a) -> t y x -> p y) -> p x) ->
   (v : a) -> p v
@@ -244,6 +243,115 @@ fib = almostFullInduction AlmostFullLTE inter $ \x, ih => case x of
 
   where
 
-    inter : (x, y : Nat) -> Not (TList LT x y, LTE y x)
+    inter : (x, y : Nat) -> Not (And (TList LT) GTE) x y
     inter x y (lts, lte) = succNotLTEpred
                          $ transitive {rel = LTE} (tlist lts) lte
+
+------------------------------------------------------------------------
+-- Almostfull is closed under unions
+------------------------------------------------------------------------
+
+secureByUnionL : (t : WFT x) -> SecureBy p t -> SecureBy (Or p q) t
+secureByUnionL = mapSecureBy Left
+
+almostFullUnionL : AlmostFull p -> AlmostFull (Or p q)
+almostFullUnionL (t ** sec) = (t ** secureByUnionL t sec)
+
+secureByUnionR : (t : WFT x) -> SecureBy q t -> SecureBy (Or p q) t
+secureByUnionR = mapSecureBy Right
+
+almostFullUnionR : AlmostFull q -> AlmostFull (Or p q)
+almostFullUnionR (t ** sec) = (t ** secureByUnionR t sec)
+
+almostFullUnion : Either (AlmostFull p) (AlmostFull q) -> AlmostFull (Or p q)
+almostFullUnion = either almostFullUnionL almostFullUnionR
+
+------------------------------------------------------------------------
+-- Almostfull is closed under intersections
+------------------------------------------------------------------------
+
+||| seq0 secures the intersection of nullary relations secured by p and q
+||| respectively
+seq0 : (p, q : WFT x) -> WFT x
+seq0 ZT      q = q
+seq0 (SUP f) q = SUP $ \ x => seq0 (f x) q
+
+seqNullaryAndAux : (p, q : WFT x) ->
+  SecureBy (Or rel (Const a)) p ->
+  SecureBy (Or rel (Const b)) q ->
+  SecureBy (Or rel (Const (a, b))) (p `seq0` q)
+seqNullaryAndAux ZT      q secp secq
+  = forSecureBy q secq
+  $ either Left
+  $ \ b => either Left (Right . (,b)) (secp _ _)
+seqNullaryAndAux (SUP f) q secp secq
+  = \ a => mapSecureBy (either (bimap Left Left) (Left . Right)) (seq0 (f a) q)
+  $ seqNullaryAndAux (f a) q
+     (mapSecureBy (either (mapFst Left) (mapFst Right)) (f a) (secp a))
+     (mapSecureBy (mapFst Left) q secq)
+
+seqNullaryAnd : (p, q : WFT x) ->
+  SecureBy (Const a) p ->
+  SecureBy (Const b) q ->
+  SecureBy (Const (a, b)) (p `seq0` q)
+seqNullaryAnd p q secp secq
+  = mapSecureBy (either absurd id) _
+  $ seqNullaryAndAux {rel = Const Void} p q
+     (mapSecureBy Right p secp)
+     (mapSecureBy Right q secq)
+
+seq1 : (p, q : WFT x) -> WFT x
+seq1 ZT q = q
+seq1 p ZT = p
+seq1 p@(SUP f) q@(SUP g)
+  = SUP (\ x => seq0 (seq1 (f x) q) (seq1 p (g x)))
+
+seqUnaryAndAux :
+  {0 a, b : x -> Type} ->
+  (p, q : WFT x) ->
+  SecureBy (Or rel (\ x, _ => a x)) p ->
+  SecureBy (Or rel (\ x, _ => b x)) q ->
+  SecureBy (Or rel (\ x, _ => (a x, b x))) (p `seq1` q)
+seqUnaryAndAux ZT q secp secq
+  = forSecureBy q secq
+  $ either Left
+  $ \ b => either Left (Right . (,b)) (secp _ _)
+seqUnaryAndAux p@(SUP _) ZT secp secq
+  = forSecureBy p secp
+  $ either Left
+  $ \ a => either Left (Right . (a,)) (secq _ _)
+seqUnaryAndAux p@(SUP f) q@(SUP g) secp secq = \ v =>
+  let ih1  := seqUnaryAndAux (f v) q
+                (forSecureBy (f v) (secp v)
+                  $ either (mapSnd Left) (Right . Right))
+                secq
+      ih2  := seqUnaryAndAux p (g v)
+                secp
+                (forSecureBy (g v) (secq v)
+                  $ either (mapSnd Left) (Right . Right))
+  in mapSecureBy (either (either Left (Right . Left)) (Right . Right)) ?
+   $ seqNullaryAndAux (seq1 (f v) q) (seq1 p (g v))
+       (forSecureBy ? ih1
+         $ either (Left . Left . Left)
+         $ Prelude.uncurry $ \ e, bx =>
+           either (\ ax => Left $ Left $ Right $ MkPair ax bx)
+                  (mapFst Right)
+                  e)
+       (forSecureBy ? ih2
+         $ either (Left . Left . Left)
+         $ Prelude.uncurry $ \ax, e =>
+           either (\ bx => Left $ Left $ Right $ MkPair ax bx)
+                  (mapFst Right)
+                  e)
+
+seqUnaryAnd :
+  {0 a, b : x -> Type} ->
+  (p, q : WFT x) ->
+  SecureBy (\ x, _ => a x) p ->
+  SecureBy (\ x, _ => b x) q ->
+  SecureBy (\ x, _ => (a x, b x)) (p `seq1` q)
+seqUnaryAnd p q secp secq
+  = mapSecureBy (either absurd id) _
+  $ seqUnaryAndAux {rel = Const Void} p q
+     (mapSecureBy Right p secp)
+     (mapSecureBy Right q secq)
