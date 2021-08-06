@@ -37,6 +37,34 @@ export
 concat : TList (TList r) ~> TList r
 concat (xs :: xss) = xs ++ concat (map forget xss)
 
+export
+gmap : (f : a -> b) -> p ~> (q `on` f) -> TList p ~> (TList q `on` f)
+gmap _ f (x :: xs) = f x :: gmap _ f xs
+
+export
+map : (p ~> q) -> TList p ~> TList q
+map = gmap id
+
+export
+foldr : ({x, y, z : a} -> p x y -> q y z -> q x z) ->
+        ({x, y : a} -> p x y -> q x y) ->
+        TList p ~> q
+foldr c n (pxy :: ps) = go pxy ps where
+
+  go : {x, y, z : a} -> p x y -> RTList p y z -> q x z
+  go pxy [] = n pxy
+  go pxy (pyz :: ps) = c pxy (go pyz ps)
+
+export
+foldl : ({x, y, z : a} -> q x y -> p y z -> q x z) ->
+        ({x, y : a} -> p x y -> q x y) ->
+        TList p ~> q
+foldl c n (pxy :: ps) = foldl {q} c (n pxy) ps
+
+export
+tlist : Transitive a p => TList p ~> p
+tlist = foldr (transitive {rel = p}) id
+
 {-
 export
 gmap : (f : a -> b) -> p ~> (q `on` f) -> TList p ~> (TList q `on` f)

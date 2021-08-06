@@ -33,6 +33,24 @@ export
 map : (p ~> q) -> RTList p ~> RTList q
 map = gmap id
 
+export
+foldr : ({x, y, z : a} -> p x y -> q y z -> q x z) ->
+        ({x : a} -> q x x) ->
+        RTList p ~> q
+foldr c n []          = n
+foldr c n (pxy :: ps) = c pxy (foldr {q} c n ps)
+
+export
+foldl : {0 p, q : Rel a} ->
+        ({x, y, z : a} -> q x y -> p y z -> q x z) ->
+        {x, y, z : a} -> q x y -> RTList p y z -> q x z
+foldl c n []          = n
+foldl c n (pxy :: ps) = foldl {q} c (c n pxy) ps
+
+export
+rtlist : (Reflexive a p, Transitive a p) => RTList p ~> p
+rtlist = foldr {q = p} (transitive {rel = p}) (reflexive {rel = p})
+
 {-
 export
 reverseAcc : {y : a} -> (r ~> flip s) ->

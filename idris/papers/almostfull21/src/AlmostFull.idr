@@ -8,11 +8,13 @@ module AlmostFull
 import Data.DPair
 import Data.Nat
 import Data.Nat.Order
+import Data.Nat.Order.Strict
 import Data.Vect
 import Data.Fun
 import Data.Rel
 import Decidable.Decidable
 import Control.WellFounded
+import Data.Relation
 import Data.Relation.Closure.Transitive
 import Data.Relation.Closure.ReflexiveTransitive
 
@@ -73,7 +75,7 @@ mapAlmostFull : {0 p, q : Rel x} -> ((a, b : x) -> p a b -> q a b) ->
 mapAlmostFull f (p ** sec) = (p ** mapSecureBy f p sec)
 
 ------------------------------------------------------------------------
--- Properties
+-- Decidable & well founded implies negation is almost full
 ------------------------------------------------------------------------
 
 ||| A witness is a proof that we can find two indices bigger than the given
@@ -169,6 +171,9 @@ almostFullFromWf @{wf} @{dec}
 AlmostFullLTE : AlmostFull LTE
 AlmostFullLTE = mapAlmostFull (\ a, b => notLTImpliesGTE) almostFullFromWf
 
+------------------------------------------------------------------------
+-- Almostfull implies well founded for well quasi order (WQO)
+------------------------------------------------------------------------
 
 accessibleFromAF :
   (p : WFT x) -> (v : x) ->
@@ -185,8 +190,60 @@ accessibleFromAF (SUP f) v prop sec
     in accessibleFromAF (f v) w prop' (sec v)
 
 wellFoundedFromAF :
-  (p : WFT x) ->
+  AlmostFull rel ->
   ((a, b : x) -> Not (TList t a b, rel b a)) ->
-  SecureBy rel p -> (v : x) -> Accessible t v
-wellFoundedFromAF p prop sec v
+  (v : x) -> Accessible t v
+wellFoundedFromAF (p ** sec) prop v
   = accessibleFromAF p v (\ a, b, _, p => prop a b p) sec
+
+wellFoundedFromAFWQO :
+  Transitive x rel => AlmostFull rel ->
+  (v : x) -> Accessible (\ x, y => (rel x y, Not (rel y x))) v
+wellFoundedFromAFWQO af v = wellFoundedFromAF af prop v where
+
+  0 STRICT : Rel x
+  STRICT x y = (rel x y, Not (rel y x))
+
+  tcontra : {a, b : x} -> TList STRICT a b -> Not (rel b a)
+  tcontra ((ray, nrya) :: rs) rba = nrya $ tlist (map fst rs ++ [rba])
+
+  prop : (a, b : x) -> Not (TList STRICT a b, rel b a)
+  prop a b (ts, rba) = tcontra ts rba
+
+-- TODO: move to base's `Control.Wellfounded`
+map : ({x, y : a} -> p x y -> q x y) ->
+      {x : a} -> Accessible q x -> Accessible p x
+map f (Access rec) = Access $ \ y, pyx => map f (rec y (f pyx))
+
+||| Example: LT on natural numbers is well founded because
+||| 1. LTE is almost full
+||| 2. LT embeds into LTE & the negation of its symmetric
+wellFoundedLT : (n : Nat) -> Accessible LT n
+wellFoundedLT n
+  = map (\ ltxy => (lteSuccLeft ltxy
+                   , succNotLTEpred . transitive {rel = LTE} ltxy)
+        )
+  $ wellFoundedFromAFWQO AlmostFullLTE n
+
+almostFullInduction :
+  AlmostFull rel ->
+  ((x, y : a) -> Not (TList t x y, rel y x)) ->
+  {p : a -> Type} ->
+  (acc : (x : a) -> (ih : (y : a) -> t y x -> p y) -> p x) ->
+  (v : a) -> p v
+almostFullInduction af prop acc v
+  = accInd acc v (wellFoundedFromAF af prop v)
+
+
+fib : Nat -> Nat
+fib = almostFullInduction AlmostFullLTE inter $ \x, ih => case x of
+  0       => 1
+  1       => 1
+  S (S n) => ih (S n) (reflexive {rel = LTE})
+           + ih n (lteSuccRight $ reflexive {rel = LTE})
+
+  where
+
+    inter : (x, y : Nat) -> Not (TList LT x y, LTE y x)
+    inter x y (lts, lte) = succNotLTEpred
+                         $ transitive {rel = LTE} (tlist lts) lte
