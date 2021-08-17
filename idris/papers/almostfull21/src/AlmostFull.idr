@@ -6,13 +6,16 @@
 module AlmostFull
 
 import Data.DPair
+import Data.List.Elem
 import Data.Nat
 import Data.Nat.Order
 import Data.Nat.Order.Strict
 import Data.Vect
 import Data.Fun
 import Data.Rel
+import Decidable.Order.Strict
 import Decidable.Decidable
+import Decidable.Equality
 import Control.WellFounded
 import Data.Relation
 import Data.Relation.Closure.Transitive
@@ -112,7 +115,6 @@ noInfiniteChain :
 noInfiniteChain (t ** sec) seq
   = secured_noInfiniteChain t seq Z sec
 
-
 -- auxiliary function
 accessibleIsAlmostFullFun :
   Decidable 2 [x,x] rel => {v : x} -> Accessible rel v ->
@@ -165,11 +167,14 @@ almostFullFromWf : WellFounded x rel => Decidable 2 [x,x] rel =>
 almostFullFromWf @{wf} @{dec}
   = (SUP (almostFullTree @{wf} @{dec}) ** secureFromWf @{wf} @{dec})
 
+------------------------------------------------------------------------
+-- Example
+
 ||| Example: LTE on natural numbers is Almost Full because
 ||| 1. LT is well founded
 ||| 2. The negation LT embeds into LTE
-AlmostFullLTE : AlmostFull LTE
-AlmostFullLTE = mapAlmostFull notLTImpliesGTE almostFullFromWf
+almostFullLTE : AlmostFull LTE
+almostFullLTE = mapAlmostFull notLTImpliesGTE almostFullFromWf
 
 ------------------------------------------------------------------------
 -- Almostfull implies well founded for well quasi order (WQO)
@@ -214,6 +219,9 @@ wellFoundedFromAFWQO af v = wellFoundedFromAF af prop v where
 map : (p ~> q) -> {x : a} -> Accessible q x -> Accessible p x
 map f (Access rec) = Access $ \ y, pyx => map f (rec y (f pyx))
 
+------------------------------------------------------------------------
+-- Example
+
 ||| Example: LT on natural numbers is well founded because
 ||| 1. LTE is almost full
 ||| 2. LT embeds into LTE & the negation of its symmetric
@@ -222,7 +230,11 @@ wellFoundedLT n
   = map (\ ltxy => (lteSuccLeft ltxy
                    , succNotLTEpred . transitive {rel = LTE} ltxy)
         )
-  $ wellFoundedFromAFWQO AlmostFullLTE n
+  $ wellFoundedFromAFWQO almostFullLTE n
+
+------------------------------------------------------------------------
+-- Induction principle for almost full relations
+------------------------------------------------------------------------
 
 almostFullInduction :
   AlmostFull rel ->
@@ -233,9 +245,11 @@ almostFullInduction :
 almostFullInduction af prop acc v
   = accInd acc v (wellFoundedFromAF af prop v)
 
+------------------------------------------------------------------------
+-- Example
 
 fib : Nat -> Nat
-fib = almostFullInduction AlmostFullLTE inter $ \x, ih => case x of
+fib = almostFullInduction almostFullLTE inter $ \x, ih => case x of
   0       => 1
   1       => 1
   S (S n) => ih (S n) (reflexive {rel = LTE})
@@ -413,3 +427,158 @@ secureByIntersection p q secp secq
 almostFullIntersection : AlmostFull p -> AlmostFull q -> AlmostFull (And p q)
 almostFullIntersection (p ** secp) (q ** secq)
   = (? ** secureByIntersection p q secp secq)
+
+------------------------------------------------------------------------
+-- Almostfull is closed under `on`
+------------------------------------------------------------------------
+
+contra : (y -> x) -> WFT x -> WFT y
+contra f ZT = ZT
+contra f (SUP w) = SUP $ \ y => contra f (w (f y))
+
+secureByContra : (f : y -> x) -> (p : WFT x) ->
+                 SecureBy rel p -> SecureBy (rel `on` f) (contra f p)
+secureByContra f ZT      sec = \a, b => sec (f a) (f b)
+secureByContra f (SUP g) sec = \ a => secureByContra f (g (f a)) (sec (f a))
+
+almostFullOn : (f : y -> x) -> AlmostFull rel -> AlmostFull (rel `on` f)
+almostFullOn f (p ** sec) = (? ** secureByContra f p sec)
+
+------------------------------------------------------------------------
+-- Example
+
+TFlip : Rel (Nat, Nat)
+TFlip (x1,x2) (y1,y2) = (x1 `LTE` y2, x2 `LT` y1)
+
+RFlip : Rel (Nat, Nat)
+RFlip = LTE `on` (\x => fst x + snd x)
+
+SFlip : Rel (Nat, Nat)
+SFlip = LT `on` (\ x => fst x + snd x)
+
+Transitive (Nat, Nat) SFlip where
+  transitive = transitive {rel = LT}
+
+TtoS : {x, y : (Nat, Nat)} -> TFlip x y -> SFlip x y
+TtoS {x = (x1, x2)} {y = (y1, y2)} t
+  = rewrite plusCommutative x1 x2 in
+    plusLteMonotone (snd t) (fst t)
+
+AlmostFullRFlip : AlmostFull RFlip
+AlmostFullRFlip = almostFullOn ? almostFullLTE
+
+||| The function we want to write without assert_total
+flip1 : (Nat, Nat) -> Nat
+flip1 (0, _) = 1
+flip1 (_, 0) = 1
+flip1 (S x, S y) = assert_total $ flip1 (S y, x)
+
+||| The almostFullInduction version
+flip1' : (Nat, Nat) -> Nat
+flip1' = almostFullInduction AlmostFullRFlip {p = \_=> Nat} prf rec where
+
+  rec : (x : (Nat, Nat)) ->
+        ((y : (Nat, Nat)) -> TFlip y x -> Nat) -> Nat
+  rec (0, _)     ih = 1
+  rec (_, 0)     ih = 1
+  rec (S x, S y) ih = ih (S y, x) (reflexive {rel = LTE}, reflexive {rel = LTE})
+
+  prf : (x, y : (Nat, Nat)) -> Not (TList TFlip x y, RFlip y x)
+  prf (x1, x2) (y1, y2) (txys, ryx) =
+    let rxy = tlist $ map {q = SFlip} TtoS txys in
+    let p = transitive {rel = LTE} rxy ryx in
+    -- weird workaround
+    let el = irreflexive {rel = LT} in el p
+
+------------------------------------------------------------------------
+-- Almostfull is true of finite types
+------------------------------------------------------------------------
+
+boolTree : WFT Bool
+boolTree = SUP $ \ x => SUP $ \ y => ZT
+
+secureByBool : SecureBy (===) AlmostFull.boolTree
+secureByBool False False c     d = Right (Right Refl)
+secureByBool False True  False d = Left (Right Refl)
+secureByBool False True  True  d = Right (Left Refl)
+secureByBool True  False False d = Right (Left Refl)
+secureByBool True  False True  d = Left (Right Refl)
+secureByBool True  True  c     d = Right (Right Refl)
+
+almostFullBool : AlmostFull ((===) {a = Bool})
+almostFullBool = (boolTree ** secureByBool)
+
+------------------------------------------------------------------------
+-- Almostfull is closed under products
+------------------------------------------------------------------------
+
+secureByPair :
+  {p : WFT x} -> {q : WFT y} ->
+  SecureBy relp p -> SecureBy relq q ->
+  SecureBy (And (relp `on` Builtin.fst) (relq `on` Builtin.snd))
+           (seq2 (contra Builtin.fst p) (contra Builtin.snd q))
+secureByPair secp secq
+  = secureByIntersection ? ?
+      (secureByContra ? ? secp)
+      (secureByContra ? ? secq)
+
+almostFullPair : AlmostFull p -> AlmostFull q ->
+                 AlmostFull (And (p `on` Builtin.fst) (q `on` Builtin.snd))
+almostFullPair (p ** secp) (q ** secq) = (? ** secureByPair secp secq)
+
+almostFullProj1 : AlmostFull p -> AlmostFull (p `on` Builtin.fst)
+almostFullProj1 (p ** secp) = (? ** secureByContra ? ? secp)
+
+------------------------------------------------------------------------
+-- Almostfull is closed under lexicographic ordering
+------------------------------------------------------------------------
+
+Lexico : (p : Rel a) -> (q : Rel b) -> Rel (a, b)
+Lexico p q (x1, y1) (x2, y2) = Either (p x1 x2) (x1 === x2, q y1 y2)
+
+------------------------------------------------------------------------
+-- Example
+
+||| The function we want to write without assert_total
+flex : (Nat, Nat) -> Nat
+flex (0, _) = 1
+flex (_, 0) = 1
+flex (S x, S y) = assert_total $ flex (x, 2+y) + flex (S x, y)
+
+||| Deploying lexicographic ordering:
+flex' : (Nat, Nat) -> Nat
+flex' = almostFullInduction af {p = \_ => Nat} prf rec where
+
+  R : Rel (Nat, Nat)
+  R x y = (LTE (fst x) (fst y), LTE (snd x) (snd y))
+
+  T : Rel (Nat, Nat)
+  T x y = Either (LT (fst x) (fst y))
+                 (fst x === fst y, LT (snd x) (snd y))
+
+  Transitive (Nat, Nat) T where
+    transitive (Left p) (Left q) = Left (transitive {rel = LT} p q)
+    transitive {y = (_,_)} (Left p) (Right (Refl, _)) = Left p
+    transitive {y = (_,_)} (Right (Refl, p)) (Left q) = Left q
+    transitive {y = (_,_)} (Right (Refl, p)) (Right (eq, q))
+      = Right (eq, transitive {rel = LT} p q)
+
+  af : AlmostFull R
+  af = almostFullPair almostFullLTE almostFullLTE
+
+  prf : (x, y : (Nat, Nat)) -> Not (TList T x y, R y x)
+  prf (x1, x2) (y1, y2) (ts, (p, q)) = case tlist ts of
+    Left lt1 =>
+      let prf : LT x1 x1 = transitive {rel = LTE} lt1 p in
+      let el = irreflexive {rel = LT} in
+      el prf
+    Right (eq, lt2) =>
+      let prf : LT x2 x2 = transitive {rel = LTE} lt2 q in
+      let el = irreflexive {rel = LT} in
+      el prf
+
+  rec : (x : (Nat, Nat)) -> ((y : (Nat, Nat)) -> T y x -> Nat) -> Nat
+  rec (0, _)     ih = 1
+  rec (_, 0)     ih = 1
+  rec (S x, S y) ih = ih (x, 2+y) (Left (reflexive {rel = LTE}))
+                    + ih (S x, y) (Right (Refl, reflexive {rel = LTE}))
