@@ -533,11 +533,22 @@ almostFullProj1 (p ** secp) = (? ** secureByContra ? ? secp)
 -- Almostfull is closed under lexicographic ordering
 ------------------------------------------------------------------------
 
-Lexico : (p : Rel a) -> (q : Rel b) -> Rel (a, b)
-Lexico p q (x1, y1) (x2, y2) = Either (p x1 x2) (x1 === x2, q y1 y2)
+data Lexico : Rel x -> Rel y -> Rel (x, y) where
+  Fst : {0 relx : Rel x} ->
+        relx x1 x2 -> Lexico relx rely (x1, y1) (x2, y2)
+  Snd : {0 rely : Rel y} ->
+        x1 === x2 -> rely y1 y2 -> Lexico relx rely (x1, y1) (x2, y2)
+
+(Transitive x relx, Transitive y rely) =>
+  Transitive (x, y) (Lexico relx rely) where
+  transitive (Fst p)      (Fst q)      = Fst (transitive {rel = relx} p q)
+  transitive (Fst p)      (Snd Refl _) = Fst p
+  transitive (Snd Refl p) (Fst q)      = Fst q
+  transitive (Snd Refl p) (Snd eq q)   = Snd eq (transitive {rel = rely} p q)
 
 ------------------------------------------------------------------------
 -- Example
+
 
 ||| The function we want to write without assert_total
 flex : (Nat, Nat) -> Nat
@@ -553,26 +564,18 @@ flex' = almostFullInduction af {p = \_ => Nat} prf rec where
   R x y = (LTE (fst x) (fst y), LTE (snd x) (snd y))
 
   T : Rel (Nat, Nat)
-  T x y = Either (LT (fst x) (fst y))
-                 (fst x === fst y, LT (snd x) (snd y))
-
-  Transitive (Nat, Nat) T where
-    transitive (Left p) (Left q) = Left (transitive {rel = LT} p q)
-    transitive {y = (_,_)} (Left p) (Right (Refl, _)) = Left p
-    transitive {y = (_,_)} (Right (Refl, p)) (Left q) = Left q
-    transitive {y = (_,_)} (Right (Refl, p)) (Right (eq, q))
-      = Right (eq, transitive {rel = LT} p q)
+  T = Lexico LT LT
 
   af : AlmostFull R
   af = almostFullPair almostFullLTE almostFullLTE
 
   prf : (x, y : (Nat, Nat)) -> Not (TList T x y, R y x)
   prf (x1, x2) (y1, y2) (ts, (p, q)) = case tlist ts of
-    Left lt1 =>
+    Fst lt1 =>
       let prf : LT x1 x1 = transitive {rel = LTE} lt1 p in
       let el = irreflexive {rel = LT} in
       el prf
-    Right (eq, lt2) =>
+    Snd eq lt2 =>
       let prf : LT x2 x2 = transitive {rel = LTE} lt2 q in
       let el = irreflexive {rel = LT} in
       el prf
@@ -580,5 +583,5 @@ flex' = almostFullInduction af {p = \_ => Nat} prf rec where
   rec : (x : (Nat, Nat)) -> ((y : (Nat, Nat)) -> T y x -> Nat) -> Nat
   rec (0, _)     ih = 1
   rec (_, 0)     ih = 1
-  rec (S x, S y) ih = ih (x, 2+y) (Left (reflexive {rel = LTE}))
-                    + ih (S x, y) (Right (Refl, reflexive {rel = LTE}))
+  rec (S x, S y) ih = ih (x, 2+y) (Fst (reflexive {rel = LTE}))
+                    + ih (S x, y) (Snd Refl (reflexive {rel = LTE}))
