@@ -20,6 +20,10 @@ namespace TT
   (++) : TList r x y -> TList r y z -> TList r x z
   (x :: xs) ++ ys = x :: xs ++ forget ys
 
+  export
+  (:<) : {z : _} -> TList r x y -> r y z -> TList r x z
+  xs :< x = xs ++ [x]
+
 namespace TRT
 
   export

@@ -194,9 +194,12 @@ accessibleFromAF (SUP f) v prop sec
                        r
     in accessibleFromAF (f v) w prop' (sec v)
 
+0 NoInfiniteDescent : (t, rel : Rel a) -> Type
+NoInfiniteDescent t rel = ((x, y : a) -> Not (And (TList t) (flip rel)) x y)
+
 wellFoundedFromAF :
   AlmostFull rel ->
-  ((a, b : x) -> Not (TList t a b, rel b a)) ->
+  NoInfiniteDescent t rel ->
   (v : x) -> Accessible t v
 wellFoundedFromAF (p ** sec) prop v
   = accessibleFromAF p v (\ a, b, _, p => prop a b p) sec
@@ -236,12 +239,13 @@ wellFoundedLT n
 -- Induction principle for almost full relations
 ------------------------------------------------------------------------
 
+0 Rec : Rel a -> (a -> Type) -> Type
+Rec t p = (x : a) -> (ih : (y : a) -> t y x -> p y) -> p x
+
 almostFullInduction :
   AlmostFull rel ->
-  ((x, y : a) -> Not (And (TList t) (flip rel)) x y) ->
-  {p : a -> Type} ->
-  (acc : (x : a) -> (ih : (y : a) -> t y x -> p y) -> p x) ->
-  (v : a) -> p v
+  NoInfiniteDescent t rel ->
+  Rec t p -> (v : a) -> p v
 almostFullInduction af prop acc v
   = accInd acc v (wellFoundedFromAF af prop v)
 
@@ -483,7 +487,7 @@ flip1' = almostFullInduction AlmostFullRFlip {p = \_=> Nat} prf rec where
   rec (_, 0)     ih = 1
   rec (S x, S y) ih = ih (S y, x) (reflexive {rel = LTE}, reflexive {rel = LTE})
 
-  prf : (x, y : (Nat, Nat)) -> Not (TList TFlip x y, RFlip y x)
+  prf : NoInfiniteDescent TFlip RFlip
   prf (x1, x2) (y1, y2) (txys, ryx) =
     let rxy = tlist $ map {q = SFlip} TtoS txys in
     let p = transitive {rel = LTE} rxy ryx in
@@ -539,12 +543,66 @@ data Lexico : Rel x -> Rel y -> Rel (x, y) where
   Snd : {0 rely : Rel y} ->
         x1 === x2 -> rely y1 y2 -> Lexico relx rely (x1, y1) (x2, y2)
 
+bimap : (p ~> p') -> (q ~> q') -> Lexico p q ~> Lexico p' q'
+bimap f g (Fst p)    = Fst (f p)
+bimap f g (Snd eq q) = Snd eq (g q)
+
+stepDown : TList (Lexico p q) ~> Lexico (TList p) (TList q)
+stepDown (t :: ts) = go (bimap (:: []) (:: []) t) ts where
+
+  go : Lexico (TList p) (TList q) x y ->
+       RTList (Lexico p q) y z ->
+       Lexico (TList p) (TList q) x z
+  go acc           []                 = acc
+  go (Fst ps)      (Fst p      :: ts) = go (Fst (ps :< p)) ts
+  go (Fst ps)      (Snd Refl _ :: ts) = go (Fst ps) ts
+  go (Snd Refl qs) (Fst p      :: ts) = go (Fst [p]) ts
+  go (Snd Refl qs) (Snd eq q   :: ts) = go (Snd eq (qs :< q)) ts
+
 (Transitive x relx, Transitive y rely) =>
   Transitive (x, y) (Lexico relx rely) where
-  transitive (Fst p)      (Fst q)      = Fst (transitive {rel = relx} p q)
-  transitive (Fst p)      (Snd Refl _) = Fst p
-  transitive (Snd Refl p) (Fst q)      = Fst q
-  transitive (Snd Refl p) (Snd eq q)   = Snd eq (transitive {rel = rely} p q)
+  transitive p q = bimap tlist tlist $ stepDown [p, q]
+
+lexicographic :
+  AlmostFull relx -> AlmostFull rely ->
+  NoInfiniteDescent tx relx ->
+  NoInfiniteDescent ty rely ->
+  Rec (Lexico tx ty) p -> (v : (x, y)) -> p v
+lexicographic afx afy prfx prfy = almostFullInduction af prf where
+
+  0 T : Rel (x, y)
+  T = Lexico tx ty
+
+  0 R : Rel (x, y)
+  R = And (relx `on` Builtin.fst) (rely `on` Builtin.snd)
+
+  af : AlmostFull R
+  af = almostFullPair afx afy
+
+  prf : NoInfiniteDescent T R
+  prf (x1, x2) (y1, y2) (ts, (p, q)) = case stepDown ts of
+    Fst   ps => prfx ? ? (ps, p)
+    Snd _ qs => prfy ? ? (qs, q)
+
+lexicographicSPO :
+  (StrictPreorder x tx, StrictPreorder y ty) =>
+  (transx : {a, b, c : _} -> tx a b -> relx b c -> tx a c) ->
+  (transy : {a, b, c : _} -> ty a b -> rely b c -> ty a c) ->
+  AlmostFull relx -> AlmostFull rely ->
+  Rec (Lexico tx ty) p -> (v : (x, y)) -> p v
+lexicographicSPO transx transy afx afy
+  = lexicographic afx afy
+      (noInfiniteDescent transx)
+      (noInfiniteDescent transy)
+
+  where
+
+  noInfiniteDescent :
+    StrictPreorder z tz =>
+    (transz :  {a, b, c : _} -> tz a b -> relz b c -> tz a c) ->
+    NoInfiniteDescent tz relz
+  noInfiniteDescent transz z1 z2 (ts, rel)
+    = irreflexive {rel = tz} (transz (tlist ts) rel)
 
 ------------------------------------------------------------------------
 -- Example
@@ -558,29 +616,14 @@ flex (S x, S y) = assert_total $ flex (x, 2+y) + flex (S x, y)
 
 ||| Deploying lexicographic ordering:
 flex' : (Nat, Nat) -> Nat
-flex' = almostFullInduction af {p = \_ => Nat} prf rec where
+flex' = lexicographicSPO
+          (transitive {rel = LTE}) (transitive {rel = LTE})
+          almostFullLTE almostFullLTE
+          rec
 
-  R : Rel (Nat, Nat)
-  R x y = (LTE (fst x) (fst y), LTE (snd x) (snd y))
+  where
 
-  T : Rel (Nat, Nat)
-  T = Lexico LT LT
-
-  af : AlmostFull R
-  af = almostFullPair almostFullLTE almostFullLTE
-
-  prf : (x, y : (Nat, Nat)) -> Not (TList T x y, R y x)
-  prf (x1, x2) (y1, y2) (ts, (p, q)) = case tlist ts of
-    Fst lt1 =>
-      let prf : LT x1 x1 = transitive {rel = LTE} lt1 p in
-      let el = irreflexive {rel = LT} in
-      el prf
-    Snd eq lt2 =>
-      let prf : LT x2 x2 = transitive {rel = LTE} lt2 q in
-      let el = irreflexive {rel = LT} in
-      el prf
-
-  rec : (x : (Nat, Nat)) -> ((y : (Nat, Nat)) -> T y x -> Nat) -> Nat
+  rec : Rec (Lexico LT LT) (\_ => Nat)
   rec (0, _)     ih = 1
   rec (_, 0)     ih = 1
   rec (S x, S y) ih = ih (x, 2+y) (Fst (reflexive {rel = LTE}))
