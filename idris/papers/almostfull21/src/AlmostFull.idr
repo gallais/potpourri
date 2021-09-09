@@ -5,24 +5,30 @@
 
 module AlmostFull
 
+import Control.WellFounded
+
 import Data.DPair
+import Data.Either
+import Data.Either.Relation
+import Data.Fun
 import Data.List.Elem
 import Data.Nat
 import Data.Nat.Order
 import Data.Nat.Order.Strict
-import Data.Vect
-import Data.Fun
 import Data.Rel
-import Decidable.Order.Strict
+import Data.Relation
+import Data.Relation.Closure.ReflexiveTransitive
+import Data.Relation.Closure.Transitive
+import Data.Vect
+
 import Decidable.Decidable
 import Decidable.Equality
-import Control.WellFounded
-import Data.Relation
-import Data.Relation.Closure.Transitive
-import Data.Relation.Closure.ReflexiveTransitive
+import Decidable.Order.Strict
 
 %hide Data.Rel.Rel
+%hide DPair.DPair.uncurry
 %hide DPair.DPair.bimap
+%hide DPair.Exists.uncurry
 %hide DPair.Exists.bimap
 %hide DPair.Subset.bimap
 
@@ -351,13 +357,13 @@ seqUnaryAndAux p@(SUP f) q@(SUP g) secp secq = \ v =>
    $ seqNullaryAndAux (seq1 (f v) q) (seq1 p (g v))
        (forSecureBy ? ih1
          $ either (Left . Left . Left)
-         $ Prelude.uncurry $ \ e, bx =>
+         $ uncurry $ \ e, bx =>
            either (\ ax => Left $ Left $ Right $ MkPair ax bx)
                   (mapFst Right)
                   e)
        (forSecureBy ? ih2
          $ either (Left . Left . Left)
-         $ Prelude.uncurry $ \ax, e =>
+         $ uncurry $ \ax, e =>
            either (\ bx => Left $ Left $ Right $ MkPair ax bx)
                   (mapFst Right)
                   e)
@@ -406,13 +412,13 @@ seqBinaryAndAux p@(SUP f) q@(SUP g) secp secq = \ v =>
    $ seqUnaryAndAux (seq2 (f v) q) (seq2 p (g v))
        (forSecureBy ? ih1
          $ either (Left . Left . Left)
-         $ Prelude.uncurry $ \ e, bx =>
+         $ uncurry $ \ e, bx =>
            either (\ ax => Left $ Left $ Right $ MkPair ax bx)
                   (mapFst Right)
                   e)
        (forSecureBy ? ih2
          $ either (Left . Left . Left)
-         $ Prelude.uncurry $ \ax, e =>
+         $ uncurry $ \ax, e =>
            either (\ bx => Left $ Left $ Right $ MkPair ax bx)
                   (mapFst Right)
                   e)
@@ -534,7 +540,7 @@ almostFullProj1 : AlmostFull p -> AlmostFull (p `on` Builtin.fst)
 almostFullProj1 (p ** secp) = (? ** secureByContra ? ? secp)
 
 ------------------------------------------------------------------------
--- Almostfull is closed under lexicographic ordering
+-- From closure under pairs we can get lexicographic induction
 ------------------------------------------------------------------------
 
 data Lexico : Rel x -> Rel y -> Rel (x, y) where
@@ -628,3 +634,74 @@ flex' = lexicographicSPO
   rec (_, 0)     ih = 1
   rec (S x, S y) ih = ih (x, 2+y) (Fst (reflexive {rel = LTE}))
                     + ih (S x, y) (Snd Refl (reflexive {rel = LTE}))
+
+------------------------------------------------------------------------
+-- Almostfull is closed under sums
+------------------------------------------------------------------------
+
+lsum : WFT x -> WFT (Either x y)
+lsum ZT = SUP $ \_ => SUP $ \_ => ZT
+lsum (SUP f) = SUP $ \ xy => case xy of
+  Left x => lsum (f x)
+  Right y => SUP $ \ xy' => case xy' of
+    Left x => lsum (f x)
+    Right y' => ZT
+
+secureByLsum : (p : WFT x) -> SecureBy rel p ->
+               SecureBy (Pointwise rel (Const ())) (lsum p)
+secureByLsum ZT sec = go where
+
+  go : (a, b, c, d : Either x y) ->
+       Either (Either (Pointwise rel (Const ()) c d)
+                      (Pointwise rel (Const ()) a c))
+              (Either (Pointwise rel (Const ()) b c)
+                      (Pointwise rel (Const ()) a b))
+  go (Left a)  b         (Left c)  d = Left (Right (PLeft (sec a c)))
+  go (Right a) (Left b)  (Left c)  d = Right (Left (PLeft (sec b c)))
+  go (Right a) (Right b) (Left c)  d = Right (Right (PRight ()))
+  go (Left a)  (Left z)  (Right c) d = Right (Right (PLeft (sec a z)))
+  go (Left a)  (Right z) (Right c) d = Right (Left (PRight ()))
+  go (Right a) b         (Right c) d = Left (Right (PRight ()))
+
+secureByLsum (SUP f) sec = \case
+  (Left a) => mapSecureBy rearrange ? (secureByLsum (f a) (sec a))
+  (Right b) => \case
+    (Left a) => mapSecureBy rearrange2 ? (secureByLsum (f a) (sec a))
+    (Right b') => \a, y => Right (Right (PRight ()))
+
+  where
+
+    rearrange : {0 a : x} ->
+                Pointwise (Or rel (\ i, _ => rel a i)) (Const ()) ~>
+                Or (Pointwise rel (Const ()))
+                   (\ i, _=> Pointwise rel (Const ()) (Left a) i)
+    rearrange (PLeft prf)  = bimap PLeft PLeft prf
+    rearrange (PRight prf) = Left (PRight prf)
+
+    rearrange2 : Pointwise (Or rel (\ i, j => rel a i)) (Const ()) i j ->
+                 Either (Either (Pointwise rel (Const ()) i j)
+                                (Pointwise rel (Const ()) (Right b) i))
+                        (Either (Pointwise rel (Const ()) (Left a) i)
+                                (Pointwise rel (Const ()) (Right b) (Left a)))
+    rearrange2 (PLeft (Left prf))  = Left (Left (PLeft prf))
+    rearrange2 (PLeft (Right prf)) = Right (Left (PLeft prf))
+    rearrange2 (PRight prf)        = Left (Left (PRight prf))
+
+rsum : WFT y -> WFT (Either x y)
+rsum = contra mirror . lsum
+
+secureByRsum : (p : WFT y) -> SecureBy rel p ->
+               SecureBy (Pointwise rel (Const ()) `on` Either.mirror) (rsum p)
+secureByRsum p sec = secureByContra mirror (lsum p) (secureByLsum p sec)
+
+almostFullLsum : AlmostFull p -> AlmostFull (Pointwise p (Const ()))
+almostFullLsum (p ** secp) = (? ** secureByLsum p secp)
+
+almostFullRsum : AlmostFull p -> AlmostFull (Pointwise (Const ()) p)
+almostFullRsum (p ** secp)
+  = (? ** mapSecureBy comirror ? $ secureByRsum p secp)
+
+almostFullSum : AlmostFull p -> AlmostFull q -> AlmostFull (Pointwise p q)
+almostFullSum afp afq
+  = mapAlmostFull (pointwiseBimap fst snd . uncurry and)
+  $ almostFullIntersection (almostFullLsum afp) (almostFullRsum afq)
