@@ -9,7 +9,7 @@ data Fossil : (Nat -> Type) -> (Nat -> Type) where
   Z : Fossil k Z
   S : k n -> Fossil k (S n)
 
-interface Dig (k : Nat -> Type) where
+interface Dig (0 k : Nat -> Type) where
 
   %inline
   dig : k n -> Fossil k n
@@ -69,3 +69,15 @@ ftree = Node $ Node $ Node $ Leaf (((0,1),(2,3)),((4,5),(6,7)))
 
 replicateF : FTree n _ -> a -> Vect n a
 replicateF = greplicate (the (Nat -> Type) (\ n => (Exists (FTree n)))) . Evidence _
+
+
+decEq : Dig k => Dig l => k m -> l n -> Dec (m === n)
+decEq km ln = case dig km of
+  Z    => case dig ln of
+    Z    => Yes Refl
+    S ln => No absurd
+  S km => case dig ln of
+    Z    => No absurd
+    S ln => case decEq km ln of
+      Yes prf => Yes (cong S prf)
+      No absurd => No (absurd . succInjective _ _)
