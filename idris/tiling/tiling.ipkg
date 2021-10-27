@@ -10,7 +10,7 @@ authors = "gallais"
 -- bugtracker =
 
 -- packages to add to search path
-depends = contrib
+depends = contrib, ncurses-idris
 
 -- modules to install
 modules = Data.Display,

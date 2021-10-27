@@ -705,3 +705,11 @@ almostFullSum : AlmostFull p -> AlmostFull q -> AlmostFull (Pointwise p q)
 almostFullSum afp afq
   = mapAlmostFull (pointwiseBimap fst snd . uncurry and)
   $ almostFullIntersection (almostFullLsum afp) (almostFullRsum afq)
+
+------------------------------------------------------------------------
+-- Example
+
+gnlex : (Nat, Nat) -> Nat
+gnlex (0, _) = 1
+gnlex (_, 0) = 1
+gnlex (S m, S n) = assert_total $ gnlex (S n, n) + S (gnlex (S n, m))
