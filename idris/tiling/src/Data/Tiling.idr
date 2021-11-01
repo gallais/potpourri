@@ -29,22 +29,22 @@ layer (SplitH prf Empty Empty) = Empty
 layer (SplitV prf Empty Empty) = Empty
 layer spl = Layer spl
 
-infixr 3 ||
-infixr 4 ==
+infixr 3 |~~|
+infixr 4 ~~~~
 
 ||| Horizontal append
 export
-(||) : {wl, wr : Nat} ->
-       Tiling t wl h -> Tiling t wr h -> Tiling t (wl + wr) h
-Empty || Empty = Empty
-lft || rgt = Layer (SplitH Refl lft rgt)
+(|~~|) : {wl, wr : Nat} ->
+         Tiling t wl h -> Tiling t wr h -> Tiling t (wl + wr) h
+Empty |~~| Empty = Empty
+lft |~~| rgt = Layer (SplitH Refl lft rgt)
 
 ||| Vertical append
 export
-(==) : {0 h : Nat} -> {ht, hb : Nat} ->
-       Tiling t w ht -> Tiling t w hb -> Tiling t w (ht + hb)
-Empty == Empty = Empty
-top == bot = Layer (SplitV Refl top bot)
+(~~~~) : {ht, hb : Nat} ->
+         Tiling t w ht -> Tiling t w hb -> Tiling t w (ht + hb)
+Empty ~~~~ Empty = Empty
+top ~~~~ bot = Layer (SplitV Refl top bot)
 
 namespace Split
 
