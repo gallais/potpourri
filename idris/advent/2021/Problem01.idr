@@ -6,10 +6,9 @@ import Data.String
 import System
 import System.File
 
-%default total
+import Lib
 
-fail : String -> IO ()
-fail err = do putStrLn ("*** Error: " ++ err); exitFailure
+%default total
 
 measure : List Nat -> Nat
 measure [] = 0
