@@ -1,8 +1,6 @@
 module Problem02
 
 import Data.String
-import System
-import System.File
 
 import Lib
 
@@ -53,10 +51,7 @@ move2 c pos = case c.direction of
 
 main : IO ()
 main = do
-  [_,fp] <- getArgs
-    | _ => fail "Expected a file name"
-  Right content <- assert_total (readFile fp)
-    | Left err => fail (show err)
+  content <- getInput
   let cmds = parse (assert_total $ words content)
   let pos  = foldl (flip move) (MkPosition 0 0) cmds
   putStrLn $ "Arrived at advance \{show pos.advance} and depth \{show pos.depth}"

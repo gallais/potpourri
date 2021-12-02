@@ -3,8 +3,6 @@ module Problem01
 import Data.List
 import Data.Maybe
 import Data.String
-import System
-import System.File
 
 import Lib
 
@@ -25,10 +23,7 @@ sliding xs =
 
 main : IO ()
 main = do
-  [_,fp] <- getArgs
-    | _ => fail "Expected a file name"
-  Right content <- assert_total (readFile fp)
-    | Left err => fail (show err)
+  content <- getInput
   let vals : List Nat := map cast (lines content)
   putStrLn $ "Measure: " ++ show (measure vals)
   putStrLn $ "Sliding: " ++ show (sliding vals)
