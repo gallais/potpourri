@@ -1,7 +1,7 @@
 module Thin
 
 import Data.Bits
-import Data.Nat
+import Data.Bits.Integer
 import Data.SnocList
 
 %default total
@@ -34,21 +34,6 @@ record Th {a : Type} (sx, sy : SnocList a) where
   bigEnd     : Nat
   encoding   : Integer
   0 thinning : Thinning bigEnd encoding sx sy
-
-testSetBitSame : Bits a => (n : Index {a}) -> (i : a) -> So (testBit (setBit i n) n)
-testSetBitSame n i = believe_me Oh
-
--- /!\ We have no guarantee that `Not (m === n)` is not a lie!
-testSetBitOther : Bits a => (m, n : Index {a}) -> Not (m === n) ->
-                  (i : a) -> testBit (setBit i m) n === testBit i n
-testSetBitOther m n neq i = believe_me (Refl {x = testBit i n})
-
-testClearBitSame : Bits a => (n : Index {a}) -> (i : a) -> So (not $ testBit (clearBit i n) n)
-testClearBitSame n i = believe_me Oh
-
-testClearBitOther : Bits a => (m, n : Index {a}) -> Not (m === n) ->
-                   (i : a) -> testBit (clearBit i m) n === testBit i n
-testClearBitOther m n neq i = believe_me (Refl {x = testBit i n})
 
 ltNotEq : {m, n : Nat} -> m `LT` n -> Not (m === n)
 ltNotEq lt = case view lt of
