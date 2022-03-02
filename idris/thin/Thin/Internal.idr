@@ -1,8 +1,12 @@
+||| This is the low-level stuff used to implement Thin.
+||| The even lower level (sometimes unsafe) results are in Data.Bits.Integer
+
 module Thin.Internal
 
 import Data.Bits
 import Data.Bits.Integer
 import Data.Nat
+import Data.SnocList
 
 %default total
 
@@ -20,7 +24,7 @@ irrelevantSo : (0 p, q : So b) -> p === q
 irrelevantSo Oh Oh = Refl
 
 ------------------------------------------------------------------------------
--- Thinning
+-- Thinning relation
 ------------------------------------------------------------------------------
 
 ||| Inductive relation characterising when a pair (i, bs) defines a thinning
@@ -44,6 +48,10 @@ data Thinning : (i : Nat) -> (bs : Integer) -> (sx, sy : SnocList a) -> Type whe
   Drop : Thinning i bs sx sy -> (0 x : a) ->
          {auto 0 nb : So (not $ testBit bs (S i))} ->
          Thinning (S i) bs sx        (sy :< x)
+
+------------------------------------------------------------------------------
+-- Properties of Thinning
+------------------------------------------------------------------------------
 
 ||| The thinning relation is a mere validation relation and thus entirely
 ||| characterised by its indices. Consequently its proofs are irrelevant.
@@ -89,10 +97,24 @@ clearBitPreserve (Drop th x {nb}) lt =
   let 0 nb = replace {p = So . not} (sym eq) nb in
   Drop (clearBitPreserve th lt) x
 
+export
+none : (sy : SnocList a) -> Thinning (length sy) Bits.zeroBits [<] sy
+none [<] = Done
+none (sy :< y) =
+  let 0 nb = eqToSo (cong not $ testBitZeroBits (S $ length sy)) in
+  Drop (none sy) y
+
+export
+ones : (sx : SnocList a) -> Thinning (length sx) Bits.oneBits sx sx
+ones [<] = Done
+ones (sx :< x) =
+  let 0 nb = eqToSo (testBitOneBits (S $ length sx)) in
+  Keep (ones sx) x
+
 ------------------------------------------------------------------------------
 -- Inversion principles
 -- Simple observations about the Nat/Integer indices of a Thinning are enough
--- to guarantee a proof was built using a specific constructor
+-- to guarantee a proof was built using a specific constructor.
 ------------------------------------------------------------------------------
 
 ||| Characterising Done-headed thinnings

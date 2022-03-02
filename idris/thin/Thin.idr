@@ -2,6 +2,7 @@ module Thin
 
 import Data.Bits
 import Data.Bits.Integer
+import Data.DPair
 import Data.SnocList
 
 import Thin.Internal
@@ -14,6 +15,7 @@ import Thin.Internal
 
 ||| A Th is a thin wrapper around Thinning that only keeps the
 ||| minimal amount of information as runtime relevant.
+public export
 record Th {a : Type} (sx, sy : SnocList a) where
   constructor MkTh
   bigEnd     : Nat
@@ -21,10 +23,12 @@ record Th {a : Type} (sx, sy : SnocList a) where
   0 thinning : Thinning bigEnd encoding sx sy
 
 infixr 5 *^
+public export
 interface Thable (0 t : SnocList a -> Type) where
   (*^) : {0 sa, sb : SnocList a} -> t sa -> Th sa sb -> t sb
 
 infixr 5 ^?
+public export
 interface Selable (0 t : SnocList a -> Type) where
   (^?) : {0 sa, sb : SnocList a} -> Th sa sb -> t sb -> t sa
 
@@ -112,16 +116,38 @@ Show (Th sx sy) where
 -- Combinators
 ------------------------------------------------------------------------------
 
+||| Empty thinning
+-- TODO: only take the length as an argument?
+export
 none : (sx : SnocList a) -> Th [<] sx
-none [<] = done 0
-none (sx :< x) = drop (none sx) x
+none sx = MkTh (length sx) zeroBits (none sx)
 
+||| Identity thinning
+-- TODO: only take the length as an argument?
+export
 ones : (sx : SnocList a) -> Th sx sx
-ones [<] = done 0
-ones (sx :< x) = keep (ones sx) x
+ones sx = MkTh (length sx) oneBits (ones sx)
 
+||| Concatenate two thinnings
+export
 (++) : Th sa sb -> Th sx sy -> Th (sa ++ sx) (sb ++ sy)
 thl ++ thr = case view thr of
   (VDone _) => thl
   (VKeep thr x) => keep (thl ++ thr) x
   (VDrop thr x) => drop (thl ++ thr) x
+
+||| Like filter but returns a thinning
+export
+which : (a -> Bool) -> (sy : SnocList a) -> (sx : SnocList a ** Th sx sy)
+which p [<] = ([<] ** done 0)
+which p (sy :< y)
+  = ifThenElse (p y)
+     (bimap (:< y) (`keep` y))
+     (bimap id (`drop` y))
+     (which p sy)
+
+{-
+test : List (sx : SnocList Nat ** Th sx ([<] <>< [0..10]))
+test = flip map [2..5] $ \ i =>
+        which (\ n => n `mod` i /= 0) ([<] <>< [0..10])
+-}

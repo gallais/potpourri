@@ -131,6 +131,18 @@ testBitBitSame i =
   Refl
 
 ------------------------------------------------------------------------------
+-- Constant properties
+------------------------------------------------------------------------------
+
+export
+testBitZeroBits : (i : Nat) -> testBit (zeroBits {a = Integer}) i === False
+testBitZeroBits i = unsafeRefl
+
+export
+testBitOneBits : (i : Nat) -> testBit (oneBits {a = Integer}) i === True
+testBitOneBits i = unsafeRefl
+
+------------------------------------------------------------------------------
 -- TestBit properties
 ------------------------------------------------------------------------------
 
