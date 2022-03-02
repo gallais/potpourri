@@ -18,6 +18,7 @@ authors = "gallais"
 -- modules to install
 modules = Data.Bits.Integer
         , Thin
+        , Thin.Internal
 
 -- main file (i.e. file to load at REPL)
 -- main =
