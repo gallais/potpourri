@@ -30,20 +30,67 @@ extensionally : {bs, cs : Integer} -> bs ~~~ cs -> bs === cs
 extensionally fext = unsafeRefl
 
 ------------------------------------------------------------------------------
+-- ShiftR properties
+------------------------------------------------------------------------------
+
+export
+testBitShiftR : (bs : Integer) -> (k : Nat) ->
+                (i : Nat) -> testBit (bs `shiftR` k) i === testBit bs (k + i)
+testBitShiftR bs k i = unsafeRefl
+
+export
+setBitShiftR : (bs : Integer) -> (k : Nat) ->
+               (i : Nat) -> k `LTE` i ->
+               (setBit bs i) `shiftR` k === setBit (bs `shiftR` k) (minus i k)
+setBitShiftR bs k i lte = unsafeRefl
+
+export
+clearBitShiftR : (bs : Integer) -> (k : Nat) ->
+                 (i : Nat) -> k `LTE` i ->
+                 (clearBit bs i) `shiftR` k === clearBit (bs `shiftR` k) (minus i k)
+clearBitShiftR bs k i lte = unsafeRefl
+
+------------------------------------------------------------------------------
+-- ShiftL properties
+------------------------------------------------------------------------------
+
+export
+testBit0ShiftL : (bs : Integer) -> (k : Nat) ->
+                 testBit (bs `shiftL` S k) Z === False
+testBit0ShiftL bs k = unsafeRefl
+
+export
+testBitSShiftL : (bs : Integer) -> (k : Nat) -> (i : Nat) ->
+                 testBit (bs `shiftL` S k) (S i) === testBit (bs `shiftL` k) i
+testBitSShiftL bs k i = unsafeRefl
+
+export
+shiftL0 : (bs : Integer) -> (bs `shiftL` 0) === bs
+shiftL0 bs = unsafeRefl
+
+export
+shiftLR : (bs : Integer) -> (bs `shiftL` 1) `shiftR` 1 === bs
+shiftLR bs = unsafeRefl
+
+export
+setBit0shiftR : (bs : Integer) -> setBit bs 0 `shiftR` 1 === bs `shiftR` 1
+setBit0shiftR bs = unsafeRefl
+
+------------------------------------------------------------------------------
 -- And properties
 ------------------------------------------------------------------------------
 
 export
 ||| Postulated: conjunction is bitwise on integers
-testBitAnd : (i : Nat) -> (bs, cs : Integer) ->
+testBitAnd : (bs, cs : Integer) -> (i : Nat) ->
              testBit (bs .&. cs) i === (testBit bs i && testBit cs i)
-testBitAnd i bs cs = unsafeRefl
+testBitAnd bs cs i = unsafeRefl
 
 export
 ||| Postulated: conjunction is idempotent on integers
 andIdempotent : (bs : Integer) -> bs .&. bs === bs
 andIdempotent bs = extensionally $ \ i =>
-  rewrite testBitAnd i bs bs in
+  rewrite testBitAnd bs bs i in
   andSameNeutral (testBit bs i)
 
 ------------------------------------------------------------------------------
@@ -52,15 +99,15 @@ andIdempotent bs = extensionally $ \ i =>
 
 export
 ||| Postulated: disjunction is bitwise on integers
-testBitOr : (i : Nat) -> (bs, cs : Integer) ->
+testBitOr : (bs, cs : Integer) -> (i : Nat) ->
             testBit (bs .|. cs) i === (testBit bs i || testBit cs i)
-testBitOr i bs cs = unsafeRefl
+testBitOr bs cs i = unsafeRefl
 
 export
 ||| Postulated: conjunction is idempotent on integers
 orIdempotent : (bs : Integer) -> (bs .|. bs) === bs
 orIdempotent bs = extensionally $ \ i =>
-  rewrite testBitOr i bs bs in
+  rewrite testBitOr bs bs i in
   orSameNeutral (testBit bs i)
 
 ------------------------------------------------------------------------------
@@ -86,9 +133,9 @@ complementInvolutive bs = extensionally $ \ i =>
 
 export
 ||| Postulated: exclusive-or is bitwise on integers
-testBitXor : (i : Nat) -> (bs, cs : Integer) ->
+testBitXor : (bs, cs : Integer) -> (i : Nat) ->
              testBit (bs `xor` cs) i === not (testBit bs i == testBit cs i)
-testBitXor i bs cs = unsafeRefl
+testBitXor bs cs i = unsafeRefl
 
 ------------------------------------------------------------------------------
 -- Eq properties
@@ -147,23 +194,23 @@ testBitOneBits i = unsafeRefl
 ------------------------------------------------------------------------------
 
 export
-testSetBitSame : (i : Nat) -> (bs : Integer) -> So (testBit (setBit bs i) i)
-testSetBitSame i bs =
-  rewrite testBitOr i bs (bit i) in
+testSetBitSame : (bs : Integer) -> (i : Nat) -> So (testBit (setBit bs i) i)
+testSetBitSame bs i =
+  rewrite testBitOr bs (bit i) i in
   rewrite testBitBitSame i in
   rewrite orTrueTrue (testBit bs i) in
   Oh
 
 export
-testClearBitSame : (i : Nat) -> (bs : Integer) -> So (not $ testBit (clearBit bs i) i)
-testClearBitSame i bs = replace {p = So} unsafeRefl Oh -- TODO: bother proving it
+testClearBitSame : (bs : Integer) -> (i : Nat) -> So (not $ testBit (clearBit bs i) i)
+testClearBitSame bs i = replace {p = So} unsafeRefl Oh -- TODO: bother proving it
 
 export
-testSetBitOther : (i, j : Nat) -> Not (i === j) ->
-                  (bs : Integer) -> testBit (setBit bs i) j === testBit bs j
-testSetBitOther i j neq bs = unsafeRefl
+testSetBitOther : (bs : Integer) -> (i, j : Nat) -> Not (i === j) ->
+                  testBit (setBit bs i) j === testBit bs j
+testSetBitOther bs i j neq = unsafeRefl
 
 export
-testClearBitOther : (i, j : Nat) -> Not (i === j) ->
-                    (bs : Integer) -> testBit (clearBit bs i) j === testBit bs j
-testClearBitOther i j neq bs = unsafeRefl
+testClearBitOther : (bs : Integer) -> (i, j : Nat) -> Not (i === j) ->
+                    testBit (clearBit bs i) j === testBit bs j
+testClearBitOther bs i j neq = unsafeRefl

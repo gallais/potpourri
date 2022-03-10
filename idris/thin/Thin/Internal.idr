@@ -16,11 +16,6 @@ import Data.SnocList
 -- TODO: move to stdlib
 ------------------------------------------------------------------------------
 
-ltNotEq : {m, n : Nat} -> m `LT` n -> Not (m === n)
-ltNotEq lt = case view lt of
-  LTZero => absurd
-  LTSucc lt => ltNotEq lt . cong pred
-
 export
 irrelevantSo : (0 p, q : So b) -> p === q
 irrelevantSo Oh Oh = Refl
@@ -43,12 +38,12 @@ data Thinning : (i : Nat) -> (bs : Integer) -> (sx, sy : SnocList a) -> Type whe
   ||| A 0-bits long thinning is a thinning between empty lists
   Done : Thinning Z bs [<] [<]
   ||| If the last bit of interest is set then the snoclist's head is kept
-  Keep : Thinning i bs sx sy -> (0 x : a) ->
-         {auto 0 b  : So (      testBit bs (S i))} ->
+  Keep : Thinning i (bs `shiftR` 1) sx sy -> (0 x : a) ->
+         {auto 0 b  : So (      testBit bs Z)} ->
          Thinning (S i) bs (sx :< x) (sy :< x)
   ||| If the last bit of interest is not set then the snoclist's head is thrown out
-  Drop : Thinning i bs sx sy -> (0 x : a) ->
-         {auto 0 nb : So (not $ testBit bs (S i))} ->
+  Drop : Thinning i (bs `shiftR` 1) sx sy -> (0 x : a) ->
+         {auto 0 nb : So (not $ testBit bs Z)} ->
          Thinning (S i) bs sx        (sy :< x)
 
 ------------------------------------------------------------------------------
@@ -77,36 +72,6 @@ irrelevantThinning (Keep th1 x {b = b1}) (Drop th2 x {nb = nb2})
 irrelevantThinning (Drop th1 x {nb = nb1}) (Keep th2 x {b = b2})
   = void (soNotToNotSo nb1 b2)
 
-||| If we set a bit beyond the segment of interest, the thinning is unaffected
-export
-setBitPreserve : Thinning i bs sx sy -> (0 _ : i `LT` j) -> Thinning i (setBit bs j) sx sy
-setBitPreserve Done lt = Done
-setBitPreserve (Keep th x {b}) lt =
-  let 0 eq = testSetBitOther j i (\ eq => ltNotEq lt (sym eq)) bs in
-  let 0 lt = transitive (lteSuccRight reflexive) lt in
-  let 0 b = replace {p = So} (sym eq) b in
-  Keep (setBitPreserve th lt) x
-setBitPreserve (Drop th x {nb}) lt =
-  let 0 eq = testSetBitOther j i (\ eq => ltNotEq lt (sym eq)) bs in
-  let 0 lt = transitive (lteSuccRight reflexive) lt in
-  let 0 nb = replace {p = So . not} (sym eq) nb in
-  Drop (setBitPreserve th lt) x
-
-||| If we clear a bit beyond the segment of interest, the thinning is unaffected
-export
-clearBitPreserve : Thinning i bs sx sy -> (0 _ : i `LT` j) -> Thinning i (clearBit bs j) sx sy
-clearBitPreserve Done lt = Done
-clearBitPreserve (Keep th x {b}) lt =
-  let 0 eq = testClearBitOther j i (\ eq => ltNotEq lt (sym eq)) bs in
-  let 0 lt = transitive (lteSuccRight reflexive) lt in
-  let 0 b = replace {p = So} (sym eq) b in
-  Keep (clearBitPreserve th lt) x
-clearBitPreserve (Drop th x {nb}) lt =
-  let 0 eq = testClearBitOther j i (\ eq => ltNotEq lt (sym eq)) bs in
-  let 0 lt = transitive (lteSuccRight reflexive) lt in
-  let 0 nb = replace {p = So . not} (sym eq) nb in
-  Drop (clearBitPreserve th lt) x
-
 export
 none : (sy : SnocList a) -> Thinning (length sy) Bits.zeroBits [<] sy
 none [<] = Done
@@ -121,6 +86,7 @@ ones (sx :< x) =
   let 0 nb = eqToSo (testBitOneBits (S $ length sx)) in
   Keep (ones sx) x
 
+{-
 export
 meet : Thinning i bs sxl sx -> Thinning i cs sxr sx ->
        Exists $ \ sxlr => Thinning i (bs .&. cs) sxlr sx
@@ -182,6 +148,7 @@ join {i = S i} (Drop thl x @{nbl}) (Drop thr x @{nbr}) =
         rewrite notOrIsAnd (testBit bs (S i)) (testBit cs (S i)) in
         andSo (nbl, nbr)
   in Evidence sxlr (Drop thm x)
+-}
 
 ------------------------------------------------------------------------------
 -- Inversion principles
@@ -210,41 +177,63 @@ public export
 record IsKeep
   {a : Type} {i : Nat} {bs : Integer} {sx, sy : SnocList a}
   (th : Thinning (S i) bs sx sy)
-  (b : So (testBit bs (S i))) where
+  (b : So (testBit bs Z)) where
   constructor MkIsKeep
   {0 fstIndexTail, sndIndexTail, keptHead : _}
   fstIndexIsSnoc : sx === fstIndexTail :< keptHead
   sndIndexIsSnoc : sy === sndIndexTail :< keptHead
-  subThinning    : Thinning i bs fstIndexTail sndIndexTail
+  subThinning    : Thinning i (bs `shiftR` 1) fstIndexTail sndIndexTail
   thinningIsKeep : (th ===)
-                 $ replace {p = Thinning (S i) bs sx} (sym sndIndexIsSnoc)
-                 $ replace {p = flip (Thinning (S i) bs) (sndIndexTail :< keptHead)} (sym fstIndexIsSnoc)
-                 $ Keep subThinning keptHead
+     $ replace {p = Thinning (S i) bs sx} (sym sndIndexIsSnoc)
+     $ replace {p = flip (Thinning (S i) bs) (sndIndexTail :< keptHead)} (sym fstIndexIsSnoc)
+     $ Keep subThinning keptHead
+
+export
+isKeepInteger : (bs : Integer) -> So (testBit bs Z) -> bs === setBit ((bs `shiftR` 1) `shiftL` 1) 0
+isKeepInteger bs so = sym $ extensionally $ \case
+  Z => transitive (soToEq $ testSetBitSame ((bs `shiftR` 1) `shiftL` 1) Z) (sym $ soToEq so)
+  S i => transitive (testSetBitOther ((bs `shiftR` 1) `shiftL` 1) Z (S i) absurd)
+       $ transitive (testBitSShiftL (bs `shiftR` 1) 0 i)
+       $ transitive (cong (`testBit` i) (shiftL0 (bs `shiftR` 1)))
+       $ testBitShiftR bs 1 i
 
 ||| Proof that whenever the big end is (S i), and the (S i)-bit is set
 ||| then the thinning is Keep-headed
 export
-isKeep : (th : Thinning (S i) bs sx sy) -> (b : So (testBit bs (S i))) -> IsKeep th b
-isKeep (Keep th x {b = b1}) b2 = MkIsKeep Refl Refl th (cong (\ b => Keep th x {b}) (irrelevantSo b1 b2))
+isKeep : (th : Thinning (S i) bs sx sy) -> (b : So (testBit bs Z)) -> IsKeep th b
 isKeep (Drop th x {nb}) b = void (soNotToNotSo nb b)
+isKeep (Keep th x {b = b1}) b2
+  = MkIsKeep Refl Refl th (cong (\ b => Keep th x {b}) (irrelevantSo b1 b2))
+
 
 ||| Characterising Drop-headed thinnings
 public export
 record IsDrop
   {a : Type} {i : Nat} {bs : Integer} {sx, sy : SnocList a}
   (th : Thinning (S i) bs sx sy)
-  (nb : So (not $ testBit bs (S i))) where
+  (b : So (not $ testBit bs Z)) where
   constructor MkIsDrop
   {0 sndIndexTail, keptHead : _}
   sndIndexIsSnoc : sy === sndIndexTail :< keptHead
-  subThinning    : Thinning i bs sx sndIndexTail
+  subThinning    : Thinning i (bs `shiftR` 1) sx sndIndexTail
   thinningIsDrop : (th ===)
-                 $ replace {p = Thinning (S i) bs sx} (sym sndIndexIsSnoc)
-                 $ Drop subThinning keptHead
+     $ replace {p = Thinning (S i) bs sx} (sym sndIndexIsSnoc)
+     $ Drop subThinning keptHead
 
-||| Proof that whenever the big end is (S i), and the (S i)-bit is clear
+||| Proof that whenever the big end is (S i), and the (S i)-bit is not set
 ||| then the thinning is Drop-headed
 export
-isDrop : (th : Thinning (S i) bs sx sy) -> (nb : So (not $ testBit bs (S i))) -> IsDrop th nb
-isDrop (Drop th x {nb = nb1}) nb2 = MkIsDrop Refl th (cong (\ nb => Drop th x {nb}) (irrelevantSo nb1 nb2))
+isDrop : (th : Thinning (S i) bs sx sy) -> (nb : So (not $ testBit bs Z)) -> IsDrop th nb
 isDrop (Keep th x {b}) nb = void (soNotToNotSo nb b)
+isDrop (Drop th x {nb = nb1}) nb2 = MkIsDrop Refl th (cong (\ nb => Drop th x {nb}) (irrelevantSo nb1 nb2))
+
+
+export
+isDropInteger : (bs : Integer) -> So (not $ testBit bs Z) -> bs === (bs `shiftR` 1) `shiftL` 1
+isDropInteger bs so = sym $ extensionally $ \case
+  Z => transitive (testBit0ShiftL (bs `shiftR` 1) 0)
+     $ transitive (sym $ cong not $ soToEq so)
+     $ notInvolutive (testBit bs Z)
+  S i => transitive (testBitSShiftL (bs `shiftR` 1) 0 i)
+       $ transitive (cong (`testBit` i) (shiftL0 (bs `shiftR` 1)))
+       $ testBitShiftR bs 1 i

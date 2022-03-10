@@ -37,22 +37,23 @@ interface Selable (0 t : SnocList a -> Type) where
 ------------------------------------------------------------------------------
 
 export
-done : (i : Integer) -> Th [<] [<]
-done i = MkTh Z i Done
+done : (bs : Integer) -> Th [<] [<]
+done bs = MkTh Z bs Done
 
 export
 keep : Th sx sy -> (0 x : a) -> Th (sx :< x) (sy :< x)
 keep (MkTh i bs th) x
-  = MkTh (S i) (setBit bs (S i))
-  $ let 0 b = testSetBitSame (S i) bs in
-    Keep (setBitPreserve {j = S i} th reflexive) x
+  = MkTh (S i) (setBit (bs `shiftL` 1) Z)
+  $ let 0 b = testSetBitSame (bs `shiftL` 1) Z in
+    Keep (rewrite setBit0shiftR (bs `shiftL` 1) in
+          rewrite shiftLR bs in th) x
 
 export
 drop : Th sx sy -> (0 x : a) -> Th sx (sy :< x)
 drop (MkTh i bs th) x
-  = MkTh (S i) (clearBit bs (S i))
-  $ let 0 nb = testClearBitSame (S i) bs in
-    Drop (clearBitPreserve {j = S i} th reflexive) x
+  = MkTh (S i) (bs `shiftL` 1)
+  $ let 0 nb = eqToSo $ cong not $ testBit0ShiftL bs 0 in
+    Drop (rewrite shiftLR bs in th) x
 
 ------------------------------------------------------------------------------
 -- Smart destructor (aka view)
@@ -61,31 +62,36 @@ drop (MkTh i bs th) x
 public export
 data View : Th sx sy -> Type where
   VDone : (i : Integer)   -> View (done i)
-  VKeep : (th : Th sx sy) -> (0 x : a) -> {auto 0 b : So ?} ->
-          View (MkTh (S th.bigEnd) th.encoding (Keep th.thinning x {b}))
-  VDrop : (th : Th sx sy) -> (0 x : a) -> {auto 0 nb : So (not ?)} ->
-          View (MkTh (S th.bigEnd) th.encoding (Drop th.thinning x {nb}))
+  VKeep : (th : Th sx sy) -> (0 x : a) -> View (keep th x)
+  VDrop : (th : Th sx sy) -> (0 x : a) -> View (drop th x)
+
+cast : {0 th, th' : Thinning i bs sx sy} ->
+       View (MkTh i bs th) ->
+       View (MkTh i bs th')
+cast v = replace {p = \ th => View (MkTh i bs th)} (irrelevantThinning ? ?) v
 
 export %inline
 view : (th : Th sx sy) -> View th
-view (MkTh 0 i th) =
+view (MkTh 0 bs th) =
   let 0 eqs = isDone th in
   rewrite fstIndexIsLin eqs in
   rewrite sndIndexIsLin eqs in
   rewrite thinningIsDone eqs in
-  VDone i
-view (MkTh (S n) i th) = case choose (testBit i (S n)) of
+  VDone bs
+view (MkTh (S i) bs th) = case choose (testBit bs Z) of
   Left so =>
     let 0 eqs = isKeep th so in
     rewrite fstIndexIsSnoc eqs in
     rewrite sndIndexIsSnoc eqs in
     rewrite thinningIsKeep eqs in
-    VKeep (MkTh n i (subThinning eqs)) ?
+    rewrite isKeepInteger bs so in
+    cast $ VKeep (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
   Right soNot =>
     let 0 eqs = isDrop th soNot in
     rewrite sndIndexIsSnoc eqs in
     rewrite thinningIsDrop eqs in
-    VDrop (MkTh n i (subThinning eqs)) ?
+    rewrite isDropInteger bs soNot in
+    cast $ VDrop (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
 
 ------------------------------------------------------------------------------
 -- Instances
@@ -104,6 +110,7 @@ export
 Selable (`Th` sy) where
   (^?) = (*^)
 
+export
 Show (Th sx sy) where
   show th = pack ('[' :: go th [']']) where
     go : Th sa sb -> List Char -> List Char
@@ -128,6 +135,7 @@ export
 ones : (sx : SnocList a) -> Th sx sx
 ones sx = MkTh (length sx) oneBits (ones sx)
 
+{-
 export
 meet : Th sxl sx -> Th sxr sx -> Exists (`Th` sx)
 meet (MkTh i bs thl) (MkTh j cs thr)
@@ -143,6 +151,7 @@ join (MkTh i bs thl) (MkTh j cs thr)
   $ MkTh i (bs .|. cs)
   $ snd $ Internal.join thl
   $ rewrite irrelevantSize thl thr in thr
+-}
 
 ||| Concatenate two thinnings
 export
