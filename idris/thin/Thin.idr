@@ -66,7 +66,7 @@ data View : Th sx sy -> Type where
   VDrop : (th : Th sx sy) -> (0 x : a) -> {auto 0 nb : So (not ?)} ->
           View (MkTh (S th.bigEnd) th.encoding (Drop th.thinning x {nb}))
 
-export
+export %inline
 view : (th : Th sx sy) -> View th
 view (MkTh 0 i th) =
   let 0 eqs = isDone th in
@@ -128,13 +128,29 @@ export
 ones : (sx : SnocList a) -> Th sx sx
 ones sx = MkTh (length sx) oneBits (ones sx)
 
+export
+meet : Th sxl sx -> Th sxr sx -> Exists (`Th` sx)
+meet (MkTh i bs thl) (MkTh j cs thr)
+  = Evidence ?
+  $ MkTh i (bs .&. cs)
+  $ snd $ Internal.meet thl
+  $ rewrite irrelevantSize thl thr in thr
+
+export
+join : Th sxl sx -> Th sxr sx -> Exists (`Th` sx)
+join (MkTh i bs thl) (MkTh j cs thr)
+  = Evidence ?
+  $ MkTh i (bs .|. cs)
+  $ snd $ Internal.join thl
+  $ rewrite irrelevantSize thl thr in thr
+
 ||| Concatenate two thinnings
 export
 (++) : Th sa sb -> Th sx sy -> Th (sa ++ sx) (sb ++ sy)
 thl ++ thr = case view thr of
-  (VDone _) => thl
-  (VKeep thr x) => keep (thl ++ thr) x
-  (VDrop thr x) => drop (thl ++ thr) x
+  VDone _ => thl
+  VKeep thr x => keep (thl ++ thr) x
+  VDrop thr x => drop (thl ++ thr) x
 
 ||| Like filter but returns a thinning
 export

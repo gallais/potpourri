@@ -3,8 +3,10 @@
 
 module Thin.Internal
 
+import Data.Bool
 import Data.Bits
 import Data.Bits.Integer
+import Data.DPair
 import Data.Nat
 import Data.SnocList
 
@@ -52,6 +54,14 @@ data Thinning : (i : Nat) -> (bs : Integer) -> (sx, sy : SnocList a) -> Type whe
 ------------------------------------------------------------------------------
 -- Properties of Thinning
 ------------------------------------------------------------------------------
+
+export
+irrelevantSize : Thinning i bs sa sx -> Thinning j cs sb sx -> i === j
+irrelevantSize Done Done = Refl
+irrelevantSize (Keep thl x) (Keep thr x) = cong S (irrelevantSize thl thr)
+irrelevantSize (Keep thl x) (Drop thr x) = cong S (irrelevantSize thl thr)
+irrelevantSize (Drop thl x) (Keep thr x) = cong S (irrelevantSize thl thr)
+irrelevantSize (Drop thl x) (Drop thr x) = cong S (irrelevantSize thl thr)
 
 ||| The thinning relation is a mere validation relation and thus entirely
 ||| characterised by its indices. Consequently its proofs are irrelevant.
@@ -110,6 +120,68 @@ ones [<] = Done
 ones (sx :< x) =
   let 0 nb = eqToSo (testBitOneBits (S $ length sx)) in
   Keep (ones sx) x
+
+export
+meet : Thinning i bs sxl sx -> Thinning i cs sxr sx ->
+       Exists $ \ sxlr => Thinning i (bs .&. cs) sxlr sx
+meet Done Done = Evidence [<] Done
+meet {i = S i} (Keep thl x @{bl}) (Keep thr x @{br}) =
+  let Evidence sxlr thm = meet thl thr in
+  let 0 b : So (testBit (bs .&. cs) (S i))
+      = rewrite testBitAnd (S i) bs cs in
+        andSo (bl, br)
+  in Evidence (sxlr :< x) (Keep thm x)
+meet {i = S i} (Keep thl x) (Drop thr x @{nbr}) =
+  let Evidence sxlr thm = meet thl thr in
+  let 0 nb : So (not $ testBit (bs .&. cs) (S i))
+      = rewrite testBitAnd (S i) bs cs in
+        rewrite notAndIsOr (testBit bs (S i)) (testBit cs (S i)) in
+        orSo (Right nbr)
+  in Evidence sxlr (Drop thm x)
+meet {i = S i} (Drop thl x @{nbl}) (Keep thr x) =
+  let Evidence sxlr thm = meet thl thr in
+  let 0 nb : So (not $ testBit (bs .&. cs) (S i))
+      = rewrite testBitAnd (S i) bs cs in
+        rewrite notAndIsOr (testBit bs (S i)) (testBit cs (S i)) in
+        orSo (Left nbl)
+  in Evidence sxlr (Drop thm x)
+meet {i = S i} (Drop thl x @{nbl}) (Drop thr x) =
+  let Evidence sxlr thm = meet thl thr in
+  let 0 nb : So (not $ testBit (bs .&. cs) (S i))
+      = rewrite testBitAnd (S i) bs cs in
+        rewrite notAndIsOr (testBit bs (S i)) (testBit cs (S i)) in
+        orSo (Left nbl)
+  in Evidence sxlr (Drop thm x)
+
+export
+join : Thinning i bs sxl sx -> Thinning i cs sxr sx ->
+       Exists $ \ sxlr => Thinning i (bs .|. cs) sxlr sx
+join Done Done = Evidence [<] Done
+join {i = S i} (Keep thl x @{bl}) (Keep thr x) =
+  let Evidence sxlr thm = join thl thr in
+  let 0 b : So (testBit (bs .|. cs) (S i))
+      = rewrite testBitOr (S i) bs cs in
+        orSo (Left bl)
+  in Evidence (sxlr :< x) (Keep thm x)
+join {i = S i} (Keep thl x @{bl}) (Drop thr x) =
+  let Evidence sxlr thm = join thl thr in
+  let 0 b : So (testBit (bs .|. cs) (S i))
+      = rewrite testBitOr (S i) bs cs in
+        orSo (Left bl)
+  in Evidence (sxlr :< x) (Keep thm x)
+join {i = S i} (Drop thl x) (Keep thr x @{br}) =
+  let Evidence sxlr thm = join thl thr in
+  let 0 b : So (testBit (bs .|. cs) (S i))
+      = rewrite testBitOr (S i) bs cs in
+        orSo (Right br)
+  in Evidence (sxlr :< x) (Keep thm x)
+join {i = S i} (Drop thl x @{nbl}) (Drop thr x @{nbr}) =
+  let Evidence sxlr thm = join thl thr in
+  let 0 b : So (not $ testBit (bs .|. cs) (S i))
+      = rewrite testBitOr (S i) bs cs in
+        rewrite notOrIsAnd (testBit bs (S i)) (testBit cs (S i)) in
+        andSo (nbl, nbr)
+  in Evidence sxlr (Drop thm x)
 
 ------------------------------------------------------------------------------
 -- Inversion principles
