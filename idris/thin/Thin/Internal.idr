@@ -203,7 +203,7 @@ isKeepInteger bs so = sym $ extensionally $ \case
 
 ||| Proof that whenever the big end is (S i), and the (S i)-bit is set
 ||| then the thinning is Keep-headed
-export
+public export
 isKeep : (th : Thinning (S i) bs sx sy) -> (b : So (testBit bs Z)) -> IsKeep th b
 isKeep (Drop th x {nb}) b = void (soNotToNotSo nb b)
 isKeep (Keep th x {b = b1}) b2
@@ -226,7 +226,7 @@ record IsDrop
 
 ||| Proof that whenever the big end is (S i), and the (S i)-bit is not set
 ||| then the thinning is Drop-headed
-export
+public export
 isDrop : (th : Thinning (S i) bs sx sy) -> (nb : So (not $ testBit bs Z)) -> IsDrop th nb
 isDrop (Keep th x {b}) nb = void (soNotToNotSo nb b)
 isDrop (Drop th x {nb = nb1}) nb2 = MkIsDrop Refl th (cong (\ nb => Drop th x {nb}) (irrelevantSo nb1 nb2))

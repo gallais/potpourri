@@ -32,7 +32,7 @@ full k = complement (cofull k)
 ||| is that bit followed by the original integer
 public export
 cons : Bool -> Integer -> Integer
-cons b bs = ifThenElse b (`setBit` 0) (`clearBit` 0) (bs `shiftL` 1)
+cons b bs = ifThenElse b (`setBit` 0) id (bs `shiftL` 1)
 
 ------------------------------------------------------------------------------
 -- Properties
@@ -112,17 +112,6 @@ clearBit0ShiftR : (bs : Integer) -> clearBit bs 0 `shiftR` 1 === bs `shiftR` 1
 clearBit0ShiftR bs = unsafeRefl
 
 export
-consShiftR : (b : Bool) -> (bs : Integer) -> (cons b bs) `shiftR` 1 === bs
-consShiftR True bs =  Calc $
-  |~ (setBit (bs `shiftL` 1) 0) `shiftR` 1
-  ~~ (bs `shiftL` 1) `shiftR` 1               ...( setBit0ShiftR (bs `shiftL` 1) )
-  ~~ bs                                       ...( shiftLR bs )
-consShiftR False bs = Calc $
-  |~ (clearBit (bs `shiftL` 1) 0) `shiftR` 1
-  ~~ (bs `shiftL` 1) `shiftR` 1               ...( clearBit0ShiftR (bs `shiftL` 1) )
-  ~~ bs                                       ...( shiftLR bs )
-
-export
 shiftLInjective : (bs, cs : Integer) -> (k : Nat) ->
                   bs `shiftL` k === cs `shiftL` k -> bs === cs
 shiftLInjective bs cs 0 eq = Calc $
@@ -137,15 +126,6 @@ shiftLInjective bs cs (S k) eq
   ~~ testBit (bs `shiftL` S k) (S i) ...( sym $ testBitSShiftL bs k i )
   ~~ testBit (cs `shiftL` S k) (S i) ...( cong (\ bs => testBit bs (S i)) eq )
   ~~ testBit (cs `shiftL` k) i       ...( testBitSShiftL cs k i )
-
-export
-consInjective : (b : Bool) -> (bs, cs : Integer) ->
-                cons b bs === cons b cs -> bs === cs
-consInjective b bs cs eq = Calc $
-  |~ bs
-  ~~ cons b bs `shiftR` 1 ...( sym $ consShiftR b bs )
-  ~~ cons b cs `shiftR` 1 ...( cong (`shiftR` 1) eq )
-  ~~ cs                   ...( consShiftR b cs )
 
 ------------------------------------------------------------------------------
 -- And properties
@@ -331,3 +311,45 @@ export
 testClearBitOther : (bs : Integer) -> (i, j : Nat) -> Not (i === j) ->
                     testBit (clearBit bs i) j === testBit bs j
 testClearBitOther bs i j neq = unsafeRefl
+
+
+------------------------------------------------------------------------------
+-- Cons properties
+------------------------------------------------------------------------------
+
+export
+testBit0Cons : (b : Bool) -> (bs : Integer) -> testBit (cons b bs) 0 === b
+testBit0Cons True bs = soToEq $ testSetBitSame (bs `shiftL` 1) 0
+testBit0Cons False bs = testBit0ShiftL bs 0
+
+export
+testBitSCons : (b : Bool) -> (bs : Integer) -> (i : Nat) ->
+               testBit (cons b bs) (S i) === testBit bs i
+testBitSCons True bs i = Calc $
+  |~ testBit (cons True bs) (S i)
+  ~~ testBit (bs `shiftL` 1) (S i) ...( testSetBitOther (bs `shiftL` 1) 0 (S i) absurd )
+  ~~ testBit (bs `shiftL` 0) i     ...( testBitSShiftL bs 0 i )
+  ~~ testBit bs i                  ...( cong (\ bs => testBit bs i) (shiftL0 bs) )
+testBitSCons False bs i = Calc $
+  |~ testBit (cons False bs) (S i)
+  ~~ testBit (bs `shiftL` 0) i     ...( testBitSShiftL bs 0 i )
+  ~~ testBit bs i                  ...( cong (\ bs => testBit bs i) (shiftL0 bs) )
+
+export
+consShiftR : (b : Bool) -> (bs : Integer) -> (cons b bs) `shiftR` 1 === bs
+consShiftR True bs =  Calc $
+  |~ cons True bs `shiftR` 1
+  ~~ (bs `shiftL` 1) `shiftR` 1 ...( setBit0ShiftR (bs `shiftL` 1) )
+  ~~ bs                         ...( shiftLR bs )
+consShiftR False bs = Calc $
+  |~ cons False bs `shiftR` 1
+  ~~ bs                        ...( shiftLR bs )
+
+export
+consInjective : (b : Bool) -> (bs, cs : Integer) ->
+                cons b bs === cons b cs -> bs === cs
+consInjective b bs cs eq = Calc $
+  |~ bs
+  ~~ cons b bs `shiftR` 1 ...( sym $ consShiftR b bs )
+  ~~ cons b cs `shiftR` 1 ...( cong (`shiftR` 1) eq )
+  ~~ cs                   ...( consShiftR b cs )

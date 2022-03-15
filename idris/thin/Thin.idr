@@ -45,17 +45,16 @@ done = MkTh Z 0 Done
 export
 keep : Th sx sy -> (0 x : a) -> Th (sx :< x) (sy :< x)
 keep th x
-  = MkTh (S th .bigEnd) (setBit (th .encoding `shiftL` 1) Z)
-  $ let 0 b = testSetBitSame (th .encoding `shiftL` 1) Z in
-    Keep (rewrite setBit0ShiftR (th .encoding `shiftL` 1) in
-          rewrite shiftLR (th .encoding) in th.thinning) x
+  = MkTh (S th .bigEnd) (cons True (th .encoding))
+  $ let 0 b = eqToSo $ testBit0Cons True (th .encoding) in
+    Keep (rewrite consShiftR True (th .encoding) in th.thinning) x
 
 export
 drop : Th sx sy -> (0 x : a) -> Th sx (sy :< x)
 drop th x
-  = MkTh (S th .bigEnd) (th .encoding `shiftL` 1)
-  $ let 0 nb = eqToSo $ cong not $ testBit0ShiftL (th .encoding) 0 in
-    Drop (rewrite shiftLR (th .encoding) in th .thinning) x
+  = MkTh (S th .bigEnd) (cons False (th .encoding))
+  $ let 0 nb = eqToSo $ cong not $ testBit0Cons False (th .encoding) in
+    Drop (rewrite consShiftR False (th .encoding) in th .thinning) x
 
 ------------------------------------------------------------------------------
 -- Smart destructor (aka view)
@@ -95,6 +94,40 @@ view (MkTh (S i) bs th) = case choose (testBit bs Z) of
     rewrite thinningIsDrop eqs in
     rewrite isDropInteger bs soNot in
     cast $ VDrop (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
+
+------------------------------------------------------------------------------
+-- Unfold lemmas for the view
+------------------------------------------------------------------------------
+
+chooseTrueUnfold : choose True === Left Oh
+chooseTrueUnfold with (choose True)
+  _ | Left Oh = Refl
+  _ | Right ohno = absurd ohno
+
+chooseFalseUnfold : choose False === Right Oh
+chooseFalseUnfold with (choose False)
+  _ | Left ohyes = absurd ohyes
+  _ | Right Oh = Refl
+
+export
+viewDoneUnfold : view Thin.done === VDone
+viewDoneUnfold = Refl
+
+export
+viewKeepUnfold : (th : Th sx sy) -> view (keep th x) === VKeep th x
+viewKeepUnfold (MkTh i bs p)
+  = rewrite testBit0Cons True bs in
+    rewrite chooseTrueUnfold in
+    rewrite consShiftR True bs in
+    Refl
+
+export
+viewDropUnfold : (th : Th sx sy) -> view (drop th x) === VDrop th x
+viewDropUnfold (MkTh i bs p)
+  = rewrite testBit0Cons False bs in
+    rewrite chooseFalseUnfold in
+    rewrite consShiftR False bs in
+    Refl
 
 ------------------------------------------------------------------------------
 -- Instances
