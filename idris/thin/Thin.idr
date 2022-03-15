@@ -149,7 +149,7 @@ Selable (`Th` sy) where
 ||| This definition makes the proofs easier.
 ||| If we proceed by `case (view th) of ...` instead, things get horrible
 export
-eqView : {th, ph : Th sa sb} -> View th -> View ph -> Bool
+eqView : {0 th, ph : Th sx sy} -> View th -> View ph -> Bool
 eqView VDone _ = True
 eqView (VKeep th _) (VKeep ph _) = eqView (view th) (view ph)
 eqView (VDrop th _) (VDrop ph _) = eqView (view th) (view ph)
@@ -276,8 +276,9 @@ irrelevantOnes th ph = case view th of
   VDrop th x => void $ tooBig th
 
 export
-onesIsKeep : ones (sx :< x) === keep (ones sx) x
-onesIsKeep = irrelevantEq $ irrelevantOnes ? ?
+onesIsKeep : (0 sx : SnocList a) -> (0 x : _) -> ones (sx :< x) === keep (ones sx) x
+onesIsKeep sx x = irrelevantEq $ irrelevantOnes ? ?
+
 
 ------------------------------------------------------------------------------
 -- Intersection & union of supports
