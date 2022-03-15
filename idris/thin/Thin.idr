@@ -1,5 +1,6 @@
 module Thin
 
+import Data.Bool.Decidable
 import Data.Bits
 import Data.Bits.Integer
 import Data.DPair
@@ -45,7 +46,7 @@ keep : Th sx sy -> (0 x : a) -> Th (sx :< x) (sy :< x)
 keep th x
   = MkTh (S th .bigEnd) (setBit (th .encoding `shiftL` 1) Z)
   $ let 0 b = testSetBitSame (th .encoding `shiftL` 1) Z in
-    Keep (rewrite setBit0shiftR (th .encoding `shiftL` 1) in
+    Keep (rewrite setBit0ShiftR (th .encoding `shiftL` 1) in
           rewrite shiftLR (th .encoding) in th.thinning) x
 
 export
@@ -111,6 +112,19 @@ export
 Selable (`Th` sy) where
   (^?) = (*^)
 
+||| This definition makes the proofs easier.
+||| If we proceed by `case (view th) of ...` instead, things get horrible
+export
+eqView : {th, ph : Th sa sb} -> View th -> View ph -> Bool
+eqView VDone _ = True
+eqView (VKeep th _) (VKeep ph _) = eqView (view th) (view ph)
+eqView (VDrop th _) (VDrop ph _) = eqView (view th) (view ph)
+eqView _ _ = False
+
+export
+Eq (Th sx sy) where
+  th == ph = eqView (view th) (view ph)
+
 export
 Show (Th sx sy) where
   show th = pack ('[' :: go th [']']) where
@@ -119,6 +133,52 @@ Show (Th sx sy) where
       VDone => id
       VKeep th x => go th . ('1'::)
       VDrop th x => go th . ('0'::)
+
+------------------------------------------------------------------------------
+-- Properties
+------------------------------------------------------------------------------
+
+export
+keepInjective : (th, ph : Th sx sy) -> keep th x === keep ph x -> th === ph
+keepInjective (MkTh i bs p) (MkTh j cs q) eq
+  with (cong (pred . bigEnd) eq)
+  keepInjective (MkTh i bs p) (MkTh i cs q) eq | Refl
+    with (consInjective True bs cs (cong encoding eq))
+    keepInjective (MkTh i bs p) (MkTh i bs q) eq | Refl | Refl
+      = rewrite irrelevantThinning p q in Refl
+
+export
+dropInjective : (th, ph : Th sx sy) -> drop th x === drop ph x -> th === ph
+dropInjective (MkTh i bs p) (MkTh j cs q) eq
+  with (cong (pred . bigEnd) eq)
+  dropInjective (MkTh i bs p) (MkTh i cs q) eq | Refl
+    with (shiftLInjective bs cs 1 (cong encoding eq))
+    dropInjective (MkTh i bs p) (MkTh i bs q) eq | Refl | Refl
+      = rewrite irrelevantThinning p q in Refl
+
+export
+eqViewReflects : {th, ph : Th sx sy} -> (v : View th) -> (w : View ph) ->
+                 Reflects (th === ph) (eqView v w)
+eqViewReflects VDone VDone = RTrue Refl
+eqViewReflects (VKeep th x) (VKeep ph x)
+  -- shuffling things around so that abstraction happens in the right order
+  with (eqViewReflects (view th) (view ph))
+  _ | p with (eqView (view th) (view ph))
+    _ | b = case p of
+      RTrue eq => RTrue (cong (`keep` x) eq)
+      RFalse neq => RFalse (neq . keepInjective th ph)
+eqViewReflects (VKeep th x) (VDrop ph x) = RFalse (\case hyp impossible)
+eqViewReflects (VDrop th x) (VKeep ph x) = RFalse (\case hyp impossible)
+eqViewReflects (VDrop th x) (VDrop ph x) with (eqViewReflects (view th) (view ph))
+  _ | p with (eqView (view th) (view ph))
+    _ | b = case p of
+      RTrue eq => RTrue (cong (`drop` x) eq)
+      RFalse neq => RFalse (neq . dropInjective th ph)
+
+||| Boolean equality on thinnings reflects propositional equality.
+export
+eqReflects : (th, ph : Th {a} sx sy) -> Reflects (th === ph) (th == ph)
+eqReflects th ph = eqViewReflects (view th) (view ph)
 
 ------------------------------------------------------------------------------
 -- Combinators

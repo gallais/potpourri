@@ -7,6 +7,8 @@ import Data.Nat.Order
 
 import Decidable.Equality
 
+import Syntax.PreorderReasoning
+
 %default total
 
 
@@ -25,6 +27,12 @@ cofull k = oneBits `shiftL` k
 public export
 full : Nat -> Integer
 full k = complement (cofull k)
+
+||| cons takes a bit and an integer and returns an integer whose bit pattern
+||| is that bit followed by the original integer
+public export
+cons : Bool -> Integer -> Integer
+cons b bs = ifThenElse b (`setBit` 0) (`clearBit` 0) (bs `shiftL` 1)
 
 ------------------------------------------------------------------------------
 -- Properties
@@ -96,8 +104,48 @@ shiftLR : (bs : Integer) -> (bs `shiftL` 1) `shiftR` 1 === bs
 shiftLR bs = unsafeRefl
 
 export
-setBit0shiftR : (bs : Integer) -> setBit bs 0 `shiftR` 1 === bs `shiftR` 1
-setBit0shiftR bs = unsafeRefl
+setBit0ShiftR : (bs : Integer) -> setBit bs 0 `shiftR` 1 === bs `shiftR` 1
+setBit0ShiftR bs = unsafeRefl
+
+export
+clearBit0ShiftR : (bs : Integer) -> clearBit bs 0 `shiftR` 1 === bs `shiftR` 1
+clearBit0ShiftR bs = unsafeRefl
+
+export
+consShiftR : (b : Bool) -> (bs : Integer) -> (cons b bs) `shiftR` 1 === bs
+consShiftR True bs =  Calc $
+  |~ (setBit (bs `shiftL` 1) 0) `shiftR` 1
+  ~~ (bs `shiftL` 1) `shiftR` 1               ...( setBit0ShiftR (bs `shiftL` 1) )
+  ~~ bs                                       ...( shiftLR bs )
+consShiftR False bs = Calc $
+  |~ (clearBit (bs `shiftL` 1) 0) `shiftR` 1
+  ~~ (bs `shiftL` 1) `shiftR` 1               ...( clearBit0ShiftR (bs `shiftL` 1) )
+  ~~ bs                                       ...( shiftLR bs )
+
+export
+shiftLInjective : (bs, cs : Integer) -> (k : Nat) ->
+                  bs `shiftL` k === cs `shiftL` k -> bs === cs
+shiftLInjective bs cs 0 eq = Calc $
+  |~ bs
+  ~~ bs `shiftL` 0 ...( sym $ shiftL0 bs )
+  ~~ cs `shiftL` 0 ...( eq )
+  ~~ cs            ...( shiftL0 cs )
+shiftLInjective bs cs (S k) eq
+  = shiftLInjective bs cs k
+  $ extensionally $ \ i => Calc $
+  |~ testBit (bs `shiftL` k) i
+  ~~ testBit (bs `shiftL` S k) (S i) ...( sym $ testBitSShiftL bs k i )
+  ~~ testBit (cs `shiftL` S k) (S i) ...( cong (\ bs => testBit bs (S i)) eq )
+  ~~ testBit (cs `shiftL` k) i       ...( testBitSShiftL cs k i )
+
+export
+consInjective : (b : Bool) -> (bs, cs : Integer) ->
+                cons b bs === cons b cs -> bs === cs
+consInjective b bs cs eq = Calc $
+  |~ bs
+  ~~ cons b bs `shiftR` 1 ...( sym $ consShiftR b bs )
+  ~~ cons b cs `shiftR` 1 ...( cong (`shiftR` 1) eq )
+  ~~ cs                   ...( consShiftR b cs )
 
 ------------------------------------------------------------------------------
 -- And properties
