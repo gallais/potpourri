@@ -87,9 +87,12 @@ ones (sx :< x) =
   let 0 nb = eqToSo (testBitOneBits (S $ length sx)) in
   Keep (ones sx) x
 -}
+
+-- We need to public export so that `fst (meet th ph)` computes at the type level.
+-- These are all runtime irrelevant though so their behaviour does not matter.
 public export
 meet : Thinning i bs sxl sx -> Thinning i cs sxr sx ->
-       Exists $ \ sxlr => Thinning i (bs .&. cs) sxlr sx
+         Exists $ \ sxlr => Thinning i (bs .&. cs) sxlr sx
 meet Done Done = Evidence ? Done
 meet (Keep thl x @{bl}) (Keep thr x @{br}) =
   let ih = meet thl thr in
@@ -119,35 +122,37 @@ meet (Drop thl x @{nbl}) (Drop thr x) =
         rewrite eq in orSo (Left nbl)
   in Evidence (ih .fst) (Drop (rewrite shiftRAnd bs cs 1 in ih .snd) x)
 
-export
+-- We need to public export so that `fst (join th ph)` computes at the type level.
+-- These are all runtime irrelevant though so their behaviour does not matter.
+public export
 join : Thinning i bs sxl sx -> Thinning i cs sxr sx ->
        Exists $ \ sxlr => Thinning i (bs .|. cs) sxlr sx
-join Done Done = Evidence [<] Done
-join {i = S i} (Keep thl x @{bl}) (Keep thr x) =
-  let Evidence sxlr thm = join thl thr in
+join Done Done = Evidence ? Done
+join (Keep thl x @{bl}) (Keep thr x) =
+  let ih = join thl thr in
   let 0 b : So (testBit (bs .|. cs) 0)
       = rewrite testBitOr bs cs 0 in
         orSo (Left bl)
-  in Evidence (sxlr :< x) (Keep (rewrite shiftROr bs cs 1 in thm) x)
+  in Evidence (ih .fst :< x) (Keep (rewrite shiftROr bs cs 1 in ih .snd) x)
 join (Keep thl x @{bl}) (Drop thr x) =
-  let Evidence sxlr thm = join thl thr in
+  let ih = join thl thr in
   let 0 b : So (testBit (bs .|. cs) 0)
       = rewrite testBitOr bs cs 0 in
         orSo (Left bl)
-  in Evidence (sxlr :< x) (Keep (rewrite shiftROr bs cs 1 in thm) x)
+  in Evidence (ih .fst :< x) (Keep (rewrite shiftROr bs cs 1 in ih .snd) x)
 join (Drop thl x) (Keep thr x @{br}) =
-  let Evidence sxlr thm = join thl thr in
+  let ih = join thl thr in
   let 0 b : So (testBit (bs .|. cs) 0)
       = rewrite testBitOr bs cs 0 in
         orSo (Right br)
-  in Evidence (sxlr :< x) (Keep (rewrite shiftROr bs cs 1 in thm) x)
+  in Evidence (ih .fst :< x) (Keep (rewrite shiftROr bs cs 1 in ih .snd) x)
 join (Drop thl x @{nbl}) (Drop thr x @{nbr}) =
-  let Evidence sxlr thm = join thl thr in
+  let ih = join thl thr in
   let 0 b : So (not $ testBit (bs .|. cs) 0)
       = rewrite testBitOr bs cs 0 in
         let eq = notOrIsAnd (testBit bs 0) (testBit cs 0) in
         rewrite eq in andSo (nbl, nbr)
-  in Evidence sxlr (Drop (rewrite shiftROr bs cs 1 in thm) x)
+  in Evidence (ih .fst) (Drop (rewrite shiftROr bs cs 1 in ih .snd) x)
 
 ------------------------------------------------------------------------------
 -- Inversion principles

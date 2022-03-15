@@ -146,6 +146,8 @@ meet thl thr
   $ snd $ Internal.meet (thl .thinning)
   $ rewrite irrelevantSize (thl .thinning) (thr .thinning) in thr .thinning
 
+||| Meet is indeed computing a lower bound
+||| TODO: prove it is the largest such
 export
 isMeet : (th : Th sxl sx) -> (ph : Th sxr sx) ->
          (Th (fst $ meet th ph) sxl, Th (fst $ meet th ph) sxr)
@@ -166,6 +168,21 @@ join thl thr
   $ MkTh (thl .bigEnd) (thl .encoding .|. thr .encoding)
   $ snd $ Internal.join (thl .thinning)
   $ rewrite irrelevantSize (thl .thinning) (thr .thinning) in thr .thinning
+
+||| Join is indeed computing an upper bound
+||| TODO: prove it is the smallest such
+export
+isJoin : (th : Th sxl sx) -> (ph : Th sxr sx) ->
+         (Th sxl (fst $ join th ph), Th sxr (fst $ join th ph))
+isJoin th ph = case view th of
+  VDone => case view ph of
+    VDone => (done, done)
+  VKeep th x => case view ph of
+    VKeep ph x => bimap (`keep` x) (`keep` x) (isJoin th ph)
+    VDrop ph x => bimap (`keep` x) (`drop` x) (isJoin th ph)
+  VDrop th x => case view ph of
+    VKeep ph x => bimap (`drop` x) (`keep` x) (isJoin th ph)
+    VDrop ph x => isJoin th ph
 
 ||| Concatenate two thinnings
 export
