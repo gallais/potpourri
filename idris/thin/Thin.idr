@@ -5,6 +5,7 @@ import Data.Bits
 import Data.Bits.Integer
 import Data.DPair
 import Data.SnocList
+import Decidable.Equality
 
 import Thin.Internal
 
@@ -179,6 +180,18 @@ eqViewReflects (VDrop th x) (VDrop ph x) with (eqViewReflects (view th) (view ph
 export
 eqReflects : (th, ph : Th {a} sx sy) -> Reflects (th === ph) (th == ph)
 eqReflects th ph = eqViewReflects (view th) (view ph)
+
+||| If we know there's a boolean that reflects a type then the type is decidable
+
+export
+toDec : Reflects p b -> Dec p
+toDec (RTrue yes) = Yes yes
+toDec (RFalse no) = No no
+
+||| As a consequence equality of thinnings is decidable
+export
+DecEq (Th sx sy) where
+  decEq th ph = toDec (eqReflects th ph)
 
 ------------------------------------------------------------------------------
 -- Combinators
