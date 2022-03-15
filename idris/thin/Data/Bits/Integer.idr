@@ -3,10 +3,33 @@ module Data.Bits.Integer
 import Data.Bits
 import Data.Bool
 import Data.So
+import Data.Nat.Order
 
 import Decidable.Equality
 
 %default total
+
+
+------------------------------------------------------------------------------
+-- Additional functions
+------------------------------------------------------------------------------
+
+||| cofull takes a natural number k and returns an integer whose bit pattern is
+||| k zeros followed by ones
+public export
+cofull : Nat -> Integer
+cofull k = oneBits `shiftL` k
+
+||| full takes a natural number k and returns an integer whose bit pattern is
+||| k ones followed by zeros
+public export
+full : Nat -> Integer
+full k = complement (cofull k)
+
+------------------------------------------------------------------------------
+-- Properties
+------------------------------------------------------------------------------
+
 
 ||| This should be far safer than `believe_me` as:
 ||| 1. we only reduce to `Refl` when x actually equals y
@@ -136,15 +159,15 @@ orIdempotent bs = extensionally $ \ i =>
 
 export
 ||| Postulated: complement is bitwise on integers
-testBitComplement : (i : Nat) -> (bs : Integer) ->
+testBitComplement : (bs : Integer) -> (i : Nat) ->
                     testBit (complement bs) i === not (testBit bs i)
-testBitComplement i bs = unsafeRefl
+testBitComplement bs i = unsafeRefl
 
 export
 complementInvolutive : (bs : Integer) -> complement (complement bs) === bs
 complementInvolutive bs = extensionally $ \ i =>
-  rewrite testBitComplement i (complement bs) in
-  rewrite testBitComplement i bs in
+  rewrite testBitComplement (complement bs) i in
+  rewrite testBitComplement bs i in
   notInvolutive (testBit bs i)
 
 ------------------------------------------------------------------------------
@@ -208,6 +231,32 @@ testBitZeroBits i = unsafeRefl
 export
 testBitOneBits : (i : Nat) -> testBit (oneBits {a = Integer}) i === True
 testBitOneBits i = unsafeRefl
+
+------------------------------------------------------------------------------
+-- (Co)Full properties
+------------------------------------------------------------------------------
+
+export
+testBitCofull : (k : Nat) -> (i : Nat) -> testBit (cofull k) i === not (i `lt` k)
+testBitCofull 0 i = testBitOneBits i
+testBitCofull (S k) 0 = testBit0ShiftL oneBits k
+testBitCofull (S k) (S i)
+  = rewrite testBitSShiftL oneBits k i in
+    testBitCofull k i
+
+export
+testBitFull : (k : Nat) -> (i : Nat) -> testBit (full k) i === (i `lt` k)
+testBitFull k i
+  = rewrite testBitComplement (cofull k) i in
+    rewrite testBitCofull k i in
+    notInvolutive (i `lt` k)
+
+export
+shiftRFull : (k : Nat) -> full (S k) `shiftR` 1 === full k
+shiftRFull k = extensionally $ \ i =>
+  rewrite testBitShiftR (full (S k)) 1 i in
+  rewrite testBitFull k i in
+  testBitFull (S k) (S i)
 
 ------------------------------------------------------------------------------
 -- TestBit properties

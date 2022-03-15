@@ -130,13 +130,11 @@ export
 none : (sx : SnocList a) -> Th [<] sx
 none sx = MkTh (length sx) zeroBits (none sx)
 
-{-
 ||| Identity thinning
 -- TODO: only take the length as an argument?
 export
 ones : (sx : SnocList a) -> Th sx sx
-ones sx = MkTh (length sx) oneBits (ones sx)
--}
+ones sx = let i : Nat; i = length sx in MkTh i (full i) (ones sx)
 
 export
 meet : Th sxl sx -> Th sxr sx -> Exists (`Th` sx)

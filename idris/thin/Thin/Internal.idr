@@ -79,14 +79,12 @@ none (sy :< y) =
   let 0 nb = eqToSo (cong not $ testBitZeroBits (S $ length sy)) in
   Drop (none sy) y
 
-{-
 export
-ones : (sx : SnocList a) -> Thinning (length sx) Bits.oneBits sx sx
+ones : (sx : SnocList a) -> Thinning (length sx) (full $ length sx) sx sx
 ones [<] = Done
 ones (sx :< x) =
-  let 0 nb = eqToSo (testBitOneBits (S $ length sx)) in
-  Keep (ones sx) x
--}
+  let 0 nb = eqToSo (testBitFull (S (length sx)) Z) in
+  Keep (rewrite shiftRFull (length sx) in ones sx) x
 
 -- We need to public export so that `fst (meet th ph)` computes at the type level.
 -- These are all runtime irrelevant though so their behaviour does not matter.
