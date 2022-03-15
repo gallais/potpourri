@@ -87,7 +87,17 @@ testBitAnd : (bs, cs : Integer) -> (i : Nat) ->
 testBitAnd bs cs i = unsafeRefl
 
 export
-||| Postulated: conjunction is idempotent on integers
+shiftRAnd : (bs, cs : Integer) -> (k : Nat) ->
+            (bs .&. cs) `shiftR` k === bs `shiftR` k .&. cs `shiftR` k
+shiftRAnd bs cs k = extensionally $ \ i =>
+  rewrite testBitAnd (bs `shiftR` k) (cs `shiftR` k) i in
+  rewrite testBitShiftR bs k i in
+  rewrite testBitShiftR cs k i in
+  rewrite testBitShiftR (bs .&. cs) k i in
+  rewrite testBitAnd bs cs (k + i) in
+  Refl
+
+export
 andIdempotent : (bs : Integer) -> bs .&. bs === bs
 andIdempotent bs = extensionally $ \ i =>
   rewrite testBitAnd bs bs i in
@@ -104,7 +114,17 @@ testBitOr : (bs, cs : Integer) -> (i : Nat) ->
 testBitOr bs cs i = unsafeRefl
 
 export
-||| Postulated: conjunction is idempotent on integers
+shiftROr : (bs, cs : Integer) -> (k : Nat) ->
+           (bs .|. cs) `shiftR` k === (bs `shiftR` k .|. cs `shiftR` k)
+shiftROr bs cs k = extensionally $ \ i =>
+  rewrite testBitOr (bs `shiftR` k) (cs `shiftR` k) i in
+  rewrite testBitShiftR bs k i in
+  rewrite testBitShiftR cs k i in
+  rewrite testBitShiftR (bs .|. cs) k i in
+  rewrite testBitOr bs cs (k + i) in
+  Refl
+
+export
 orIdempotent : (bs : Integer) -> (bs .|. bs) === bs
 orIdempotent bs = extensionally $ \ i =>
   rewrite testBitOr bs bs i in

@@ -36,7 +36,7 @@ irrelevantSo Oh Oh = Refl
 public export
 data Thinning : (i : Nat) -> (bs : Integer) -> (sx, sy : SnocList a) -> Type where
   ||| A 0-bits long thinning is a thinning between empty lists
-  Done : Thinning Z bs [<] [<]
+  Done : Thinning Z 0 [<] [<]
   ||| If the last bit of interest is set then the snoclist's head is kept
   Keep : Thinning i (bs `shiftR` 1) sx sy -> (0 x : a) ->
          {auto 0 b  : So (      testBit bs Z)} ->
@@ -79,45 +79,45 @@ none (sy :< y) =
   let 0 nb = eqToSo (cong not $ testBitZeroBits (S $ length sy)) in
   Drop (none sy) y
 
+{-
 export
 ones : (sx : SnocList a) -> Thinning (length sx) Bits.oneBits sx sx
 ones [<] = Done
 ones (sx :< x) =
   let 0 nb = eqToSo (testBitOneBits (S $ length sx)) in
   Keep (ones sx) x
-
-{-
-export
+-}
+public export
 meet : Thinning i bs sxl sx -> Thinning i cs sxr sx ->
        Exists $ \ sxlr => Thinning i (bs .&. cs) sxlr sx
-meet Done Done = Evidence [<] Done
-meet {i = S i} (Keep thl x @{bl}) (Keep thr x @{br}) =
-  let Evidence sxlr thm = meet thl thr in
-  let 0 b : So (testBit (bs .&. cs) (S i))
-      = rewrite testBitAnd (S i) bs cs in
+meet Done Done = Evidence ? Done
+meet (Keep thl x @{bl}) (Keep thr x @{br}) =
+  let ih = meet thl thr in
+  let 0 b : So (testBit (bs .&. cs) 0)
+      = rewrite testBitAnd bs cs 0 in
         andSo (bl, br)
-  in Evidence (sxlr :< x) (Keep thm x)
-meet {i = S i} (Keep thl x) (Drop thr x @{nbr}) =
-  let Evidence sxlr thm = meet thl thr in
-  let 0 nb : So (not $ testBit (bs .&. cs) (S i))
-      = rewrite testBitAnd (S i) bs cs in
-        rewrite notAndIsOr (testBit bs (S i)) (testBit cs (S i)) in
-        orSo (Right nbr)
-  in Evidence sxlr (Drop thm x)
-meet {i = S i} (Drop thl x @{nbl}) (Keep thr x) =
-  let Evidence sxlr thm = meet thl thr in
-  let 0 nb : So (not $ testBit (bs .&. cs) (S i))
-      = rewrite testBitAnd (S i) bs cs in
-        rewrite notAndIsOr (testBit bs (S i)) (testBit cs (S i)) in
-        orSo (Left nbl)
-  in Evidence sxlr (Drop thm x)
-meet {i = S i} (Drop thl x @{nbl}) (Drop thr x) =
-  let Evidence sxlr thm = meet thl thr in
-  let 0 nb : So (not $ testBit (bs .&. cs) (S i))
-      = rewrite testBitAnd (S i) bs cs in
-        rewrite notAndIsOr (testBit bs (S i)) (testBit cs (S i)) in
-        orSo (Left nbl)
-  in Evidence sxlr (Drop thm x)
+  in Evidence (ih .fst :< x) (Keep (rewrite shiftRAnd bs cs 1 in ih .snd) x)
+meet (Keep thl x) (Drop thr x @{nbr}) =
+  let ih = meet thl thr in
+  let 0 nb : So (not $ testBit (bs .&. cs) 0)
+      = rewrite testBitAnd bs cs 0 in
+        let eq = notAndIsOr (testBit bs 0) (testBit cs 0) in
+        rewrite eq in orSo (Right nbr)
+  in Evidence (ih .fst) (Drop (rewrite shiftRAnd bs cs 1 in ih .snd) x)
+meet (Drop thl x @{nbl}) (Keep thr x) =
+  let ih = meet thl thr in
+  let 0 nb : So (not $ testBit (bs .&. cs) 0)
+      = rewrite testBitAnd bs cs 0 in
+        let eq = notAndIsOr (testBit bs 0) (testBit cs 0) in
+        rewrite eq in orSo (Left nbl)
+  in Evidence (ih .fst) (Drop (rewrite shiftRAnd bs cs 1 in ih .snd) x)
+meet (Drop thl x @{nbl}) (Drop thr x) =
+  let ih = meet thl thr in
+  let 0 nb : So (not $ testBit (bs .&. cs) 0)
+      = rewrite testBitAnd bs cs 0 in
+        let eq = notAndIsOr (testBit bs 0) (testBit cs 0) in
+        rewrite eq in orSo (Left nbl)
+  in Evidence (ih .fst) (Drop (rewrite shiftRAnd bs cs 1 in ih .snd) x)
 
 export
 join : Thinning i bs sxl sx -> Thinning i cs sxr sx ->
@@ -125,30 +125,29 @@ join : Thinning i bs sxl sx -> Thinning i cs sxr sx ->
 join Done Done = Evidence [<] Done
 join {i = S i} (Keep thl x @{bl}) (Keep thr x) =
   let Evidence sxlr thm = join thl thr in
-  let 0 b : So (testBit (bs .|. cs) (S i))
-      = rewrite testBitOr (S i) bs cs in
+  let 0 b : So (testBit (bs .|. cs) 0)
+      = rewrite testBitOr bs cs 0 in
         orSo (Left bl)
-  in Evidence (sxlr :< x) (Keep thm x)
-join {i = S i} (Keep thl x @{bl}) (Drop thr x) =
+  in Evidence (sxlr :< x) (Keep (rewrite shiftROr bs cs 1 in thm) x)
+join (Keep thl x @{bl}) (Drop thr x) =
   let Evidence sxlr thm = join thl thr in
-  let 0 b : So (testBit (bs .|. cs) (S i))
-      = rewrite testBitOr (S i) bs cs in
+  let 0 b : So (testBit (bs .|. cs) 0)
+      = rewrite testBitOr bs cs 0 in
         orSo (Left bl)
-  in Evidence (sxlr :< x) (Keep thm x)
-join {i = S i} (Drop thl x) (Keep thr x @{br}) =
+  in Evidence (sxlr :< x) (Keep (rewrite shiftROr bs cs 1 in thm) x)
+join (Drop thl x) (Keep thr x @{br}) =
   let Evidence sxlr thm = join thl thr in
-  let 0 b : So (testBit (bs .|. cs) (S i))
-      = rewrite testBitOr (S i) bs cs in
+  let 0 b : So (testBit (bs .|. cs) 0)
+      = rewrite testBitOr bs cs 0 in
         orSo (Right br)
-  in Evidence (sxlr :< x) (Keep thm x)
-join {i = S i} (Drop thl x @{nbl}) (Drop thr x @{nbr}) =
+  in Evidence (sxlr :< x) (Keep (rewrite shiftROr bs cs 1 in thm) x)
+join (Drop thl x @{nbl}) (Drop thr x @{nbr}) =
   let Evidence sxlr thm = join thl thr in
-  let 0 b : So (not $ testBit (bs .|. cs) (S i))
-      = rewrite testBitOr (S i) bs cs in
-        rewrite notOrIsAnd (testBit bs (S i)) (testBit cs (S i)) in
-        andSo (nbl, nbr)
-  in Evidence sxlr (Drop thm x)
--}
+  let 0 b : So (not $ testBit (bs .|. cs) 0)
+      = rewrite testBitOr bs cs 0 in
+        let eq = notOrIsAnd (testBit bs 0) (testBit cs 0) in
+        rewrite eq in andSo (nbl, nbr)
+  in Evidence sxlr (Drop (rewrite shiftROr bs cs 1 in thm) x)
 
 ------------------------------------------------------------------------------
 -- Inversion principles
@@ -160,17 +159,19 @@ join {i = S i} (Drop thl x @{nbl}) (Drop thr x @{nbr}) =
 public export
 record IsDone {a : Type} {bs : Integer} {sx, sy : SnocList a} (th : Thinning 0 bs sx sy) where
   constructor MkIsDone
+  bsIsZero       : bs === 0
   fstIndexIsLin  : sx === [<]
   sndIndexIsLin  : sy === [<]
   thinningIsDone : (th ===)
-                 $ replace {p = Thinning 0 bs sx} (sym sndIndexIsLin)
-                 $ replace {p = flip (Thinning 0 bs) [<]} (sym fstIndexIsLin)
+                 $ replace {p = \ bs => Thinning 0 bs sx sy} (sym bsIsZero)
+                 $ replace {p = Thinning 0 0 sx} (sym sndIndexIsLin)
+                 $ replace {p = flip (Thinning 0 0) [<]} (sym fstIndexIsLin)
                  $ Done
 
 ||| Proof that whenever the big end is 0, the thinning is Done
 export
 isDone : (th : Thinning 0 bs sx sy) -> IsDone th
-isDone Done = MkIsDone Refl Refl Refl
+isDone Done = MkIsDone Refl Refl Refl Refl
 
 ||| Characterising Keep-headed thinnings
 public export
