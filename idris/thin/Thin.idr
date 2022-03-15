@@ -134,13 +134,15 @@ viewDropUnfold (MkTh i bs p)
 ------------------------------------------------------------------------------
 
 export
+transView : {0 th : Th sx sy} -> {0 ph : Th sy sz} -> View th -> View ph -> Th sx sz
+transView vth VDone = case vth of VDone => done
+transView vth (VDrop ph x) = drop (transView vth (view ph)) x
+transView (VKeep th x) (VKeep ph x) = keep (transView (view th) (view ph)) x
+transView (VDrop th x) (VKeep ph x) = drop (transView (view th) (view ph)) x
+
+export
 Thable (Th sx) where
-  th *^ ph = case view ph of
-    VDone => th
-    VDrop ph x => drop (th *^ ph) x
-    VKeep ph x => case view th of
-      VKeep th x => keep (th *^ ph) x
-      VDrop th x => drop (th *^ ph) x
+  th *^ ph = transView (view th) (view ph)
 
 export
 Selable (`Th` sy) where
@@ -279,6 +281,31 @@ export
 onesIsKeep : (0 sx : SnocList a) -> (0 x : _) -> ones (sx :< x) === keep (ones sx) x
 onesIsKeep sx x = irrelevantEq $ irrelevantOnes ? ?
 
+-- It's annoying: we can't seem to prove this directly
+leftNeutralV : {0 th : Th {a} sx sx} -> {0 ph : Th sx sy} ->
+               (vth : View th) -> (vph : View ph) ->
+               transView vth vph === ph
+leftNeutralV vth VDone = irrelevantDone ?
+leftNeutralV vth (VDrop ph x) = cong (`drop` x) (leftNeutralV vth (view ph))
+leftNeutralV (VKeep th x) (VKeep ph x) = cong (`keep` x) (leftNeutralV (view th) (view ph))
+leftNeutralV (VDrop th x) (VKeep ph x) = void $ tooBig th
+
+export
+leftNeutral : (th : Th {a} sx sy) -> (ones sx *^ th) === th
+leftNeutral th = irrelevantEq $ leftNeutralV (view (ones sx)) (view th)
+
+-- It's annoying: we can't seem to prove this directly
+rightNeutralV : {0 th : Th {a} sx sy} -> {0 ph : Th sy sy} ->
+                (vth : View th) -> (vph : View ph) ->
+                transView vth vph === th
+rightNeutralV vth VDone = case vth of VDone => Refl
+rightNeutralV vth (VDrop ph x) = void $ tooBig ph
+rightNeutralV (VKeep th x) (VKeep ph x) = cong (`keep` x) (rightNeutralV (view th) (view ph))
+rightNeutralV (VDrop th x) (VKeep ph x) = cong (`drop` x) (rightNeutralV (view th) (view ph))
+
+export
+rightNeutral : (th : Th {a} sx sy) -> (th *^ ones sy) === th
+rightNeutral th = irrelevantEq $ rightNeutralV (view th) (view (ones sy))
 
 ------------------------------------------------------------------------------
 -- Intersection & union of supports
