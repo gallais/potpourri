@@ -194,7 +194,7 @@ DecEq (Th sx sy) where
   decEq th ph = toDec (eqReflects th ph)
 
 ------------------------------------------------------------------------------
--- Combinators
+-- Empty and identity thinnings
 ------------------------------------------------------------------------------
 
 ||| Empty thinning
@@ -208,6 +208,47 @@ none sx = MkTh (length sx) zeroBits (none sx)
 export
 ones : (sx : SnocList a) -> Th sx sx
 ones sx = let i : Nat; i = length sx in MkTh i (full i) (ones sx)
+
+------------------------------------------------------------------------------
+-- And their properties
+
+export
+tooBig : {sx : SnocList a} -> Not (Th (sx :< x) sx)
+tooBig th = case view th of
+  VKeep th x => tooBig th
+  VDrop th x => tooBig (drop (ones ?) ? *^ th)
+
+export
+irrelevantDone : (th : Th [<] [<]) -> th === Thin.done
+irrelevantDone th = case view th of VDone => Refl
+
+export
+irrelevantNone : (th, ph : Th [<] sx) -> th === ph
+irrelevantNone th ph = case view th of
+  VDone => sym $ irrelevantDone ph
+  VDrop th x => case view ph of
+    VDrop ph x => cong (`drop` x) (irrelevantNone th ph)
+
+export
+noneIsDrop : none (sx :< x) === drop (none sx) x
+noneIsDrop = irrelevantEq $ irrelevantNone ? ?
+
+export
+irrelevantOnes : (th, ph : Th sx sx) -> th === ph
+irrelevantOnes th ph = case view th of
+  VDone => sym $ irrelevantDone ph
+  VKeep th x => case view ph of
+    VKeep ph x => cong (`keep` x) (irrelevantOnes th ph)
+    VDrop ph x => void $ tooBig ph
+  VDrop th x => void $ tooBig th
+
+export
+onesIsKeep : ones (sx :< x) === keep (ones sx) x
+onesIsKeep = irrelevantEq $ irrelevantOnes ? ?
+
+------------------------------------------------------------------------------
+-- Intersection & union of supports
+------------------------------------------------------------------------------
 
 export
 meet : Th sxl sx -> Th sxr sx -> Exists (`Th` sx)
