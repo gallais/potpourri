@@ -1,16 +1,14 @@
 module Data.Bits.Integer
 
 import Data.Bits
+import public Data.Bits.Integer.Postulated
 import Data.Bool
 import Data.So
 import Data.Nat.Order
 
-import Decidable.Equality
-
 import Syntax.PreorderReasoning
 
 %default total
-
 
 ------------------------------------------------------------------------------
 -- Additional functions
@@ -35,69 +33,29 @@ cons : Bool -> Integer -> Integer
 cons b bs = ifThenElse b (`setBit` 0) id (bs `shiftL` 1)
 
 ------------------------------------------------------------------------------
--- Properties
-------------------------------------------------------------------------------
-
-
-||| This should be far safer than `believe_me` as:
-||| 1. we only reduce to `Refl` when x actually equals y
-||| 2. we don't expose the implementation so that users can't force reductions in an absurd context
-unsafeRefl : DecEq a => {x, y : a} -> x === y
-unsafeRefl {x} {y} with (decEq x y)
-  _ | Yes eq = eq
-  _ | No neq = assert_total $ idris_crash "Equality postulated using unsafeRefl is incorrect"
-
-------------------------------------------------------------------------------
--- Extensional equality
-------------------------------------------------------------------------------
-
-infix 6 ~~~
-public export
-(~~~) : Integer -> Integer -> Type
-bs ~~~ cs = (i : Nat) -> testBit bs i === testBit cs i
-
-export
-extensionally : {bs, cs : Integer} -> bs ~~~ cs -> bs === cs
-extensionally fext = unsafeRefl
-
-------------------------------------------------------------------------------
--- ShiftR properties
+-- And properties
 ------------------------------------------------------------------------------
 
 export
-testBitShiftR : (bs : Integer) -> (k : Nat) ->
-                (i : Nat) -> testBit (bs `shiftR` k) i === testBit bs (k + i)
-testBitShiftR bs k i = unsafeRefl
+shiftRAnd : (bs, cs : Integer) -> (k : Nat) ->
+            (bs .&. cs) `shiftR` k === bs `shiftR` k .&. cs `shiftR` k
+shiftRAnd bs cs k = extensionally $ \ i =>
+  rewrite testBitAnd (bs `shiftR` k) (cs `shiftR` k) i in
+  rewrite testBitShiftR bs k i in
+  rewrite testBitShiftR cs k i in
+  rewrite testBitShiftR (bs .&. cs) k i in
+  rewrite testBitAnd bs cs (k + i) in
+  Refl
 
 export
-setBitShiftR : (bs : Integer) -> (k : Nat) ->
-               (i : Nat) -> k `LTE` i ->
-               (setBit bs i) `shiftR` k === setBit (bs `shiftR` k) (minus i k)
-setBitShiftR bs k i lte = unsafeRefl
-
-export
-clearBitShiftR : (bs : Integer) -> (k : Nat) ->
-                 (i : Nat) -> k `LTE` i ->
-                 (clearBit bs i) `shiftR` k === clearBit (bs `shiftR` k) (minus i k)
-clearBitShiftR bs k i lte = unsafeRefl
+andIdempotent : (bs : Integer) -> bs .&. bs === bs
+andIdempotent bs = extensionally $ \ i =>
+  rewrite testBitAnd bs bs i in
+  andSameNeutral (testBit bs i)
 
 ------------------------------------------------------------------------------
 -- ShiftL properties
 ------------------------------------------------------------------------------
-
-export
-testBit0ShiftL : (bs : Integer) -> (k : Nat) ->
-                 testBit (bs `shiftL` S k) Z === False
-testBit0ShiftL bs k = unsafeRefl
-
-export
-testBitSShiftL : (bs : Integer) -> (k : Nat) -> (i : Nat) ->
-                 testBit (bs `shiftL` S k) (S i) === testBit (bs `shiftL` k) i
-testBitSShiftL bs k i = unsafeRefl
-
-export
-shiftL0 : (bs : Integer) -> (bs `shiftL` 0) === bs
-shiftL0 bs = unsafeRefl
 
 export
 shiftLSR : (bs : Integer) -> (k : Nat) -> (bs `shiftL` S k) `shiftR` 1 === bs `shiftL` k
@@ -115,11 +73,19 @@ shiftLR bs = Calc $
 
 export
 setBit0ShiftR : (bs : Integer) -> setBit bs 0 `shiftR` 1 === bs `shiftR` 1
-setBit0ShiftR bs = unsafeRefl
+setBit0ShiftR bs = extensionally $ \ i => Calc $
+  |~ testBit (setBit bs 0 `shiftR` 1) i
+  ~~ testBit (setBit bs 0) (S i)        ...( testBitShiftR (setBit bs 0) 1 i )
+  ~~ testBit bs (S i)                   ...( testSetBitOther bs 0 (S i) absurd )
+  ~~ testBit (bs `shiftR` 1) i          ...( sym $ testBitShiftR bs 1 i )
 
 export
 clearBit0ShiftR : (bs : Integer) -> clearBit bs 0 `shiftR` 1 === bs `shiftR` 1
-clearBit0ShiftR bs = unsafeRefl
+clearBit0ShiftR bs = extensionally $ \ i => Calc $
+  |~ testBit (clearBit bs 0 `shiftR` 1) i
+  ~~ testBit (clearBit bs 0) (S i)        ...( testBitShiftR (clearBit bs 0) 1 i )
+  ~~ testBit bs (S i)                     ...( testClearBitOther bs 0 (S i) absurd )
+  ~~ testBit (bs `shiftR` 1) i            ...( sym $ testBitShiftR bs 1 i )
 
 export
 shiftLInjective : (bs, cs : Integer) -> (k : Nat) ->
@@ -146,41 +112,8 @@ shiftRBitS : (i : Nat) -> bit (S i) `shiftR` 1 === the Integer (bit i)
 shiftRBitS i = shiftLSR 1 i
 
 ------------------------------------------------------------------------------
--- And properties
-------------------------------------------------------------------------------
-
-export
-||| Postulated: conjunction is bitwise on integers
-testBitAnd : (bs, cs : Integer) -> (i : Nat) ->
-             testBit (bs .&. cs) i === (testBit bs i && testBit cs i)
-testBitAnd bs cs i = unsafeRefl
-
-export
-shiftRAnd : (bs, cs : Integer) -> (k : Nat) ->
-            (bs .&. cs) `shiftR` k === bs `shiftR` k .&. cs `shiftR` k
-shiftRAnd bs cs k = extensionally $ \ i =>
-  rewrite testBitAnd (bs `shiftR` k) (cs `shiftR` k) i in
-  rewrite testBitShiftR bs k i in
-  rewrite testBitShiftR cs k i in
-  rewrite testBitShiftR (bs .&. cs) k i in
-  rewrite testBitAnd bs cs (k + i) in
-  Refl
-
-export
-andIdempotent : (bs : Integer) -> bs .&. bs === bs
-andIdempotent bs = extensionally $ \ i =>
-  rewrite testBitAnd bs bs i in
-  andSameNeutral (testBit bs i)
-
-------------------------------------------------------------------------------
 -- Or properties
 ------------------------------------------------------------------------------
-
-export
-||| Postulated: disjunction is bitwise on integers
-testBitOr : (bs, cs : Integer) -> (i : Nat) ->
-            testBit (bs .|. cs) i === (testBit bs i || testBit cs i)
-testBitOr bs cs i = unsafeRefl
 
 export
 shiftROr : (bs, cs : Integer) -> (k : Nat) ->
@@ -204,12 +137,6 @@ orIdempotent bs = extensionally $ \ i =>
 ------------------------------------------------------------------------------
 
 export
-||| Postulated: complement is bitwise on integers
-testBitComplement : (bs : Integer) -> (i : Nat) ->
-                    testBit (complement bs) i === not (testBit bs i)
-testBitComplement bs i = unsafeRefl
-
-export
 complementInvolutive : (bs : Integer) -> complement (complement bs) === bs
 complementInvolutive bs = extensionally $ \ i =>
   rewrite testBitComplement (complement bs) i in
@@ -217,22 +144,31 @@ complementInvolutive bs = extensionally $ \ i =>
   notInvolutive (testBit bs i)
 
 ------------------------------------------------------------------------------
--- Xor properties
+-- Ones properties
 ------------------------------------------------------------------------------
 
 export
-||| Postulated: exclusive-or is bitwise on integers
-testBitXor : (bs, cs : Integer) -> (i : Nat) ->
-             testBit (bs `xor` cs) i === not (testBit bs i == testBit cs i)
-testBitXor bs cs i = unsafeRefl
+testBitOneBits : (i : Nat) -> testBit (oneBits {a = Integer}) i === True
+testBitOneBits 0 = Refl
+testBitOneBits (S i) = Calc $
+  |~ testBit (the Integer oneBits) (S i)
+  ~~ testBit (the Integer oneBits `shiftR` 1) i ...( sym $ testBitShiftR oneBits 1 i )
+  ~~ True                                       ...( testBitOneBits i )
+
+------------------------------------------------------------------------------
+-- Zeros properties
+------------------------------------------------------------------------------
+
+export
+testBitZeroBits : (i : Nat) -> testBit (zeroBits {a = Integer}) i === False
+testBitZeroBits i = Calc $
+  |~ testBit (the Integer zeroBits) i
+  ~~ not (testBit (the Integer oneBits) i) ...( testBitComplement oneBits i )
+  ~~ False                                 ...( cong not (testBitOneBits i) )
 
 ------------------------------------------------------------------------------
 -- Eq properties
 ------------------------------------------------------------------------------
-
-export
-eqReflexive : (bs : Integer) -> (bs == bs) === True
-eqReflexive bs = unsafeRefl
 
 equalNatSound : (i, j : Nat) -> i === j -> So (i == j)
 equalNatSound Z Z eq = Oh
@@ -248,16 +184,13 @@ equalNatComplete (S i) (S j) hyp = cong S (equalNatComplete i j hyp)
 ------------------------------------------------------------------------------
 
 export
-bitNonZero : (i : Nat) -> (bit i == 0) === False
-bitNonZero i = unsafeRefl
-
-export
-bitEquality : (i, j : Nat) -> (bit {a = Integer} i == bit j) === (i == j)
-bitEquality i j = case choose (i == j) of
-  Left so => rewrite equalNatComplete i j so in
-             rewrite eqReflexive (bit j) in
-             sym $ soToEq $ equalNatSound j j Refl
-  Right soNot => unsafeRefl -- TODO: fix
+testOneS : (i : Nat) -> testBit (the Integer 1) (S i) === False
+testOneS 0 = Refl
+testOneS (S i) = Calc $
+  |~ testBit 1 (2 + i)
+  ~~ testBit (the Integer 1 `shiftR` 1) (S i) ...( sym $ testBitShiftR 1 1 (S i) )
+  ~~ testBit 0 (S i) ...( Refl )
+  ~~ False ...( testBitZeroBits (S i) )
 
 export
 testBitBitSame : (i : Nat) -> testBit {a = Integer} (bit i) i === True
@@ -266,17 +199,50 @@ testBitBitSame i =
   rewrite bitNonZero i in
   Refl
 
+export
+testBitBitOther : (i, j : Nat) -> Not (i === j) ->
+                  testBit {a = Integer} (bit i) j === False
+testBitBitOther 0 0 neq = absurd (neq Refl)
+testBitBitOther 0 (S j) neq = Calc $
+  |~ testBit (the Integer 1 `shiftL` 0) (S j)
+  ~~ testBit 1 (S j)  ...( cong (`testBit` S j) (shiftL0 1) )
+  ~~ False            ...( testOneS j )
+testBitBitOther (S i) 0 neq = testBit0ShiftL 1 i
+testBitBitOther (S i) (S j) neq = Calc $
+  |~ testBit (the Integer 1 `shiftL` S i) (S j)
+  ~~ testBit (the Integer $ bit i) j  ...( testBitSShiftL 1 i j )
+  ~~ False                            ...( testBitBitOther i j (neq . cong S) )
+
 ------------------------------------------------------------------------------
 -- Constant properties
 ------------------------------------------------------------------------------
 
-export
-testBitZeroBits : (i : Nat) -> testBit (zeroBits {a = Integer}) i === False
-testBitZeroBits i = unsafeRefl
+notSoToSoNot : {b : Bool} -> Not (So b) -> So (not b)
+notSoToSoNot {b = False} p = Oh
+notSoToSoNot {b = True} notSo = absurd (notSo Oh)
 
 export
-testBitOneBits : (i : Nat) -> testBit (oneBits {a = Integer}) i === True
-testBitOneBits i = unsafeRefl
+bitInjective : (i, j : Nat) -> (bit {a = Integer} i == bit j) === (i == j)
+bitInjective i j = case choose (i == j) of
+  Left so => rewrite equalNatComplete i j so in
+             rewrite eqReflexive (bit j) in
+             sym $ soToEq $ equalNatSound j j Refl
+  Right soNot => Calc $
+    |~ (the Integer (bit i) == bit j)
+    ~~ not (not (the Integer (bit i) == bit j)) ...( sym $ notInvolutive ? )
+    ~~ False                                    ...( cong not (soToEq (aux soNot)) )
+    ~~ not (not (equalNat i j))                 ...( sym $ cong not (soToEq soNot) )
+    ~~ (i == j)                                 ...( notInvolutive ? )
+
+  where
+
+  aux : So (not (i == j)) -> So (not $ the Integer (bit i) == bit j)
+  aux soNot = notSoToSoNot $ \ so => absurd $ Calc $
+    let neq : Not (j === i) = soNotToNotSo soNot . equalNatSound i j . symmetric in
+    |~ True
+    ~~ testBit (the Integer $ bit i) i ...( sym $ testBitBitSame i )
+    ~~ testBit (the Integer $ bit j) i ...( cong (`testBit` i) (eqSound so) )
+    ~~ False                           ...( testBitBitOther j i neq )
 
 ------------------------------------------------------------------------------
 -- (Co)Full properties
@@ -315,21 +281,6 @@ testSetBitSame bs i =
   rewrite testBitBitSame i in
   rewrite orTrueTrue (testBit bs i) in
   Oh
-
-export
-testClearBitSame : (bs : Integer) -> (i : Nat) -> So (not $ testBit (clearBit bs i) i)
-testClearBitSame bs i = replace {p = So} unsafeRefl Oh -- TODO: bother proving it
-
-export
-testSetBitOther : (bs : Integer) -> (i, j : Nat) -> Not (i === j) ->
-                  testBit (setBit bs i) j === testBit bs j
-testSetBitOther bs i j neq = unsafeRefl
-
-export
-testClearBitOther : (bs : Integer) -> (i, j : Nat) -> Not (i === j) ->
-                    testBit (clearBit bs i) j === testBit bs j
-testClearBitOther bs i j neq = unsafeRefl
-
 
 ------------------------------------------------------------------------------
 -- Cons properties
