@@ -17,6 +17,7 @@ depends = contrib
 
 -- modules to install
 modules = Data.Bits.Integer
+        , Data.SnocList.AtIndex
         , Thin
         , Thin.Internal
 

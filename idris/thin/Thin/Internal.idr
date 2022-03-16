@@ -9,6 +9,7 @@ import Data.Bits.Integer
 import Data.DPair
 import Data.Nat
 import Data.SnocList
+import Data.SnocList.AtIndex
 
 %default total
 
@@ -241,3 +242,11 @@ isDropInteger bs so = sym $ extensionally $ \case
   S i => transitive (testBitSShiftL (bs `shiftR` 1) 0 i)
        $ transitive (cong (`testBit` i) (shiftL0 (bs `shiftR` 1)))
        $ testBitShiftR bs 1 i
+
+export
+bit : {sx : SnocList a} -> AtIndex i x sx -> Thinning (length sx) (bit i) [<x] sx
+bit Z = Keep (none ?) x
+bit (S p) =
+  let 0 nb : So (not $ testBit (the Integer $ bit i) 0)
+           = eqToSo $ cong not $ testBit0ShiftL 1 (pred i) in
+  Drop (rewrite shiftRBitS (pred i) in bit p) ?

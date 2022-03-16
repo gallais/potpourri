@@ -100,8 +100,18 @@ shiftL0 : (bs : Integer) -> (bs `shiftL` 0) === bs
 shiftL0 bs = unsafeRefl
 
 export
+shiftLSR : (bs : Integer) -> (k : Nat) -> (bs `shiftL` S k) `shiftR` 1 === bs `shiftL` k
+shiftLSR bs k = extensionally $ \ i => Calc $
+  |~ testBit ((bs `shiftL` S k) `shiftR` 1) i
+  ~~ testBit (bs `shiftL` S k) (S i) ...( testBitShiftR (bs `shiftL` S k) 1 i )
+  ~~ testBit (bs `shiftL` k) i       ...( testBitSShiftL bs k i )
+
+export
 shiftLR : (bs : Integer) -> (bs `shiftL` 1) `shiftR` 1 === bs
-shiftLR bs = unsafeRefl
+shiftLR bs = Calc $
+  |~ (bs `shiftL` 1) `shiftR` 1
+  ~~ bs `shiftL` 0              ...( shiftLSR bs 0 )
+  ~~ bs                         ...( shiftL0 bs )
 
 export
 setBit0ShiftR : (bs : Integer) -> setBit bs 0 `shiftR` 1 === bs `shiftR` 1
@@ -126,6 +136,14 @@ shiftLInjective bs cs (S k) eq
   ~~ testBit (bs `shiftL` S k) (S i) ...( sym $ testBitSShiftL bs k i )
   ~~ testBit (cs `shiftL` S k) (S i) ...( cong (\ bs => testBit bs (S i)) eq )
   ~~ testBit (cs `shiftL` k) i       ...( testBitSShiftL cs k i )
+
+------------------------------------------------------------------------------
+-- Bit properties
+------------------------------------------------------------------------------
+
+export
+shiftRBitS : (i : Nat) -> bit (S i) `shiftR` 1 === the Integer (bit i)
+shiftRBitS i = shiftLSR 1 i
 
 ------------------------------------------------------------------------------
 -- And properties
