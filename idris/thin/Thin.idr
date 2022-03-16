@@ -137,7 +137,7 @@ namespace Smart
       Refl
 
 export
-irrelevantDone : (th, ph : Th [<] [<]) -> th === ph
+irrelevantDone : (th, ph : Th sx [<]) -> th === ph
 irrelevantDone th ph = case view th of
   VDone => case view ph of
     VDone => Refl
@@ -305,6 +305,31 @@ onesRightNeutral {sx} {sy} th ph with (view ph)
     onesRightNeutral {sy = _} _ _ | VKeep ph x | VDrop th x
       = cong (`drop` x) (onesRightNeutral th ph)
   onesRightNeutral {sy = _} th _ | VDrop ph x = void $ tooBig ph
+
+export
+transAssoc : (th : Th {a} sw sx) -> (ph : Th sx sy) -> (ps : Th sy sz) ->
+             ((th *^ ph) *^ ps) === (th *^ (ph *^ ps))
+transAssoc {sw} {sx} {sy} {sz} th ph ps with (view ps)
+  transAssoc {sy = _} {sz = _} th ph _ | VDone = irrelevantDone ? ?
+  transAssoc {sy = _} {sz = _} th ph _ | VKeep ps x with (view ph)
+    transAssoc {sx = _} {sy = _} {sz = _} th _ _ | VKeep ps x | VKeep ph x with (view th)
+      transAssoc {sw = _} {sx = _} {sy = _} {sz = _} _ _ _ | VKeep ps x | VKeep ph x | VKeep th x
+        = rewrite viewKeepUnfold (ph *^ ps) x in
+          rewrite viewKeepUnfold (th *^ ph) x in
+          rewrite viewKeepUnfold th x in
+          cong (`keep` x) (transAssoc th ph ps)
+      transAssoc {sw = _} {sx = _} {sy = _} {sz = _} _ _ _ | VKeep ps x | VKeep ph x | VDrop th x
+        = rewrite viewKeepUnfold (ph *^ ps) x in
+          rewrite viewDropUnfold (th *^ ph) x in
+          rewrite viewDropUnfold th x in
+          cong (`drop` x) (transAssoc th ph ps)
+    transAssoc {sx = _} {sy = _} {sz = _} th _ _ | VKeep ps x | VDrop ph x
+      = rewrite viewDropUnfold (ph *^ ps) x in
+        rewrite viewDropUnfold (th *^ ph) x in
+        cong (`drop` x) (transAssoc th ph ps)
+  transAssoc {sz = _} th ph _ | VDrop ps x
+    = rewrite viewDropUnfold (ph *^ ps) x in
+      cong (`drop` x) (transAssoc th ph ps)
 
 ------------------------------------------------------------------------------
 -- Intersection & union of supports
