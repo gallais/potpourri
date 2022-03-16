@@ -72,9 +72,9 @@ namespace Smart
 
   public export
   data View : Th sx sy -> Type where
-    VDone :                                 View Smart.done
-    VKeep : (th : Th sx sy) -> (0 x : a) -> View (keep th x)
-    VDrop : (th : Th sx sy) -> (0 x : a) -> View (drop th x)
+    Done :                                 View Smart.done
+    Keep : (th : Th sx sy) -> (0 x : a) -> View (keep th x)
+    Drop : (th : Th sx sy) -> (0 x : a) -> View (drop th x)
 
   cast : {0 th, th' : Thinning i bs sx sy} ->
          View (MkTh i bs th) ->
@@ -89,7 +89,7 @@ namespace Smart
     rewrite fstIndexIsLin eqs in
     rewrite sndIndexIsLin eqs in
     rewrite thinningIsDone eqs in
-    VDone
+    Done
   view (MkTh (S i) bs th) = case choose (testBit bs Z) of
     Left so =>
       let 0 eqs = isKeep th so in
@@ -97,13 +97,13 @@ namespace Smart
       rewrite sndIndexIsSnoc eqs in
       rewrite thinningIsKeep eqs in
       rewrite isKeepInteger bs so in
-      cast $ VKeep (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
+      cast $ Keep (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
     Right soNot =>
       let 0 eqs = isDrop th soNot in
       rewrite sndIndexIsSnoc eqs in
       rewrite thinningIsDrop eqs in
       rewrite isDropInteger bs soNot in
-      cast $ VDrop (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
+      cast $ Drop (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
 
 ------------------------------------------------------------------------------
 -- Unfold lemmas for the view
@@ -120,11 +120,11 @@ namespace Smart
     _ | Right Oh = Refl
 
   export
-  viewDoneUnfold : view Smart.done === VDone
+  viewDoneUnfold : view Smart.done === Done
   viewDoneUnfold = Refl
 
   export
-  viewKeepUnfold : (th : Th sx sy) -> (0 x : a) -> view (keep th x) === VKeep th x
+  viewKeepUnfold : (th : Th sx sy) -> (0 x : a) -> view (keep th x) === Keep th x
   viewKeepUnfold (MkTh i bs p) x
     = rewrite testBit0Cons True bs in
       rewrite chooseTrueUnfold in
@@ -132,7 +132,7 @@ namespace Smart
       Refl
 
   export
-  viewDropUnfold : (th : Th sx sy) -> (0 x : a) -> view (drop th x) === VDrop th x
+  viewDropUnfold : (th : Th sx sy) -> (0 x : a) -> view (drop th x) === Drop th x
   viewDropUnfold (MkTh i bs p) x
     = rewrite testBit0Cons False bs in
       rewrite chooseFalseUnfold in
@@ -142,8 +142,8 @@ namespace Smart
 export
 irrelevantDone : (th, ph : Th sx [<]) -> th === ph
 irrelevantDone th ph = case view th of
-  VDone => case view ph of
-    VDone => Refl
+  Done => case view ph of
+    Done => Refl
 
 ------------------------------------------------------------------------------
 -- Instances
@@ -152,11 +152,11 @@ irrelevantDone th ph = case view th of
 export
 Thable (Th sx) where
   th *^ ph = case view ph of
-    VDone => th
-    VDrop ph x => drop (th *^ ph) x
-    VKeep ph x => case view th of
-      VKeep th x => keep (th *^ ph) x
-      VDrop th x => drop (th *^ ph) x
+    Done => th
+    Drop ph x => drop (th *^ ph) x
+    Keep ph x => case view th of
+      Keep th x => keep (th *^ ph) x
+      Drop th x => drop (th *^ ph) x
 
 export
 Selable (`Th` sy) where
@@ -165,38 +165,38 @@ Selable (`Th` sy) where
 export
 Eq (Th sx sy) where
   th == ph = case view th of
-    VDone => True
-    VKeep th x => case view ph of
-      VKeep ph x => th == ph
-      VDrop ph x => False
-    VDrop th x => case view ph of
-      VKeep ph x => False
-      VDrop ph x => th == ph
+    Done => True
+    Keep th x => case view ph of
+      Keep ph x => th == ph
+      Drop ph x => False
+    Drop th x => case view ph of
+      Keep ph x => False
+      Drop ph x => th == ph
 
 export
 Show (Th sx sy) where
   show th = pack ('[' :: go th [']']) where
     go : Th sa sb -> List Char -> List Char
     go th = case view th of
-      VDone => id
-      VKeep th x => go th . ('1'::)
-      VDrop th x => go th . ('0'::)
+      Done => id
+      Keep th x => go th . ('1'::)
+      Drop th x => go th . ('0'::)
 
 export
 Thable (Any p) where
   psx *^ th = case view th of
-    VDone => psx
-    VKeep th x => case psx of
+    Done => psx
+    Keep th x => case psx of
       Here px => Here px
       There psx => There (psx *^ th)
-    VDrop th x => There (psx *^ th)
+    Drop th x => There (psx *^ th)
 
 export
 Selable (All p) where
   th ^? psy = case view th of
-    VDone => [<]
-    VKeep th x => let (psy :< py) = psy in th ^? psy :< py
-    VDrop th x => let (psy :< py) = psy in th ^? psy
+    Done => [<]
+    Keep th x => let (psy :< py) = psy in th ^? psy :< py
+    Drop th x => let (psy :< py) = psy in th ^? psy
 
 ------------------------------------------------------------------------------
 -- Properties
@@ -225,17 +225,17 @@ namespace Smart
   export
   eqReflects : (th, ph : Th {a} sx sy) -> Reflects (th === ph) (th == ph)
   eqReflects {sx} {sy} th ph with (view th)
-    eqReflects {sx = _} {sy = _} _ ph | VDone = RTrue (irrelevantDone ? ?)
-    eqReflects {sx = _} {sy = _} _ ph | VKeep th x with (view ph)
-      eqReflects {sx = _} {sy = _} _ _ | VKeep th x | VKeep ph x with (eqReflects th ph)
+    eqReflects {sx = _} {sy = _} _ ph | Done = RTrue (irrelevantDone ? ?)
+    eqReflects {sx = _} {sy = _} _ ph | Keep th x with (view ph)
+      eqReflects {sx = _} {sy = _} _ _ | Keep th x | Keep ph x with (eqReflects th ph)
         _ | p with (th ==  ph)
           _ | b = case p of
             RTrue eq => RTrue (cong (`keep` x) eq)
             RFalse neq => RFalse (neq . keepInjective th ph)
-      eqReflects {sx = _} {sy = _} _ _ | VKeep th x | VDrop ph x = RFalse (\case hyp impossible)
-    eqReflects {sx = _} {sy = _} _ ph | VDrop th x with (view ph)
-      eqReflects {sx = _} {sy = _} _ _ | VDrop th x | VKeep ph x = RFalse (\case hyp impossible)
-      eqReflects {sx = _} {sy = _} _ _ | VDrop th x | VDrop ph x with (eqReflects th ph)
+      eqReflects {sx = _} {sy = _} _ _ | Keep th x | Drop ph x = RFalse (\case hyp impossible)
+    eqReflects {sx = _} {sy = _} _ ph | Drop th x with (view ph)
+      eqReflects {sx = _} {sy = _} _ _ | Drop th x | Keep ph x = RFalse (\case hyp impossible)
+      eqReflects {sx = _} {sy = _} _ _ | Drop th x | Drop ph x with (eqReflects th ph)
         _ | p with (th ==  ph)
           _ | b = case p of
             RTrue eq => RTrue (cong (`drop` x) eq)
@@ -276,15 +276,15 @@ namespace Smart
 export
 tooBig : {sx : SnocList a} -> Not (Th (sx :< x) sx)
 tooBig th = case view th of
-  VKeep th x => tooBig th
-  VDrop th x => tooBig (drop (ones ?) ? *^ th)
+  Keep th x => tooBig th
+  Drop th x => tooBig (drop (ones ?) ? *^ th)
 
 export
 irrelevantNone : (th, ph : Th [<] sx) -> th === ph
 irrelevantNone th ph = case view th of
-  VDone => irrelevantDone ? ?
-  VDrop th x => case view ph of
-    VDrop ph x => cong (`drop` x) (irrelevantNone th ph)
+  Done => irrelevantDone ? ?
+  Drop th x => case view ph of
+    Drop ph x => cong (`drop` x) (irrelevantNone th ph)
 
 export
 noneIsDrop : none (sx :< x) === drop (none sx) x
@@ -293,11 +293,11 @@ noneIsDrop = irrelevantEq $ irrelevantNone ? ?
 export
 irrelevantOnes : (th, ph : Th sx sx) -> th === ph
 irrelevantOnes th ph = case view th of
-  VDone => irrelevantDone ? ?
-  VKeep th x => case view ph of
-    VKeep ph x => cong (`keep` x) (irrelevantOnes th ph)
-    VDrop ph x => void $ tooBig ph
-  VDrop th x => void $ tooBig th
+  Done => irrelevantDone ? ?
+  Keep th x => case view ph of
+    Keep ph x => cong (`keep` x) (irrelevantOnes th ph)
+    Drop ph x => void $ tooBig ph
+  Drop th x => void $ tooBig th
 
 export
 onesIsKeep : (0 sx : SnocList a) -> (0 x : _) -> ones (sx :< x) === keep (ones sx) x
@@ -306,47 +306,47 @@ onesIsKeep sx x = irrelevantEq $ irrelevantOnes ? ?
 export
 onesLeftNeutral : (th : Th {a} sx sx) -> (ph : Th sx sy) -> th *^ ph === ph
 onesLeftNeutral {sx} {sy} th ph with (view ph)
-  onesLeftNeutral {sx = _} {sy = _} th _ | VDone = irrelevantDone ? ?
-  onesLeftNeutral {sx = _} {sy = _} th _ | VKeep ph x with (view th)
-    onesLeftNeutral {sx = _} {sy = _} _ _ | VKeep ph x | VKeep th x
+  onesLeftNeutral {sx = _} {sy = _} th _ | Done = irrelevantDone ? ?
+  onesLeftNeutral {sx = _} {sy = _} th _ | Keep ph x with (view th)
+    onesLeftNeutral {sx = _} {sy = _} _ _ | Keep ph x | Keep th x
       = cong (`keep` x) (onesLeftNeutral th ph)
-    onesLeftNeutral {sx = _} {sy = _} _ _ | VKeep ph x | VDrop th x
+    onesLeftNeutral {sx = _} {sy = _} _ _ | Keep ph x | Drop th x
       = void $ tooBig th
-  onesLeftNeutral {sy = _} th _ | VDrop ph x = cong (`drop` x) (onesLeftNeutral th ph)
+  onesLeftNeutral {sy = _} th _ | Drop ph x = cong (`drop` x) (onesLeftNeutral th ph)
 
 export
 onesRightNeutral : (th : Th {a} sx sy) -> (ph : Th sy sy) -> th *^ ph === th
 onesRightNeutral {sx} {sy} th ph with (view ph)
-  onesRightNeutral {sy = _} th _ | VDone = Refl
-  onesRightNeutral {sy = _} th _ | VKeep ph x with (view th)
-    onesRightNeutral {sx = _} {sy = _} _ _ | VKeep ph x | VKeep th x
+  onesRightNeutral {sy = _} th _ | Done = Refl
+  onesRightNeutral {sy = _} th _ | Keep ph x with (view th)
+    onesRightNeutral {sx = _} {sy = _} _ _ | Keep ph x | Keep th x
       = cong (`keep` x) (onesRightNeutral th ph)
-    onesRightNeutral {sy = _} _ _ | VKeep ph x | VDrop th x
+    onesRightNeutral {sy = _} _ _ | Keep ph x | Drop th x
       = cong (`drop` x) (onesRightNeutral th ph)
-  onesRightNeutral {sy = _} th _ | VDrop ph x = void $ tooBig ph
+  onesRightNeutral {sy = _} th _ | Drop ph x = void $ tooBig ph
 
 export
 transAssoc : (th : Th {a} sw sx) -> (ph : Th sx sy) -> (ps : Th sy sz) ->
              ((th *^ ph) *^ ps) === (th *^ (ph *^ ps))
 transAssoc {sw} {sx} {sy} {sz} th ph ps with (view ps)
-  transAssoc {sy = _} {sz = _} th ph _ | VDone = irrelevantDone ? ?
-  transAssoc {sy = _} {sz = _} th ph _ | VKeep ps x with (view ph)
-    transAssoc {sx = _} {sy = _} {sz = _} th _ _ | VKeep ps x | VKeep ph x with (view th)
-      transAssoc {sw = _} {sx = _} {sy = _} {sz = _} _ _ _ | VKeep ps x | VKeep ph x | VKeep th x
+  transAssoc {sy = _} {sz = _} th ph _ | Done = irrelevantDone ? ?
+  transAssoc {sy = _} {sz = _} th ph _ | Keep ps x with (view ph)
+    transAssoc {sx = _} {sy = _} {sz = _} th _ _ | Keep ps x | Keep ph x with (view th)
+      transAssoc {sw = _} {sx = _} {sy = _} {sz = _} _ _ _ | Keep ps x | Keep ph x | Keep th x
         = rewrite viewKeepUnfold (ph *^ ps) x in
           rewrite viewKeepUnfold (th *^ ph) x in
           rewrite viewKeepUnfold th x in
           cong (`keep` x) (transAssoc th ph ps)
-      transAssoc {sw = _} {sx = _} {sy = _} {sz = _} _ _ _ | VKeep ps x | VKeep ph x | VDrop th x
+      transAssoc {sw = _} {sx = _} {sy = _} {sz = _} _ _ _ | Keep ps x | Keep ph x | Drop th x
         = rewrite viewKeepUnfold (ph *^ ps) x in
           rewrite viewDropUnfold (th *^ ph) x in
           rewrite viewDropUnfold th x in
           cong (`drop` x) (transAssoc th ph ps)
-    transAssoc {sx = _} {sy = _} {sz = _} th _ _ | VKeep ps x | VDrop ph x
+    transAssoc {sx = _} {sy = _} {sz = _} th _ _ | Keep ps x | Drop ph x
       = rewrite viewDropUnfold (ph *^ ps) x in
         rewrite viewDropUnfold (th *^ ph) x in
         cong (`drop` x) (transAssoc th ph ps)
-  transAssoc {sz = _} th ph _ | VDrop ps x
+  transAssoc {sz = _} th ph _ | Drop ps x
     = rewrite viewDropUnfold (ph *^ ps) x in
       cong (`drop` x) (transAssoc th ph ps)
 
@@ -370,14 +370,14 @@ namespace Smart
   isMeet : (th : Th sxl sx) -> (ph : Th sxr sx) ->
            (Th (fst $ meet th ph) sxl, Th (fst $ meet th ph) sxr)
   isMeet th ph = case view th of
-    VDone => case view ph of
-      VDone => (done, done)
-    VKeep th x => case view ph of
-      VKeep ph x => bimap (`keep` x) (`keep` x) (isMeet th ph)
-      VDrop ph x => mapFst (`drop` x) (isMeet th ph)
-    VDrop th x => case view ph of
-      VKeep ph x => mapSnd (`drop` x) (isMeet th ph)
-      VDrop ph x => isMeet th ph
+    Done => case view ph of
+      Done => (done, done)
+    Keep th x => case view ph of
+      Keep ph x => bimap (`keep` x) (`keep` x) (isMeet th ph)
+      Drop ph x => mapFst (`drop` x) (isMeet th ph)
+    Drop th x => case view ph of
+      Keep ph x => mapSnd (`drop` x) (isMeet th ph)
+      Drop ph x => isMeet th ph
 
   export
   join : Th sxl sx -> Th sxr sx -> Exists (`Th` sx)
@@ -393,22 +393,22 @@ namespace Smart
   isJoin : (th : Th sxl sx) -> (ph : Th sxr sx) ->
            (Th sxl (fst $ join th ph), Th sxr (fst $ join th ph))
   isJoin th ph = case view th of
-    VDone => case view ph of
-      VDone => (done, done)
-    VKeep th x => case view ph of
-      VKeep ph x => bimap (`keep` x) (`keep` x) (isJoin th ph)
-      VDrop ph x => bimap (`keep` x) (`drop` x) (isJoin th ph)
-    VDrop th x => case view ph of
-      VKeep ph x => bimap (`drop` x) (`keep` x) (isJoin th ph)
-      VDrop ph x => isJoin th ph
+    Done => case view ph of
+      Done => (done, done)
+    Keep th x => case view ph of
+      Keep ph x => bimap (`keep` x) (`keep` x) (isJoin th ph)
+      Drop ph x => bimap (`keep` x) (`drop` x) (isJoin th ph)
+    Drop th x => case view ph of
+      Keep ph x => bimap (`drop` x) (`keep` x) (isJoin th ph)
+      Drop ph x => isJoin th ph
 
 ||| Concatenate two thinnings
 export
 (++) : Th sa sb -> Th sx sy -> Th (sa ++ sx) (sb ++ sy)
 thl ++ thr = case view thr of
-  VDone => thl
-  VKeep thr x => keep (thl ++ thr) x
-  VDrop thr x => drop (thl ++ thr) x
+  Done => thl
+  Keep thr x => keep (thl ++ thr) x
+  Drop thr x => drop (thl ++ thr) x
 
 
 ||| Like filter but returns a thinning
