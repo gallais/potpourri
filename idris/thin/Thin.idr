@@ -5,6 +5,7 @@ import Data.Bits
 import Data.Bits.Integer
 import Data.DPair
 import Data.SnocList
+import Data.SnocList.Quantifiers
 import Decidable.Equality
 
 import Thin.Internal
@@ -23,6 +24,8 @@ record Th {a : Type} (sx, sy : SnocList a) where
   bigEnd     : Nat
   encoding   : Integer
   0 thinning : Thinning bigEnd encoding sx sy
+
+%name Th th, ph, ps
 
 infixr 10 *^
 public export
@@ -178,6 +181,22 @@ Show (Th sx sy) where
       VDone => id
       VKeep th x => go th . ('1'::)
       VDrop th x => go th . ('0'::)
+
+export
+Thable (Any p) where
+  psx *^ th = case view th of
+    VDone => psx
+    VKeep th x => case psx of
+      Here px => Here px
+      There psx => There (psx *^ th)
+    VDrop th x => There (psx *^ th)
+
+export
+Selable (All p) where
+  th ^? psy = case view th of
+    VDone => [<]
+    VKeep th x => let (psy :< py) = psy in th ^? psy :< py
+    VDrop th x => let (psy :< py) = psy in th ^? psy
 
 ------------------------------------------------------------------------------
 -- Properties
@@ -390,6 +409,7 @@ thl ++ thr = case view thr of
   VDone => thl
   VKeep thr x => keep (thl ++ thr) x
   VDrop thr x => drop (thl ++ thr) x
+
 
 ||| Like filter but returns a thinning
 export
