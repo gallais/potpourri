@@ -1,3 +1,6 @@
+||| Postulated properties of Data.Bits for Integer
+||| NB: some of these are probably provable
+
 module Data.Bits.Integer.Postulated
 
 import Data.Bits

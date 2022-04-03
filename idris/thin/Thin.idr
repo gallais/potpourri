@@ -224,18 +224,18 @@ namespace Smart
 
   export
   eqReflects : (th, ph : Th {a} sx sy) -> Reflects (th === ph) (th == ph)
-  eqReflects {sx} {sy} th ph with (view th)
-    eqReflects {sx = _} {sy = _} _ ph | Done = RTrue (irrelevantDone ? ?)
-    eqReflects {sx = _} {sy = _} _ ph | Keep th x with (view ph)
-      eqReflects {sx = _} {sy = _} _ _ | Keep th x | Keep ph x with (eqReflects th ph)
+  eqReflects th ph with (view th)
+    eqReflects _ ph | Done = RTrue (irrelevantDone ? ?)
+    eqReflects _ ph | Keep th x with (view ph)
+      eqReflects _ _ | Keep th x | Keep ph x with (eqReflects th ph)
         _ | p with (th ==  ph)
           _ | b = case p of
             RTrue eq => RTrue (cong (`keep` x) eq)
             RFalse neq => RFalse (neq . keepInjective th ph)
-      eqReflects {sx = _} {sy = _} _ _ | Keep th x | Drop ph x = RFalse (\case hyp impossible)
-    eqReflects {sx = _} {sy = _} _ ph | Drop th x with (view ph)
-      eqReflects {sx = _} {sy = _} _ _ | Drop th x | Keep ph x = RFalse (\case hyp impossible)
-      eqReflects {sx = _} {sy = _} _ _ | Drop th x | Drop ph x with (eqReflects th ph)
+      eqReflects _ _ | Keep th x | Drop ph x = RFalse (\case hyp impossible)
+    eqReflects _ ph | Drop th x with (view ph)
+      eqReflects _ _ | Drop th x | Keep ph x = RFalse (\case hyp impossible)
+      eqReflects _ _ | Drop th x | Drop ph x with (eqReflects th ph)
         _ | p with (th ==  ph)
           _ | b = case p of
             RTrue eq => RTrue (cong (`drop` x) eq)
@@ -305,48 +305,48 @@ onesIsKeep sx x = irrelevantEq $ irrelevantOnes ? ?
 
 export
 onesLeftNeutral : (th : Th {a} sx sx) -> (ph : Th sx sy) -> th *^ ph === ph
-onesLeftNeutral {sx} {sy} th ph with (view ph)
-  onesLeftNeutral {sx = _} {sy = _} th _ | Done = irrelevantDone ? ?
-  onesLeftNeutral {sx = _} {sy = _} th _ | Keep ph x with (view th)
-    onesLeftNeutral {sx = _} {sy = _} _ _ | Keep ph x | Keep th x
+onesLeftNeutral th ph with (view ph)
+  onesLeftNeutral th _ | Done = irrelevantDone ? ?
+  onesLeftNeutral th _ | Keep ph x with (view th)
+    onesLeftNeutral _ _ | Keep ph x | Keep th x
       = cong (`keep` x) (onesLeftNeutral th ph)
-    onesLeftNeutral {sx = _} {sy = _} _ _ | Keep ph x | Drop th x
+    onesLeftNeutral _ _ | Keep ph x | Drop th x
       = void $ tooBig th
-  onesLeftNeutral {sy = _} th _ | Drop ph x = cong (`drop` x) (onesLeftNeutral th ph)
+  onesLeftNeutral th _ | Drop ph x = cong (`drop` x) (onesLeftNeutral th ph)
 
 export
 onesRightNeutral : (th : Th {a} sx sy) -> (ph : Th sy sy) -> th *^ ph === th
-onesRightNeutral {sx} {sy} th ph with (view ph)
-  onesRightNeutral {sy = _} th _ | Done = Refl
-  onesRightNeutral {sy = _} th _ | Keep ph x with (view th)
-    onesRightNeutral {sx = _} {sy = _} _ _ | Keep ph x | Keep th x
+onesRightNeutral th ph with (view ph)
+  onesRightNeutral th _ | Done = Refl
+  onesRightNeutral th _ | Keep ph x with (view th)
+    onesRightNeutral _ _ | Keep ph x | Keep th x
       = cong (`keep` x) (onesRightNeutral th ph)
-    onesRightNeutral {sy = _} _ _ | Keep ph x | Drop th x
+    onesRightNeutral _ _ | Keep ph x | Drop th x
       = cong (`drop` x) (onesRightNeutral th ph)
-  onesRightNeutral {sy = _} th _ | Drop ph x = void $ tooBig ph
+  onesRightNeutral th _ | Drop ph x = void $ tooBig ph
 
 export
 transAssoc : (th : Th {a} sw sx) -> (ph : Th sx sy) -> (ps : Th sy sz) ->
              ((th *^ ph) *^ ps) === (th *^ (ph *^ ps))
-transAssoc {sw} {sx} {sy} {sz} th ph ps with (view ps)
-  transAssoc {sy = _} {sz = _} th ph _ | Done = irrelevantDone ? ?
-  transAssoc {sy = _} {sz = _} th ph _ | Keep ps x with (view ph)
-    transAssoc {sx = _} {sy = _} {sz = _} th _ _ | Keep ps x | Keep ph x with (view th)
-      transAssoc {sw = _} {sx = _} {sy = _} {sz = _} _ _ _ | Keep ps x | Keep ph x | Keep th x
+transAssoc th ph ps with (view ps)
+  transAssoc th ph _ | Done = irrelevantDone ? ?
+  transAssoc th ph _ | Keep ps x with (view ph)
+    transAssoc th _ _ | Keep ps x | Keep ph x with (view th)
+      transAssoc _ _ _ | Keep ps x | Keep ph x | Keep th x
         = rewrite viewKeepUnfold (ph *^ ps) x in
           rewrite viewKeepUnfold (th *^ ph) x in
           rewrite viewKeepUnfold th x in
           cong (`keep` x) (transAssoc th ph ps)
-      transAssoc {sw = _} {sx = _} {sy = _} {sz = _} _ _ _ | Keep ps x | Keep ph x | Drop th x
+      transAssoc _ _ _ | Keep ps x | Keep ph x | Drop th x
         = rewrite viewKeepUnfold (ph *^ ps) x in
           rewrite viewDropUnfold (th *^ ph) x in
           rewrite viewDropUnfold th x in
           cong (`drop` x) (transAssoc th ph ps)
-    transAssoc {sx = _} {sy = _} {sz = _} th _ _ | Keep ps x | Drop ph x
+    transAssoc th _ _ | Keep ps x | Drop ph x
       = rewrite viewDropUnfold (ph *^ ps) x in
         rewrite viewDropUnfold (th *^ ph) x in
         cong (`drop` x) (transAssoc th ph ps)
-  transAssoc {sz = _} th ph _ | Drop ps x
+  transAssoc th ph _ | Drop ps x
     = rewrite viewDropUnfold (ph *^ ps) x in
       cong (`drop` x) (transAssoc th ph ps)
 
