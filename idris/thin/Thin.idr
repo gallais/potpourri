@@ -164,14 +164,7 @@ Selable (`Th` sy) where
 
 export
 Eq (Th sx sy) where
-  th == ph = case view th of
-    Done => True
-    Keep th x => case view ph of
-      Keep ph x => th == ph
-      Drop ph x => False
-    Drop th x => case view ph of
-      Keep ph x => False
-      Drop ph x => th == ph
+  MkTh i bs _ == MkTh j cs _ = i == j && bs == cs
 
 export
 Show (Th sx sy) where
@@ -223,23 +216,55 @@ namespace Smart
         = rewrite irrelevantThinning p q in Refl
 
   export
+  mapReflects : p <=> q -> Reflects p b -> Reflects q b
+  mapReflects pq (RTrue p) = RTrue (leftToRight pq p)
+  mapReflects pq (RFalse np) = RFalse (np . rightToLeft pq)
+
+  export
+  symmetric : p <=> q -> q <=> p
+  symmetric (MkEquivalence f g) = MkEquivalence g f
+
+  export
+  reflectsEquiv : p <=> q -> Reflects p b <=> Reflects q b
+  reflectsEquiv pq = MkEquivalence (mapReflects pq) (mapReflects $ symmetric pq)
+
+  export
+  reflectsAnd : Reflects p b -> Reflects q c -> Reflects (p, q) (b && c)
+  reflectsAnd (RTrue p) (RTrue q) = RTrue (p, q)
+  reflectsAnd (RTrue p) (RFalse nq) = RFalse (nq . snd)
+  reflectsAnd (RFalse np) rq = RFalse (np . fst)
+
+  export
+  reflectsNat : (m, n : Nat) -> Reflects (m === n) (m == n)
+  reflectsNat 0 0 = RTrue Refl
+  reflectsNat 0 (S _) = RFalse absurd
+  reflectsNat (S _) 0 = RFalse absurd
+  reflectsNat (S m) (S n)
+    = mapReflects (MkEquivalence (cong S) injective)
+    $ reflectsNat m n
+
+  ||| Boolean equality of integers reflects their propositional equality
+  ||| We can prove this thanks to the fact that DecEq for Integers is implemented
+  ||| using boolean equality
+  export
+  reflectsInteger : (bs, cs : Integer) -> Reflects (bs === cs) (bs == cs)
+  reflectsInteger bs cs with (decEq bs cs) proof eq
+    _ | p with (bs == cs)
+      reflectsInteger bs cs | Yes prf | True = RTrue prf
+      reflectsInteger bs cs | No nprf | False = RFalse nprf
+
+  export
+  ThEqEquiv : (th, ph : Th {a} sx sy) ->
+              (th.bigEnd === ph.bigEnd, th.encoding === ph.encoding) <=> th === ph
+  ThEqEquiv (MkTh i bs p) (MkTh j cs q)
+    = MkEquivalence (uncurry $ \ Refl, Refl => rewrite irrelevantThinning p q in Refl)
+                    (\ eq => (cong bigEnd eq, cong encoding eq))
+
+  export
   eqReflects : (th, ph : Th {a} sx sy) -> Reflects (th === ph) (th == ph)
-  eqReflects th ph with (view th)
-    eqReflects _ ph | Done = RTrue (irrelevantDone ? ?)
-    eqReflects _ ph | Keep th x with (view ph)
-      eqReflects _ _ | Keep th x | Keep ph x with (eqReflects th ph)
-        _ | p with (th ==  ph)
-          _ | b = case p of
-            RTrue eq => RTrue (cong (`keep` x) eq)
-            RFalse neq => RFalse (neq . keepInjective th ph)
-      eqReflects _ _ | Keep th x | Drop ph x = RFalse (\case hyp impossible)
-    eqReflects _ ph | Drop th x with (view ph)
-      eqReflects _ _ | Drop th x | Keep ph x = RFalse (\case hyp impossible)
-      eqReflects _ _ | Drop th x | Drop ph x with (eqReflects th ph)
-        _ | p with (th ==  ph)
-          _ | b = case p of
-            RTrue eq => RTrue (cong (`drop` x) eq)
-            RFalse neq => RFalse (neq . dropInjective th ph)
+  eqReflects th@(MkTh i bs p) ph@(MkTh j cs q)
+    = mapReflects (ThEqEquiv th ph)
+    $ reflectsAnd (reflectsNat i j) (reflectsInteger bs cs)
 
 ||| If we know there's a boolean that reflects a type then the type is decidable
 export
