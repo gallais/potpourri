@@ -229,10 +229,16 @@ namespace Smart
   reflectsEquiv pq = MkEquivalence (mapReflects pq) (mapReflects $ symmetric pq)
 
   export
-  reflectsAnd : Reflects p b -> Reflects q c -> Reflects (p, q) (b && c)
-  reflectsAnd (RTrue p) (RTrue q) = RTrue (p, q)
-  reflectsAnd (RTrue p) (RFalse nq) = RFalse (nq . snd)
-  reflectsAnd (RFalse np) rq = RFalse (np . fst)
+  andReflects : Reflects p b -> Reflects q c -> Reflects (p, q) (b && c)
+  andReflects (RTrue p) (RTrue q) = RTrue (p, q)
+  andReflects (RTrue p) (RFalse nq) = RFalse (nq . snd)
+  andReflects (RFalse np) rq = RFalse (np . fst)
+
+  export
+  orReflects : Reflects p b -> Reflects q c -> Reflects (Either p q) (b || c)
+  orReflects (RTrue p) _ = RTrue (Left p)
+  orReflects (RFalse np) (RTrue q) = RTrue (Right q)
+  orReflects (RFalse np) (RFalse nq) = RFalse (either np nq)
 
   export
   reflectsNat : (m, n : Nat) -> Reflects (m === n) (m == n)
@@ -264,7 +270,7 @@ namespace Smart
   eqReflects : (th, ph : Th {a} sx sy) -> Reflects (th === ph) (th == ph)
   eqReflects th@(MkTh i bs p) ph@(MkTh j cs q)
     = mapReflects (ThEqEquiv th ph)
-    $ reflectsAnd (reflectsNat i j) (reflectsInteger bs cs)
+    $ andReflects (reflectsNat i j) (reflectsInteger bs cs)
 
 ||| If we know there's a boolean that reflects a type then the type is decidable
 export
