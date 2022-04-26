@@ -436,11 +436,7 @@ namespace Smart
 ||| Concatenate two thinnings
 export
 (++) : Th sa sb -> Th sx sy -> Th (sa ++ sx) (sb ++ sy)
-thl ++ thr = case view thr of
-  Done => thl
-  Keep thr x => keep (thl ++ thr) x
-  Drop thr x => drop (thl ++ thr) x
-
+thl ++ thr = MkTh ? ? (thl.thinning ++ thr.thinning)
 
 ||| Like filter but returns a thinning
 export

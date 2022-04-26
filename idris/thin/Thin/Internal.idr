@@ -250,3 +250,34 @@ bit (S p) =
   let 0 nb : So (not $ testBit (the Integer $ bit i) 0)
            = eqToSo $ cong not $ testBit0ShiftL 1 (pred i) in
   Drop (rewrite shiftRBitS (pred i) in bit p) ?
+
+export
+(++) : Thinning i bs sa sb -> Thinning j cs sx sy ->
+       Thinning (i + j) (cs .|. (bs `shiftL` j)) (sa ++ sx) (sb ++ sy)
+th ++ Done
+  = rewrite plusZeroRightNeutral i in
+    rewrite shiftL0 bs in
+    rewrite orZeroBitsLeftIdentity bs in
+    th
+th ++ Keep {i = j} ph x @{so}
+  = rewrite sym $ plusSuccRightSucc i j in
+    Keep
+    (rewrite shiftROr cs (bs `shiftL` S j) 1 in
+     rewrite shiftLSR bs j in
+     th ++ ph)
+    x
+    @{rewrite testBitOr cs (bs `shiftL` S j) 0 in
+      rewrite testBit0ShiftL bs j in
+      rewrite orFalseNeutral (testBit {a = Integer} cs Z) in
+      so}
+th ++ Drop {i = j} ph x @{soNot}
+  = rewrite sym $ plusSuccRightSucc i j in
+    Drop
+    (rewrite shiftROr cs (bs `shiftL` S j) 1 in
+     rewrite shiftLSR bs j in
+     th ++ ph)
+    x
+    @{rewrite testBitOr cs (bs `shiftL` S j) 0 in
+      rewrite testBit0ShiftL bs j in
+      rewrite orFalseNeutral (testBit {a = Integer} cs Z) in
+      soNot}

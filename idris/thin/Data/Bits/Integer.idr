@@ -112,38 +112,6 @@ shiftRBitS : (i : Nat) -> bit (S i) `shiftR` 1 === the Integer (bit i)
 shiftRBitS i = shiftLSR 1 i
 
 ------------------------------------------------------------------------------
--- Or properties
-------------------------------------------------------------------------------
-
-export
-shiftROr : (bs, cs : Integer) -> (k : Nat) ->
-           (bs .|. cs) `shiftR` k === (bs `shiftR` k .|. cs `shiftR` k)
-shiftROr bs cs k = extensionally $ \ i =>
-  rewrite testBitOr (bs `shiftR` k) (cs `shiftR` k) i in
-  rewrite testBitShiftR bs k i in
-  rewrite testBitShiftR cs k i in
-  rewrite testBitShiftR (bs .|. cs) k i in
-  rewrite testBitOr bs cs (k + i) in
-  Refl
-
-export
-orIdempotent : (bs : Integer) -> (bs .|. bs) === bs
-orIdempotent bs = extensionally $ \ i =>
-  rewrite testBitOr bs bs i in
-  orSameNeutral (testBit bs i)
-
-------------------------------------------------------------------------------
--- Complement properties
-------------------------------------------------------------------------------
-
-export
-complementInvolutive : (bs : Integer) -> complement (complement bs) === bs
-complementInvolutive bs = extensionally $ \ i =>
-  rewrite testBitComplement (complement bs) i in
-  rewrite testBitComplement bs i in
-  notInvolutive (testBit bs i)
-
-------------------------------------------------------------------------------
 -- Ones properties
 ------------------------------------------------------------------------------
 
@@ -165,6 +133,65 @@ testBitZeroBits i = Calc $
   |~ testBit (the Integer zeroBits) i
   ~~ not (testBit (the Integer oneBits) i) ...( testBitComplement oneBits i )
   ~~ False                                 ...( cong not (testBitOneBits i) )
+
+export
+zeroBitsShiftL : (k : Nat) -> zeroBits {a = Integer} `shiftL` k === Bits.zeroBits
+zeroBitsShiftL 0 = shiftL0 zeroBits
+zeroBitsShiftL (S k) = extensionally $ \case
+  0 => testBit0ShiftL zeroBits k
+  S i => Calc $
+    |~ testBit (zeroBits {a = Integer} `shiftL` S k) (S i)
+    ~~ testBit (zeroBits {a = Integer} `shiftL` k) i       ...( testBitSShiftL zeroBits k i )
+    ~~ testBit (zeroBits {a = Integer}) i                  ...( cong (`testBit` i) (zeroBitsShiftL k) )
+    ~~ False                                               ...( testBitZeroBits i )
+    ~~ testBit (zeroBits {a = Integer}) (S i)              ...( sym (testBitZeroBits (S i)) )
+
+------------------------------------------------------------------------------
+-- Or properties
+------------------------------------------------------------------------------
+
+export
+shiftROr : (bs, cs : Integer) -> (k : Nat) ->
+           (bs .|. cs) `shiftR` k === (bs `shiftR` k .|. cs `shiftR` k)
+shiftROr bs cs k = extensionally $ \ i =>
+  rewrite testBitOr (bs `shiftR` k) (cs `shiftR` k) i in
+  rewrite testBitShiftR bs k i in
+  rewrite testBitShiftR cs k i in
+  rewrite testBitShiftR (bs .|. cs) k i in
+  rewrite testBitOr bs cs (k + i) in
+  Refl
+
+export
+orIdempotent : (bs : Integer) -> (bs .|. bs) === bs
+orIdempotent bs = extensionally $ \ i =>
+  rewrite testBitOr bs bs i in
+  orSameNeutral (testBit bs i)
+
+export
+orZeroBitsRightIdentity : (bs : Integer) -> (bs .|. Bits.zeroBits) === bs
+orZeroBitsRightIdentity bs = extensionally $ \ i =>
+  rewrite testBitOr bs zeroBits i in
+  rewrite testBitZeroBits i in
+  rewrite orFalseNeutral (testBit bs i) in
+  Refl
+
+export
+orZeroBitsLeftIdentity : (bs : Integer) -> (Bits.zeroBits .|. bs) === bs
+orZeroBitsLeftIdentity bs = extensionally $ \ i =>
+  rewrite testBitOr zeroBits bs i in
+  rewrite testBitZeroBits i in
+  Refl
+
+------------------------------------------------------------------------------
+-- Complement properties
+------------------------------------------------------------------------------
+
+export
+complementInvolutive : (bs : Integer) -> complement (complement bs) === bs
+complementInvolutive bs = extensionally $ \ i =>
+  rewrite testBitComplement (complement bs) i in
+  rewrite testBitComplement bs i in
+  notInvolutive (testBit bs i)
 
 ------------------------------------------------------------------------------
 -- Eq properties
