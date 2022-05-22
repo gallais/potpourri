@@ -1,0 +1,3 @@
+name: duality
+depend: standard-library
+include: src
