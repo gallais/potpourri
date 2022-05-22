@@ -149,23 +149,17 @@ module Syntax (Class : Set) where
   _→ˢ_ : Shape → Shape → Set
   γ →ˢ δ = All (λ θ → Expr (δ ⊕ θ)) γ
 
+  lift : ∀ {γ δ} → (γ →ʳ δ) → (γ →ˢ δ)
+  lift 𝟘 = 𝟘
+  lift [ ρ ] = [ var-left ρ ` lift (map var-right 𝟙ʳ) ]
+  lift (ρˡ ⊕ ρʳ) = lift ρˡ ⊕ lift ρʳ
+
   -- side-remark: notice that the ts in the definition of Expr is just a substituition
 
   -- We now hit a problem when trying to define the identity substitution in a naive
   -- fashion. Agda rejects the definition, as it is not structurally recursive.
   𝟙ˢ : ∀ {γ} → γ →ˢ γ
-  𝟙ˢ {𝟘} = 𝟘
-  𝟙ˢ {[ γ , cl ]} = [ var-left var-here ` map ([ ρ ]ʳ_) 𝟙ˢ ] where
-    ρ : ∀ {θ} → γ ⊕ θ  →ʳ [ γ , cl ] ⊕ γ ⊕ θ
-    ρ = tabulate (λ z → var-left (var-right z))
-      ⊕ tabulate var-right
-  𝟙ˢ {γ ⊕ δ} = map ([ ρˡ ]ʳ_) 𝟙ˢ ⊕ map ([ ρʳ ]ʳ_) 𝟙ˢ where
-    ρˡ : ∀ {θ} → γ ⊕ θ →ʳ γ ⊕ δ ⊕ θ
-    ρˡ = tabulate (λ z → var-left (var-left z))
-       ⊕ tabulate var-right
-    ρʳ : ∀ {θ} → δ ⊕ θ →ʳ γ ⊕ δ ⊕ θ
-    ρʳ = tabulate (λ z → var-left (var-right z))
-       ⊕ tabulate var-right
+  𝟙ˢ = lift 𝟙ʳ
 
 {-
   {- What is the best way to deal with the non-termination problem? I have tried:
