@@ -1,3 +1,5 @@
+{-# OPTIONS --safe --without-K #-}
+
 -- This is a solution to the problem posed in:
 -- http://math.andrej.com/2022/05/20/one-syntax-to-rule-them-all/
 
