@@ -11,6 +11,8 @@ import Data.Relation.Closure.ReflexiveTransitive
 import Decidable.Order.Strict
 import AlmostFull
 
+%default total
+
 0 Alts1 : (rel : Rel a) -> Rel (a, a)
 Alts1 rel = Or (\ p, q => fst p `rel` fst q) (\ p, q => fst p `rel` snd q)
 
@@ -71,10 +73,21 @@ alts t af prf cmp = almostFullInduction af' prf' where
     (Right ps, Right qs) => prf x2 y2 (qs, q)
 
 
+------------------------------------------------------------------------------
+-- Example
+------------------------------------------------------------------------------
+
 compatLTLTE : Compat LT LTE
 compatLTLTE wx xy yz = [transitive (tlist wx) (transitive (lteSuccRight xy) (tlist yz))]
 
-||| Deploying lexicographic ordering:
+||| Unsafe weird
+covering
+unsafeWeird : (Nat, Nat) -> Nat
+unsafeWeird (0, _) = 1
+unsafeWeird (_, 0) = 1
+unsafeWeird (S x, S y) = unsafeWeird (x, y) + unsafeWeird (y, x)
+
+||| Safe weird, deploying max-bound:
 weird : (Nat, Nat) -> Nat
 weird = alts LT almostFullLTE (noInfiniteDescent transitive) compatLTLTE rec
 
