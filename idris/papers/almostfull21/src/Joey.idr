@@ -85,7 +85,10 @@ covering
 unsafeWeird : (Nat, Nat) -> Nat
 unsafeWeird (0, _) = 1
 unsafeWeird (_, 0) = 1
-unsafeWeird (S x, S y) = unsafeWeird (x, y) + unsafeWeird (y, x)
+unsafeWeird (S x, S y) = unsafeWeird (x, x)
+                       + unsafeWeird (x, y)
+                       + unsafeWeird (y, x)
+                       + unsafeWeird (y, y)
 
 ||| Safe weird, deploying max-bound:
 weird : (Nat, Nat) -> Nat
@@ -96,5 +99,7 @@ weird = alts LT almostFullLTE (noInfiniteDescent transitive) compatLTLTE rec
    rec : Rec (Alts LT) (\_ => Nat)
    rec (0, _)     ih = 1
    rec (_, 0)     ih = 1
-   rec (S x, S y) ih = ih (x , y) (Left reflexive, Right reflexive)
+   rec (S x, S y) ih = ih (x , x) (Left reflexive , Left reflexive)
+                     + ih (x , y) (Left reflexive , Right reflexive)
                      + ih (y , x) (Right reflexive, Left reflexive)
+                     + ih (y , y) (Right reflexive, Right reflexive)
