@@ -61,6 +61,7 @@ SecureBy rel (SUP f)
   = (a : x) -> SecureBy (Or rel (const . rel a)) (f a)
 
 ||| An almost full relation is one for which a securing tree exists
+export
 0 AlmostFull : Rel x -> Type
 AlmostFull rel = (p ** SecureBy rel p)
 
@@ -82,6 +83,7 @@ forSecureBy t sec f = mapSecureBy f t sec
 
 ||| If a relation can be embedded into another and if the tighter relation
 ||| is Almost full then so is the one it embeds into.
+export
 mapAlmostFull : (p ~> q) -> AlmostFull p -> AlmostFull q
 mapAlmostFull f (p ** sec) = (p ** mapSecureBy f p sec)
 
@@ -179,6 +181,7 @@ almostFullFromWf @{wf} @{dec}
 ||| Example: LTE on natural numbers is Almost Full because
 ||| 1. LT is well founded
 ||| 2. The negation LT embeds into LTE
+export
 almostFullLTE : AlmostFull LTE
 almostFullLTE = mapAlmostFull notLTImpliesGTE almostFullFromWf
 
@@ -200,9 +203,19 @@ accessibleFromAF (SUP f) v prop sec
                        r
     in accessibleFromAF (f v) w prop' (sec v)
 
+public export
 0 NoInfiniteDescent : (t, rel : Rel a) -> Type
 NoInfiniteDescent t rel = ((x, y : a) -> Not (And (TList t) (flip rel)) x y)
 
+export
+noInfiniteDescent :
+  StrictPreorder z tz =>
+  (transz :  {a, b, c : _} -> tz a b -> relz b c -> tz a c) ->
+  NoInfiniteDescent tz relz
+noInfiniteDescent transz z1 z2 (ts, rel)
+    = irreflexive {rel = tz} (transz (tlist ts) rel)
+
+export
 wellFoundedFromAF :
   AlmostFull rel ->
   NoInfiniteDescent t rel ->
@@ -210,6 +223,7 @@ wellFoundedFromAF :
 wellFoundedFromAF (p ** sec) prop v
   = accessibleFromAF p v (\ a, b, _, p => prop a b p) sec
 
+export
 wellFoundedFromAFWQO :
   Transitive x rel => AlmostFull rel ->
   (v : x) -> Accessible (\ x, y => (rel x y, Not (rel y x))) v
@@ -225,6 +239,7 @@ wellFoundedFromAFWQO af v = wellFoundedFromAF af prop v where
   prop a b (ts, rba) = tcontra ts rba
 
 -- TODO: move to base's `Control.Wellfounded`
+export
 map : (p ~> q) -> {x : a} -> Accessible q x -> Accessible p x
 map f (Access rec) = Access $ \ y, pyx => map f (rec y (f pyx))
 
@@ -234,6 +249,7 @@ map f (Access rec) = Access $ \ y, pyx => map f (rec y (f pyx))
 ||| Example: LT on natural numbers is well founded because
 ||| 1. LTE is almost full
 ||| 2. LT embeds into LTE & the negation of its symmetric
+export
 wellFoundedLT : (n : Nat) -> Accessible LT n
 wellFoundedLT n
   = map (\ ltxy => (lteSuccLeft ltxy
@@ -245,9 +261,11 @@ wellFoundedLT n
 -- Induction principle for almost full relations
 ------------------------------------------------------------------------
 
+public export
 0 Rec : Rel a -> (a -> Type) -> Type
 Rec t p = (x : a) -> (ih : (y : a) -> t y x -> p y) -> p x
 
+export
 almostFullInduction :
   AlmostFull rel ->
   NoInfiniteDescent t rel ->
@@ -287,6 +305,7 @@ secureByUnionR = mapSecureBy Right
 almostFullUnionR : AlmostFull q -> AlmostFull (Or p q)
 almostFullUnionR (t ** sec) = (t ** secureByUnionR t sec)
 
+export
 almostFullUnion : Either (AlmostFull p) (AlmostFull q) -> AlmostFull (Or p q)
 almostFullUnion = either almostFullUnionL almostFullUnionR
 
@@ -434,6 +453,7 @@ secureByIntersection p q secp secq
      (mapSecureBy Right p secp)
      (mapSecureBy Right q secq)
 
+export
 almostFullIntersection : AlmostFull p -> AlmostFull q -> AlmostFull (And p q)
 almostFullIntersection (p ** secp) (q ** secq)
   = (? ** secureByIntersection p q secp secq)
@@ -451,6 +471,7 @@ secureByContra : (f : y -> x) -> (p : WFT x) ->
 secureByContra f ZT      sec = \a, b => sec (f a) (f b)
 secureByContra f (SUP g) sec = \ a => secureByContra f (g (f a)) (sec (f a))
 
+export
 almostFullOn : (f : y -> x) -> AlmostFull rel -> AlmostFull (rel `on` f)
 almostFullOn f (p ** sec) = (? ** secureByContra f p sec)
 
@@ -532,6 +553,7 @@ secureByPair secp secq
       (secureByContra ? ? secp)
       (secureByContra ? ? secq)
 
+export
 almostFullPair : AlmostFull p -> AlmostFull q ->
                  AlmostFull (And (p `on` Builtin.fst) (q `on` Builtin.snd))
 almostFullPair (p ** secp) (q ** secq) = (? ** secureByPair secp secq)
@@ -600,15 +622,6 @@ lexicographicSPO transx transy afx afy
   = lexicographic afx afy
       (noInfiniteDescent transx)
       (noInfiniteDescent transy)
-
-  where
-
-  noInfiniteDescent :
-    StrictPreorder z tz =>
-    (transz :  {a, b, c : _} -> tz a b -> relz b c -> tz a c) ->
-    NoInfiniteDescent tz relz
-  noInfiniteDescent transz z1 z2 (ts, rel)
-    = irreflexive {rel = tz} (transz (tlist ts) rel)
 
 ------------------------------------------------------------------------
 -- Example
