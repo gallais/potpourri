@@ -24,7 +24,7 @@ Alts rel = And (Alts1 rel) (Alts2 rel)
 
 
 stepDown : TList (Alts rel) ~> Alts (TList rel)
-stepDown (t :: ts) = ?tmp where
+stepDown ((p , q) :: ts) = go (bimap (:: []) (:: []) p , bimap (:: []) (:: []) q) ts where
 
   snoc : {z : _} -> Alts (TList rel) x y -> Alts rel y z -> Alts (TList rel) x z
   snoc (ps , qs) pq = (snoc1 ps pq, snoc2 qs pq) where
