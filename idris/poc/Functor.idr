@@ -121,17 +121,18 @@ namespace Functor
     Just (IApp _ (IVar _ functor) t) <- goal
       | _ => fail "Invalid goal: cannot derive functor"
     when (`{Prelude.Interfaces.Functor} /= functor) $
-      logMsg "derive.functor" 1 "Expected to derive Functor but got: \{show functor}"
-    logMsg "derive.functor" 1 "Deriving Functor for: \{show t}"
-    (MkIsType f params cs) <- isType t
+      logMsg "derive.functor" 1 "Expected to derive Functor but got \{show functor}"
+    logMsg "derive.functor" 1 "Deriving Functor for \{showPrec App $ mapTTImp cleanup t}"
+    MkIsType f params cs <- isType t
     logMsg "derive.functor.constructors" 1 $
-      unlines $ "" :: map (\ (n, ty) => "  \{show n} : \{show ty}") cs
+      joinBy "\n" $ "" :: map (\ (n, ty) => "  \{showPrefix True $ dropNS n} : \{show $ mapTTImp cleanup ty}") cs
     let fc = emptyFC
     let mapName = UN (Basic $ "map" ++ show (dropNS f))
     cls <- for cs $ \ (cName, ty) => do
              let Just (para, args) = explicits ty
                  | _ => fail "Couldn't make sense of \{show cName}'s return type"
-             logMsg "derive.functor.clauses" 10 $ "\{show cName} (\{joinBy ", " (map show args)})"
+             logMsg "derive.functor.clauses" 10 $
+                "\{showPrefix True (dropNS cName)} (\{joinBy ", " (map (showPrec Dollar . mapTTImp cleanup) args)})"
              let funName = UN $ Basic "f"
              let fun  = IVar fc funName
              let vars = map (IVar fc . UN . Basic . ("x" ++) . show . pred)
@@ -158,7 +159,7 @@ namespace Functor
 
 data BigTree a = Leaf a | Node (Nat -> BigTree a)
 
-%logging "derive.functor.clauses" 1
+%logging "derive.functor" 10
 list : Functor List
 list = %runElab derive
 
