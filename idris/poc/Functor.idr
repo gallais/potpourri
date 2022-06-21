@@ -139,7 +139,7 @@ namespace Functor
                       $ zipWith const [1..length args] args -- fix because [1..0] is [1,0]
              recs <- for (zip vars args) $ \ (v, arg) => do
                        case check f para arg of
-                         Nothing => fail "Failed at argument of type \{show arg}"
+                         Nothing => fail "Failed at argument of type \{show arg} when checking \{showPrefix True (dropNS cName)}"
                          Just (Left sp) => pure $ functorFun fc sp mapName funName v
                          Just (Right free) => pure v
              pure $ PatClause fc
