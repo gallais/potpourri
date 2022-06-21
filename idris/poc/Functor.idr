@@ -3,6 +3,7 @@ module Functor
 import Data.Maybe
 import Data.Nat
 import Data.String
+import Data.Vect
 import Decidable.Equality
 import Language.Reflection
 
@@ -59,36 +60,6 @@ check t x (IApp fc f (IVar _ y)) = do
     No diff => Nothing
 check _ _ _ = Nothing
 
-exampleType : (a : Name) -> SPosIn `{List} a ?
-exampleType a = case check `{List} a `(Nat -> List a) of
-  Just (Left prf) => prf
-  _ => ?h
-
-{-
-test : (a : Type) -> exampleType `{a} === ?a
-test = ?prf
--}
-
-target : FC -> {f : TTImp} -> SPosIn t x f -> (y : Name) -> TTImp
-target fc SPVar y = IVar fc y
-target fc (SPTyp {f} _) y = IApp fc f (IVar fc y)
-target fc (SPPi {rig, pinfo, nm, a} _ prf) y = IPi fc rig pinfo nm a (target fc prf y)
-target fc (SFree _) _ = f
-
-exampleTarget : (a, b : Name) -> TTImp
-exampleTarget a b = target emptyFC (exampleType a) b
-
-test2 : (a, b : Type) -> exampleTarget `{a} `{b} === ?zg
-test2 a b = ?prf2
-
-infixr 5 ~>
-
-functorType : FC -> (a, b : Name) -> TTImp
-functorType fc a b = (IVar fc a ~> IVar fc b) ~> (exampleTarget a a ~> exampleTarget a b) where
-
-  (~>) : TTImp -> TTImp -> TTImp
-  s ~> t = IPi fc MW ExplicitArg Nothing s t
-
 functorFun : FC -> {f : TTImp} -> SPosIn t x f -> (rec, f : Name) -> TTImp -> TTImp
 functorFun fc SPVar rec f t = IApp fc (IVar fc f) t
 functorFun fc (SPTyp y) rec f t = IApp fc (IApp fc (IVar fc rec) (IVar fc f)) t
@@ -97,17 +68,14 @@ functorFun fc (SPPi {rig, pinfo, nm, a} _ z) rec f t
     ILam fc rig pinfo (Just nm) a (functorFun fc z rec f (IApp fc t (IVar fc nm)))
 functorFun fc (SFree y) rec f t = t
 
-exampleFun : (a -> b) -> (Nat -> List a) -> (Nat -> List b)
-exampleFun f t = %runElab (check $ functorFun emptyFC (exampleType `{a}) `{map} `{f} `(t))
-
 wording : NameType -> String
 wording Bound = "a bound variable"
 wording Func = "a function name"
 wording (DataCon tag arity) = "a data constructor"
 wording (TyCon tag arity) = "a type constructor"
 
-isType : Name -> Elab (List (Name, TTImp))
-isType ty = do
+isTypeCon : Name -> Elab (List (Name, TTImp))
+isTypeCon ty = do
     [(_, MkNameInfo (TyCon _ _))] <- getInfo ty
       | [] => fail "\{show ty} out of scope"
       | [(_, MkNameInfo nt)] => fail "\{show ty} is \{wording nt} rather than a type constructor"
@@ -118,13 +86,30 @@ isType ty = do
          | _ => fail "\{show n} is ambiguous"
       pure (n, ty)
 
-explicits : TTImp -> List TTImp
-explicits (IPi fc rig ExplicitArg x a b) = a :: explicits b
+record IsType where
+  constructor MkIsType
+  typeConstructor  : Name
+  parameterNames   : List Name
+  dataConstructors : List (Name, TTImp)
+
+isType : TTImp -> Elab IsType
+isType (IVar _ n) = MkIsType n [] <$> isTypeCon n
+isType (IApp _ t (IVar _ n)) = { parameterNames $= (n ::) } <$> isType t
+isType t = fail "Expected a type constructor, got: \{show t}"
+
+explicits : TTImp -> Maybe (Name, List TTImp)
+explicits (IPi fc rig ExplicitArg x a b) = mapSnd (a ::) <$> explicits b
 explicits (IPi fc rig pinfo x a b) = explicits b
-explicits _ = []
+explicits (IApp _ _ (IVar _ a)) = Just (a, [])
+explicits _ = Nothing
 
 apply : FC -> TTImp -> List TTImp -> TTImp
 apply fc = foldl (IApp fc)
+
+cleanup : TTImp -> TTImp
+cleanup = \case
+  IVar fc n => IVar fc (dropNS n)
+  t => t
 
 namespace Functor
 
@@ -133,44 +118,62 @@ namespace Functor
            {default Total treq : TotalReq} ->
            Elab (Functor f)
   derive = do
-    Just (IApp _ (IVar _ functor) (IVar _ f)) <- goal
+    Just (IApp _ (IVar _ functor) t) <- goal
       | _ => fail "Invalid goal: cannot derive functor"
     when (`{Prelude.Interfaces.Functor} /= functor) $
-      logMsg "derive.functor" 1 (show functor)
-    logMsg "derive.functor" 1 (show f)
-    cs <- isType f
+      logMsg "derive.functor" 1 "Expected to derive Functor but got: \{show functor}"
+    logMsg "derive.functor" 1 "Deriving Functor for: \{show t}"
+    (MkIsType f params cs) <- isType t
     logMsg "derive.functor.constructors" 1 $
       unlines $ "" :: map (\ (n, ty) => "  \{show n} : \{show ty}") cs
     let fc = emptyFC
     let mapName = UN (Basic $ "map" ++ show (dropNS f))
     cls <- for cs $ \ (cName, ty) => do
-             let args = explicits ty
+             let Just (para, args) = explicits ty
+                 | _ => fail "Couldn't make sense of \{show cName}'s return type"
              logMsg "derive.functor.clauses" 10 $ "\{show cName} (\{joinBy ", " (map show args)})"
              let funName = UN $ Basic "f"
              let fun  = IVar fc funName
              let vars = map (IVar fc . UN . Basic . ("x" ++) . show . pred)
                       $ zipWith const [1..length args] args -- fix because [1..0] is [1,0]
              recs <- for (zip vars args) $ \ (v, arg) => do
-                       case check f `{a} arg of
+                       case check f para arg of
                          Nothing => fail "Failed at argument of type \{show arg}"
                          Just (Left sp) => pure $ functorFun fc sp mapName funName v
                          Just (Right free) => pure v
              pure $ PatClause fc
                (apply fc (IVar fc mapName) [ fun, apply fc (IVar fc cName) vars])
                (apply fc (IVar fc cName) recs)
-    logMsg "derive.functor.clauses" 1 $ joinBy "\n" ("" :: map (("  " ++) . show) cls)
+    let ty = MkTy fc fc mapName
+           $ foldr (\ x => IPi fc M0 ImplicitArg (Just x) (Implicit fc True))
+                   `({0 a, b : Type} -> (a -> b) -> ~(t) a -> ~(t) b)
+                   params
+    logMsg "derive.functor.clauses" 1 $
+      joinBy "\n" ("" :: ("  " ++ show (mapITy cleanup ty))
+                      :: map (("  " ++) . show . mapClause cleanup) cls)
     check $ ILocal fc
-      [ IClaim fc MW vis [Totality treq]
-        $ MkTy fc fc mapName
-          `({0 a, b : Type} -> (a -> b) -> ~(IVar fc f) a -> ~(IVar fc f) b)
+      [ IClaim fc MW vis [Totality treq] ty
       , IDef fc mapName cls
-      ] `(MkFunctor {f = ~(IVar fc f)} ~(IVar fc mapName))
+      ] `(MkFunctor {f = ~(t)} ~(IVar fc mapName))
 
-%logging off
+data BigTree a = Leaf a | Node (Nat -> BigTree a)
+
 %logging "derive.functor.clauses" 1
 list : Functor List
 list = %runElab derive
 
+maybe : Functor Maybe
+maybe = %runElab derive
+
+either : Functor (Either err)
+either = %runElab derive
+
+vect : Functor (Vect n)
+vect = %runElab derive
+
+bigTree : Functor BigTree
+bigTree = %runElab derive
+%logging off
 
 test : map @{Functor.list} Prelude.reverse (words "hello world") === ["olleh", "dlrow"]
 test = Refl
