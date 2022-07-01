@@ -191,42 +191,36 @@ parameters
 apply : FC -> TTImp -> List TTImp -> TTImp
 apply fc = foldl (IApp fc)
 
-hasRec : IsFunctorialIn t x f -> Bool
-hasRec SPVar = False
-hasRec (SPRec _ sp) = True
-hasRec (SPFun _ sp) = hasRec sp
-hasRec (SPBifun _ sp spr) = hasRec sp || either hasRec (const False) spr
-hasRec (SPPi _ sp) = hasRec sp
-hasRec (SFree _) = False
+parameters (fc : FC)
 
-functorFun : FC -> {f : TTImp} -> IsFunctorialIn t x f -> (rec, f : Name) -> Maybe TTImp -> TTImp
-functorFun fc SPVar rec f t = apply fc (IVar fc f) (toList t)
-functorFun fc (SPRec y sp) rec f t = apply fc (IVar fc rec) (functorFun fc sp rec f Nothing :: toList t)
-functorFun fc (SPFun _ sp) rec f t
-  = ifThenElse (hasRec sp) (IApp fc (IVar fc (UN $ Basic "assert_total"))) id
-  $ apply fc (IVar fc (UN $ Basic "map"))
-    (functorFun fc sp rec f Nothing :: toList t)
-functorFun fc (SPBifun _ sp1 (Left sp2)) rec f t
-  = ifThenElse (hasRec sp1 || hasRec sp2) (IApp fc (IVar fc (UN $ Basic "assert_total"))) id
-  $ apply fc (IVar fc (UN $ Basic "bimap"))
-    (functorFun fc sp1 rec f Nothing
-    :: functorFun fc sp2 rec f Nothing
-    :: toList t)
-functorFun fc (SPBifun _ sp (Right _)) rec f t
-  = ifThenElse (hasRec sp) (IApp fc (IVar fc (UN $ Basic "assert_total"))) id
-  $ apply fc (IVar fc (UN $ Basic "mapFst"))
-    (functorFun fc sp rec f Nothing
-    :: toList t)
-functorFun fc (SPPi {rig, pinfo, nm, a} _ z) rec f (Just t)
-  = let nm = fromMaybe (UN $ Basic "x") nm in
-    ILam fc rig pinfo (Just nm) a (functorFun fc z rec f (Just $ IApp fc t (IVar fc nm)))
-functorFun fc (SPPi {rig, pinfo, nm, a} _ z) rec f Nothing
-  = let tnm = UN $ Basic "t" in
-    let nm = fromMaybe (UN $ Basic "x") nm in
-    ILam fc MW ExplicitArg (Just tnm) (Implicit fc False) $
-    ILam fc rig pinfo (Just nm) a $
-    functorFun fc z rec f (Just $ IApp fc (IVar fc tnm) (IVar fc nm))
-functorFun fc (SFree y) rec f t = fromMaybe `(id) t
+  functorFun : (assert : Maybe Bool) -> {f : TTImp} -> IsFunctorialIn t x f ->
+               (rec, f : Name) -> Maybe TTImp -> TTImp
+  functorFun assert SPVar rec f t = apply fc (IVar fc f) (toList t)
+  functorFun assert (SPRec y sp) rec f t
+    = ifThenElse (fromMaybe False assert) (IApp fc (IVar fc (UN $ Basic "assert_total"))) id
+    $ apply fc (IVar fc rec) (functorFun (Just False) sp rec f Nothing :: toList t)
+  functorFun assert (SPFun _ sp) rec f t
+    = apply fc (IVar fc (UN $ Basic "map"))
+      (functorFun (assert <|> Just True) sp rec f Nothing :: toList t)
+  functorFun assert (SPBifun _ sp1 (Left sp2)) rec f t
+    = apply fc (IVar fc (UN $ Basic "bimap"))
+      (functorFun (assert <|> Just True) sp1 rec f Nothing
+      :: functorFun (assert <|> Just True) sp2 rec f Nothing
+      :: toList t)
+  functorFun assert (SPBifun _ sp (Right _)) rec f t
+    = apply fc (IVar fc (UN $ Basic "mapFst"))
+      (functorFun (assert <|> Just True) sp rec f Nothing
+      :: toList t)
+  functorFun assert (SPPi {rig, pinfo, nm, a} _ z) rec f (Just t)
+    = let nm = fromMaybe (UN $ Basic "x") nm in
+      ILam fc rig pinfo (Just nm) a (functorFun assert z rec f (Just $ IApp fc t (IVar fc nm)))
+  functorFun assert (SPPi {rig, pinfo, nm, a} _ z) rec f Nothing
+    = let tnm = UN $ Basic "t" in
+      let nm = fromMaybe (UN $ Basic "x") nm in
+      ILam fc MW ExplicitArg (Just tnm) (Implicit fc False) $
+      ILam fc rig pinfo (Just nm) a $
+      functorFun assert z rec f (Just $ IApp fc (IVar fc tnm) (IVar fc nm))
+  functorFun assert (SFree y) rec f t = fromMaybe `(id) t
 
 explicits : TTImp -> Maybe (Name, List TTImp)
 explicits (IPi fc rig ExplicitArg x a b) = mapSnd (a ::) <$> explicits b
@@ -268,7 +262,7 @@ namespace Functor
              recs <- for (zip vars args) $ \ (v, arg) => do
                        res <- withError (WhenCheckingArg arg) $ typeView f para arg
                        pure $ case res of
-                         Left sp => functorFun fc sp mapName funName (Just v)
+                         Left sp => functorFun fc Nothing sp mapName funName (Just v)
                          Right free => v
              pure $ PatClause fc
                (apply fc (IVar fc mapName) [ fun, apply fc (IVar fc cName) vars])
