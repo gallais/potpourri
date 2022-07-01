@@ -1,10 +1,13 @@
 module Functor
 
+import Control.Monad.Either
+
 import Data.Maybe
 import Data.Nat
 import Data.String
 import Data.Vect
 import Decidable.Equality
+
 import Language.Reflection
 
 %language ElabReflection
@@ -46,11 +49,11 @@ data FreeOf : Name -> TTImp -> Type where
 data HasFunctor : TTImp -> Type where
   TrustMeHF : HasFunctor t
 
-try : Elab a -> Elab (Maybe a)
-try el = Just <$> el <|> pure Nothing
+catch : Elaboration m => Elab a -> m (Maybe a)
+catch elab = try (Just <$> elab) (pure Nothing)
 
-search : (ty : Type) -> Elab (Maybe ty)
-search ty = try $ check {expected = ty} `(%search)
+search : Elaboration m => (ty : Type) -> m (Maybe ty)
+search ty = catch $ check {expected = ty} `(%search)
 
 wording : NameType -> String
 wording Bound = "a bound variable"
@@ -58,7 +61,7 @@ wording Func = "a function name"
 wording (DataCon tag arity) = "a data constructor"
 wording (TyCon tag arity) = "a type constructor"
 
-isTypeCon : Name -> Elab (List (Name, TTImp))
+isTypeCon : Elaboration m => Name -> m (List (Name, TTImp))
 isTypeCon ty = do
     [(_, MkNameInfo (TyCon _ _))] <- getInfo ty
       | [] => fail "\{show ty} out of scope"
@@ -76,7 +79,7 @@ record IsType where
   parameterNames   : List Name
   dataConstructors : List (Name, TTImp)
 
-isType : TTImp -> Elab IsType
+isType : Elaboration m => TTImp -> m IsType
 isType (IVar _ n) = MkIsType n [] <$> isTypeCon n
 isType (IApp _ t (IVar _ n)) = { parameterNames $= (n ::) } <$> isType t
 isType t = fail "Expected a type constructor, got: \{show t}"
@@ -84,42 +87,69 @@ isType t = fail "Expected a type constructor, got: \{show t}"
 withParams : FC -> List Name -> TTImp -> TTImp
 withParams fc params t = foldr (\ x => IPi fc M0 ImplicitArg (Just x) (Implicit fc True)) t params
 
-hasFunctor : (t : TTImp) -> Elab (Maybe (HasFunctor t))
-hasFunctor t = try $ do
+hasFunctor : Elaboration m => (t : TTImp) -> m (Maybe (HasFunctor t))
+hasFunctor t = catch $ do
   prf <- isType t
   ty <- check {expected = Type} $ withParams emptyFC prf.parameterNames `(Functor ~(t))
   ignore $ check {expected = ty} `(%search)
   pure TrustMeHF
 
-check : (t, x : Name) -> (ty : TTImp) -> Elab (Either (SPosIn t x ty) (FreeOf x ty))
-check t x (IVar fc y) = pure $ case decEq x y of
+data Error : Type where
+  NegativeOccurence : Name -> TTImp -> Error
+  NotAnApplication : TTImp -> Error
+  NotAFunctor : TTImp -> Error
+  NotAFunctorInItsLastArg : TTImp -> Error
+  UnsupportedType : TTImp -> Error
+  InvalidGoal : Error
+  ConfusingReturnType : Error
+  -- Contextual information
+  WhenCheckingConstructor : Name -> Error -> Error
+  WhenCheckingArg : TTImp -> Error -> Error
+
+Show Error where
+  show = joinBy "\n" . go [<] where
+
+    go : SnocList String -> Error -> List String
+    go acc (NegativeOccurence a ty) = acc <>> ["Negative occurence of \{show a} in \{show ty}"]
+    go acc (NotAnApplication s) = acc <>> ["The type \{show s} is not an application"]
+    go acc (NotAFunctor s) = acc <>> ["Couldn't find a `Functor' instance for the type constructor \{show s}"]
+    go acc (NotAFunctorInItsLastArg s) = acc <>> ["Not a functor in its last argument \{show s}"]
+    go acc (UnsupportedType s) = acc <>> ["Unsupported type \{show s}"]
+    go acc InvalidGoal = acc <>> ["Expected a goal of the form `Functor f`"]
+    go acc ConfusingReturnType = acc <>> ["Confusing telescope"]
+    go acc (WhenCheckingConstructor nm err) = go (acc :< "When checking constructor \{show nm}") err
+    go acc (WhenCheckingArg s err) = go (acc :< "When checking argument of type \{show s}") err
+
+typeView : (Elaboration m, MonadError Error m) =>
+           (t, x : Name) -> (ty : TTImp) -> m (Either (SPosIn t x ty) (FreeOf x ty))
+typeView t x (IVar fc y) = pure $ case decEq x y of
   Yes Refl => Left SPVar
   No _ => Right TrustMeFO
-check t x (IPi fc rig pinfo nm a b) = do
-  Right p <- check t x a
-    | _ => fail "Negative occurence in \{show a}"
-  Left q <- check t x b
+typeView t x ty@(IPi fc rig pinfo nm a b) = do
+  Right p <- typeView t x a
+    | _ => throwError (NegativeOccurence x ty)
+  Left q <- typeView t x b
     | _ => pure (Right TrustMeFO)
   pure (Left (SPPi p q))
-check t x fa@(IApp fc f arg) = do
-  chka <- check t x arg
+typeView t x fa@(IApp fc f arg) = do
+  chka <- typeView t x arg
   case chka of
     Left sp => do
       let Just (hd ** prf) = getFn f
-         | _ => fail "Unsupported expression \{show f}"
+         | _ => throwError (NotAnApplication f)
       case decEq t hd of
          Yes Refl => pure $ Left (SPRec prf sp)
          No diff => do
            Just prf <- hasFunctor f
-             | _ => fail "Couldn't find a Functor implementation for \{show f}"
+             | _ => throwError (NotAFunctor f)
            pure (Left (SPNest prf sp))
     Right fo => do
-      Right _ <- check t x f
-        | _ => fail "Unsupported type \{show fa}"
+      Right _ <- typeView t x f
+        | _ => throwError (NotAFunctorInItsLastArg fa)
       pure (Right TrustMeFO)
-check _ _ (IPrimVal _ _) = pure (Right TrustMeFO)
-check _ _ (IType _) = pure (Right TrustMeFO)
-check _ _ ty = fail "Invalid type \{show ty}"
+typeView _ _ (IPrimVal _ _) = pure (Right TrustMeFO)
+typeView _ _ (IType _) = pure (Right TrustMeFO)
+typeView _ _ ty = throwError (UnsupportedType ty)
 
 apply : FC -> TTImp -> List TTImp -> TTImp
 apply fc = foldl (IApp fc)
@@ -162,13 +192,13 @@ cleanup = \case
 
 namespace Functor
 
-  export
-  derive : {default Private vis : Visibility} ->
-           {default Total treq : TotalReq} ->
-           Elab (Functor f)
-  derive = do
+  derive' : (Elaboration m, MonadError Error m) =>
+            {default Private vis : Visibility} ->
+            {default Total treq : TotalReq} ->
+            m (Functor f)
+  derive' = do
     Just (IApp _ (IVar _ functor) t) <- goal
-      | _ => fail "Invalid goal: cannot derive functor"
+      | _ => throwError InvalidGoal
     when (`{Prelude.Interfaces.Functor} /= functor) $
       logMsg "derive.functor" 1 "Expected to derive Functor but got \{show functor}"
     logMsg "derive.functor" 1 "Deriving Functor for \{showPrec App $ mapTTImp cleanup t}"
@@ -177,9 +207,9 @@ namespace Functor
       joinBy "\n" $ "" :: map (\ (n, ty) => "  \{showPrefix True $ dropNS n} : \{show $ mapTTImp cleanup ty}") cs
     let fc = emptyFC
     let mapName = UN (Basic $ "map" ++ show (dropNS f))
-    cls <- for cs $ \ (cName, ty) => do
+    cls <- for cs $ \ (cName, ty) => withError (WhenCheckingConstructor cName) $ do
              let Just (para, args) = explicits ty
-                 | _ => fail "Couldn't make sense of \{show cName}'s return type"
+                 | _ => throwError ConfusingReturnType
              logMsg "derive.functor.clauses" 10 $
                 "\{showPrefix True (dropNS cName)} (\{joinBy ", " (map (showPrec Dollar . mapTTImp cleanup) args)})"
              let funName = UN $ Basic "f"
@@ -187,11 +217,10 @@ namespace Functor
              let vars = map (IVar fc . UN . Basic . ("x" ++) . show . pred)
                       $ zipWith const [1..length args] args -- fix because [1..0] is [1,0]
              recs <- for (zip vars args) $ \ (v, arg) => do
-                       res <- try $ check f para arg
-                       case res of
-                         Nothing => fail "Failed at argument of type \{show arg} when checking \{showPrefix True (dropNS cName)}"
-                         Just (Left sp) => pure $ functorFun fc sp mapName funName (Just v)
-                         Just (Right free) => pure v
+                       res <- withError (WhenCheckingArg arg) $ typeView f para arg
+                       pure $ case res of
+                         Left sp => functorFun fc sp mapName funName (Just v)
+                         Right free => v
              pure $ PatClause fc
                (apply fc (IVar fc mapName) [ fun, apply fc (IVar fc cName) vars])
                (apply fc (IVar fc cName) recs)
@@ -205,6 +234,16 @@ namespace Functor
       , IDef fc mapName cls
       ] `(MkFunctor {f = ~(t)} ~(IVar fc mapName))
 
+  export
+  derive : {default Private vis : Visibility} ->
+           {default Total treq : TotalReq} ->
+           Elab (Functor f)
+  derive = do
+    res <- runEitherT {e = Error, m = Elab} (derive' {vis, treq})
+    case res of
+      Left err => fail (show err)
+      Right prf => pure prf
+
 data BigTree a
   = End a
   | Branch String (List a) (Bool -> BigTree a)
@@ -215,7 +254,7 @@ Show a => Show (BigTree a) where
   show (Branch str as k) = "\{str}: \{show as} <\{show (k True)}, \{show (k False)}>"
   show (Rose ns) = assert_total $ show ns
 
-%logging "derive.functor" 10
+-- %logging "derive.functor" 10
 list : Functor List
 list = %runElab derive
 
@@ -231,7 +270,7 @@ vect = %runElab derive
 %hint
 bigTree : Functor BigTree
 bigTree = %runElab derive
-%logging off
+-- %logging off
 
 test : map @{Functor.list} Prelude.reverse (words "hello world") === ["olleh", "dlrow"]
 test = Refl
@@ -246,10 +285,10 @@ record Matrix m n a where
   constructor MkMatrix
   runMatrix : Vect m (Vect n a)
 
-%logging "derive.functor" 10
+-- %logging "derive.functor" 10
 matrix : Functor (Matrix m n)
 matrix = %runElab derive
-%logging off
+-- %logging off
 
 data Op : Nat -> Type where
   Neg : Op 1
@@ -260,10 +299,10 @@ data Tm : Type -> Type where
   Call : Op n -> Vect n (Tm a) -> Tm a
   Lam : Tm (Maybe a) -> Tm a
 
-%logging "derive.functor" 10
+-- %logging "derive.functor" 10
 tm : Functor Tm
 tm = %runElab derive
-%logging off
+-- %logging off
 
 data Tree : Type -> Type
 data Forest : Type -> Type
@@ -276,7 +315,7 @@ data Forest : Type -> Type where
   Empty : Forest a
   Plant : Tree a -> Forest a -> Forest a
 
-%logging "derive.functor" 10
+-- %logging "derive.functor" 10
 -- for now we don't insert `assert_total` in the right places so
 -- we'll say that these are covering only
 %hint covering tree : Functor Tree
@@ -284,4 +323,12 @@ data Forest : Type -> Type where
 
 tree = %runElab derive {treq = CoveringOnly}
 forest = %runElab derive {treq = CoveringOnly}
-%logging off
+-- %logging off
+
+failing "Negative occurence of a"
+
+  data NOT : Type -> Type where
+    MkNOT : (a -> Void) -> NOT a
+
+  negative : Functor NOT
+  negative = %runElab derive
