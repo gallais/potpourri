@@ -390,3 +390,12 @@ data List1 : Type -> Type where
 list1 : Functor List1
 list1 = %runElab derive
 -- %logging off
+
+namespace Full
+
+  data Full a = Leaf a | Node (Full (a, a))
+
+  -- %logging "derive.functor" 10
+  full : Functor Full
+  full = %runElab derive
+  -- %logging off
