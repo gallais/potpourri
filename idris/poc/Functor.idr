@@ -191,7 +191,7 @@ parameters
 apply : FC -> TTImp -> List TTImp -> TTImp
 apply fc = foldl (IApp fc)
 
-parameters (fc : FC)
+parameters (fc : FC) (mutualWith : List Name)
 
   functorFun : (assert : Maybe Bool) -> {f : TTImp} -> IsFunctorialIn t x f ->
                (rec, f : Name) -> Maybe TTImp -> TTImp
@@ -199,9 +199,12 @@ parameters (fc : FC)
   functorFun assert (SPRec y sp) rec f t
     = ifThenElse (fromMaybe False assert) (IApp fc (IVar fc (UN $ Basic "assert_total"))) id
     $ apply fc (IVar fc rec) (functorFun (Just False) sp rec f Nothing :: toList t)
-  functorFun assert (SPFun _ sp) rec f t
-    = apply fc (IVar fc (UN $ Basic "map"))
-      (functorFun (assert <|> Just True) sp rec f Nothing :: toList t)
+  functorFun assert {f = IApp _ ty _} (SPFun _ sp) rec f t
+    = let isMutual = fromMaybe False (getFn ty >>= \ (n ** _) => pure (n `elem` mutualWith)) in
+      ifThenElse isMutual (IApp fc (IVar fc (UN $ Basic "assert_total"))) id
+    $ apply fc (IVar fc (UN $ Basic "map"))
+      (functorFun ((False <$ guard isMutual) <|> assert <|> Just True) sp rec f Nothing
+       :: toList t)
   functorFun assert (SPBifun _ sp1 (Left sp2)) rec f t
     = apply fc (IVar fc (UN $ Basic "bimap"))
       (functorFun (assert <|> Just True) sp1 rec f Nothing
@@ -238,8 +241,13 @@ namespace Functor
   derive' : (Elaboration m, MonadError Error m) =>
             {default Private vis : Visibility} ->
             {default Total treq : TotalReq} ->
+            {default [] mutualWith : List Name} ->
             m (Functor f)
   derive' = do
+    -- expand the mutualwith names to have the internal, fully qualified, names
+    mutualWith <- map concat $ for mutualWith $ \ nm => do
+                    ntys <- getType nm
+                    pure (fst <$> ntys)
     Just (IApp _ (IVar _ functor) t) <- goal
       | _ => throwError InvalidGoal
     when (`{Prelude.Interfaces.Functor} /= functor) $
@@ -262,7 +270,7 @@ namespace Functor
              recs <- for (zip vars args) $ \ (v, arg) => do
                        res <- withError (WhenCheckingArg arg) $ typeView f para arg
                        pure $ case res of
-                         Left sp => functorFun fc Nothing sp mapName funName (Just v)
+                         Left sp => functorFun fc mutualWith Nothing sp mapName funName (Just v)
                          Right free => v
              pure $ PatClause fc
                (apply fc (IVar fc mapName) [ fun, apply fc (IVar fc cName) vars])
@@ -280,9 +288,10 @@ namespace Functor
   export
   derive : {default Private vis : Visibility} ->
            {default Total treq : TotalReq} ->
+           {default [] mutualWith : List Name} ->
            Elab (Functor f)
   derive = do
-    res <- runEitherT {e = Error, m = Elab} (derive' {vis, treq})
+    res <- runEitherT {e = Error, m = Elab} (derive' {vis, treq, mutualWith})
     case res of
       Left err => fail (show err)
       Right prf => pure prf
@@ -359,13 +368,11 @@ data Forest : Type -> Type where
   Plant : Tree a -> Forest a -> Forest a
 
 -- %logging "derive.functor" 10
--- for now we don't insert `assert_total` in the right places so
--- we'll say that these are covering only
-%hint covering tree : Functor Tree
-%hint covering forest : Functor Forest
+%hint tree : Functor Tree
+%hint forest : Functor Forest
 
-tree = %runElab derive {treq = CoveringOnly}
-forest = %runElab derive {treq = CoveringOnly}
+tree = %runElab derive {mutualWith = [`{Forest}]}
+forest = %runElab derive {mutualWith = [`{Tree}]}
 -- %logging off
 
 failing "Negative occurence of a"
@@ -382,4 +389,4 @@ data List1 : Type -> Type where
 -- %logging "derive.functor" 10
 list1 : Functor List1
 list1 = %runElab derive
-%logging off
+-- %logging off
