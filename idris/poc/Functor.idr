@@ -32,22 +32,34 @@ getFn (IAutoApp _ f t) = do
   pure (v ** FAutoApp prf)
 getFn _ = Nothing
 
-data SPosIn : (t, x : Name) -> TTImp -> Type
-data FreeOf : Name -> TTImp -> Type
-data HasFunctor : TTImp -> Type
+data HasImplementation : (intf : a -> Type) -> TTImp -> Type where
+  TrustMeHI : HasImplementation intf t
 
-data SPosIn : (t, x : Name) -> TTImp -> Type where
-  SPVar  : SPosIn t x (IVar fc x)
-  SPRec  : FunIs t f -> SPosIn t x arg -> SPosIn t x (IApp fc f arg)
-  SPNest : HasFunctor sp -> SPosIn t x arg -> SPosIn t x (IApp fc sp arg)
-  SPPi   : FreeOf x a -> SPosIn t x b -> SPosIn t x (IPi fc rig pinfo nm a b)
-  SFree  : FreeOf x a -> SPosIn t x a
+data IsFunctorialIn : (t, x : Name) -> TTImp -> Type
+data FreeOf : Name -> TTImp -> Type
+
+||| IsFunctorialIn t x ty is a proof that:
+||| @ t occurs positively in ty
+||| @ x occurs positively in ty (assuming that t is functorial)
+data IsFunctorialIn : (t, x : Name) -> TTImp -> Type where
+  -- The variable occurs alone
+  SPVar  : IsFunctorialIn t x (IVar fc x)
+  -- A recursive subtree of type t
+  SPRec  : FunIs t f -> IsFunctorialIn t x arg -> IsFunctorialIn t x (IApp fc f arg)
+  -- An external bifunctor
+  SPBifun : HasImplementation Bifunctor sp ->
+            IsFunctorialIn t x arg1 -> Either (IsFunctorialIn t x arg2) (FreeOf x arg2) ->
+            IsFunctorialIn t x (IApp fc1 (IApp fc2 sp arg1) arg2)
+  -- An external functor
+  SPFun   : HasImplementation Functor sp ->
+            IsFunctorialIn t x arg -> IsFunctorialIn t x (IApp fc sp arg)
+  -- A pi type
+  SPPi    : FreeOf x a -> IsFunctorialIn t x b -> IsFunctorialIn t x (IPi fc rig pinfo nm a b)
+  -- A substree free of any occurence of x
+  SFree   : FreeOf x a -> IsFunctorialIn t x a
 
 data FreeOf : Name -> TTImp -> Type where
   TrustMeFO : FreeOf a x
-
-data HasFunctor : TTImp -> Type where
-  TrustMeHF : HasFunctor t
 
 catch : Elaboration m => Elab a -> m (Maybe a)
 catch elab = try (Just <$> elab) (pure Nothing)
@@ -87,17 +99,20 @@ isType t = fail "Expected a type constructor, got: \{show t}"
 withParams : FC -> List Name -> TTImp -> TTImp
 withParams fc params t = foldr (\ x => IPi fc M0 ImplicitArg (Just x) (Implicit fc True)) t params
 
-hasFunctor : Elaboration m => (t : TTImp) -> m (Maybe (HasFunctor t))
-hasFunctor t = catch $ do
+hasImplementation : Elaboration m => (intf : a -> Type) -> (t : TTImp) ->
+                    m (Maybe (HasImplementation intf t))
+hasImplementation c t = catch $ do
   prf <- isType t
-  ty <- check {expected = Type} $ withParams emptyFC prf.parameterNames `(Functor ~(t))
+  intf <- quote c
+  ty <- check {expected = Type} $ withParams emptyFC prf.parameterNames `(~(intf) ~(t))
   ignore $ check {expected = ty} `(%search)
-  pure TrustMeHF
+  pure TrustMeHI
 
 data Error : Type where
   NegativeOccurence : Name -> TTImp -> Error
   NotAnApplication : TTImp -> Error
   NotAFunctor : TTImp -> Error
+  NotABifunctor : TTImp -> Error
   NotAFunctorInItsLastArg : TTImp -> Error
   UnsupportedType : TTImp -> Error
   InvalidGoal : Error
@@ -113,6 +128,7 @@ Show Error where
     go acc (NegativeOccurence a ty) = acc <>> ["Negative occurence of \{show a} in \{show ty}"]
     go acc (NotAnApplication s) = acc <>> ["The type \{show s} is not an application"]
     go acc (NotAFunctor s) = acc <>> ["Couldn't find a `Functor' instance for the type constructor \{show s}"]
+    go acc (NotABifunctor s) = acc <>> ["Couldn't find a `Bifunctor' instance for the type constructor \{show s}"]
     go acc (NotAFunctorInItsLastArg s) = acc <>> ["Not a functor in its last argument \{show s}"]
     go acc (UnsupportedType s) = acc <>> ["Unsupported type \{show s}"]
     go acc InvalidGoal = acc <>> ["Expected a goal of the form `Functor f`"]
@@ -120,54 +136,87 @@ Show Error where
     go acc (WhenCheckingConstructor nm err) = go (acc :< "When checking constructor \{show nm}") err
     go acc (WhenCheckingArg s err) = go (acc :< "When checking argument of type \{show s}") err
 
-typeView : (Elaboration m, MonadError Error m) =>
-           (t, x : Name) -> (ty : TTImp) -> m (Either (SPosIn t x ty) (FreeOf x ty))
-typeView t x (IVar fc y) = pure $ case decEq x y of
-  Yes Refl => Left SPVar
-  No _ => Right TrustMeFO
-typeView t x ty@(IPi fc rig pinfo nm a b) = do
-  Right p <- typeView t x a
-    | _ => throwError (NegativeOccurence x ty)
-  Left q <- typeView t x b
-    | _ => pure (Right TrustMeFO)
-  pure (Left (SPPi p q))
-typeView t x fa@(IApp fc f arg) = do
-  chka <- typeView t x arg
-  case chka of
-    Left sp => do
-      let Just (hd ** prf) = getFn f
-         | _ => throwError (NotAnApplication f)
-      case decEq t hd of
-         Yes Refl => pure $ Left (SPRec prf sp)
-         No diff => do
-           Just prf <- hasFunctor f
-             | _ => throwError (NotAFunctor f)
-           pure (Left (SPNest prf sp))
-    Right fo => do
-      Right _ <- typeView t x f
-        | _ => throwError (NotAFunctorInItsLastArg fa)
-      pure (Right TrustMeFO)
-typeView _ _ (IPrimVal _ _) = pure (Right TrustMeFO)
-typeView _ _ (IType _) = pure (Right TrustMeFO)
-typeView _ _ ty = throwError (UnsupportedType ty)
+parameters
+  {0 m : Type -> Type}
+  {auto elab : Elaboration m}
+  {auto error : MonadError Error m}
+  (t, x : Name)
+
+  TypeView : TTImp -> Type
+  TypeView ty = Either (IsFunctorialIn t x ty) (FreeOf x ty)
+
+  typeView    : (ty : TTImp) -> m (TypeView ty)
+  typeAppView : {fc : FC} -> (f, arg : TTImp) -> m (TypeView (IApp fc f arg))
+
+  typeAppView {fc} f arg = do
+    chka <- typeView arg
+    case chka of
+      Left sp => do
+        let Just (hd ** prf) = getFn f
+           | _ => throwError (NotAnApplication f)
+        case decEq t hd of
+           Yes Refl => pure $ Left (SPRec prf sp)
+           No diff => do
+             Just prf <- hasImplementation Functor f
+               | _ => throwError (NotAFunctor f)
+             pure (Left (SPFun prf sp))
+      Right fo => do
+        Right _ <- typeView f
+          | _ => throwError (NotAFunctorInItsLastArg (IApp fc f arg))
+        pure (Right TrustMeFO)
+
+
+  typeView (IVar fc y) = pure $ case decEq x y of
+    Yes Refl => Left SPVar
+    No _ => Right TrustMeFO
+  typeView ty@(IPi fc rig pinfo nm a b) = do
+    Right p <- typeView a
+      | _ => throwError (NegativeOccurence x ty)
+    Left q <- typeView b
+      | _ => pure (Right TrustMeFO)
+    pure (Left (SPPi p q))
+  typeView fa@(IApp _ (IApp _ f arg1) arg2) = do
+    chka1 <- typeView arg1
+    case chka1 of
+      Right _ => typeAppView (assert_smaller fa (IApp _ f arg1)) arg2
+      Left sp => do
+        Just prf <- hasImplementation Bifunctor f
+          | _ => throwError (NotABifunctor f)
+        pure (Left (SPBifun prf sp !(typeView arg2)))
+  typeView fa@(IApp _ f arg) = typeAppView f arg
+  typeView (IPrimVal _ _) = pure (Right TrustMeFO)
+  typeView (IType _) = pure (Right TrustMeFO)
+  typeView ty = throwError (UnsupportedType ty)
 
 apply : FC -> TTImp -> List TTImp -> TTImp
 apply fc = foldl (IApp fc)
 
-hasRec : SPosIn t x f -> Bool
+hasRec : IsFunctorialIn t x f -> Bool
 hasRec SPVar = False
 hasRec (SPRec _ sp) = True
-hasRec (SPNest _ sp) = hasRec sp
+hasRec (SPFun _ sp) = hasRec sp
+hasRec (SPBifun _ sp spr) = hasRec sp || either hasRec (const False) spr
 hasRec (SPPi _ sp) = hasRec sp
 hasRec (SFree _) = False
 
-functorFun : FC -> {f : TTImp} -> SPosIn t x f -> (rec, f : Name) -> Maybe TTImp -> TTImp
+functorFun : FC -> {f : TTImp} -> IsFunctorialIn t x f -> (rec, f : Name) -> Maybe TTImp -> TTImp
 functorFun fc SPVar rec f t = apply fc (IVar fc f) (toList t)
 functorFun fc (SPRec y sp) rec f t = apply fc (IVar fc rec) (functorFun fc sp rec f Nothing :: toList t)
-functorFun fc (SPNest _ sp) rec f t
+functorFun fc (SPFun _ sp) rec f t
   = ifThenElse (hasRec sp) (IApp fc (IVar fc (UN $ Basic "assert_total"))) id
   $ apply fc (IVar fc (UN $ Basic "map"))
     (functorFun fc sp rec f Nothing :: toList t)
+functorFun fc (SPBifun _ sp1 (Left sp2)) rec f t
+  = ifThenElse (hasRec sp1 || hasRec sp2) (IApp fc (IVar fc (UN $ Basic "assert_total"))) id
+  $ apply fc (IVar fc (UN $ Basic "bimap"))
+    (functorFun fc sp1 rec f Nothing
+    :: functorFun fc sp2 rec f Nothing
+    :: toList t)
+functorFun fc (SPBifun _ sp (Right _)) rec f t
+  = ifThenElse (hasRec sp) (IApp fc (IVar fc (UN $ Basic "assert_total"))) id
+  $ apply fc (IVar fc (UN $ Basic "mapFst"))
+    (functorFun fc sp rec f Nothing
+    :: toList t)
 functorFun fc (SPPi {rig, pinfo, nm, a} _ z) rec f (Just t)
   = let nm = fromMaybe (UN $ Basic "x") nm in
     ILam fc rig pinfo (Just nm) a (functorFun fc z rec f (Just $ IApp fc t (IVar fc nm)))
@@ -332,3 +381,11 @@ failing "Negative occurence of a"
 
   negative : Functor NOT
   negative = %runElab derive
+
+data List1 : Type -> Type where
+  MkList1 : (a, Maybe (List1 a)) -> List1 a
+
+-- %logging "derive.functor" 10
+list1 : Functor List1
+list1 = %runElab derive
+%logging off
