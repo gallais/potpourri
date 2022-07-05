@@ -11,10 +11,9 @@ data IMaybe (b :: Bool) (a :: Type) where
   IJust :: a -> IMaybe True a
   INothing :: IMaybe False a
 
-type family Or (bs :: [Bool]) :: Bool where
-  Or '[] = False
-  Or (True : bs) = True
-  Or (False : bs) = Or bs
+type family (|||) (b :: Bool) (c :: Bool) :: Bool where
+  False ||| c = c
+  True ||| c = True
 
 data A = A
 data B = B
@@ -25,21 +24,15 @@ data SBool (b :: Bool) where
   SFalse :: SBool False
 
 data MyType
-  = forall a b c. Or [a, b, c] ~ True => MyType
+  = forall a b c. (a ||| b ||| c) ~ True => MyType
   { myTypeA :: IMaybe a A
   , myTypeB :: IMaybe b B
   , myTypeC :: IMaybe c C
   }
 
-data SList2 (bs :: [Bool]) where
-  SNil :: SList2 '[]
-  SCons :: SBool b -> SList2 bs -> SList2 (b : bs)
-
-sList2 :: SList2 bs -> SBool (Or bs)
-sList2 SNil = SFalse
-sList2 (SCons sb sbs) = case sb of
-  STrue -> STrue
-  SFalse -> sList2 sbs
+(|||) :: SBool b -> SBool c -> SBool (b ||| c)
+STrue ||| c = STrue
+SFalse ||| c = c
 
 data AMaybe ty where
   AMaybe :: SBool b -> IMaybe b ty -> AMaybe ty
@@ -55,10 +48,9 @@ fromRaw (RawMyType ma mb mc) =
   case aMaybe ma of { AMaybe so1 ma' ->
   case aMaybe mb of { AMaybe so2 mb' ->
   case aMaybe mc of { AMaybe so3 mc' ->
-  let sbs = SCons so1 (SCons so2 (SCons so3 SNil)) in
-  validate (sList2 sbs) ma' mb' mc' }}}
+  validate (so1 ||| so2 ||| so3) ma' mb' mc' }}}
 
-validate :: SBool (Or [a, b, c]) ->
+validate :: SBool (a ||| b ||| c) ->
             IMaybe a A -> IMaybe b B -> IMaybe c C ->
             Maybe MyType
 validate so ma mb mc = case so of
