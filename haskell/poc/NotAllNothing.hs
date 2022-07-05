@@ -10,9 +10,6 @@ data IMaybe (b :: Bool) (a :: Type) where
   IJust :: a -> IMaybe True a
   INothing :: IMaybe False a
 
-data So (b :: Bool) :: Type where
-  So :: So True
-
 type family (||) (b :: Bool) (c :: Bool) :: Bool where
   True || c = True
   False || c = c
