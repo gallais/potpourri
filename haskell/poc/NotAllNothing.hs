@@ -24,10 +24,6 @@ data SBool (b :: Bool) where
   STrue :: SBool True
   SFalse :: SBool False
 
-class KnownBool (b :: Bool) where known :: SBool b
-instance KnownBool True where known = STrue
-instance KnownBool False where known = SFalse
-
 data MyType
   = forall a b c. Or [a, b, c] ~ True => MyType
   { myTypeA :: IMaybe a A
