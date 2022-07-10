@@ -1,0 +1,88 @@
+\documentclass{article}
+
+\usepackage{todonotes}
+\setuptodonotes{inline}
+
+\newcommand{\typos}{TypOS}
+\newcommand{\idris}{Idris 2}
+
+\bibliographystyle{alpha}
+
+\begin{document}
+
+\title{Thin}
+\author{Guillaume Allais}
+
+\maketitle
+
+Dependently typed languages have empowered users to precisely describe their domain
+of discourse by using inductive families~\cite{}.
+%
+Programmers can bake crucial invariants directly into their definitions thus refining
+both their functions' inputs and outputs.
+%
+The constrained inputs allow them to only consider the relevant cases during pattern
+matching, while the refined outputs guarantee that client code can safely rely on the
+invariants being maintained.
+
+However relying on inductive families can have a runtime cost. The prototypical example
+is probably the lookup function for vectors.
+
+There has already been extensive work on
+erasure~\cite{DBLP:conf/types/BradyMM03,DBLP:journals/pacmpl/Tejiscak20}.
+\todo{explain a bit}
+%
+However even if we are able to obtain a more compact representation of the inductive
+family at runtime through enough erasure, this does not guarantee runtime efficiency.
+As the Coq manual~\cite{Coq:manual} reminds its users, extraction does not magically
+optimises away a quadratic multiplication algorithm when extracting unary natural
+numbers to an efficient machine representation.
+
+In this paper we use Quantitative Type
+Theory~\cite{DBLP:conf/birthday/McBride16,DBLP:conf/lics/Atkey18}
+as implemented in \idris~\cite{DBLP:conf/ecoop/Brady21} to bridge the gap between
+an invariant-rich but inefficient representation based on an inductive family and a
+unsafe but efficient implementation using low-level primitives.
+
+\section{Quantitative Type Theory}
+
+\section{Two ways to cook a co-de Bruijn representation}
+
+Using a de Bruijn representation~\cite{MANUAL:journals/math/debruijn72} each variable
+points to the binder that introduced it. In a co-de Bruijn
+representation~\cite{DBLP:journals/corr/abs-1807-04085} each subterm
+selects the variables that stay in scope for that term, and so a variable constructor
+ultimately refers to the single variable still in scope by the time it is reached.
+%
+This representation ensures that we know precisely what the scope of a given term
+currently is.
+\todo{codebruijn + thinning = term in any scope}
+\todo{application e.g. shrinking}
+
+In order to efficiently represent traverse terms, we need a compact representation of
+thinnings and a cheap composition operator.
+\todo{example: opening an application node}
+
+
+The implementation of \typos~\cite{MANUAL:talk/types/Allais22} uses a co-de Bruijn
+representation internally. \todo{explain why}
+%
+The developpement of the \typos language highlights a glaring gap between on the
+one hand the experiments done in Agda and on the other the actual implementation
+in Haskell.
+%
+The Agda-based experiments make key invariants explicit which helps tracking
+complex constraints and catches design flaws.
+
+
+\idris is a bootstrapped language. If we were to use such a co-deBruijn representation
+of terms as a replacement for \idris's current core language we would want, and should
+be able, to have the best of both worlds.
+
+
+explicitly manipulating an integer's individual bits.
+
+
+\bibliography{thin}
+
+\end{document}
