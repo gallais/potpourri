@@ -18,11 +18,13 @@
 \maketitle
 
 \begin{abstract}
-  Remembering that types give us a way to interpret unstructured data stored in
+  Remembering that types give us a way to make sense of unstructured data stored in
   memory, we use Quantitative Type Theory as implemented in \idris{} to define an
   invariant-rich typechecking time representation that is guaranteed to compile
   to an efficient runtime one.
 \end{abstract}
+
+\section{Introduction}
 
 Dependently typed languages have empowered users to precisely describe their domain
 of discourse by using inductive families~\cite{DBLP:journals/fac/Dybjer94}.
@@ -34,17 +36,42 @@ The constrained inputs allow them to only consider the relevant cases during pat
 matching, while the refined outputs guarantee that client code can safely rely on the
 invariants being maintained.
 
-However relying on inductive families can have a runtime cost.
+\subsection{An Optimisation Example}
+
+However relying on inductive families can have a non-negligible runtime cost.
 The prototypical example is probably the lookup function for vectors.
-\todo{quadratic blowup}
+
+\todo{data Vect}
+\todo{data Fin}
+\todo{lookup : \{n : Nat\} -> Fin n -> Vect n a -> a}
 
 There has already been extensive work on erasure to automatically detect redundant
-data~\cite{DBLP:conf/types/BradyMM03} (e.g. the natural number a vector is indexed
-by is entirely determined by the vector's spine) or data that will not be used at
+data~\cite{DBLP:conf/types/BradyMM03} or data that will not be used at
 runtime~\cite{DBLP:journals/pacmpl/Tejiscak20}.
-
-\todo{explain a bit}
 %
+A Brady-style analysis can solve the quadratic blowup highlighted above by observing
+that the natural number a vector is indexed by is entirely determined by the spine of
+the vector. In particular, the length of the predecessor does not need to be stored
+as part of the constructor: it can be reconstructed as the predecessor of the length
+of the overall vector. As a consequence, a vector can be adequately represented at
+runtime by a pair of a natural number and a list. Similarly the bounded number can be
+adequately represented by a pair of natural number. Putting all of this together,
+lookup can be compiled to a function taking two natural number and a list.
+
+\todo{lookup : (n : Nat) -> (k : Nat) -> List a -> a}
+%
+A Tejiščák-style analysis can additionally notice that the lookup function never makes
+use of the bound's value and drop it. This leads to the lookup function on vectors
+being compiled to its partial-looking counterpart acting on lists.
+
+\todo{lookup : Nat -> List a -> a}
+
+Even though this is in our opinion a pretty compelling example, we need to stay
+realistic. The compiler needs to be able to map the indexed family to a simpler
+datatype that can then be extracted to the target language. If the types have
+been simplified, they still have very much the same structure.
+
+
 However even if we are able to obtain a more compact representation of the inductive
 family at runtime through enough erasure, this does not guarantee runtime efficiency.
 As the \coq{} manual~\cite{Coq:manual} reminds its users, extraction does not magically
@@ -141,6 +168,19 @@ Quantitative Type Theory allows us users to explicitly choose what is and is not
 runtime relevant, with the quantity checker keeping us true to our word.
 %
 This should ensure that the resulting program has a much more predictable complexity.
+
+A somewhat related idea was explored by Brady, McKinna, and Hammond in the context of
+circuit design~\cite{DBLP:conf/sfp/BradyMH07}. In their verification work they index
+an efficient representation (natural numbers as a list of bits) by its meaning as a
+unary natural number. All the operations are correct by construction as witnessed by
+the use of their unary counterparts acting as type-level specifications.
+%
+In the end their algorithms still process the inductive family instead of working
+directly with binary numbers. This makes sense in their setting where they construct
+circuits and so are explicitly manipulating wires carrying bits.
+%
+By contrast, in our motivating example we really want to get down to actual (unbounded)
+integers.
 
 \todo{Iris}
 

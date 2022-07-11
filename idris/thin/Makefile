@@ -8,3 +8,4 @@ all:
 
 clean:
 	rm -r build/latex
+	rm -f *~
