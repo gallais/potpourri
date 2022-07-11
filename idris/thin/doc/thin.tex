@@ -12,16 +12,21 @@
 
 \begin{document}
 
-\title{}
+\title{Builtin Types viewed as Inductive Families \\
+{\large Efficiently Representing Thinnigs in \idris, a case study}}
 \author{Guillaume Allais}
 
 \maketitle
 
 \begin{abstract}
-  Remembering that types give us a way to make sense of unstructured data stored in
-  memory, we use Quantitative Type Theory as implemented in \idris{} to define an
-  invariant-rich typechecking time representation that is guaranteed to compile
+  Remembering that types give us a way to make sense of unstructured data stored
+  in memory, we demonstrate how to use Quantitative Type Theory to define an
+  invariant-rich typechecking time data structure that is guaranteed to compile
   to an efficient runtime one.
+
+  Unlike other approaches, the resulting complexity is entirely predictable, we do
+  not require both representations to have the same structure, and yet we are able
+  to seamlessly program as if we were using the high-level structure.
 \end{abstract}
 
 \section{Introduction}
@@ -70,6 +75,8 @@ Even though this is in our opinion a pretty compelling example, we need to stay
 realistic. The compiler needs to be able to map the indexed family to a simpler
 datatype that can then be extracted to the target language. If the types have
 been simplified, they still have very much the same structure.
+
+\subsection{No Magic Solution}
 
 
 However even if we are able to obtain a more compact representation of the inductive
