@@ -5,18 +5,27 @@
 
 \newcommand{\typos}{TypOS}
 \newcommand{\idris}{Idris 2}
+\newcommand{\coq}{Coq}
+\newcommand{\agda}{Agda}
 
 \bibliographystyle{alpha}
 
 \begin{document}
 
-\title{Thin}
+\title{}
 \author{Guillaume Allais}
 
 \maketitle
 
+\begin{abstract}
+  Remembering that types give us a way to interpret unstructured data stored in
+  memory, we use Quantitative Type Theory as implemented in \idris{} to define an
+  invariant-rich typechecking time representation that is guaranteed to compile
+  to an efficient runtime one.
+\end{abstract}
+
 Dependently typed languages have empowered users to precisely describe their domain
-of discourse by using inductive families~\cite{}.
+of discourse by using inductive families~\cite{DBLP:journals/fac/Dybjer94}.
 %
 Programmers can bake crucial invariants directly into their definitions thus refining
 both their functions' inputs and outputs.
@@ -25,24 +34,41 @@ The constrained inputs allow them to only consider the relevant cases during pat
 matching, while the refined outputs guarantee that client code can safely rely on the
 invariants being maintained.
 
-However relying on inductive families can have a runtime cost. The prototypical example
-is probably the lookup function for vectors.
+However relying on inductive families can have a runtime cost.
+The prototypical example is probably the lookup function for vectors.
+\todo{quadratic blowup}
 
-There has already been extensive work on
-erasure~\cite{DBLP:conf/types/BradyMM03,DBLP:journals/pacmpl/Tejiscak20}.
+There has already been extensive work on erasure to automatically detect redundant
+data~\cite{DBLP:conf/types/BradyMM03} (e.g. the natural number a vector is indexed
+by is entirely determined by the vector's spine) or data that will not be used at
+runtime~\cite{DBLP:journals/pacmpl/Tejiscak20}.
+
 \todo{explain a bit}
 %
 However even if we are able to obtain a more compact representation of the inductive
 family at runtime through enough erasure, this does not guarantee runtime efficiency.
-As the Coq manual~\cite{Coq:manual} reminds its users, extraction does not magically
+As the \coq{} manual~\cite{Coq:manual} reminds its users, extraction does not magically
 optimises away a quadratic multiplication algorithm when extracting unary natural
 numbers to an efficient machine representation.
+%
+\coq{}, \agda{}, and \idris{} all have ad-hoc rules to also replace during compilation
+such numeric functions with their counterparts in the target language.
+%
+However this is not scalable: if we may be willing to extend our trusted core to a
+high quality library for unbounded integers, we cannot possibly contemplate replacing
+our code only proven correct thanks to complex invariants with a wildly different
+untrusted counterpart purely for efficiency reasons.
 
 In this paper we use Quantitative Type
 Theory~\cite{DBLP:conf/birthday/McBride16,DBLP:conf/lics/Atkey18}
-as implemented in \idris~\cite{DBLP:conf/ecoop/Brady21} to bridge the gap between
-an invariant-rich but inefficient representation based on an inductive family and a
-unsafe but efficient implementation using low-level primitives.
+as implemented in \idris{}~\cite{DBLP:conf/ecoop/Brady21} to bridge the gap between
+an invariant-rich but inefficient representation based on an inductive family and
+an unsafe but efficient implementation using low-level primitives.
+%
+Inductive families allow us to \emph{view}~\cite{DBLP:journals/jfp/McBrideM04} the
+runtime relevant information encoded in the low-level and efficient representation
+as an information-rich compile time data structure. Moreover the quantity annotations
+guarantee that this additional information will be erased away during compilation.
 
 \section{Quantitative Type Theory}
 
@@ -59,29 +85,80 @@ currently is.
 \todo{codebruijn + thinning = term in any scope}
 \todo{application e.g. shrinking}
 
-In order to efficiently represent traverse terms, we need a compact representation of
-thinnings and a cheap composition operator.
+In order to efficiently represent and traverse terms in co-de Bruijn representation,
+we need a compact encoding of thinnings and a cheap composition operator.
 \todo{example: opening an application node}
 
 
 The implementation of \typos~\cite{MANUAL:talk/types/Allais22} uses a co-de Bruijn
 representation internally. \todo{explain why}
 %
-The developpement of the \typos language highlights a glaring gap between on the
+The developpement of the \typos{} language highlights a glaring gap between on the
 one hand the experiments done in Agda and on the other the actual implementation
 in Haskell.
 %
-The Agda-based experiments make key invariants explicit which helps tracking
-complex constraints and catches design flaws.
+The Agda-based experiments use inductive families that make the key invariants explicit
+which helps tracking complex constraints and catches design flaws. The indices guarantee
+that we always transform the thinnings appropriately when we add or remove bound variables.
+%
+The Haskell implementation represents a thinning as a pair of integers and resorts to
+explicitly manipulating individual bits. It is not indexed and thus all the invariant
+tracking has to be done by hand. This has led to numerous and hard to diagnose bugs.
 
-
-\idris is a bootstrapped language. If we were to use such a co-deBruijn representation
-of terms as a replacement for \idris's current core language we would want, and should
+\idris{} is a bootstrapped language. If we were to use such a co-deBruijn representation
+of terms as a replacement for \idris{}'s current core language we would want, and should
 be able, to have the best of both worlds.
 
 
-explicitly manipulating an integer's individual bits.
 
+\section{Related Work}
+
+For historical and ergonomic reasons, idiomatic code in \coq{} tends to center programs
+written in a subset of the language quite close to OCaml and then prove properties
+about these programs in the runtime irrelevant \texttt{Prop} fragment.
+%
+This can lead to awkward encodings when the unrefined inputs force the user to consider
+cases which ought to be impossible. Common coping strategies involve relaxing the types
+to insert a modicum of partiality e.g. returning an option type or taking an additional
+input to be used as the default return value.
+%
+This approach completely misses the point of type-driven development. We benefit a lot
+from having as much information as possible available during interactive editing. This
+helps tremendously getting the definitions right by ensuring we always maintain vital
+invariants thus making invalid states unrepresentable.
+%
+Thankfully libraries such as Equations~\cite{DBLP:conf/itp/Sozeau10,DBLP:journals/pacmpl/SozeauM19}
+can help users write more dependently typed programs, by taking care of the complex
+encoding required in \coq{}. A view-based approach similar to ours but using \texttt{Prop}
+instead of the zero quantity ought to be possible.
+
+Prior work on erasure~\cite{DBLP:journals/pacmpl/Tejiscak20} has the advantage of
+offering a fully automated analysis of the code. The main inconvenient is that users
+cannot state explicitly that a piece of data ought to be runtime irrelevant and so
+they may end up inadvertently using it which would prevent its erasure.
+%
+Quantitative Type Theory allows us users to explicitly choose what is and is not
+runtime relevant, with the quantity checker keeping us true to our word.
+%
+This should ensure that the resulting program has a much more predictable complexity.
+
+\todo{Iris}
+
+\section{Future Work}
+
+Our objectives are twofold: we would like to explore more low-level operations and
+extend language support for this style of programming.
+
+The \idris{} standard library gave us access to a pure interface to explicitly
+manipulate an integer's bits. There is no such thing yet for interacting with a
+read-only array for instance.
+
+Our library of efficient operations on thinnings currently suffers from having to
+implement annoyingly verbose inversion lemmas. This is caused by the fact that
+\idris{} will not let you pattern-match on a runtime irrelevant value in a runtime
+relevant context. It should however be safe to do so if all but one branches can
+be proven to be impossible, or even more generally, if the information thus obtained
+only flows into runtime irrelevant arguments.
 
 \bibliography{thin}
 
