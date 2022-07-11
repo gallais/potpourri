@@ -1,5 +1,11 @@
 \documentclass{article}
 
+
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+
+\usepackage{idris2}
+
 \usepackage{todonotes}
 \setuptodonotes{inline}
 
@@ -46,9 +52,11 @@ invariants being maintained.
 However relying on inductive families can have a non-negligible runtime cost.
 The prototypical example is probably the lookup function for vectors.
 
-\todo{data Vect}
-\todo{data Fin}
-\todo{lookup : \{n : Nat\} -> Fin n -> Vect n a -> a}
+\ExecuteMetaData[Lookup.idr.tex]{vect}
+
+\ExecuteMetaData[Lookup.idr.tex]{fin}
+
+\ExecuteMetaData[Lookup.idr.tex]{vectlookup}
 
 There has already been extensive work on erasure to automatically detect redundant
 data~\cite{DBLP:conf/types/BradyMM03} or data that will not be used at
@@ -63,13 +71,13 @@ runtime by a pair of a natural number and a list. Similarly the bounded number c
 adequately represented by a pair of natural number. Putting all of this together,
 lookup can be compiled to a function taking two natural number and a list.
 
-\todo{lookup : (n : Nat) -> (k : Nat) -> List a -> a}
-%
+\ExecuteMetaData[Lookup.idr.tex]{erasedvectlookup}
+
 A Tejiščák-style analysis can additionally notice that the lookup function never makes
 use of the bound's value and drop it. This leads to the lookup function on vectors
 being compiled to its partial-looking counterpart acting on lists.
 
-\todo{lookup : Nat -> List a -> a}
+\ExecuteMetaData[Lookup.idr.tex]{finallookup}
 
 Even though this is in our opinion a pretty compelling example, we need to stay
 realistic. The compiler needs to be able to map the indexed family to a simpler
@@ -106,7 +114,7 @@ guarantee that this additional information will be erased away during compilatio
 
 \section{Quantitative Type Theory}
 
-\section{Two ways to cook a co-de Bruijn representation}
+\section{Co-de Bruijn representation, cooked two ways}
 
 Using a de Bruijn representation~\cite{MANUAL:journals/math/debruijn72} each variable
 points to the binder that introduced it. In a co-de Bruijn
@@ -116,13 +124,16 @@ ultimately refers to the single variable still in scope by the time it is reache
 %
 This representation ensures that we know precisely what the scope of a given term
 currently is.
-\todo{codebruijn + thinning = term in any scope}
+
+We can recover terms living in arbitrary scopes by pairing a co-de Bruijn term
+with a thinning embedding its tight support into the given englobing scope.
+\todo{defined CdB}
+
 \todo{application e.g. shrinking}
 
 In order to efficiently represent and traverse terms in co-de Bruijn representation,
 we need a compact encoding of thinnings and a cheap composition operator.
 \todo{example: opening an application node}
-
 
 The implementation of \typos~\cite{MANUAL:talk/types/Allais22} uses a co-de Bruijn
 representation internally. \todo{explain why}

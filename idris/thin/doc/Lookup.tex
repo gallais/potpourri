@@ -1,0 +1,57 @@
+\begin{code}
+%default total
+\end{code}
+
+%<*vect>
+\begin{code}
+data Vect : Nat -> Type -> Type where
+  Nil  : Vect 0 a
+  (::) : a -> Vect n a -> Vect (1 + n) a
+\end{code}
+%</vect>
+
+%<*fin>
+\begin{code}
+data Fin : Nat -> Type where
+  Z : Fin (1 + n)
+  S : Fin n -> Fin (1 + n)
+\end{code}
+%</fin>
+
+\begin{code}
+namespace Vect
+\end{code}
+
+%<*vectlookup>
+\begin{code}
+  lookup : Vect n a -> Fin n -> a
+  lookup (x :: _) Z = x
+  lookup (_ :: xs) (S k) = lookup xs k
+\end{code}
+%</vectlookup>
+
+\begin{code}
+namespace ErasedVect
+\end{code}
+
+%<*erasedvectlookup>
+\begin{code}
+  partial
+  lookup : Nat -> List a -> Nat -> a
+  lookup (S n) (x :: _) Z = x
+  lookup (S n) (_ :: xs) (S k) = lookup n xs k
+\end{code}
+%</erasedvectlookup>
+
+\begin{code}
+namespace List
+\end{code}
+
+%<*finallookup>
+\begin{code}
+  partial
+  lookup : List a -> Nat -> a
+  lookup (x :: _) Z = x
+  lookup (_ :: xs) (S k) = lookup xs k
+\end{code}
+%</finallookup>
