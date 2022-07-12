@@ -492,14 +492,19 @@ thl ++ thr = MkTh ? ? (thl.thinning ++ thr.thinning)
 
 ||| Like filter but returns a thinning
 export
-which : (a -> Bool) -> (sy : SnocList a) -> (sx : SnocList a ** Th sx sy)
+\end{code}
+%<*which>
+\begin{code}
+which : (a -> Bool) -> (sy : SnocList a) ->
+        (sx : SnocList a ** Th sx sy)
 which p [<] = ([<] ** done)
-which p (sy :< y)
-  = ifThenElse (p y)
-     (bimap (:< y) (`keep` y))
-     (bimap id (`drop` y))
-     (which p sy)
-
+which p (sy :< y) with (p y)
+  _ | True  = let (sx ** th) = which p sy in
+              (sx :< y ** keep th y)
+  _ | False = let (sx ** th) = which p sy in
+              (sx ** drop th y)
+\end{code}
+%</which>
 {-
 test : List (sx : SnocList Nat ** Th sx ([<] <>< [0..10]))
 test = flip map [2..5] $ \ i =>
