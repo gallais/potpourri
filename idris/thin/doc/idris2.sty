@@ -48,8 +48,8 @@
 \newcommand{\IdrisModule}[1]{\RawIdrisHighlight{\IdrisHlightColourModule}{\IdrisHlightStyleModule}{#1}}
 
 \newenvironment{code}
-    {\noindent\obeyspaces}
-    {}
+    {\vspace{1em}\noindent\begin{minipage}{\linewidth}\obeyspaces}
+    {\end{minipage}}
 
 % Bugfix in fancyvrb to allow inline saved listings
 \makeatletter

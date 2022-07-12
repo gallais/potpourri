@@ -37,7 +37,7 @@ namespace ErasedVect
 %<*erasedvectlookup>
 \begin{code}
   partial
-  lookup : Nat -> List a -> Nat -> a
+  lookup : (n : Nat) -> List a -> Nat -> a
   lookup (S n) (x :: _) Z = x
   lookup (S n) (_ :: xs) (S k) = lookup n xs k
 \end{code}
