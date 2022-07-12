@@ -1,20 +1,26 @@
 \begin{code}
 %default total
-\end{code}
 
+namespace Data
+
+  public export
+\end{code}
 %<*vect>
 \begin{code}
-data Vect : Nat -> Type -> Type where
-  Nil  : Vect 0 a
-  (::) : a -> Vect n a -> Vect (1 + n) a
+  data Vect : Nat -> Type -> Type where
+    Nil : Vect 0 a
+    (::) : a -> Vect n a -> Vect (1 + n) a
 \end{code}
 %</vect>
+\begin{code}
 
+  public export
+\end{code}
 %<*fin>
 \begin{code}
-data Fin : Nat -> Type where
-  Z : Fin (1 + n)
-  S : Fin n -> Fin (1 + n)
+  data Fin : Nat -> Type where
+    Z : Fin (1 + n)
+    S : Fin n -> Fin (1 + n)
 \end{code}
 %</fin>
 

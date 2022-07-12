@@ -6,6 +6,7 @@ DEPENDENCIES=\
   build/latex/${PAPER}.tex \
   build/latex/${PAPER}.bib \
   build/latex/Lookup.idr.tex \
+  build/latex/QuantitativeTT.idr.tex \
   build/latex/Thin.idr.tex \
   build/latex/idris2.sty
 
@@ -32,7 +33,9 @@ build/latex/%.sty: %.sty
 
 paper: $(DEPENDENCIES)
 	mkdir -p build/latex
-	cd build/latex && latexmk -pdf -bibtex ${PAPER}.tex
+	cd build/latex && \
+	sed -i "s/Smart\.//g" Thin.idr.tex && \
+	latexmk -pdf -bibtex ${PAPER}.tex
 	ln -sf build/latex/${PAPER}.pdf ${PAPER}.pdf
 
 clean:

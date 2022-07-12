@@ -183,7 +183,38 @@ guarantee that this additional information will be erased away during compilatio
 Quantitative Type Theory is a type theory enriched with a semiring of quantities.
 Values may be runtime irrelevant (\IdrisKeyword{0} quantity),
 linear (\IdrisKeyword{1} quantity) or unrestricted (denoted by no quantity annotation).
-We will not use linearity in this study.
+We will not use linearity in this study. Unrestricted values may flow into any position
+but runtime irrelevant quantity may only be used in runtime irrelevant contexts.
+
+The most basic of examples is the identity function.
+%
+Its type starts with a binder using curly braces. This means it introduces an implicit
+variable that does not need to be filled in by the user at call sites and will be
+reconstructed by unification. The variable it introduces is named \IdrisBound{a} and
+has type \IdrisType{Type}. It has the \IdrisKeyword{0} quantity annotation which means
+that this argument is runtime irrelevant and so will be erased during compilation.
+%
+The second binder is using parentheses. It introduces an explicit variable whose name
+is \IdrisBound{x} and whose type is the type \IdrisBound{a} that was just bound. It has
+no quantity annotation which means it will an unrestricted variable.
+%
+Finally the return type is the type \IdrisBound{a} bound earlier. This is, as expected,
+a polymorphic function from \IdrisBound{a} to \IdrisBound{a}. It is implemented using
+a single clause that binds \IdrisBound{x} on the left-hand side and immediately returns
+it on the right-hand side.
+
+\ExecuteMetaData[QuantitativeTT.idr.tex]{identity}
+
+If we were to try to annotate the binder for \IdrisBound{x} with a \IdrisKeyword{0}
+quantity to make it runtime irrelevant then \idris{} would
+rightfully reject the definition.
+%
+The following \IdrisKeyword{failing} block shows part of the error message complaining
+that \IdrisBound{x} cannot be used at an unrestricted quantity on the right-hand side.
+
+\ExecuteMetaData[QuantitativeTT.idr.tex]{invalididentity}
+
+%\ExecuteMetaData[QuantitativeTT.idr.tex]{vect}
 
 \section{Co-de Bruijn representation, cooked two ways}
 
@@ -230,27 +261,31 @@ be able, to have the best of both worlds.
 We can combine both approaches by defining a record parameterised by a source
 (\IdrisBound{sx}) and target (\IdrisBound{sy}) scopes corresponding to the two
 ends of the thinnings, just like we would for the inductive family. This record
-packs two numbers and a runtime irrelevant proof. We have
+packs two numbers and a runtime irrelevant proof.
 %
-a natural number called \IdrisFunction{bigEnd} corresponding to the size of the
-big end of the thinning (\IdrisBound{sy})
+Firstly, we have a natural number called \IdrisFunction{bigEnd} corresponding
+to the size of the big end of the thinning (\IdrisBound{sy}),
 %
-an integer called \IdrisFunction{encoding} corresponding to the thinning
-represented as a bit vector. We only care about the \IdrisFunction{bigEnd} first
-bits and assume the rest is 0.
+Secondly, we have an integer called \IdrisFunction{encoding} corresponding to
+the thinning represented as a bit vector stating, for each variable, whether
+it is kept or dropped. We only care about the integer's \IdrisFunction{bigEnd}
+first bits and assume the rest is set to 0.
 %
-and a runtime irrelevant proof \IdrisFunction{thinning} that \IdrisFunction{encoding}
-is indeed a valid encoding of size \IdrisFunction{bigEnd} of a thinning from
-\IdrisBound{sx} to \IdrisBound{sy}.
+Thirdly, we have a runtime irrelevant proof \IdrisFunction{thinning} that
+\IdrisFunction{encoding} is indeed a valid encoding of size \IdrisFunction{bigEnd}
+of a thinning from \IdrisBound{sx} to \IdrisBound{sy}. We will explore the
+definition of the relation \IdrisType{Thinning} in a later section.
 
 \ExecuteMetaData[Thin.idr.tex]{thin}
 
-We can define functions acting as smart constructor analogues to the inductive
-family's data constructors.
-%
-The \IdrisFunction{done} function packs a pair of \IdrisData{0} (the size of the
-big end, and the encoding) together with a proof that it is an adequate encoding
-of the thinning from the empty scope to itself.
+The first sign that this definition is adequate is our ability to construct
+any valid thinning. We demonstrate it is the case by introducing functions
+that act as smart constructor analogues for the inductive family's data
+constructors.
+
+The first and simplest one is \IdrisFunction{done}, a function that packs a pair of
+\IdrisData{0} (the size of the big end, and the empty encoding) together with a proof
+that it is an adequate encoding of the thinning from the empty scope to itself.
 
 \ExecuteMetaData[Thin.idr.tex]{done}
 
@@ -263,39 +298,62 @@ we can compute a thinning from the extended source scope
 \ExecuteMetaData[Thin.idr.tex]{keep}
 
 Similarly the \IdrisFunction{drop} function demonstrates that we can compute a
-thinning getting rid of the variable \IdrisBound{x} freshly added to the source
+thinning getting rid of the variable \IdrisBound{x} freshly added to the target
 scope.
 
 \ExecuteMetaData[Thin.idr.tex]{drop}
 
-These smart constructors allow us to seamlessly build thinnings. To recover the
-full expressive power of the inductive family, we also need to be able to take
-these thinnings apart. This is the role played by the following
-view~\cite{DBLP:journals/jfp/McBrideM04}. It is a sum type indexed by a thinning
-and with one constructor for each smart constructor.
+We are now equipped with these smart constructors that allow us to seamlessly
+build thinnings.
 %
-The accompanying \IdrisFunction{view} function witnesses the fact that any
-thinning arises as one of these three cases.
+To recover the full expressive power of the inductive family, we also need to
+be able to take these thinnings apart. This is the role played by the following
+view~\cite{DBLP:journals/jfp/McBrideM04}.
+
+The \IdrisType{View} family is a sum type indexed by a thinning. It has one
+data constructor associated to each smart constructor and storing its arguments.
 
 \ExecuteMetaData[Thin.idr.tex]{view}
 
+The accompanying \IdrisFunction{view} function witnesses the fact that any
+thinning arises as one of these three cases.
+
 \ExecuteMetaData[Thin.idr.tex]{viewtotal}
 
-Unfortunately it is only \emph{propositionally} true that
-(\IdrisFunction{view} (\IdrisFunction{keep} \IdrisBound{th} \IdrisBound{x}))
-computes to (\IdrisData{Keep} \IdrisBound{th} \IdrisBound{x}) (and similarly for
-\IdrisFunction{done}/\IdrisData{Done} and \IdrisFunction{drop}/\IdrisData{Drop}).
-%
-This means that users may need to manually deploy these lemmas when proving the
-properties of functions defined by pattern matching on the result of calling the
-\IdrisFunction{view} function.
-%
-This annoyance would disappear if we had the ability to extend \idris{}'s reduction rules
-with user-proven equations as suggested by Cockx, Tabareau, and
-Winterhalter~\cite{DBLP:journals/pacmpl/CockxTW21}.
-\todo{re-read Taming}
+We can readily use this function to implement pattern matching functions taking
+a thinning apart. We can for instance define \IdrisFunction{kept}, the function
+that counts the number of \IdrisFunction{keep} smart constructors used when
+manufacturing the input thinning and returns a proof that this is exactly the
+length of the source scope \IdrisBound{sx}.
 
-\section{Related Work}
+\ExecuteMetaData[Thin.idr.tex]{kept}
+
+We proceed by calling the \IdrisFunction{view} function on the input thinning
+which immediately tells us that we only have three cases to consider.
+%
+The \IdrisData{Done} case is easily handled because the branche's refined
+types inform us that both \IdrisBound{sx} and \IdrisBound{sy} are the
+empty snoclist \IdrisData{[<]} whose length is evidently \IdrisData{0}.
+%
+In the \IdrisData{Keep} branch we learn that \IdrisBound{sx} has the shape
+(\IdrisBound{\_} \IdrisData{:<} \IdrisBound{x}) and so we must return the
+successor of whatever the result of the recursive call gives us.
+%
+Finally in the \IdrisData{Drop} case, \IdrisBound{sx} is untouched and so a
+simple recursive call suffices.
+%
+Note that the function is correctly detected as total because the target scope
+\IdrisBound{sy} is indeed getting structurally smaller at every single recursive
+call.
+%
+It is runtime irrelevant but it can still be successfully used as a termination
+measure by the compiler.
+
+\subsection{The \IdrisType{Thinning} Relation}
+
+\section{Conclusion}
+
+\subsection{Related Work}
 
 For historical and ergonomic reasons, idiomatic code in \coq{} tends to center programs
 written in a subset of the language quite close to OCaml and then prove properties
@@ -341,7 +399,21 @@ integers.
 
 \todo{Iris}
 
-\section{Future Work}
+\subsection{Limitations and Future Work}
+
+Unfortunately it is only \emph{propositionally} true that
+(\IdrisFunction{view} (\IdrisFunction{keep} \IdrisBound{th} \IdrisBound{x}))
+computes to (\IdrisData{Keep} \IdrisBound{th} \IdrisBound{x}) (and similarly for
+\IdrisFunction{done}/\IdrisData{Done} and \IdrisFunction{drop}/\IdrisData{Drop}).
+%
+This means that users may need to manually deploy these lemmas when proving the
+properties of functions defined by pattern matching on the result of calling the
+\IdrisFunction{view} function.
+%
+This annoyance would disappear if we had the ability to extend \idris{}'s reduction rules
+with user-proven equations as suggested by Cockx, Tabareau, and
+Winterhalter~\cite{DBLP:journals/pacmpl/CockxTW21}.
+\todo{re-read Taming}
 
 Our objectives are twofold: we would like to explore more low-level operations and
 extend language support for this style of programming.
@@ -350,12 +422,16 @@ The \idris{} standard library gave us access to a pure interface to explicitly
 manipulate an integer's bits. There is no such thing yet for interacting with a
 read-only array for instance.
 
+
+\todo{Explain annoying inversion lemmas}
+
 Our library of efficient operations on thinnings currently suffers from having to
 implement annoyingly verbose inversion lemmas. This is caused by the fact that
 \idris{} will not let you pattern-match on a runtime irrelevant value in a runtime
 relevant context. It should however be safe to do so if all but one branches can
 be proven to be impossible, or even more generally, if the information thus obtained
 only flows into runtime irrelevant arguments.
+
 
 \bibliography{thin}
 

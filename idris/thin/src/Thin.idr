@@ -105,6 +105,16 @@ namespace Smart
       rewrite isDropInteger bs soNot in
       cast $ Drop (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
 
+  ||| Example of a use of `view`
+  ||| @ sx is runtime irrelevant and yet we can compute its length because
+  |||      it is precisely the number of Keep constructors (aka bits set to 1)
+  |||      in the thinning that we have.
+  kept : Th sx sy -> (n : Nat ** length sx === n)
+  kept th = case view th of
+    Done => (0 ** Refl)
+    Keep th x => bimap S (cong S) (kept th)
+    Drop th x => kept th
+
 ------------------------------------------------------------------------------
 -- Unfold lemmas for the view
 ------------------------------------------------------------------------------

@@ -1,0 +1,27 @@
+\begin{code}
+%default total
+
+namespace Typing
+\end{code}
+%<*identity>
+\begin{code}
+  id : {0 a : Type} -> (x : a) -> a
+  id x = x
+\end{code}
+%</identity>
+
+%<*invalididentity>
+\begin{code}
+failing "x is not accessible in this context."
+  id : {0 a : Type} -> (0 x : a) -> a
+  id x = x
+\end{code}
+%</invalididentity>
+
+%<*vect>
+\begin{code}
+  data Vect : Nat -> Type -> Type where
+    Nil : {0 a : Type} -> Vect 0 a
+    (::) : {0 a : Type} -> {0 n : Nat} -> a -> Vect n a -> Vect (1 + n) a
+\end{code}
+%</vect>
