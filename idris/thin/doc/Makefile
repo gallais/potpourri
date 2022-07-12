@@ -6,12 +6,13 @@ DEPENDENCIES=\
   build/latex/${PAPER}.tex \
   build/latex/${PAPER}.bib \
   build/latex/Lookup.idr.tex \
+  build/latex/Thin.idr.tex \
   build/latex/idris2.sty
 
 all: paper
 
 build/ttc/%.ttm: %.tex
-	idris2 -c $^
+	idris2 -p contrib -c $^
 
 build/latex/%.idr.tex: %.tex build/ttc/%.ttm
 	mkdir -p build/latex

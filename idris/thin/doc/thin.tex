@@ -180,6 +180,11 @@ guarantee that this additional information will be erased away during compilatio
 
 \section{Quantitative Type Theory}
 
+Quantitative Type Theory is a type theory enriched with a semiring of quantities.
+Values may be runtime irrelevant (\IdrisKeyword{0} quantity),
+linear (\IdrisKeyword{1} quantity) or unrestricted (denoted by no quantity annotation).
+We will not use linearity in this study.
+
 \section{Co-de Bruijn representation, cooked two ways}
 
 Using a de Bruijn representation~\cite{MANUAL:journals/math/debruijn72} each variable
@@ -220,7 +225,61 @@ tracking has to be done by hand. This has led to numerous and hard to diagnose b
 of terms as a replacement for \idris{}'s current core language we would want, and should
 be able, to have the best of both worlds.
 
+\section{An Efficient Invariant-Rich Representation}
 
+We can combine both approaches by defining a record parameterised by a source
+(\IdrisBound{sx}) and target (\IdrisBound{sy}) scopes corresponding to the two
+ends of the thinnings, just like we would for the inductive family. This record
+packs two numbers and a runtime irrelevant proof. We have
+%
+a natural number called \IdrisFunction{bigEnd} corresponding to the size of the
+big end of the thinning (\IdrisBound{sy})
+%
+an integer called \IdrisFunction{encoding} corresponding to the thinning
+represented as a bit vector. We only care about the \IdrisFunction{bigEnd} first
+bits and assume the rest is 0.
+%
+and a runtime irrelevant proof \IdrisFunction{thinning} that \IdrisFunction{encoding}
+is indeed a valid encoding of size \IdrisFunction{bigEnd} of a thinning from
+\IdrisBound{sx} to \IdrisBound{sy}.
+
+\ExecuteMetaData[Thin.idr.tex]{thin}
+
+We can define functions acting as smart constructor analogues to the inductive
+family's data constructors.
+%
+The \IdrisFunction{done} function packs a pair of \IdrisData{0} (the size of the
+big end, and the encoding) together with a proof that it is an adequate encoding
+of the thinning from the empty scope to itself.
+
+\ExecuteMetaData[Thin.idr.tex]{done}
+
+The \IdrisFunction{keep} smart constructor demonstrates that from a thinning from
+\IdrisBound{sx} to \IdrisBound{sy} and a runtime irrelevant variable \IdrisBound{x}
+we can compute a thinning from the extended source scope
+(\IdrisBound{sx} \IdrisData{:<} \IdrisBound{x}) to the target scope
+(\IdrisBound{sy} \IdrisData{:<} \IdrisBound{x}) where \IdrisBound{x} was kept.
+
+\ExecuteMetaData[Thin.idr.tex]{keep}
+
+Similarly the \IdrisFunction{drop} function demonstrates that we can compute a
+thinning getting rid of the variable \IdrisBound{x} freshly added to the source
+scope.
+
+\ExecuteMetaData[Thin.idr.tex]{drop}
+
+These smart constructors allow us to seamlessly build thinnings. To recover the
+full expressive power of the inductive family, we also need to be able to take
+these thinnings apart. This is the role played by the following
+view~\cite{DBLP:journals/jfp/McBrideM04}. It is a sum type indexed by a thinning
+and with one constructor for each smart constructor.
+%
+The accompanying \IdrisFunction{view} function witnesses the fact that any
+thinning arises as one of these three cases.
+
+\ExecuteMetaData[Thin.idr.tex]{view}
+
+\ExecuteMetaData[Thin.idr.tex]{viewtotal}
 
 \section{Related Work}
 
