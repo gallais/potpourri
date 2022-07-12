@@ -281,6 +281,20 @@ thinning arises as one of these three cases.
 
 \ExecuteMetaData[Thin.idr.tex]{viewtotal}
 
+Unfortunately it is only \emph{propositionally} true that
+(\IdrisFunction{view} (\IdrisFunction{keep} \IdrisBound{th} \IdrisBound{x}))
+computes to (\IdrisData{Keep} \IdrisBound{th} \IdrisBound{x}) (and similarly for
+\IdrisFunction{done}/\IdrisData{Done} and \IdrisFunction{drop}/\IdrisData{Drop}).
+%
+This means that users may need to manually deploy these lemmas when proving the
+properties of functions defined by pattern matching on the result of calling the
+\IdrisFunction{view} function.
+%
+This annoyance would disappear if we had the ability to extend \idris{}'s reduction rules
+with user-proven equations as suggested by Cockx, Tabareau, and
+Winterhalter~\cite{DBLP:journals/pacmpl/CockxTW21}.
+\todo{re-read Taming}
+
 \section{Related Work}
 
 For historical and ergonomic reasons, idiomatic code in \coq{} tends to center programs
