@@ -1,5 +1,5 @@
-function eq($0,$1) {
-    return ($0 == $1); }
+function notEq($0,$1) {
+    return (!($0 === $1)); }
 function choose($0) {
     if ($0) {return {tag: 0};} else {return {tag: 1};};
 }
@@ -11,19 +11,20 @@ function view($th) {
    // bigEnd is (S predBE)
    const $predBE = ($th.bigEnd-1n);
    // Test whether the bit at index 0 of encoding is 0
-   const $bitTest = choose(eq($th.encoding&1n, 0n));
+   const $bitTest = choose(notEq($th.encoding&1n, 0n));
    switch($bitTest.tag) {
-     case 0: { // The test was false, use Keep
+     case 0: { // The test was true, use Keep
          const $tail = $th.encoding>>1n;
          return {tag: 1, val: {bigEnd: $predBE, encoding: $tail}}; }
-     case 1: { // The test was true, use Drop
+     case 1: { // The test was false, use Drop
          const $tail = $th.encoding>>1n;
          return {tag: 2, val: {bigEnd: $predBE, encoding: $tail}}; }
- }}}}
+}}}}
 
 console.log((0n&1n) == 0n);
 console.log(view({bigEnd: 4n, encoding: 9n}));
 console.log(view({bigEnd: 4n, encoding: 8n}));
+console.log(view({bigEnd: 5n, encoding: 13n}));
 
 /*
     yntaxError: Identifier '$tail' has already been declared

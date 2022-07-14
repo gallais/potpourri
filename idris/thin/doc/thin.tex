@@ -374,25 +374,51 @@ measure by the compiler.
 
 \subsection{Compiled Code}
 
+The following code block shows the javascript code that is produced when compiling the
+\IdrisFunction{view} function.
+%
+The only modifications we have performed are manually inlining a function
+corresponding to a \IdrisKeyword{case} block, renaming variables and projections
+to match the source code, and adding comments.
+
 \begin{minted}{javascript}
 function view($th) {
   switch($th.bigEnd) {
   // empty thinning, use Done
   case 0n: return {tag: 0};
   default: {
-    // bigEnd is (S predBE)
-    const $predBE = ($th.bigEnd-1n);
-    // Test whether the bit at index 0 of encoding is 0
-    const $bitTest = choose(eq($th.encoding&1n, 0n));
-    switch($bitTest.tag) {
-      case 0: { // The test was false, use Keep
-        const $tail = $th.encoding>>1n;
-        return {tag: 1, val: {bigEnd: $predBE, encoding: $tail}}; }
-      case 1: { // The test was true, use Drop
-        const $tail = $th.encoding>>1n;
-        return {tag: 2, val: {bigEnd: $predBE, encoding: $tail}}; }
+   // bigEnd is (S predBE)
+   const $predBE = ($th.bigEnd-1n);
+   // Test whether the bit at index 0 of encoding is non-zero by
+   // using 1n as a bit mask
+   // and checking whether the result is not equal to 0
+   const $bitTest = choose(notEq($th.encoding&1n, 0n));
+   switch($bitTest.tag) {
+     case 0: { // The test was true, use Keep
+         const $tail = $th.encoding>>1n;
+         return {tag: 1, val: {bigEnd: $predBE, encoding: $tail}}; }
+     case 1: { // The test was false, use Drop
+         const $tail = $th.encoding>>1n;
+         return {tag: 2, val: {bigEnd: $predBE, encoding: $tail}}; }
 }}}}
 \end{minted}
+
+Readers can see that the compilation process has erased all of the proofs
+showing that the invariant tying the efficient runtime representation to the
+high-level specification is maintained.
+%
+A thinning is represented at runtime by a javascript object with two properties
+corresponding to \IdrisType{Th}'s runtime relevant fields. Both are storing a
+javascript \texttt{bigInt} (one corresponding to the \IdrisType{Nat}, the other
+to the \IdrisType{Integer}).
+%
+For instance the thinning [01101] would be at runtime
+\mintinline{javascript}{{ bigEnd: 5n, encoding: 13n }}.
+%
+
+By running \IdrisFunction{view} on this [01101] thinning, we would get
+back the runtime representation of (\IdrisData{Keep} [0110]), that is to say
+\mintinline{javascript}{{ tag: 1, val: { bigEnd: 4n, encoding: 6n } }}.
 
 \section{Conclusion}
 
