@@ -498,11 +498,10 @@ export
 which : (a -> Bool) -> (sy : SnocList a) ->
         (sx : SnocList a ** Th sx sy)
 which p [<] = ([<] ** done)
-which p (sy :< y) with (p y)
-  _ | True  = let (sx ** th) = which p sy in
-              (sx :< y ** keep th y)
-  _ | False = let (sx ** th) = which p sy in
-              (sx ** drop th y)
+which p (sy :< y) =
+  let (sx ** th) = which p sy in
+  if p y then (sx :< y ** keep th y)
+         else (sx ** drop th y)
 \end{code}
 %</which>
 {-

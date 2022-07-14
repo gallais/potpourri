@@ -81,7 +81,7 @@ namespace Smart
          View (MkTh i bs th')
   cast v = replace {p = \ th => View (MkTh i bs th)} (irrelevantThinning ? ?) v
 
-  export %inline
+  export
   view : (th : Th sx sy) -> View th
   view (MkTh 0 bs th) =
     let 0 eqs = isDone th in
@@ -457,9 +457,3 @@ which p (sy :< y)
      (bimap (:< y) (`keep` y))
      (bimap id (`drop` y))
      (which p sy)
-
-{-
-test : List (sx : SnocList Nat ** Th sx ([<] <>< [0..10]))
-test = flip map [2..5] $ \ i =>
-        which (\ n => n `mod` i /= 0) ([<] <>< [0..10])
--}

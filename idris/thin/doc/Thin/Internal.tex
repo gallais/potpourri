@@ -1,3 +1,4 @@
+\begin{code}
 ||| This is the low-level stuff used to implement Thin.
 ||| The even lower level (sometimes unsafe) results are in Data.Bits.Integer
 
@@ -34,19 +35,27 @@ irrelevantSo Oh Oh = Refl
 ||| For instance: Thinning 2 [01] [<y] [<x,y] because:
 |||   i.   2 is the size of [01] (and [<x,y])
 |||   ii.  [01] describes [<y] as [<x,y] where x was discarded and y kept
+|||
+||| Doc for constructors:
+||| A 0-bits long thinning is a thinning between empty lists
+||| If the last bit of interest is set then the snoclist's head is kept
+||| If the last bit of interest is not set then the snoclist's head is thrown out
 public export
-data Thinning : (i : Nat) -> (bs : Integer) -> (sx, sy : SnocList a) -> Type where
-  ||| A 0-bits long thinning is a thinning between empty lists
+\end{code}
+%<*thinning>
+\begin{code}
+data Thinning : (i : Nat) -> (bs : Integer) ->
+                (sx, sy : SnocList a) -> Type where
   Done : Thinning Z 0 [<] [<]
-  ||| If the last bit of interest is set then the snoclist's head is kept
   Keep : Thinning i (bs `shiftR` 1) sx sy -> (0 x : a) ->
-         {auto 0 b  : So (      testBit bs Z)} ->
+         {auto 0 b  : So (testBit bs Z)} ->
          Thinning (S i) bs (sx :< x) (sy :< x)
-  ||| If the last bit of interest is not set then the snoclist's head is thrown out
   Drop : Thinning i (bs `shiftR` 1) sx sy -> (0 x : a) ->
          {auto 0 nb : So (not $ testBit bs Z)} ->
-         Thinning (S i) bs sx        (sy :< x)
-
+         Thinning (S i) bs sx (sy :< x)
+\end{code}
+%</thinning>
+\begin{code}
 ------------------------------------------------------------------------------
 -- Properties of Thinning
 ------------------------------------------------------------------------------
@@ -281,3 +290,4 @@ th ++ Drop {i = j} ph x @{soNot}
       rewrite testBit0ShiftL bs j in
       rewrite orFalseNeutral (testBit {a = Integer} cs Z) in
       soNot}
+\end{code}

@@ -8,6 +8,7 @@ DEPENDENCIES=\
   build/latex/Lookup.idr.tex \
   build/latex/QuantitativeTT.idr.tex \
   build/latex/Thin.idr.tex \
+  build/latex/Thin/Internal.idr.tex \
   build/latex/idris2.sty
 
 all: paper
@@ -16,7 +17,7 @@ build/ttc/%.ttm: %.tex
 	idris2 -p contrib -c $^
 
 build/latex/%.idr.tex: %.tex build/ttc/%.ttm
-	mkdir -p build/latex
+	mkdir -p $(basename $@)
 	katla literate $*.tex build/ttc/$*.ttm > $@
 
 build/latex/%.tex: %.tex
@@ -35,7 +36,7 @@ paper: $(DEPENDENCIES)
 	mkdir -p build/latex
 	cd build/latex && \
 	sed -i "s/Smart\.//g" Thin.idr.tex && \
-	latexmk -pdf -bibtex ${PAPER}.tex
+	latexmk -shell-escape -pdf -bibtex ${PAPER}.tex
 	ln -sf build/latex/${PAPER}.pdf ${PAPER}.pdf
 
 clean:

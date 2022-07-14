@@ -5,6 +5,8 @@
 
 \usepackage{idris2}
 
+\usepackage{minted}
+
 \usepackage{todonotes}
 \setuptodonotes{inline}
 
@@ -282,6 +284,8 @@ any valid thinning. We demonstrate it is the case by introducing functions
 that act as smart constructor analogues for the inductive family's data
 constructors.
 
+\subsection{Smart Constructors for \IdrisType{Th}}
+
 The first and simplest one is \IdrisFunction{done}, a function that packs a pair of
 \IdrisData{0} (the size of the big end, and the empty encoding) together with a proof
 that it is an adequate encoding of the thinning from the empty scope to itself.
@@ -302,10 +306,19 @@ scope.
 
 \ExecuteMetaData[Thin.idr.tex]{drop}
 
+We can already deploy these smart constructors to implement functions producing
+thinnings. We use \IdrisFunction{which} as our example. It is a filter-like
+function that returns the elements that satisfy a boolean predicate together with
+a proof that there is a thinning embedding them back into the input snoclist.
+%
+If the input snoclist is empty then the output shall also be, and
+\IdrisFunction{done} builds a thinning from \IdrisData{[<]} to itself.
+%
+If it is not empty we can perform a recursive call on the tail of the snoclist
+and then depending on whether the predicates holds true of the head we can either
+\IdrisFunction{keep} or \IdrisFunction{drop} it.
 
-\todo{explain which}
 \ExecuteMetaData[Thin.idr.tex]{which}
-
 
 We are now equipped with these smart constructors that allow us to seamlessly
 build thinnings.
@@ -313,6 +326,8 @@ build thinnings.
 To recover the full expressive power of the inductive family, we also need to
 be able to take these thinnings apart. This is the role played by the following
 view~\cite{DBLP:journals/jfp/McBrideM04}.
+
+\subsection{A View for \IdrisType{Th}}
 
 The \IdrisType{View} family is a sum type indexed by a thinning. It has one
 data constructor associated to each smart constructor and storing its arguments.
@@ -340,7 +355,7 @@ types inform us that both \IdrisBound{sx} and \IdrisBound{sy} are the
 empty snoclist \IdrisData{[<]} whose length is evidently \IdrisData{0}.
 %
 In the \IdrisData{Keep} branch we learn that \IdrisBound{sx} has the shape
-(\IdrisBound{\_} \IdrisData{:<} \IdrisBound{x}) and so we must return the
+(\IdrisBound{\KatlaUnderscore} \IdrisData{:<} \IdrisBound{x}) and so we must return the
 successor of whatever the result of the recursive call gives us.
 %
 Finally in the \IdrisData{Drop} case, \IdrisBound{sx} is untouched and so a
@@ -355,7 +370,29 @@ measure by the compiler.
 
 \subsection{The \IdrisType{Thinning} Relation}
 
+\ExecuteMetaData[Thin/Internal.idr.tex]{thinning}
+
 \subsection{Compiled Code}
+
+\begin{minted}{javascript}
+function view($th) {
+  switch($th.bigEnd) {
+  // empty thinning, use Done
+  case 0n: return {tag: 0};
+  default: {
+    // bigEnd is (S predBE)
+    const $predBE = ($th.bigEnd-1n);
+    // Test whether the bit at index 0 of encoding is 0
+    const $bitTest = choose(eq($th.encoding&1n, 0n));
+    switch($bitTest.tag) {
+      case 0: { // The test was false, use Keep
+        const $tail = $th.encoding>>1n;
+        return {tag: 1, val: {bigEnd: $predBE, encoding: $tail}}; }
+      case 1: { // The test was true, use Drop
+        const $tail = $th.encoding>>1n;
+        return {tag: 2, val: {bigEnd: $predBE, encoding: $tail}}; }
+}}}}
+\end{minted}
 
 \section{Conclusion}
 
