@@ -434,6 +434,15 @@ back the runtime representation of (\IdrisData{Keep} [0110]), that is to say
 
 \section{Conclusion}
 
+We have seen that inductive families provide programmers with ways to root out bugs
+by enforcing strong invariants. Unfortunately these families can get in the way of
+producing performant code despite existing optimisation passes erasing redundant
+or runtime irrelevant data.
+%
+This has led us to take advantage of Quantitative Type Theory in order to design a library
+combining the best of both worlds: the strong invariants and ease of use of inductive
+families together with the runtime performance of explicit bit manipulations.
+
 \subsection{Related Work}
 
 For historical and ergonomic reasons, idiomatic code in \coq{} tends to center programs
