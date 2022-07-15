@@ -372,6 +372,18 @@ measure by the compiler.
 
 \ExecuteMetaData[Thin/Internal.idr.tex]{thinning}
 
+\subsection{Choose Your Own Abstraction Level}
+
+Access to both the high-level \IdrisType{View} and the internal \IdrisType{Thinning}
+representation means that programmers can pick the level of abstraction at which they
+want to work.
+%
+They may need to explicitly manipulate bits to implement key operators that are used
+in performance-critical paths but can stay at the highest level for more negligible
+operations, or proofs.
+
+\todo{Insert example e.g. meet and its proof!}
+
 \subsection{Compiled Code}
 
 The following code block shows the javascript code that is produced when compiling the
