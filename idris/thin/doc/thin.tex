@@ -47,13 +47,18 @@ both their functions' inputs and outputs.
 The constrained inputs allow them to only consider the relevant cases during pattern
 matching, while the refined outputs guarantee that client code can safely rely on the
 invariants being maintained.
+%
+These programming style is dubbed `correct by construction'.
 
 However relying on inductive families can have a non-negligible runtime cost if
-the host language is compiling them naïvely.
+the host language is compiling them naïvely. And even state of the art optimisation
+passes for dependently typed languages cannot make miracles: if the source code is
+not efficient, the executable will not be either.
 
 \subsection{An Optimisation Example}
 
-The prototypical examples are probably the types of vectors (\IdrisType{Vect})
+The prototypical examples of the naïve compilation of inductive families being
+inefficient are probably the types of vectors (\IdrisType{Vect})
 and finite numbers (\IdrisType{Fin}).
 %
 Their interplay is demonstrated by the \IdrisFunction{lookup} function.
@@ -66,7 +71,7 @@ by the type of values it stores and indexed over a natural number corresponding
 to its length.
 %
 More concretely, its \IdrisData{Nil} constructor builds an empty vector of size
-\IdrisData{0}, and its \IdrisData{(::)} constructor combines a
+\IdrisData{0}, and its \IdrisData{(::)} (pronounced `cons') constructor combines a
 value of type \IdrisBound{a} (the head) and a subvector of size \IdrisBound{n}
 (the tail) to build a vector of size (\IdrisData{1} \IdrisFunction{+} \IdrisBound{n}).
 
@@ -85,7 +90,7 @@ have a size quadratic in \IdrisBound{n}.
 A finite number is a number known to be strictly smaller than a given natural
 number. The type \IdrisType{Fin} is indexed by said bound.
 %
-Its \IdrisData{Z} constructor models to \IdrisData{0} and is bound by any
+Its \IdrisData{Z} constructor models \IdrisData{0} and is bound by any
 non-zero bound, and its \IdrisData{S} constructor takes a number bound by
 \IdrisBound{n} and returns its successor, bound by
 (\IdrisData{1} \IdrisFunction{+} \IdrisBound{n}).
@@ -95,13 +100,16 @@ from a quadratic blowup.
 
 \ExecuteMetaData[Lookup.idr.tex]{fin}
 
-This leads us to the definition of the \IdrisFunction{lookup} function. Provided
-a vector of size \IdrisBound{n} and a finite number bound by this same \IdrisBound{n},
-we can define a \emph{total} function looking up the value stored at position in the
-vector. It is guaranteed to return a value.
+This leads us to the definition of the \IdrisFunction{lookup} function.
+%
+Provided a vector of size \IdrisBound{n} and a finite number \IdrisBound{k} bound
+by this same \IdrisBound{n}, we can define a \emph{total} function looking up the
+value stored at position \IdrisBound{k} in the vector.
+%
+It is guaranteed to return a value.
 %
 Note that we do not need to consider the case of the empty vector in the pattern
-matching clauses as the return type of all of the \IdrisType{Fin} constructor forces
+matching clauses as all of the return types of the \IdrisType{Fin} constructors force
 the index to be non-zero and, because the vector and the finite number talk about the
 same \IdrisBound{n}, having an empty vector would automatically imply having a value
 of type (\IdrisType{Fin} \IdrisData{0}) which is self-evidently impossible.
@@ -116,7 +124,8 @@ extensive work on erasure to automatically detect redundant
 data~\cite{DBLP:conf/types/BradyMM03} or data that will not be used at
 runtime~\cite{DBLP:journals/pacmpl/Tejiscak20}.
 
-A Brady-style analysis can solve the quadratic blowup highlighted above by observing
+A Brady-style analysis~\cite{DBLP:conf/types/BradyMM03}
+can solve the quadratic blowup highlighted above by observing
 that the natural number a vector is indexed by is entirely determined by the spine of
 the vector. In particular, the length of the predecessor does not need to be stored
 as part of the constructor: it can be reconstructed as the predecessor of the length
@@ -124,7 +133,7 @@ of the overall vector. As a consequence, a vector can be adequately represented 
 runtime by a pair of a natural number and a list. Similarly the bounded number can be
 adequately represented by a pair of natural numbers. Putting all of this together and
 remembering that the vector and the finite number share the same \IdrisBound{n},
-\IdrisFunction{lookup} can be compiled to a function taking two natural number and a list.
+\IdrisFunction{lookup} can be compiled to a function taking two natural numbers and a list.
 In \idris{} we would write the optimised \IdrisFunction{lookup} as follows (we use the
 \IdrisKeyword{partial} keyword because this transformed version is not total at that type).
 
@@ -135,7 +144,8 @@ the list (formerly vector) and so the first argument to \IdrisFunction{lookup}
 corresponding to the vector's size is decreased by one. The invariant, despite not
 being explicit anymore, is maintained.
 
-A Tejiščák-style analysis can additionally notice that the lookup function never makes
+A Tejiščák-style analysis~\cite{DBLP:journals/pacmpl/Tejiscak20} can additionally
+notice that the lookup function never makes
 use of the bound's value and drop it entirely. This leads to the lookup function on
 vectors being compiled to its partial-looking counterpart acting on lists.
 
@@ -181,30 +191,59 @@ guarantee that this additional information will be erased away during compilatio
 
 \section{Quantitative Type Theory}
 
-Quantitative Type Theory is a type theory enriched with a semiring of quantities.
-Values may be runtime irrelevant (\IdrisKeyword{0} quantity),
-linear (\IdrisKeyword{1} quantity) or unrestricted (denoted by no quantity annotation).
-We will not use linearity in this study. Unrestricted values may flow into any position
-but runtime irrelevant quantity may only be used in runtime irrelevant contexts.
+Quantitative Type Theory is a type theory enriched with a semiring of quantities
+classifying the ways in which values may be used.
+
+\subsection{Quantities}
+
+A value may be \emph{runtime irrelevant}, \emph{linear}, or \emph{unrestricted}.
+
+\emph{Runtime irrelevant} values (\IdrisKeyword{0} quantity) cannot possibly influence
+control flow.
+%
+This forces the language to impose strong restrictions on pattern-matching over these
+values.
+%
+Typical examples are types like the \IdrisBound{a} parameter in (\IdrisType{List} \IdrisBound{a}),
+or indices like the natural number \IdrisBound{n} in
+(\IdrisType{Vect} \IdrisBound{n} \IdrisBound{a}).
+%
+These are guaranteed to be erased at compile time. The advantage over a Tejiščák-style
+analysis is that users can state their intent that an argument ought to be runtime
+irrelevant and the language will insist that it needs to be convinced it indeed is.
+
+\emph{Linear} values (\IdrisKeyword{1} quantity) have to be used exactly once.
+%
+Typical examples include the \IdrisData{\%World} token used by \idris{} to implement the
+\IdrisType{IO} monad à la Haskell, or file handles that cannot be discarded without explicitly
+closing the file.
+%
+At runtime these values can be updated destructively. We will not use linearity in this study.
+
+Last, \emph{unrestricted} values (denoted by no quantity annotation) can flow into any
+position, be duplicated or thrown away. They are the usual values of functional programming.
+
+\subsection{Examples}
 
 The most basic of examples is the identity function.
-%
+
+\ExecuteMetaData[QuantitativeTT.idr.tex]{identity}
+
 Its type starts with a binder using curly braces. This means it introduces an implicit
 variable that does not need to be filled in by the user at call sites and will be
 reconstructed by unification. The variable it introduces is named \IdrisBound{a} and
 has type \IdrisType{Type}. It has the \IdrisKeyword{0} quantity annotation which means
 that this argument is runtime irrelevant and so will be erased during compilation.
-%
+
 The second binder is using parentheses. It introduces an explicit variable whose name
 is \IdrisBound{x} and whose type is the type \IdrisBound{a} that was just bound. It has
-no quantity annotation which means it will an unrestricted variable.
-%
+no quantity annotation which means it will be an unrestricted variable.
+
 Finally the return type is the type \IdrisBound{a} bound earlier. This is, as expected,
 a polymorphic function from \IdrisBound{a} to \IdrisBound{a}. It is implemented using
 a single clause that binds \IdrisBound{x} on the left-hand side and immediately returns
 it on the right-hand side.
 
-\ExecuteMetaData[QuantitativeTT.idr.tex]{identity}
 
 If we were to try to annotate the binder for \IdrisBound{x} with a \IdrisKeyword{0}
 quantity to make it runtime irrelevant then \idris{} would
@@ -222,8 +261,9 @@ that \IdrisBound{x} cannot be used at an unrestricted quantity on the right-hand
 Using a de Bruijn representation~\cite{MANUAL:journals/math/debruijn72} each variable
 points to the binder that introduced it. In a co-de Bruijn
 representation~\cite{DBLP:journals/corr/abs-1807-04085} each subterm
-selects the variables that stay in scope for that term, and so a variable constructor
-ultimately refers to the single variable still in scope by the time it is reached.
+selects exactly the variables that stay in scope for that term,
+and so a variable constructor ultimately refers to the only variable still
+in scope by the time it is reached.
 %
 This representation ensures that we know precisely what the scope of a given term
 currently is.
@@ -255,7 +295,7 @@ tracking has to be done by hand. This has led to numerous and hard to diagnose b
 
 \idris{} is a bootstrapped language. If we were to use such a co-deBruijn representation
 of terms as a replacement for \idris{}'s current core language we would want, and should
-be able, to have the best of both worlds.
+be able, to have the best of both worlds: a safe and efficient representation!
 
 \section{An Efficient Invariant-Rich Representation}
 
@@ -399,23 +439,24 @@ function view($th) {
   // empty thinning, use Done
   case 0n: return {tag: 0};
   default: {
-   // bigEnd is (S predBE)
-   const $predBE = ($th.bigEnd-1n);
-   // Test whether the bit at index 0 of encoding is non-zero by
-   // using 1n as a bit mask
-   // and checking whether the result is not equal to 0
-   const $bitTest = choose(notEq($th.encoding&1n, 0n));
-   switch($bitTest.tag) {
-     case 0: { // The test was true, use Keep
-         const $tail = $th.encoding>>1n;
-         return {tag: 1, val: {bigEnd: $predBE, encoding: $tail}}; }
-     case 1: { // The test was false, use Drop
-         const $tail = $th.encoding>>1n;
-         return {tag: 2, val: {bigEnd: $predBE, encoding: $tail}}; }
+    // bigEnd is (S predBE)
+    const $predBE = ($th.bigEnd-1n);
+    // Test whether the bit at index 0 of encoding is non-zero by
+    // using 1n as a bit mask
+    // and checking whether the result is not equal to 0
+    const $bitTest = choose(notEq($th.encoding&1n, 0n));
+    switch($bitTest.tag) {
+      case 0: { // The test was true, use Keep
+        const $tail = $th.encoding>>1n;
+        return {tag: 1, val: {bigEnd: $predBE, encoding: $tail}}; }
+      case 1: { // The test was false, use Drop
+        const $tail = $th.encoding>>1n;
+        return {tag: 2, val: {bigEnd: $predBE, encoding: $tail}}; }
 }}}}
 \end{minted}
 
-Readers can see that the compilation process has erased all of the proofs
+Readers can see that the compilation process has erased all of the indices
+and the proofs
 showing that the invariant tying the efficient runtime representation to the
 high-level specification is maintained.
 %
@@ -429,7 +470,7 @@ For instance the thinning [01101] would be at runtime
 %
 
 By running \IdrisFunction{view} on this [01101] thinning, we would get
-back the runtime representation of (\IdrisData{Keep} [0110]), that is to say
+back (\IdrisData{Keep} [0110]), that is to say
 \mintinline{javascript}{{ tag: 1, val: { bigEnd: 4n, encoding: 6n } }}.
 
 \section{Conclusion}
@@ -485,7 +526,7 @@ directly with binary numbers. This makes sense in their setting where they const
 circuits and so are explicitly manipulating wires carrying bits.
 %
 By contrast, in our motivating example we really want to get down to actual (unbounded)
-integers.
+integers rather than linked lists of bits.
 
 \todo{Iris}
 
