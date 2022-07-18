@@ -424,7 +424,7 @@ We can now use the view to pattern-match on the list from its end almost as
 seamlessly as we can match on its head as is demonstrated by the following
 comparison between \IdrisFunction{head} and \IdrisFunction{last}.
 %
-We have left a empty line in the definition of the former to line up each
+We have left an empty line in the definition of the former to line up each
 equation with the matching one in the latter.
 
 \begin{minipage}[t]{0.45\textwidth}
@@ -433,6 +433,10 @@ equation with the matching one in the latter.
 \begin{minipage}[t]{0.55\textwidth}
 \ExecuteMetaData[Snoc.idr.tex]{last}
 \end{minipage}
+
+Our goal is to define a view for \IdrisType{Th} that demonstrates
+that any thinning has been built using one of the three smart
+constructors introduced in the previous section.
 
 \subsubsection{A View for \IdrisType{Th}}
 
