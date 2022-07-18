@@ -367,7 +367,74 @@ To recover the full expressive power of the inductive family, we also need to
 be able to take these thinnings apart. This is the role played by the following
 view~\cite{DBLP:journals/jfp/McBrideM04}.
 
-\subsection{A View for \IdrisType{Th}}
+\subsection{Pattern Matching on \IdrisType{Th}}
+
+A view for a type $T$ is, in the sense of McBride and McKinna, an inductive family
+$V$ indexed by $T$ together with a total function which maps every element $t$ of $T$
+to a value of type ($V t$).
+%
+This simple gadget provides a powerful, user-extensible, generalisation of
+pattern-matching.
+%
+Patterns are defined inductively as either a binding position, a forced term
+(i.e. an arbitrary expression that is determined by a constraint arising from
+another pattern), or a data constructor fully applied to subpatterns.
+%
+In contrast, the return indices of an inductive family's constructors can be
+arbitrary expressions.
+
+\subsubsection{A simple example of a view}
+
+For instance, it is trivial to check whether a (\IdrisType{List} \IdrisBound{a})
+is empty or constructed from a head and a tail.
+%
+In the first case, we would use the constructor \IdrisData{Nil} which is a valid
+pattern according to our above definition.
+%
+In the seconc case, we would use the constructor \IdrisData{(::)} applied to the
+variables \IdrisBound{head} and \IdrisBound{tail} acting as binding sites, thus
+forming another valid pattern.
+%
+But it is impossible to look at the list from its end: the expression
+(\IdrisBound{xs} \IdrisFunction{++} \IdrisData{[}\IdrisBound{x}\IdrisData{]})
+does not fall in the pattern fragment because it mentions the function (\IdrisFunction{++}).
+But we can define a view showing what it means to have this shape.
+
+\ExecuteMetaData[Snoc.idr.tex]{AsSnoc}
+
+We call this inductive family \IdrisType{AsSnoc} because it allows us to get
+a handle on the input list as if it were a \IdrisType{Snoclist}. If the list is
+empty then it corresponds to an empty snoclist (constructor \IdrisData{Lin})
+but if it is non-empty, we get our hands on the initial segment \IdrisBound{xs},
+the last element \IdrisBound{x} and a proof that the list is indeed
+(\IdrisBound{xs} \IdrisFunction{++} \IdrisData{[}\IdrisBound{x}\IdrisData{]}).
+%
+We can finish the view definition by implementing the function \IdrisFunction{asSnoc}
+that shows that every list \IdrisBound{xs} can be taken apart in an \IdrisType{AsSnoc}
+manner.
+
+\ExecuteMetaData[Snoc.idr.tex]{asSnoc}
+
+Note that compared to a function returning a value of type
+{\IdrisType{Maybe} (\IdrisType{List} \IdrisBound{a}\IdrisType{,} \IdrisBound{a})},
+we have here the guarantee that the result actually reflects the structure of the
+input list.
+
+We can now use the view to pattern-match on the list from its end almost as
+seamlessly as we can match on its head as is demonstrated by the following
+comparison between \IdrisFunction{head} and \IdrisFunction{tail}.
+%
+We have left a empty line in the definition of the former to line up each
+equation with the matching one in the latter.
+
+\begin{minipage}[t]{0.45\textwidth}
+\ExecuteMetaData[Snoc.idr.tex]{head}
+\end{minipage}
+\begin{minipage}[t]{0.55\textwidth}
+\ExecuteMetaData[Snoc.idr.tex]{last}
+\end{minipage}
+
+\subsubsection{A View for \IdrisType{Th}}
 
 The \IdrisType{View} family is a sum type indexed by a thinning. It has one
 data constructor associated to each smart constructor and storing its arguments.

@@ -1,0 +1,35 @@
+%<*AsSnoc>
+\begin{code}
+data AsSnoc : List a -> Type where
+  Lin : AsSnoc []
+  (:<) : (xs : List a) -> (x : a) -> AsSnoc (xs ++ [x])
+\end{code}
+%</AsSnoc>
+
+%<*asSnoc>
+\begin{code}
+asSnoc : (xs : List a) -> AsSnoc xs
+asSnoc [] = [<]
+asSnoc (x :: xs) with (asSnoc xs)
+  asSnoc (x :: [])          | [<] = [] :< x
+  asSnoc (x :: (ys ++ [y])) | ys :< y = (x :: ys) :< y
+\end{code}
+%</asSnoc>
+
+%<*head>
+\begin{code}
+head : List a -> Maybe a
+
+head [] = Nothing
+head (x :: _) = Just x
+\end{code}
+%</head>
+
+%<*last>
+\begin{code}
+last : List a -> Maybe a
+last xs with (asSnoc xs)
+  last _ | [<] = Nothing
+  last _ | (_ :< x) = Just x
+\end{code}
+%</last>

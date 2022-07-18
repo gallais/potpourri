@@ -8,6 +8,7 @@ DEPENDENCIES=\
   build/latex/${PAPER}.bib \
   build/latex/Lookup.idr.tex \
   build/latex/QuantitativeTT.idr.tex \
+  build/latex/Snoc.idr.tex \
   build/latex/Thin.idr.tex \
   build/latex/Thin/Internal.idr.tex \
   build/latex/idris2.sty
