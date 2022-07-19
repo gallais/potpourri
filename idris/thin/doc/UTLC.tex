@@ -1,0 +1,20 @@
+\begin{code}
+import Data.Fin
+\end{code}
+
+%<*term>
+\begin{code}
+data Tm : Nat -> Type where
+  Var : Fin n -> Tm n
+  Lam : Tm (S n) -> Tm n
+  App : Tm n -> Tm n -> Tm n
+\end{code}
+%</term>
+
+%<*scomb>
+\begin{code}
+scomb : Tm 0
+scomb = Lam $ Lam $ Lam
+      $ App (App (Var 2) (Var 0)) (App (Var 1) (Var 0))
+\end{code}
+%</scomb>

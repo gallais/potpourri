@@ -1,8 +1,17 @@
-
 \section{Co-de Bruijn representation, cooked two ways}\label{sec:codebruijn}
 
-Using a de Bruijn representation~\cite{MANUAL:journals/math/debruijn72} each variable
-points to the binder that introduced it. In a co-de Bruijn
+\input{ast}
+
+Using a de Bruijn representation~\cite{MANUAL:journals/math/debruijn72} each
+variable points to the binder that introduced it. Variables are finite numbers
+(in the sense of \IdrisType{Fin}) counting the numbers of binders that separate
+the variable from its binding site.
+
+\ExecuteMetaData[Example.idr.tex]{scomb}
+\ExecuteMetaData[UTLC.idr.tex]{scomb}
+
+
+In a co-de Bruijn
 representation~\cite{DBLP:journals/corr/abs-1807-04085} each subterm
 selects exactly the variables that stay in scope for that term,
 and so a variable constructor ultimately refers to the only variable still

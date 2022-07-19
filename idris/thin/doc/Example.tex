@@ -1,0 +1,6 @@
+%<*scomb>
+\begin{code}
+scomb : (a -> b -> c) -> (a -> b) -> a -> c
+scomb = \ g => \ f => \ x => g x (f x)
+\end{code}
+%</scomb>
