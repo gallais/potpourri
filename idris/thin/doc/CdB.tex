@@ -1,15 +1,13 @@
 \section{Co-de Bruijn representation, cooked two ways}\label{sec:codebruijn}
 
-\input{ast}
+\ExecuteMetaData[ast.tex]{named}
 
 Using a de Bruijn representation~\cite{MANUAL:journals/math/debruijn72} each
 variable points to the binder that introduced it. Variables are finite numbers
 (in the sense of \IdrisType{Fin}) counting the numbers of binders that separate
 the variable from its binding site.
 
-\ExecuteMetaData[Example.idr.tex]{scomb}
-\ExecuteMetaData[UTLC.idr.tex]{scomb}
-
+\ExecuteMetaData[ast.tex]{debruijn}
 
 In a co-de Bruijn
 representation~\cite{DBLP:journals/corr/abs-1807-04085} each subterm
@@ -19,6 +17,9 @@ in scope by the time it is reached.
 %
 This representation ensures that we know precisely what the scope of a given term
 currently is.
+
+\ExecuteMetaData[ast.tex]{codebruijn}
+
 
 We can recover terms living in arbitrary scopes by pairing a co-de Bruijn term
 with a thinning~\cite{MANUAL:phd/nott/Chapman09}
