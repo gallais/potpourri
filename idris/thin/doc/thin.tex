@@ -37,6 +37,10 @@
   to seamlessly program as if we were using the high-level structure.
 \end{abstract}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% introduction
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \section{Introduction}
 
 Dependently typed languages have empowered users to precisely describe their domain
@@ -56,23 +60,41 @@ the host language is compiling them naïvely. And even state of the art optimisa
 passes for dependently typed languages cannot make miracles: if the source code is
 not efficient, the executable will not be either.
 
-In this case study, we will look at an optimisation example
-(\cref{sec:optimisation-example}) that highlights both
-the strengths and the limitations of the current state of the art when it comes to
-removing the runtime overheads potentially incurred by using inductive families.
+In \cref{sec:optimisation-example}, we will look at an optimisation example
+that highlights both the strengths and the limitations of the current state
+of the art when it comes to removing the runtime overheads potentially
+incurred by using inductive families.
+
+In \cref{sec:codebruijn} we will then look at an inductive family that we
+use in a performance-critical way in the \typos{}
+project and whose compilation suffers from said limitations.
 %
-We will then introduce Quantitative Type Theory (\cref{sec:quantitativeTT}), the
-expressive language that allows us to go even further by giving the programmer
-the ability to have both strong invariants and a very efficient runtime representation.
-%
-\cref{sec:codebruijn}
-%
-\cref{sec:efficient}
+Our current and unsatisfactory approach is to rely on the safe and convenient
+inductive family when experimenting in Agda and then replace it with an unsafe
+but vastly more efficient representation in our actual Haskell implementetation.
+
+In \cref{sec:quantitativeTT} we will give a quick introduction to Quantitative
+Type Theory, the expressive language that grants programmers the ability
+to have both strong invariants and, reliably, a very efficient runtime
+representation.
+
+Finally in \cref{sec:efficient}, we will study the actual implementation of
+our efficient and invariant-rich solution implemented in \idris{}. We will
+also demonstrate that we can recover almost all the conveniences of programming
+with inductive families thanks to smart constructors and views.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% imports
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \input{optimisation}
-\input{QTT}
 \input{CdB}
+\input{QTT}
 \input{efficient}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% conclusion
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Conclusion}\label{sec:conclusion}
 
