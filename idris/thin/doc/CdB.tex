@@ -1,0 +1,42 @@
+
+\section{Co-de Bruijn representation, cooked two ways}\label{sec:codebruijn}
+
+Using a de Bruijn representation~\cite{MANUAL:journals/math/debruijn72} each variable
+points to the binder that introduced it. In a co-de Bruijn
+representation~\cite{DBLP:journals/corr/abs-1807-04085} each subterm
+selects exactly the variables that stay in scope for that term,
+and so a variable constructor ultimately refers to the only variable still
+in scope by the time it is reached.
+%
+This representation ensures that we know precisely what the scope of a given term
+currently is.
+
+We can recover terms living in arbitrary scopes by pairing a co-de Bruijn term
+with a thinning~\cite{MANUAL:phd/nott/Chapman09}
+embedding its tight support into the given englobing scope.
+\todo{defined CdB}
+
+\todo{application e.g. shrinking}
+
+In order to efficiently represent and traverse terms in co-de Bruijn representation,
+we need a compact encoding of thinnings and a cheap composition operator.
+\todo{example: opening an application node}
+
+The implementation of \typos~\cite{MANUAL:talk/types/Allais22} uses a co-de Bruijn
+representation internally. \todo{explain why}
+%
+The developpement of the \typos{} language highlights a glaring gap between on the
+one hand the experiments done in Agda and on the other the actual implementation
+in Haskell.
+%
+The Agda-based experiments use inductive families that make the key invariants explicit
+which helps tracking complex constraints and catches design flaws. The indices guarantee
+that we always transform the thinnings appropriately when we add or remove bound variables.
+%
+The Haskell implementation represents a thinning as a pair of integers and resorts to
+explicitly manipulating individual bits. It is not indexed and thus all the invariant
+tracking has to be done by hand. This has led to numerous and hard to diagnose bugs.
+
+\idris{} is a bootstrapped language. If we were to use such a co-deBruijn representation
+of terms as a replacement for \idris{}'s current core language we would want, and should
+be able, to have the best of both worlds: a safe and efficient representation!

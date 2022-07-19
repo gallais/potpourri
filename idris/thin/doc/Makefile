@@ -4,6 +4,10 @@ PAPER=thin
 DEPENDENCIES=\
   build/latex/robust-catch.tex \
   build/latex/view.tex \
+  build/latex/optimisation.tex \
+  build/latex/QTT.tex \
+  build/latex/CdB.tex \
+  build/latex/efficient.tex \
   build/latex/${PAPER}.tex \
   build/latex/${PAPER}.bib \
   build/latex/Lookup.idr.tex \

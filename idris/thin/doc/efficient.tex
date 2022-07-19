@@ -1,0 +1,228 @@
+
+\section{An Efficient Invariant-Rich Representation}\label{sec:efficient}
+
+We can combine both approaches by defining a record parameterised by a source
+(\IdrisBound{sx}) and target (\IdrisBound{sy}) scopes corresponding to the two
+ends of the thinnings, just like we would for the inductive family. This record
+packs two numbers and a runtime irrelevant proof.
+%
+Firstly, we have a natural number called \IdrisFunction{bigEnd} corresponding
+to the size of the big end of the thinning (\IdrisBound{sy}),
+%
+Secondly, we have an integer called \IdrisFunction{encoding} corresponding to
+the thinning represented as a bit vector stating, for each variable, whether
+it is kept or dropped. We only care about the integer's \IdrisFunction{bigEnd}
+first bits and assume the rest is set to 0.
+%
+Thirdly, we have a runtime irrelevant proof \IdrisFunction{thinning} that
+\IdrisFunction{encoding} is indeed a valid encoding of size \IdrisFunction{bigEnd}
+of a thinning from \IdrisBound{sx} to \IdrisBound{sy}. We will explore the
+definition of the relation \IdrisType{Thinning} in a later section.
+
+\ExecuteMetaData[Thin.idr.tex]{thin}
+
+The first sign that this definition is adequate is our ability to construct
+any valid thinning. We demonstrate it is the case by introducing functions
+that act as smart constructor analogues for the inductive family's data
+constructors.
+
+\subsection{Smart Constructors for \IdrisType{Th}}
+
+The first and simplest one is \IdrisFunction{done}, a function that packs a pair of
+\IdrisData{0} (the size of the big end, and the empty encoding) together with a proof
+that it is an adequate encoding of the thinning from the empty scope to itself.
+
+\ExecuteMetaData[Thin.idr.tex]{done}
+
+The \IdrisFunction{keep} smart constructor demonstrates that from a thinning from
+\IdrisBound{sx} to \IdrisBound{sy} and a runtime irrelevant variable \IdrisBound{x}
+we can compute a thinning from the extended source scope
+(\IdrisBound{sx} \IdrisData{:<} \IdrisBound{x}) to the target scope
+(\IdrisBound{sy} \IdrisData{:<} \IdrisBound{x}) where \IdrisBound{x} was kept.
+
+\ExecuteMetaData[Thin.idr.tex]{keep}
+
+Similarly the \IdrisFunction{drop} function demonstrates that we can compute a
+thinning getting rid of the variable \IdrisBound{x} freshly added to the target
+scope.
+
+\ExecuteMetaData[Thin.idr.tex]{drop}
+
+We can already deploy these smart constructors to implement functions producing
+thinnings. We use \IdrisFunction{which} as our example. It is a filter-like
+function that returns the elements that satisfy a boolean predicate together with
+a proof that there is a thinning embedding them back into the input snoclist.
+%
+If the input snoclist is empty then the output shall also be, and
+\IdrisFunction{done} builds a thinning from \IdrisData{[<]} to itself.
+%
+If it is not empty we can perform a recursive call on the tail of the snoclist
+and then depending on whether the predicates holds true of the head we can either
+\IdrisFunction{keep} or \IdrisFunction{drop} it.
+
+\ExecuteMetaData[Thin.idr.tex]{which}
+
+We are now equipped with these smart constructors that allow us to seamlessly
+build thinnings.
+%
+To recover the full expressive power of the inductive family, we also need to
+be able to take these thinnings apart. This is the role played by the following
+view~\cite{DBLP:journals/jfp/McBrideM04}.
+
+\subsection{Pattern Matching on \IdrisType{Th}}
+
+A view for a type $T$ is, in the sense of McBride and McKinna, an inductive family
+$V$ indexed by $T$ together with a total function which maps every element $t$ of $T$
+to a value of type ($V t$).
+%
+This simple gadget provides a powerful, user-extensible, generalisation of
+pattern-matching.
+%
+Patterns are defined inductively as either a binding position, a forced term
+(i.e. an arbitrary expression that is determined by a constraint arising from
+another pattern), or a data constructor fully applied to subpatterns.
+%
+In contrast, the return indices of an inductive family's constructors can be
+arbitrary expressions.
+
+\subsubsection{A simple example of a view}
+
+For instance, it is trivial to check whether a (\IdrisType{List} \IdrisBound{a})
+is empty or constructed from a head and a tail.
+%
+In the first case, we would use the constructor \IdrisData{Nil} which is a valid
+pattern according to our above definition.
+%
+In the seconc case, we would use the constructor \IdrisData{(::)} applied to the
+variables \IdrisBound{head} and \IdrisBound{tail} acting as binding sites, thus
+forming another valid pattern.
+%
+But it is impossible to look at the list from its end: the expression
+(\IdrisBound{xs} \IdrisFunction{++} \IdrisData{[}\IdrisBound{x}\IdrisData{]})
+does not fall in the pattern fragment because it mentions the function (\IdrisFunction{++}).
+But we can define a view showing what it means to have this shape.
+
+\ExecuteMetaData[Snoc.idr.tex]{AsSnoc}
+
+We call this inductive family \IdrisType{AsSnoc} because it allows us to get
+a handle on the input list as if it were a \IdrisType{Snoclist}. If the list is
+empty then it corresponds to an empty snoclist (constructor \IdrisData{Lin})
+but if it is non-empty, we get our hands on the initial segment \IdrisBound{xs},
+the last element \IdrisBound{x} and a proof that the list is indeed
+(\IdrisBound{xs} \IdrisFunction{++} \IdrisData{[}\IdrisBound{x}\IdrisData{]}).
+%
+We can finish the view definition by implementing the function \IdrisFunction{asSnoc}
+that shows that every list \IdrisBound{xs} can be taken apart in an \IdrisType{AsSnoc}
+manner.
+
+\ExecuteMetaData[Snoc.idr.tex]{asSnoc}
+
+Note that compared to a function returning a value of type
+{\IdrisType{Maybe} (\IdrisType{List} \IdrisBound{a}\IdrisType{,} \IdrisBound{a})},
+we have here the guarantee that the result actually reflects the structure of the
+input list.
+
+We can now use the view to pattern-match on the list from its end almost as
+seamlessly as we can match on its head as is demonstrated by the following
+comparison between \IdrisFunction{head} and \IdrisFunction{last}.
+%
+We have left an empty line in the definition of the former to line up each
+equation with the matching one in the latter.
+
+\begin{minipage}[t]{0.45\textwidth}
+\ExecuteMetaData[Snoc.idr.tex]{head}
+\end{minipage}
+\begin{minipage}[t]{0.55\textwidth}
+\ExecuteMetaData[Snoc.idr.tex]{last}
+\end{minipage}
+
+Our goal is to define a view for \IdrisType{Th} that demonstrates
+that any thinning has been built using one of the three smart
+constructors introduced in the previous section.
+
+\subsubsection{A View for \IdrisType{Th}}
+
+The \IdrisType{View} family is a sum type indexed by a thinning. It has one
+data constructor associated to each smart constructor and storing its arguments.
+
+\ExecuteMetaData[Thin.idr.tex]{view}
+
+The accompanying \IdrisFunction{view} function witnesses the fact that any
+thinning arises as one of these three cases.
+
+\ExecuteMetaData[Thin.idr.tex]{viewtotal}
+
+We can readily use this function to implement pattern matching functions taking
+a thinning apart. We can for instance define \IdrisFunction{kept}, the function
+that counts the number of \IdrisFunction{keep} smart constructors used when
+manufacturing the input thinning and returns a proof that this is exactly the
+length of the source scope \IdrisBound{sx}.
+
+\ExecuteMetaData[Thin.idr.tex]{kept}
+
+We proceed by calling the \IdrisFunction{view} function on the input thinning
+which immediately tells us that we only have three cases to consider.
+%
+The \IdrisData{Done} case is easily handled because the branche's refined
+types inform us that both \IdrisBound{sx} and \IdrisBound{sy} are the
+empty snoclist \IdrisData{[<]} whose length is evidently \IdrisData{0}.
+%
+In the \IdrisData{Keep} branch we learn that \IdrisBound{sx} has the shape
+(\IdrisBound{\KatlaUnderscore} \IdrisData{:<} \IdrisBound{x}) and so we must return the
+successor of whatever the result of the recursive call gives us.
+%
+Finally in the \IdrisData{Drop} case, \IdrisBound{sx} is untouched and so a
+simple recursive call suffices.
+%
+Note that the function is correctly detected as total because the target scope
+\IdrisBound{sy} is indeed getting structurally smaller at every single recursive
+call.
+%
+It is runtime irrelevant but it can still be successfully used as a termination
+measure by the compiler.
+
+\subsection{The \IdrisType{Thinning} Relation}
+
+\ExecuteMetaData[Thin/Internal.idr.tex]{thinning}
+
+\subsection{Choose Your Own Abstraction Level}
+
+Access to both the high-level \IdrisType{View} and the internal \IdrisType{Thinning}
+representation means that programmers can pick the level of abstraction at which they
+want to work.
+%
+They may need to explicitly manipulate bits to implement key operators that are used
+in performance-critical paths but can stay at the highest level for more negligible
+operations, or proofs.
+
+\todo{Insert example e.g. meet and its proof!}
+
+\subsection{Compiled Code}
+
+The following code block shows the javascript code that is produced when compiling the
+\IdrisFunction{view} function.
+%
+The only modifications we have performed are manually inlining a function
+corresponding to a \IdrisKeyword{case} block, renaming variables and propery names
+to match the source code, and introducing the \texttt{\$tail} definitions to make
+lines shorter.
+
+\input{view}
+
+Readers can see that the compilation process has erased all of the indices
+and the proofs
+showing that the invariant tying the efficient runtime representation to the
+high-level specification is maintained.
+%
+A thinning is represented at runtime by a javascript object with two properties
+corresponding to \IdrisType{Th}'s runtime relevant fields. Both are storing a
+javascript \texttt{bigInt} (one corresponding to the \IdrisType{Nat}, the other
+to the \IdrisType{Integer}).
+%
+For instance the thinning [01101] would be at runtime
+\mintinline{javascript}{{ bigEnd: 5n, encoding: 13n }}.
+%
+
+By running \IdrisFunction{view} on this [01101] thinning, we would get
+back (\IdrisData{Keep} [0110]), that is to say
+\mintinline{javascript}{{ tag: 1, val: { bigEnd: 4n, encoding: 6n } }}.

@@ -1,0 +1,67 @@
+
+\section{Quantitative Type Theory}\label{sec:quantitativeTT}
+
+Quantitative Type Theory is a type theory enriched with a semiring of quantities
+classifying the ways in which values may be used.
+
+\subsection{Quantities}
+
+A value may be \emph{runtime irrelevant}, \emph{linear}, or \emph{unrestricted}.
+
+\emph{Runtime irrelevant} values (\IdrisKeyword{0} quantity) cannot possibly influence
+control flow.
+%
+This forces the language to impose strong restrictions on pattern-matching over these
+values.
+%
+Typical examples are types like the \IdrisBound{a} parameter in (\IdrisType{List} \IdrisBound{a}),
+or indices like the natural number \IdrisBound{n} in
+(\IdrisType{Vect} \IdrisBound{n} \IdrisBound{a}).
+%
+These are guaranteed to be erased at compile time. The advantage over a Tejiščák-style
+analysis is that users can state their intent that an argument ought to be runtime
+irrelevant and the language will insist that it needs to be convinced it indeed is.
+
+\emph{Linear} values (\IdrisKeyword{1} quantity) have to be used exactly once.
+%
+Typical examples include the \IdrisData{\%World} token used by \idris{} to implement the
+\IdrisType{IO} monad à la Haskell, or file handles that cannot be discarded without explicitly
+closing the file.
+%
+At runtime these values can be updated destructively. We will not use linearity in this study.
+
+Last, \emph{unrestricted} values (denoted by no quantity annotation) can flow into any
+position, be duplicated or thrown away. They are the usual values of functional programming.
+
+\subsection{Examples}
+
+The most basic of examples is the identity function.
+
+\ExecuteMetaData[QuantitativeTT.idr.tex]{identity}
+
+Its type starts with a binder using curly braces. This means it introduces an implicit
+variable that does not need to be filled in by the user at call sites and will be
+reconstructed by unification. The variable it introduces is named \IdrisBound{a} and
+has type \IdrisType{Type}. It has the \IdrisKeyword{0} quantity annotation which means
+that this argument is runtime irrelevant and so will be erased during compilation.
+
+The second binder is using parentheses. It introduces an explicit variable whose name
+is \IdrisBound{x} and whose type is the type \IdrisBound{a} that was just bound. It has
+no quantity annotation which means it will be an unrestricted variable.
+
+Finally the return type is the type \IdrisBound{a} bound earlier. This is, as expected,
+a polymorphic function from \IdrisBound{a} to \IdrisBound{a}. It is implemented using
+a single clause that binds \IdrisBound{x} on the left-hand side and immediately returns
+it on the right-hand side.
+
+
+If we were to try to annotate the binder for \IdrisBound{x} with a \IdrisKeyword{0}
+quantity to make it runtime irrelevant then \idris{} would
+rightfully reject the definition.
+%
+The following \IdrisKeyword{failing} block shows part of the error message complaining
+that \IdrisBound{x} cannot be used at an unrestricted quantity on the right-hand side.
+
+\ExecuteMetaData[QuantitativeTT.idr.tex]{invalididentity}
+
+%\ExecuteMetaData[QuantitativeTT.idr.tex]{vect}
