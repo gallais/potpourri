@@ -6,6 +6,7 @@
 \usepackage{idris2}
 
 \usepackage{minted}
+\usepackage{cleveref}
 
 \usepackage{todonotes}
 \setuptodonotes{inline}
@@ -48,14 +49,27 @@ The constrained inputs allow them to only consider the relevant cases during pat
 matching, while the refined outputs guarantee that client code can safely rely on the
 invariants being maintained.
 %
-These programming style is dubbed `correct by construction'.
+This programming style is dubbed `correct by construction'.
 
 However relying on inductive families can have a non-negligible runtime cost if
 the host language is compiling them naïvely. And even state of the art optimisation
 passes for dependently typed languages cannot make miracles: if the source code is
 not efficient, the executable will not be either.
 
-\subsection{An Optimisation Example}
+In this case study, we will look at an optimisation example
+(\cref{sec:optimisation-example}) that highlights both
+the strengths and the limitations of the current state of the art when it comes to
+removing the runtime overheads potentially incurred by using inductive families.
+%
+We will then introduce Quantitative Type Theory (\cref{sec:quantitativeTT}), the
+expressive language that allows us to go even further by giving the programmer
+the ability to have both strong invariants and a very efficient runtime representation.
+%
+\cref{sec:codebruijn}
+%
+\cref{sec:efficient}
+
+\section{An Optimisation Example}\label{sec:optimisation-example}
 
 The prototypical examples of the naïve compilation of inductive families being
 inefficient are probably the types of vectors (\IdrisType{Vect})
@@ -124,6 +138,8 @@ extensive work on erasure to automatically detect redundant
 data~\cite{DBLP:conf/types/BradyMM03} or data that will not be used at
 runtime~\cite{DBLP:journals/pacmpl/Tejiscak20}.
 
+\subsection{Optimising \IdrisType{Vect}, \IdrisType{Fin}, and \IdrisFunction{lookup}}
+
 A Brady-style analysis~\cite{DBLP:conf/types/BradyMM03}
 can solve the quadratic blowup highlighted above by observing
 that the natural number a vector is indexed by is entirely determined by the spine of
@@ -189,7 +205,7 @@ runtime relevant information encoded in the low-level and efficient representati
 as an information-rich compile time data structure. Moreover the quantity annotations
 guarantee that this additional information will be erased away during compilation.
 
-\section{Quantitative Type Theory}
+\section{Quantitative Type Theory}\label{sec:quantitativeTT}
 
 Quantitative Type Theory is a type theory enriched with a semiring of quantities
 classifying the ways in which values may be used.
@@ -256,7 +272,7 @@ that \IdrisBound{x} cannot be used at an unrestricted quantity on the right-hand
 
 %\ExecuteMetaData[QuantitativeTT.idr.tex]{vect}
 
-\section{Co-de Bruijn representation, cooked two ways}
+\section{Co-de Bruijn representation, cooked two ways}\label{sec:codebruijn}
 
 Using a de Bruijn representation~\cite{MANUAL:journals/math/debruijn72} each variable
 points to the binder that introduced it. In a co-de Bruijn
@@ -269,7 +285,8 @@ This representation ensures that we know precisely what the scope of a given ter
 currently is.
 
 We can recover terms living in arbitrary scopes by pairing a co-de Bruijn term
-with a thinning embedding its tight support into the given englobing scope.
+with a thinning~\cite{MANUAL:phd/nott/Chapman09}
+embedding its tight support into the given englobing scope.
 \todo{defined CdB}
 
 \todo{application e.g. shrinking}
@@ -297,7 +314,7 @@ tracking has to be done by hand. This has led to numerous and hard to diagnose b
 of terms as a replacement for \idris{}'s current core language we would want, and should
 be able, to have the best of both worlds: a safe and efficient representation!
 
-\section{An Efficient Invariant-Rich Representation}
+\section{An Efficient Invariant-Rich Representation}\label{sec:efficient}
 
 We can combine both approaches by defining a record parameterised by a source
 (\IdrisBound{sx}) and target (\IdrisBound{sy}) scopes corresponding to the two
@@ -525,7 +542,7 @@ By running \IdrisFunction{view} on this [01101] thinning, we would get
 back (\IdrisData{Keep} [0110]), that is to say
 \mintinline{javascript}{{ tag: 1, val: { bigEnd: 4n, encoding: 6n } }}.
 
-\section{Conclusion}
+\section{Conclusion}\label{sec:conclusion}
 
 We have seen that inductive families provide programmers with ways to root out bugs
 by enforcing strong invariants. Unfortunately these families can get in the way of
