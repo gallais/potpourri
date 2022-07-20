@@ -1,13 +1,59 @@
 \section{Co-de Bruijn representation, cooked two ways}\label{sec:codebruijn}
 
+We experienced one such limitation during the development of
+\typos~\cite{MANUAL:talk/types/Allais22}, a domain specific language
+to define typecheckers and elaborators.
+%
+Core to this project is the definition of actors manipulating terms
+
+uses a co-de Bruijn
+representation internally. \todo{explain why}
+
+
+\subsection{Named, de Bruijn, and co-de Bruijn syntaxes}
+
+In this section we will use the $S$ combinator as a running example and represent
+terms using a syntax tree whose constructor nodes are circles and variable nodes
+are squares.
+%
+To depict the $S$ combinator we will only need $\lambda{}$-abstraction and
+application (rendered \$) nodes. A constructor's arguments become its children
+in the tree and they are layed out top-to-bottom.
+
+The first representation is using explicit names. Each binder has an associated
+name and each variable node carries a name. It refers to the closest englobing
+binder which happens to be using the same name.
+
 \ExecuteMetaData[ast.tex]{named}
 
-Using a de Bruijn representation~\cite{MANUAL:journals/math/debruijn72} each
-variable points to the binder that introduced it. Variables are finite numbers
-(in the sense of \IdrisType{Fin}) counting the numbers of binders that separate
-the variable from its binding site.
+To check whether two terms are structurally equivalent (\emph{$\alpha$-equivalence})
+potentially requires renaming bound names.
+%
+In order to have a simple and cheap $\alpha$-equivalence check we can instead opt
+for a nameless representation.
+
+An abstract syntax tree based on de Bruijn indices~\cite{MANUAL:journals/math/debruijn72}
+replaces names with natural numbers counting the number of binders separating a variable
+from its binding site.
+%
+You can see in the following graphical depiction of the $S$ combinator that
+$\lambda$-abstractions do not carry a name and that variables are simply pointing
+to the binder that introduced them. We have left the squares empty but in practice
+the various coloured arrows would be represented by a natural number.
+%
+For instance the {\color{magenta}magenta} one corresponds to $1$ because you need
+to ignore one $\lambda{}$-abstraction on your way towards the root of the tree
+before your reach the corresponding magenta binder.
 
 \ExecuteMetaData[ast.tex]{debruijn}
+
+To check whether a subterm does not mention a given variable (\emph{thickening}
+test, the opposite of \emph{thinning} which extends the current scope with unused
+variables), you need to traverse it in its entirety.
+%
+In order to have a simple and cheap thickening test we can ensure that each subterms
+knows precisely what its precise scope (i.e. its \emph{support}) is and how it embeds
+in its parent's.
 
 In a co-de Bruijn
 representation~\cite{DBLP:journals/corr/abs-1807-04085} each subterm
@@ -18,13 +64,26 @@ in scope by the time it is reached.
 This representation ensures that we know precisely what the scope of a given term
 currently is.
 
+In the following graphical rendering, we represent thinnings as lists of full
+($\bullet$) or empty ($\circ$) discs depending on whether the corresponding
+variable is either kept or discarded.
+For instance the thinning represented by
+$\color{blue}{\circ}\color{magenta}{\bullet}\color{orange}{\bullet}$
+throws the {\color{blue}blue} variable away, and keeps both the
+{\color{magenta}magenta} and {\color{orange}orange} ones.
+
 \ExecuteMetaData[ast.tex]{codebruijn}
 
+We can see that in such a representation, each node in the tree stores one
+thinning per subterm. This will not be tractable unless we have an efficient
+representation of thinnings.
 
 We can recover terms living in arbitrary scopes by pairing a co-de Bruijn term
 with a thinning~\cite{MANUAL:phd/nott/Chapman09}
 embedding its tight support into the given englobing scope.
 \todo{defined CdB}
+
+\subsection{The Performance Challenges of co-de Bruijn}
 
 \todo{application e.g. shrinking}
 
