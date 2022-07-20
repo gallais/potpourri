@@ -50,4 +50,5 @@ paper: $(DEPENDENCIES)
 
 clean:
 	rm -r build/latex
+	rm -r build/ttc
 	rm -f *~
