@@ -13,6 +13,7 @@ DEPENDENCIES=\
   build/latex/${PAPER}.tex \
   build/latex/${PAPER}.bib \
   build/latex/Lookup.idr.tex \
+  build/latex/Thinnings.idr.tex \
   build/latex/QuantitativeTT.idr.tex \
   build/latex/Snoc.idr.tex \
   build/latex/Example.idr.tex \
