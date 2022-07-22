@@ -66,12 +66,12 @@ We are now equipped with these smart constructors that allow us to seamlessly
 build thinnings.
 %
 To recover the full expressive power of the inductive family, we also need to
-be able to take these thinnings apart. This is the role played by the following
-view~\cite{DBLP:journals/jfp/McBrideM04}.
+be able to take these thinnings apart. We are now going to tackle this issue.
 
 \subsection{Pattern Matching on \IdrisType{Th}}
 
-A view for a type $T$ is, in the sense of McBride and McKinna, an inductive family
+A view for a type $T$ is, in the sense of McBride and
+McKinna~\cite{DBLP:journals/jfp/McBrideM04}, an inductive family
 $V$ indexed by $T$ together with a total function which maps every element $t$ of $T$
 to a value of type ($V t$).
 %
@@ -117,22 +117,54 @@ manner.
 
 \ExecuteMetaData[Snoc.idr.tex]{asSnoc}
 
+The interesting case is the one where the input list is non-empty.
+%
+Using the \IdrisKeyword{with} keyword we can locally modify the function
+definition to have it take an extra argument, here the recursive call to
+(\IdrisFunction{asSnoc} \IdrisBound{xs})).
+%
+Correspondingly, we locally extend the pattern-matching definition with
+an additional pattern on the left-hand side of the indented with-clauses.
+%
+By matching on the result of the recursive call, we get to learn about the
+structure of the tail. This is precisely the power of views.
+
+In the clause with the pattern \IdrisData{[<]}, we learn that \IdrisBound{xs} is empty
+(hence the \emph{forced} pattern denoted by a full stop
+\IdrisKeyword{.(}\IdrisData{[]}\IdrisKeyword{)} that replaces \IdrisBound{xs})
+and therefore \IdrisBound{x} is the last element.
+%
+We can return (\IdrisData{[]} \IdrisData{:<} \IdrisBound{x}) whose index is
+(\IdrisData{[]} \IdrisFunction{++} \IdrisData{[}\IdrisBound{x}\IdrisData{]})
+which computes to \IdrisData{[}\IdrisBound{x}\IdrisData{]}.
+
+%
+In the clause with the pattern (\IdrisBound{ys} \IdrisData{:<} \IdrisBound{y}), we learn
+that \IdrisBound{xs} has the shape (\IdrisBound{ys} \IdrisFunction{++} \IdrisBound{y})
+which would not be a valid pattern where it not forced.
+%
+We can conclude by pushing \IdrisBound{x} back onto \IdrisBound{ys}.
+
 Note that compared to a function returning a value of type
 {\IdrisType{Maybe} (\IdrisType{List} \IdrisBound{a}\IdrisType{,} \IdrisBound{a})},
 we have here the guarantee that the result actually reflects the structure of the
 input list.
+%
+For instance, if we had tried to return \IdrisData{Lin} instead of
+(\IdrisData{[]} \IdrisData{:<} \IdrisBound{x}) in the singleton list case,
+the program would not have typechecked.
 
 We can now use the view to pattern-match on the list from its end almost as
 seamlessly as we can match on its head as is demonstrated by the following
-comparison between \IdrisFunction{head} and \IdrisFunction{last}.
+comparison between \IdrisFunction{first} and \IdrisFunction{last}.
 %
 We have left an empty line in the definition of the former to line up each
 equation with the matching one in the latter.
 
-\begin{minipage}[t]{0.45\textwidth}
-\ExecuteMetaData[Snoc.idr.tex]{head}
+\begin{minipage}[t]{0.5\textwidth}
+\ExecuteMetaData[Snoc.idr.tex]{first}
 \end{minipage}
-\begin{minipage}[t]{0.55\textwidth}
+\begin{minipage}[t]{0.5\textwidth}
 \ExecuteMetaData[Snoc.idr.tex]{last}
 \end{minipage}
 

@@ -11,25 +11,25 @@ data AsSnoc : List a -> Type where
 asSnoc : (xs : List a) -> AsSnoc xs
 asSnoc [] = [<]
 asSnoc (x :: xs) with (asSnoc xs)
-  asSnoc (x :: [])          | [<] = [] :< x
-  asSnoc (x :: (ys ++ [y])) | ys :< y = (x :: ys) :< y
+  asSnoc (x :: .([]))        | [<] = [] :< x
+  asSnoc (x :: .(ys ++ [y])) | ys :< y = (x :: ys) :< y
 \end{code}
 %</asSnoc>
 
-%<*head>
+%<*first>
 \begin{code}
-head : List a -> Maybe a
+first : List a -> Maybe a
 
-head [] = Nothing
-head (x :: _) = Just x
+first [] = Nothing
+first (x :: _) = Just x
 \end{code}
-%</head>
+%</first>
 
 %<*last>
 \begin{code}
 last : List a -> Maybe a
-last xs with (asSnoc xs)
-  last _ | [<] = Nothing
-  last _ | (_ :< x) = Just x
+last xs@_ with (asSnoc xs)
+  _ | [<] = Nothing
+  _ | (_ :< x) = Just x
 \end{code}
 %</last>
