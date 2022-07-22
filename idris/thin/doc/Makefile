@@ -1,4 +1,5 @@
-.PHONY=paper
+.PRECIOUS: build/ttc/%.ttm build/ttc/%.ttc
+.PHONY: paper
 
 PAPER=thin
 DEPENDENCIES=\
@@ -22,10 +23,10 @@ DEPENDENCIES=\
 
 all: paper
 
-build/ttc/%.ttm: %.tex
+build/ttc/%.ttm build/ttc/%.ttc: %.tex
 	idris2 -p contrib -c $^
 
-build/latex/%.idr.tex: %.tex build/ttc/%.ttm
+build/latex/%.idr.tex: %.tex build/ttc/%.ttm build/ttc/%.ttc
 	mkdir -p $(basename $@)
 	katla literate $*.tex build/ttc/$*.ttm > $@
 
