@@ -181,6 +181,12 @@ data constructor associated to each smart constructor and storing its arguments.
 
 The accompanying \IdrisFunction{view} function witnesses the fact that any
 thinning arises as one of these three cases.
+%
+We leave out the slightly technical definition of \IdrisFunction{view}, the
+interested reader can find it in the accompanying material.
+%
+We will however discuss the code it compiles to after erasure in
+\cref{sec:compiledview}.
 
 \ExecuteMetaData[Thin.idr.tex]{viewtotal}
 
@@ -229,15 +235,20 @@ operations, or proofs.
 
 \todo{Insert example e.g. meet and its proof!}
 
-\subsection{Compiled Code}
+\subsection{Compiled Code}\label{sec:compiledview}
 
 The following code block shows the javascript code that is produced when compiling the
-\IdrisFunction{view} function.
+\IdrisFunction{view} function. We chose to use the javascript backend rather than e.g.
+the chezscheme one because it produces fairly readable code.
 %
-The only modifications we have performed are manually inlining a function
-corresponding to a \IdrisKeyword{case} block, renaming variables and propery names
-to match the source code, and introducing the \texttt{\$tail} definitions to make
-lines shorter.
+We have modified the backend to also write comments reminding the reader of the type
+of the function being defined and the data constructors the natural number tags
+correspond to.
+
+The only manual modifications we have performed are the inlining of a function
+corresponding to a \IdrisKeyword{case} block, renaming variables and property names
+to make them human-readable, introducing the \texttt{\$tail} definitions to make
+lines shorter, and slightly changing the layout.
 
 \input{view}
 
@@ -247,14 +258,36 @@ showing that the invariant tying the efficient runtime representation to the
 high-level specification is maintained.
 %
 A thinning is represented at runtime by a javascript object with two properties
-corresponding to \IdrisType{Th}'s runtime relevant fields. Both are storing a
-javascript \texttt{bigInt} (one corresponding to the \IdrisType{Nat}, the other
-to the \IdrisType{Integer}).
+corresponding to \IdrisType{Th}'s runtime relevant fields: \IdrisFunction{bigEnd}
+and \IdrisFunction{encoding}.
+%
+Both are storing a javascript \texttt{bigInt} (one corresponding to the
+\IdrisType{Nat}, the other to the \IdrisType{Integer}).
 %
 For instance the thinning [01101] would be at runtime
 \mintinline{javascript}{{ bigEnd: 5n, encoding: 13n }}.
 %
 
+The view proceeds in two steps. First if the \texttt{bigEnd} is \texttt{0n}
+then we know the thinning is empty and can immediately return the \IdrisData{Done}
+constructor.
+%
+Otherwise we know the thinning to be non-empty and so we can compute the big end
+of its tail (\texttt{\$predBE}) by subtracting one to the non-zero \texttt{bigEnd}.
+We can then inspect the bit at position \texttt{0} to decide whether to return a
+\IdrisData{Keep} or a \IdrisData{Drop} constructor. This is performed by using a
+bit mask to 0-out all the other bits (\texttt{\$th.bigEnd\&1n}) and checking whether
+the result is zero.
+%
+If it is not equal to 0 then we emit \IdrisData{Keep} and compute the \texttt{\$tail}
+of the thinning by shifting the original encoding to drop the 0th-index. Otherwise we
+emit \IdrisData{Drop} and compute the same tail.
+
 By running \IdrisFunction{view} on this [01101] thinning, we would get
 back (\IdrisData{Keep} [0110]), that is to say
 \mintinline{javascript}{{ tag: 1, val: { bigEnd: 4n, encoding: 6n } }}.
+
+Thanks to \idris{}'s implementation of Quantitative Type Theory we have managed
+to manufacture a high level representation that can be manipulated like a classic
+inductive family using smart constructors and views without giving up an inch of
+control on its runtime representation.
