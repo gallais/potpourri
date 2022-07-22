@@ -221,7 +221,57 @@ measure by the compiler.
 
 \subsection{The \IdrisType{Thinning} Relation}
 
+We have shown the user-facing \IdrisType{Th} and have claimed that it is possible
+to define smart constructors \IdrisFunction{done}, \IdrisFunction{keep},
+and \IdrisFunction{drop}, as well as a \IdrisFunction{view} function.
+%
+This should become apparent once we show the actual definition of \IdrisType{Thinning}.
+%
+The relation maintains the invariant between the record's
+fields \IdrisFunction{bigEnd} (a \IdrisType{Nat})
+and \IdrisFunction{encoding} (an \IdrisType{Integer})
+and the index scopes \IdrisBound{sx} and \IdrisBound{sy}.
+
+As always, the \IdrisData{Done} constructor is the simplest.
+%
+It states that the thinning of size \IdrisData{Z} and encoded as the bit
+pattern \IdrisData{0} is the empty thinning.
+
+The \IdrisData{Keep} constructor guarantees that the thinning of
+size (\IdrisData{S} \IdrisBound{i}) and encoding \IdrisBound{bs}
+represents an injection
+from (\IdrisBound{sx} \IdrisData{:<} \IdrisBound{x})
+to (\IdrisBound{sy} \IdrisData{:<} \IdrisBound{x})
+provided that the bit at position \IdrisData{Z} of \IdrisBound{bs}
+is set, and that the rest of the bit pattern (obtained by a right shift
+on \IdrisBound{bs}) is a valid thinning of size \IdrisBound{i} from
+\IdrisBound{sx} to \IdrisBound{y}.
+
+The \IdrisData{Drop} constructor is structured the same way, except that
+it insists the bit at position \IdrisData{Z} should \emph{not} be set.
+
 \ExecuteMetaData[Thin/Internal.idr.tex]{thinning}
+
+This relation has a lot of convenient properties.
+
+First, it is proof irrelevant: any two proofs that the same
+\IdrisBound{i}, \IdrisBound{bs}, \IdrisBound{sx}, and \IdrisBound{sy} are
+related are provably equal.
+%
+Correspondingly, equality on \IdrisType{Th} values amounts to equality of
+the \IdrisFunction{bigEnd} and \IdrisFunction{encoding} values. In particular
+it is cheap to test whether a given thinning is the empty or the
+identity thinning.
+
+Second, it can be inverted~\cite{DBLP:conf/types/CornesT95} knowing only two bits:
+whether the natural number is empty and what the value of the bit at position
+\IdrisData{Z} of the encoding is.
+%
+This means that \IdrisFunction{view} can be efficiently implemented by using
+these two checks and then inverting the \IdrisType{Thinning} proof to gain access
+to the proof that the remainder of the thinning's encoding is valid.
+
+\todo{show an example of op?}
 
 \subsection{Choose Your Own Abstraction Level}
 
