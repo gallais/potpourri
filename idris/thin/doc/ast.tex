@@ -93,3 +93,35 @@
 \draw [->] (8.2,-1.22) to [out=-45,in=180] node[below]{$\color{magenta}{\circ}\color{orange}{\bullet}$} (9.7,-1.5);
 \end{tikzpicture}
 %</codebruijn>
+
+%<*opening>
+\begin{tikzpicture}
+\draw (0,0)     circle (.3cm) node[align=center] {\$};
+\draw (2.5,.75)   node[draw,dashed,regular polygon, regular polygon sides=3, shape border rotate=90]{$t_1$};
+\draw (2.5,-.75)  node[draw,dashed,regular polygon, regular polygon sides=3, shape border rotate=90]{$t_2$};
+
+\draw (-1,0)
+  node[align=center]{$\color{blue}{\bullet}\color{orange}{\circ}\color{magenta}{\bullet}\color{teal}{\bullet}\color{lightgray}{\bullet}$} (1.7,1.5);
+\draw [->] (.2,.22)  to [out=45,in=180]
+  node[above]{$\color{blue}{\bullet}\color{magenta}{\circ}\color{teal}{\bullet}\color{lightgray}{\circ}$}
+  (1.77,.75);
+\draw [->] (.2,-.22) to [out=-45,in=180]
+  node[below]{$\color{blue}{\bullet}\color{magenta}{\circ}\color{teal}{\bullet}\color{lightgray}{\bullet}$}
+  (1.77,-.75);
+\end{tikzpicture}
+%</opening>
+
+%<*opened>
+\begin{tikzpicture}
+\draw (0,0)       node[draw,diamond,align=center] {\$};
+\draw (2.5,.75)   node[draw,dashed,regular polygon, regular polygon sides=3, shape border rotate=90]{$t_1$};
+\draw (2.5,-.75)  node[draw,dashed,regular polygon, regular polygon sides=3, shape border rotate=90]{$t_2$};
+
+\draw [->] (.23,.23)  to [out=45,in=180]
+  node[above]{$\color{blue}{\bullet}\color{orange}{\circ}\color{magenta}{\circ}\color{teal}{\bullet}\color{lightgray}{\circ}$}
+  (1.77,.75);
+\draw [->] (.23,-.23) to [out=-45,in=180]
+  node[below]{$\color{blue}{\bullet}\color{orange}{\circ}\color{magenta}{\circ}\color{teal}{\bullet}\color{lightgray}{\bullet}$}
+  (1.77,-.75);
+\end{tikzpicture}
+%</opened>
