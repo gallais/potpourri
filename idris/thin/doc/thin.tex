@@ -177,19 +177,29 @@ Winterhalter~\cite{DBLP:journals/pacmpl/CockxTW21}.
 Our objectives are twofold: we would like to explore more low-level operations and
 extend language support for this style of programming.
 
-The \idris{} standard library gave us access to a pure interface to explicitly
-manipulate an integer's bits. There is no such thing yet for interacting with a
-read-only array for instance.
+The \idris{} standard library thankfully gave us access to a polished pure interface
+to explicitly manipulate an integer's bits.
+%
+However these built-in operations came with no built-in properties whatsoever.
+%
+And so we had to postulate a (minimal) set of axioms and prove a lot of useful
+corollaries ourselves.
+%
+There is even less support for other low-level operations such as reading from
+a read-only array, or manipulating pointers.
 
-
-\todo{Explain annoying inversion lemmas}
-
-Our library of efficient operations on thinnings currently suffers from having to
-implement annoyingly verbose inversion lemmas. This is caused by the fact that
-\idris{} will not let you pattern-match on a runtime irrelevant value in a runtime
-relevant context. It should however be safe to do so if all but one branches can
-be proven to be impossible, or even more generally, if the information thus obtained
-only flows into runtime irrelevant arguments.
+We also found the use of runtime irrelevance (the \IdrisKeyword{0} quantity)
+sometimes somewhat frustrating.
+%
+Pattern-matching on a runtime irrelevant value in a runtime relevant context
+is currently only possible if it is manifest for the compiler that the value
+could only arise using one of the family's constructors.
+%
+In non-trivial cases this is unfortunately only merely provable rather than
+self-evident.
+%
+Consequently we are forced to jump through hoops to appease the quantity
+checker, and end up defining complex inversion lemmas to bypass these limitations.
 
 
 \bibliography{thin}

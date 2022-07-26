@@ -87,41 +87,41 @@ We can see that in such a representation, each node in the tree stores one
 thinning per subterm. This will not be tractable unless we have an efficient
 representation of thinnings.
 
-We can recover terms living in arbitrary scopes by pairing a co-de Bruijn term
-with a thinning embedding its tight support into the given englobing scope.
-\todo{defined CdB}
+%% We can recover terms living in arbitrary scopes by pairing a co-de Bruijn term
+%% with a thinning embedding its tight support into the given englobing scope.
+%% \todo{defined CdB}
 
 \subsection{The Performance Challenges of co-de Bruijn}~\label{sec:thinningsintypos}
 
-\todo{application e.g. shrinking}
-
-In order to efficiently represent and traverse terms in co-de Bruijn representation,
-we need a compact encoding of thinnings and a cheap composition operator.
-\todo{example: opening an application node}
-
-\begin{minipage}{.45\textwidth}\center
-  \ExecuteMetaData[ast.tex]{opening}
-\end{minipage}\hfill
-\begin{minipage}{.45\textwidth}\center
-  \ExecuteMetaData[ast.tex]{opened}
-\end{minipage}
-
-As we mentioned earlier, the implementation of \typos~\cite{MANUAL:talk/types/Allais22}
-uses a co-de Bruijn representation internally.
+Having a precise handle on each term's support makes operations like thinning,
+substitution, and unification more efficient.
 %
-Having a precise handle on each term's support makes operations like substitution or
-unification more efficient.
+An arbitrary term is represented by the pairing of a term in co-de Bruijn syntax
+with a thinning from its support into the wider scope.
 %
-It allows us to avoid needlessly traversing terms e.g. to apply a substitution only
-targetting variables not present in the term, or to perform a thickening test when
-trying to solve a metavariable with a term that arose in a wider scope.
+As a consequence we do not need to traverse a term to embed it in a wider context.
+We can simply compose thinnings.
+%
+Similarly, we can easily detect when a substitution's domain does not contain any
+of the variables present in the term, and the action of the substitution is therefore
+the identity.
+%
+Finally we can perform cheap thickening tests when trying to solve a metavariable with
+a term that arose in a wider scope.
 
+For all of these reasons we have, as we mentioned earlier, opted for a co-de Bruijn
+representation in the implementation of \typos~\cite{MANUAL:talk/types/Allais22}.
+%
+And so it is crucial for performance that we have a compact representation of thinnings.
+%
 We first carefully worked out the trickier parts of the implementation in Agda before
 porting the resulting code to Haskell.
 %
 This process highlighted a glaring gap between on the one hand the experiments done
 using a strongly typed inductive representation of thinnings and on the other hand
 their more efficient but unsafe encoding in Haskell.
+
+\subsubsection{Thinnings in \typos}
 
 The Agda-based experiments use inductive families that make the key invariants
 explicit which helps tracking complex constraints and catches design flaws at
@@ -132,12 +132,20 @@ we add or remove bound variables. In \idris{}, the inductive family representati
 of thinnings would be written:
 
 \ExecuteMetaData[Thinnings.idr.tex]{thinning}
-
+%
+The \IdrisType{Thinning} family is indexed by two scopes (represented as snoclists
+i.e. lists that are extended from the right, just like contexts in inference rules):
+\IdrisBound{sx} the tighter scope and \IdrisBound{sy} the wider one.
+%
 The \IdrisData{Done} constructor corresponds to a thinning from the empty scope to
-itself, and \IdrisData{Keep} and \IdrisData{Drop} respectively extend a given thinning
+itself (\IdrisData{[<]} is \idris{} syntactic sugar for the empty snoclist),
+and \IdrisData{Keep} and \IdrisData{Drop} respectively extend a given thinning
 by keeping or dropping the most local variable.
 %
-At runtime this representation is essentially a linked list of booleans.
+The `name' (\IdrisBound{x} of type \IdrisBound{a}) is marked with the quantity
+\IdrisKeyword{0} to ensure it is erased at compile time (cf. \cref{sec:quantitativeTT}).
+%
+At runtime this representation is therefore essentially a linked list of booleans.
 
 The Haskell implementation represents a thinning as a pair of integers: one encoding
 the bit pattern corresponding to the list of booleans mentioned above, and the other
@@ -148,16 +156,25 @@ Basic operations on thinnings are implemented by explicitly manipulating individ
 It is not indexed and thus all the invariant tracking has to be done by hand.
 This has led to numerous and hard to diagnose bugs.
 
+\subsubsection{Thinnings in \idris}
+
 \idris{} is a bootstrapped language whose core datatype is currently based on
 a well-scoped de Bruijn representation.
 %
-If we were to switch to a co-deBruijn representation of terms instead we would want,
-and should be able, to have the best of both worlds: a safe \emph{and} efficient
-representation!
-%
+This precise indexing of terms by their scope helped entirely eliminate a whole
+class of bugs that would plague Idris 1's unification machinery.
+
+If we were to switch to a co-deBruijn representation for our core language we
+would want, and should be able, to have the best of both worlds:
+a safe \emph{and} efficient representation!
+
 Luckily \idris{} implements Quantitative Type Theory (QTT) which gives us a
 lot of control over what is to be runtime relevant and what is to be erased
 during compilation.
+%
+This should allow us to insist on having a high-level interface that resembles
+an inductive family while ensuring that everything but a pair of integers is erased
+at compile time.
 %
 We will first recall the key features of QTT and then study how we can use them
 to solve this conundrum.

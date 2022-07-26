@@ -5,19 +5,23 @@ We can combine both approaches by defining a record parameterised by a source
 (\IdrisBound{sx}) and target (\IdrisBound{sy}) scopes corresponding to the two
 ends of the thinnings, just like we would for the inductive family. This record
 packs two numbers and a runtime irrelevant proof.
-%
+
 Firstly, we have a natural number called \IdrisFunction{bigEnd} corresponding
-to the size of the big end of the thinning (\IdrisBound{sy}),
+to the size of the big end of the thinning (\IdrisBound{sy}).
 %
+We are happy to use a (unary) natural number here because we know that \idris{}
+will compile to an unbounded integer.
+
 Secondly, we have an integer called \IdrisFunction{encoding} corresponding to
 the thinning represented as a bit vector stating, for each variable, whether
 it is kept or dropped. We only care about the integer's \IdrisFunction{bigEnd}
 first bits and assume the rest is set to 0.
-%
+
 Thirdly, we have a runtime irrelevant proof \IdrisFunction{thinning} that
 \IdrisFunction{encoding} is indeed a valid encoding of size \IdrisFunction{bigEnd}
 of a thinning from \IdrisBound{sx} to \IdrisBound{sy}. We will explore the
-definition of the relation \IdrisType{Thinning} in a later section.
+definition of the relation \IdrisType{Thinning} later on
+in \cref{sec:thininginternal}.
 
 \ExecuteMetaData[Thin.idr.tex]{thin}
 
@@ -219,7 +223,7 @@ call.
 It is runtime irrelevant but it can still be successfully used as a termination
 measure by the compiler.
 
-\subsection{The \IdrisType{Thinning} Relation}
+\subsection{The \IdrisType{Thinning} Relation}\label{sec:thininginternal}
 
 We have shown the user-facing \IdrisType{Th} and have claimed that it is possible
 to define smart constructors \IdrisFunction{done}, \IdrisFunction{keep},
@@ -284,6 +288,30 @@ in performance-critical paths but can stay at the highest level for more negligi
 operations, or proofs.
 
 \todo{Insert example e.g. meet and its proof!}
+
+When working with co-de Bruijn terms, it is convenient to define a view where one
+`layer' of term has been opened.
+\todo{explain term layer}
+
+The following diagram shows the correspondance between an `opened' application node
+using the view (the diamond `\$' node) and its co-de Bruijn form (the circular
+`\$' node).
+
+\begin{minipage}{.45\textwidth}\center
+  \ExecuteMetaData[ast.tex]{opened}
+\end{minipage}\hfill
+\begin{minipage}{.45\textwidth}\center
+  \ExecuteMetaData[ast.tex]{opening}
+\end{minipage}
+
+The outer thinning of the co-de Bruijn term is obtained by computing the join of
+the respective outer thinnings of the application's function and argument.
+%
+This is a good example of an operation that can be implemented by induction and
+case analysis just like we would with a typical inductive family, or directly
+by taking the disjunction of the bit pattern encodings of the thinnings.
+
+\todo{include both definitions}
 
 \subsection{Compiled Code}\label{sec:compiledview}
 
