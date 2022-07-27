@@ -73,7 +73,7 @@ runtime~\cite{DBLP:journals/pacmpl/Tejiscak20}.
 A Brady-style analysis~\cite{DBLP:conf/types/BradyMM03}
 can solve the quadratic blowup highlighted above by observing
 that the natural number a vector is indexed by is entirely determined by the spine of
-the vector. In particular, the length of the predecessor does not need to be stored
+the vector. In particular, the length of the tail does not need to be stored
 as part of the constructor: it can be reconstructed as the predecessor of the length
 of the overall vector. As a consequence, a vector can be adequately represented at
 runtime by a pair of a natural number and a list. Similarly the bounded number can be
@@ -105,7 +105,11 @@ For this approach to work, the compiler needs to be able to automatically map th
 indexed family to a simpler datatype that can then be extracted to the target language.
 %
 It is particularly important here to observe that if the types have been simplified,
-they still have very much the same structure. We cannot expect much better than that.
+they still have very much the same structure.
+%
+We cannot expect much better than that e.g. a change of representation to use a
+balanced binary tree instead of a list in order to get logarithmic lookups rather
+than linear ones.
 
 \subsection{No Magic Solution}
 
@@ -119,7 +123,7 @@ In a pragmatic move, \coq{}, \agda{}, and \idris{} all have ad-hoc rules to repl
 convenient but inefficiently implemented numeric functions with asymptotically faster
 counterparts in the target language.
 
-However this is not scalable: if we may be willing to extend our trusted core to a
+However this approach is not scalable: if we may be willing to extend our trusted core to a
 high quality library for unbounded integers, we cannot possibly contemplate replacing
 our code only proven correct thanks to complex invariants with a wildly different
 untrusted counterpart purely for efficiency reasons.

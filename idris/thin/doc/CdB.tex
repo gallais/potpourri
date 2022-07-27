@@ -1,11 +1,14 @@
 \section{Thinnings, cooked two ways}\label{sec:codebruijn}
 
-We experienced one such limitation during the ongoing development of
+We experienced one such limitation of compilation of inductive families
+during the ongoing development of
 \typos~\cite{MANUAL:talk/types/Allais22}, a domain specific language
 to define concurrent typecheckers and elaborators.
 %
 Core to this project is the definition of actors manipulating a generic notion
-of syntax with binding. Internally these terms are based on a co-de Bruijn
+of syntax with binding.
+%
+Internally the terms of this syntax with binding are based on a co-de Bruijn
 representation (an encoding we will explain below) which relies heavily on
 thinnings.
 %
@@ -46,7 +49,7 @@ replaces names with natural numbers counting the number of binders separating a 
 from its binding site.
 %
 You can see in the following graphical depiction of the $S$ combinator that
-$\lambda$-abstractions do not carry a name and that variables are simply pointing
+$\lambda$-abstractions do not carry a name anymore and that variables are simply pointing
 to the binder that introduced them. We have left the squares empty but in practice
 the various coloured arrows would be represented by a natural number.
 %
@@ -140,7 +143,8 @@ i.e. lists that are extended from the right, just like contexts in inference rul
 The \IdrisData{Done} constructor corresponds to a thinning from the empty scope to
 itself (\IdrisData{[<]} is \idris{} syntactic sugar for the empty snoclist),
 and \IdrisData{Keep} and \IdrisData{Drop} respectively extend a given thinning
-by keeping or dropping the most local variable.
+by keeping or dropping the most local variable (\IdrisData{:<} is the `snoc'
+constructor, a sort of flipped `cons').
 %
 The `name' (\IdrisBound{x} of type \IdrisBound{a}) is marked with the quantity
 \IdrisKeyword{0} to ensure it is erased at compile time (cf. \cref{sec:quantitativeTT}).
