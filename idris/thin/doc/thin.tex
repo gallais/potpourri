@@ -170,8 +170,16 @@ properties of functions defined by pattern matching on the result of calling the
 \IdrisFunction{view} function.
 %
 This annoyance would disappear if we had the ability to extend \idris{}'s reduction rules
-with user-proven equations as implemented in Agda and formally studided
+with user-proven equations as implemented in Agda and formally studied
 by Cockx, Tabareau, and Winterhalter~\cite{DBLP:journals/pacmpl/CockxTW21}.
+
+In this paper's case study, we were able to design the core \IdrisType{Thinning}
+relation making the invariants explicit so that it would be proof irrelevant.
+%
+This may not always be possible given the type theory currently implemented by
+\idris{}. Adding support for a proof-irrelevant sort of propositions (see e.g.
+Altenkirch, McBride, and Swierstra's work~\cite{DBLP:conf/plpv/AltenkirchMS07})
+could solve this issue once and for all.
 
 Our objectives are twofold: we would like to explore more low-level operations and
 extend language support for this style of programming.
