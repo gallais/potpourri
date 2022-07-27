@@ -156,9 +156,16 @@ circuits and so are explicitly manipulating wires carrying bits.
 By contrast, in our motivating example we really want to get down to actual (unbounded)
 integers rather than linked lists of bits.
 
-\todo{Iris}
+\todo{IIRC Iris does pointer manipulations. What about bit masks?
+  High level invariants linking memory-mapped data to high level concepts?}
 
 \subsection{Limitations and Future Work}
+
+Overall we found this case study using \idris{}, a state of the art language
+based on Quantitative Type Theory, very encouraging.
+%
+We hope to be able to push this line of work further, tackling the following
+limitations and exploring more advanced use cases.
 
 Unfortunately it is only \emph{propositionally} true that
 (\IdrisFunction{view} (\IdrisFunction{keep} \IdrisBound{th} \IdrisBound{x}))
@@ -174,15 +181,17 @@ with user-proven equations as implemented in Agda and formally studied
 by Cockx, Tabareau, and Winterhalter~\cite{DBLP:journals/pacmpl/CockxTW21}.
 
 In this paper's case study, we were able to design the core \IdrisType{Thinning}
-relation making the invariants explicit so that it would be proof irrelevant.
+relation making the invariants explicit in such a way that it would be provably
+proof irrelevant.
 %
 This may not always be possible given the type theory currently implemented by
 \idris{}. Adding support for a proof-irrelevant sort of propositions (see e.g.
 Altenkirch, McBride, and Swierstra's work~\cite{DBLP:conf/plpv/AltenkirchMS07})
 could solve this issue once and for all.
 
-Our objectives are twofold: we would like to explore more low-level operations and
-extend language support for this style of programming.
+Our objectives with this work and that to come are twofold: we would like to
+explore more memory-mapped representations equipped with a high level interface
+and extend language support for this style of programming.
 
 The \idris{} standard library thankfully gave us access to a polished pure interface
 to explicitly manipulate an integer's bits.
@@ -207,6 +216,8 @@ self-evident.
 %
 Consequently we are forced to jump through hoops to appease the quantity
 checker, and end up defining complex inversion lemmas to bypass these limitations.
+This could be solved by a mix of improvements to the typechecker and
+meta-programming using ideas from Cornes and Terrasse~\cite{DBLP:conf/types/CornesT95}.
 
 
 \bibliography{thin}

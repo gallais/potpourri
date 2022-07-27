@@ -280,7 +280,7 @@ Otherwise we can invoke \IdrisData{Drop} on the induction hypothesis.
 %
 This all typechecks because (\IdrisFunction{testBit} \IdrisData{0} \IdrisData{Z})
 computes to \IdrisData{False} and so the \IdrisBound{nb} proof can be constructed
-automatically by \idris{}'s proof search,
+automatically by \idris{}'s proof search (cf. \cref{sec:proofsearch}),
 %
 and (\IdrisData{0} \IdrisFunction{`shiftR`} \IdrisData{1}) evaluates to \IdrisData{0}
 which means the induction hypothesis has exactly the right type.

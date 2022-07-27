@@ -25,3 +25,27 @@ failing "x is not accessible in this context."
     (::) : {0 a : Type} -> {0 n : Nat} -> a -> Vect n a -> Vect (1 + n) a
 \end{code}
 %</vect>
+
+
+%<*so>
+\begin{code}
+data So : Bool -> Type where
+  Oh : So True
+\end{code}
+%</so>
+
+%<*even>
+\begin{code}
+record Even (n : Nat) where
+  constructor MkEven
+  half : Nat
+  {auto 0 prf : So (2 * half == n)}
+\end{code}
+%</even>
+
+%<*four>
+\begin{code}
+even6 : Even 6
+even6 = MkEven { half = 3 }
+\end{code}
+%</four>

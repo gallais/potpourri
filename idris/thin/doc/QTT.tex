@@ -70,4 +70,43 @@ that \IdrisBound{x} cannot be used at an unrestricted quantity on the right-hand
 
 %\ExecuteMetaData[QuantitativeTT.idr.tex]{vect}
 
-\todo{more}
+\todo{more on quantitative TT}
+
+\subsection{Proof Search}\label{sec:proofsearch}
+
+In \idris{}, Haskell-style ad-hoc polymorphism is superseeded by a more general
+proof search mechanism.
+%
+Instead of having blessed notions of type classes, instances and constraints, any
+pi binder in a type can be marked as \IdrisKeyword{auto}.
+%
+This signals to the compiler that the corresponding argument will be an implicit
+argument and that it should not be reconstructed by unification but rather by
+proof search using the appropriate user-declared hints as well as the local
+variables in scope.
+
+By default, a datatype's constructors are always added to the database of hints.
+And so the following declaration brings into scope both an indexed family
+\IdrisType{So} of proofs that a given boolean is \IdrisData{True}, and a unique
+constructor \IdrisData{Oh} that is automatically added as a hint.
+
+\ExecuteMetaData[QuantitativeTT.idr.tex]{so}
+
+As a consequence, we can for instance define a record type specifying what it
+means for \IdrisBound{n} to be an even number by storing its \IdrisFunction{half}
+together with a proof that once doubled it is equal to \IdrisBound{n}.
+%
+Because (\IdrisData{2} \IdrisFunction{*} \IdrisData{3} \IdrisFunction{==} \IdrisData{6})
+computes to \IdrisData{True}, \idris{} is able to fill in the missing proof in the
+definition of \IdrisFunction{even6} using the \IdrisData{Oh} hint.
+
+\noindent
+\begin{minipage}[t]{0.55\textwidth}
+\ExecuteMetaData[QuantitativeTT.idr.tex]{even}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.4\textwidth}
+\ExecuteMetaData[QuantitativeTT.idr.tex]{four}
+\end{minipage}
+
+We will use both \IdrisType{So} and the \IdrisKeyword{auto} mechanism in
+\cref{sec:thininginternal}.
