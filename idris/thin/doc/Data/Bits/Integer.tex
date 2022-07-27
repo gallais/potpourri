@@ -1,3 +1,4 @@
+\begin{code}
 module Data.Bits.Integer
 
 import Data.Bits
@@ -17,14 +18,26 @@ import Syntax.PreorderReasoning
 ||| cofull takes a natural number k and returns an integer whose bit pattern is
 ||| k zeros followed by ones
 public export
+\end{code}
+%<*cofull>
+\begin{code}
 cofull : Nat -> Integer
 cofull k = oneBits `shiftL` k
+\end{code}
+%</cofull>
+\begin{code}
 
 ||| full takes a natural number k and returns an integer whose bit pattern is
 ||| k ones followed by zeros
 public export
+\end{code}
+%<*full>
+\begin{code}
 full : Nat -> Integer
 full k = complement (cofull k)
+\end{code}
+%</full>
+\begin{code}
 
 ||| cons takes a bit and an integer and returns an integer whose bit pattern
 ||| is that bit followed by the original integer
@@ -349,3 +362,4 @@ consInjective b bs cs eq = Calc $
   ~~ cons b bs `shiftR` 1 ...( sym $ consShiftR b bs )
   ~~ cons b cs `shiftR` 1 ...( cong (`shiftR` 1) eq )
   ~~ cs                   ...( consShiftR b cs )
+\end{code}

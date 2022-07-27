@@ -31,7 +31,7 @@ function Thin_Smart_view($th) {
       const $predBE = ($th.bigEnd-1n);
       const $test = choose(notEq(($th.encoding&1n), 0n)));
       switch($test.tag) {
-        case 0: /* Left  */ {
+        case 0: /* Left */ {
           const $tail = $th.encoding>>1n;
           return { tag: 1 /* Keep */
                  , val: {bigEnd: $predBE, encoding: $tail}}; }

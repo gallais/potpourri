@@ -20,6 +20,7 @@ DEPENDENCIES=\
   build/latex/UTLC.idr.tex \
   build/latex/Thin.idr.tex \
   build/latex/Thin/Internal.idr.tex \
+  build/latex/Data/Bits/Integer.idr.tex \
   build/latex/idris2.sty
 
 all: paper

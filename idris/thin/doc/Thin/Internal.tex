@@ -83,18 +83,29 @@ irrelevantThinning (Drop th1 x {nb = nb1}) (Keep th2 x {b = b2})
   = void (soNotToNotSo nb1 b2)
 
 export
-none : (sy : SnocList a) -> Thinning (length sy) Bits.zeroBits [<] sy
+\end{code}
+%<*none>
+\begin{code}
+none : (sy : SnocList a) -> Thinning (length sy) 0 [<] sy
 none [<] = Done
-none (sy :< y) =
-  let 0 nb = eqToSo (cong not $ testBitZeroBits (S $ length sy)) in
-  Drop (none sy) y
+none (sy :< y) = Drop (none sy) y
+\end{code}
+%</none>
+\begin{code}
 
 export
-ones : (sx : SnocList a) -> Thinning (length sx) (full $ length sx) sx sx
+\end{code}
+%<*ones>
+\begin{code}
+ones : (sx : SnocList a) ->
+       let n = length sx in Thinning n (full n) sx sx
 ones [<] = Done
 ones (sx :< x) =
   let 0 nb = eqToSo (testBitFull (S (length sx)) Z) in
   Keep (rewrite shiftRFull (length sx) in ones sx) x
+\end{code}
+%</ones>
+\begin{code}
 
 -- We need to public export so that `fst (meet th ph)` computes at the type level.
 -- These are all runtime irrelevant though so their behaviour does not matter.
@@ -253,12 +264,18 @@ isDropInteger bs so = sym $ extensionally $ \case
        $ testBitShiftR bs 1 i
 
 export
+\end{code}
+%<*bit>
+\begin{code}
 bit : {sx : SnocList a} -> AtIndex i x sx -> Thinning (length sx) (bit i) [<x] sx
 bit Z = Keep (none ?) x
 bit (S p) =
   let 0 nb : So (not $ testBit (the Integer $ bit i) 0)
            = eqToSo $ cong not $ testBit0ShiftL 1 (pred i) in
   Drop (rewrite shiftRBitS (pred i) in bit p) ?
+\end{code}
+%</bit>
+\begin{code}
 
 export
 (++) : Thinning i bs sa sb -> Thinning j cs sx sy ->

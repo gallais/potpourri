@@ -165,6 +165,7 @@ comparison between \IdrisFunction{first} and \IdrisFunction{last}.
 We have left an empty line in the definition of the former to line up each
 equation with the matching one in the latter.
 
+\noindent
 \begin{minipage}[t]{0.45\textwidth}
 \ExecuteMetaData[Snoc.idr.tex]{first}
 \end{minipage}\hfill
@@ -230,11 +231,15 @@ to define smart constructors \IdrisFunction{done}, \IdrisFunction{keep},
 and \IdrisFunction{drop}, as well as a \IdrisFunction{view} function.
 %
 This should become apparent once we show the actual definition of \IdrisType{Thinning}.
-%
+
+\subsubsection{Definition of \IdrisType{Thinning}}
+
 The relation maintains the invariant between the record's
 fields \IdrisFunction{bigEnd} (a \IdrisType{Nat})
 and \IdrisFunction{encoding} (an \IdrisType{Integer})
 and the index scopes \IdrisBound{sx} and \IdrisBound{sy}.
+
+\ExecuteMetaData[Thin/Internal.idr.tex]{thinning}
 
 As always, the \IdrisData{Done} constructor is the simplest.
 %
@@ -249,12 +254,80 @@ to (\IdrisBound{sy} \IdrisData{:<} \IdrisBound{x})
 provided that the bit at position \IdrisData{Z} of \IdrisBound{bs}
 is set, and that the rest of the bit pattern (obtained by a right shift
 on \IdrisBound{bs}) is a valid thinning of size \IdrisBound{i} from
-\IdrisBound{sx} to \IdrisBound{y}.
+\IdrisBound{sx} to \IdrisBound{sy}.
 
 The \IdrisData{Drop} constructor is structured the same way, except that
 it insists the bit at position \IdrisData{Z} should \emph{not} be set.
 
-\ExecuteMetaData[Thin/Internal.idr.tex]{thinning}
+We can readily use this relation to prove that some basic encoding are
+valid representations of useful thinnings.
+
+\subsubsection{Examples of \IdrisType{Thinning} proofs}
+
+For instance, we can always define a thinning from the empty scope to
+an arbitrary scope \IdrisBound{sy}.
+%
+The \IdrisFunction{encoding} of this thinning is \IdrisData{0} because
+every variable is being discarded and its \IdrisFunction{bigEnd} is
+the length of the outer scope \IdrisBound{sy}.
+
+\ExecuteMetaData[Thin/Internal.idr.tex]{none}
+
+The proof proceeds by induction over the outer scope \IdrisBound{sy}. If it
+is empty, we can simply use the constructor for the empty thinning.
+%
+Otherwise we can invoke \IdrisData{Drop} on the induction hypothesis.
+%
+This all typechecks because (\IdrisFunction{testBit} \IdrisData{0} \IdrisData{Z})
+computes to \IdrisData{False} and so the \IdrisBound{nb} proof can be constructed
+automatically by \idris{}'s proof search,
+%
+and (\IdrisData{0} \IdrisFunction{`shiftR`} \IdrisData{1}) evaluates to \IdrisData{0}
+which means the induction hypothesis has exactly the right type.
+
+
+The definition of the identity thinning is a bit more involved.
+%
+For a scope of size $k$, we are going to need to generate a bit pattern with
+$k$ ones followed by zeros.
+%
+We define it in two steps.
+%
+First, \IdrisFunction{cofull} defines a bit pattern of $k$ zeros followed by ones
+by shifting $k$ places to the left a bit pattern of ones only.
+%
+Then, we obtain \IdrisFunction{full} by taking the complement of \IdrisFunction{cofull}.
+
+\noindent
+\begin{minipage}{.45\textwidth}
+\ExecuteMetaData[Data/Bits/Integer.idr.tex]{cofull}
+\end{minipage}\hfill
+\begin{minipage}{.45\textwidth}
+\ExecuteMetaData[Data/Bits/Integer.idr.tex]{full}
+\end{minipage}
+
+We can then prove that the identity thinning for a scope of size \IdrisBound{n} is
+represented by the pairing of (\IdrisFunction{full} \IdrisBound{n}) as the
+\IdrisFunction{encoding} and \IdrisBound{n} as the \IdrisFunction{bigEnd}.
+
+\ExecuteMetaData[Thin/Internal.idr.tex]{ones}
+
+
+This proof proceeds once more by induction on the scope.
+%
+If the scope is empty then once again the constructor for the empty thinning will do.
+%
+In the non-empty case, we first appeal to an auxiliary lemma (not shown here) to
+construct \IdrisBound{nb} a proof that the bit at position \IdrisData{Z} for a
+non-zero \IdrisFunction{full} integer is known to be \IdrisData{True}.
+%
+We then need to use another lemma to cast the induction hypothesis which mentions
+(\IdrisFunction{full} (\IdrisFunction{length} \IdrisBound{sx})) so that it may be
+used in a position where we expect a proof talking about
+(\IdrisFunction{full} (\IdrisFunction{length} (\IdrisBound{sx} \IdrisData{:<} \IdrisBound{x}))
+\IdrisFunction{`shiftR`} \IdrisData{1}).
+
+\subsubsection{Properties of the \IdrisType{Thinning} relation}
 
 This relation has a lot of convenient properties.
 
@@ -262,7 +335,7 @@ First, it is proof irrelevant: any two proofs that the same
 \IdrisBound{i}, \IdrisBound{bs}, \IdrisBound{sx}, and \IdrisBound{sy} are
 related are provably equal.
 %
-Correspondingly, equality on \IdrisType{Th} values amounts to equality of
+Consequently, equality on \IdrisType{Th} values amounts to equality of
 the \IdrisFunction{bigEnd} and \IdrisFunction{encoding} values. In particular
 it is cheap to test whether a given thinning is the empty or the
 identity thinning.
@@ -274,13 +347,13 @@ whether the natural number is empty and what the value of the bit at position
 This means that \IdrisFunction{view} can be efficiently implemented by using
 these two checks and then inverting the \IdrisType{Thinning} proof to gain access
 to the proof that the remainder of the thinning's encoding is valid.
-
-\todo{show an example of op?}
+%
+We will see in \cref{sec:compiledview} that this leads to efficient runtime code for the view.
 
 \subsection{Choose Your Own Abstraction Level}
 
 Access to both the high-level \IdrisType{View} and the internal \IdrisType{Thinning}
-representation means that programmers can pick the level of abstraction at which they
+relation means that programmers can pick the level of abstraction at which they
 want to work.
 %
 They may need to explicitly manipulate bits to implement key operators that are used
@@ -297,6 +370,7 @@ The following diagram shows the correspondance between an `opened' application n
 using the view (the diamond `\$' node) and its co-de Bruijn form (the circular
 `\$' node).
 
+\noindent
 \begin{minipage}{.45\textwidth}\center
   \ExecuteMetaData[ast.tex]{opened}
 \end{minipage}\hfill
