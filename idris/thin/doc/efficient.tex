@@ -356,19 +356,54 @@ Access to both the high-level \IdrisType{View} and the internal \IdrisType{Thinn
 relation means that programmers can pick the level of abstraction at which they
 want to work.
 %
-They may need to explicitly manipulate bits to implement key operators that are used
-in performance-critical paths but can stay at the highest level for more negligible
-operations, or proofs.
+They may need to explicitly manipulate bits to implement key operators that are
+used in performance-critical paths but can also stay at the highest level for
+more negligible operations, or when proving runtime irrelevant properties.
 
-\todo{Insert example e.g. meet and its proof!}
+In the previous section we saw simple examples of these bit manipulations when
+defining \IdrisFunction{none} (using the constant 0 bit pattern) and
+\IdrisFunction{ones} using bit shifting and complement to form an initial segment
+of 1s followed by 0s.
 
-When working with co-de Bruijn terms, it is convenient to define a view where one
-`layer' of term has been opened.
-\todo{explain term layer}
+Other natural examples include the \emph{meet} and \emph{join} of two thinnings
+sharing the same wider scope.
+%
+The join can for instance be thought of either as a function defined by induction
+on the first thinning and case analysis on the second, emitting a \IdrisData{Keep}
+constructor whenever either of the inputs does.
+%
+Or we can observe that the bit pattern in the join is exactly the disjunction of
+the inputs' respective bit patterns and prove a lemma about the \IdrisType{Thinning}
+relation instead.
+%
+This can be visualised as follows. In each column, the meet is a
+$\bullet$ whenever either of the inputs is.
 
-The following diagram shows the correspondance between an `opened' application node
-using the view (the diamond `\$' node) and its co-de Bruijn form (the circular
-`\$' node).
+\[
+\begin{array}{c@{~}l}
+& \color{blue}{\circ}\color{orange}{\circ}\color{magenta}{\bullet}\color{teal}{\bullet}\color{lightgray}{\circ} \\
+  \vee & \color{blue}{\bullet}\color{orange}{\circ}\color{magenta}{\circ}\color{teal}{\bullet}\color{lightgray}{\bullet} \\
+  \hline
+  & \color{blue}{\bullet}\color{orange}{\circ}\color{magenta}{\bullet}\color{teal}{\bullet}\color{lightgray}{\bullet} \\
+\end{array}
+\]
+
+The join is of particular importance because it appears when we convert and `opened'
+view of a term into its co-de Bruijn counterpart.
+%
+As we mentioned earlier, co-de Bruijn terms in an arbitrary scope are represented by
+the pairing of a term indexed by its precise support with a thinning embedding this
+support back into the wider scope.
+%
+When working with such a representation, it is convenient to have access to an
+`opened' view where the outer thinning has been pushed inside therefore exposing
+the term's top-level constructor, ready for case-analysis.
+
+
+The following diagram shows the correspondence between an `opened' application node
+using the view (the diamond `\$' node) with two subterms both living in the outer scope
+and its co-de Bruijn form (the circular `\$' node) with an outer thinning selecting the
+term support.
 
 \noindent
 \begin{minipage}{.45\textwidth}\center
@@ -378,14 +413,13 @@ using the view (the diamond `\$' node) and its co-de Bruijn form (the circular
   \ExecuteMetaData[ast.tex]{opening}
 \end{minipage}
 
-The outer thinning of the co-de Bruijn term is obtained by computing the join of
-the respective outer thinnings of the application's function and argument.
-%
-This is a good example of an operation that can be implemented by induction and
-case analysis just like we would with a typical inductive family, or directly
-by taking the disjunction of the bit pattern encodings of the thinnings.
+The outer thinning of the co-de Bruijn term is obtained precisely by
+computing the join of the respective outer thinnings of the `opened'
+application's function and argument.
 
-\todo{include both definitions}
+These explicit bit manipulations will be preserved during compilation and
+thus deliver more efficient code.
+
 
 \subsection{Compiled Code}\label{sec:compiledview}
 
@@ -432,7 +466,7 @@ bit mask to 0-out all the other bits (\texttt{\$th.bigEnd\&1n}) and checking whe
 the result is zero.
 %
 If it is not equal to 0 then we emit \IdrisData{Keep} and compute the \texttt{\$tail}
-of the thinning by shifting the original encoding to drop the 0th-index. Otherwise we
+of the thinning by shifting the original encoding to drop the 0th bit. Otherwise we
 emit \IdrisData{Drop} and compute the same tail.
 
 By running \IdrisFunction{view} on this [01101] thinning, we would get
