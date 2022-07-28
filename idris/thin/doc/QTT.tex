@@ -1,7 +1,8 @@
 
-\section{Quantitative Type Theory}\label{sec:quantitativeTT}
+\section{Some Key Features of \idris}\label{sec:quantitativeTT}
 
-Quantitative Type Theory is a type theory enriched with a semiring of quantities
+\idris{} implements Quantitative Type Theory,
+a type theory enriched with a semiring of quantities
 classifying the ways in which values may be used.
 %
 In a type, each binder is annotated with the quantity its argument must abide by.
@@ -70,7 +71,7 @@ that \IdrisBound{x} cannot be used at an unrestricted quantity on the right-hand
 
 %\ExecuteMetaData[QuantitativeTT.idr.tex]{vect}
 
-\todo{more on quantitative TT}
+% \todo{more on quantitative TT}
 
 \subsection{Proof Search}\label{sec:proofsearch}
 
@@ -94,7 +95,7 @@ constructor \IdrisData{Oh} that is automatically added as a hint.
 
 As a consequence, we can for instance define a record type specifying what it
 means for \IdrisBound{n} to be an even number by storing its \IdrisFunction{half}
-together with a proof that once doubled it is equal to \IdrisBound{n}.
+together with a proof that is both runtime irrelevant an filled in by proof search.
 %
 Because (\IdrisData{2} \IdrisFunction{*} \IdrisData{3} \IdrisFunction{==} \IdrisData{6})
 computes to \IdrisData{True}, \idris{} is able to fill in the missing proof in the
