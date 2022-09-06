@@ -10,14 +10,18 @@ Let us study this example and how successive optimisation passes can, in this
 instance, get rid of the overhead introduced by using indexed families over
 plain data.
 
-A vector is a length-indexed list. The type \IdrisType{Vect} is parameterised
-by the type of values it stores and indexed over a natural number corresponding
-to its length.
+A vector is a length-indexed list.
+%
+The type \IdrisType{Vect} is parameterised by the type of values it stores
+and indexed over a natural number corresponding to its length.
 %
 More concretely, its \IdrisData{Nil} constructor builds an empty vector of size
-\IdrisData{0}, and its \IdrisData{(::)} (pronounced `cons') constructor combines a
+\IdrisData{Z} (i.e. zero),
+%
+and its \IdrisData{(::)} (pronounced `cons') constructor combines a
 value of type \IdrisBound{a} (the head) and a subvector of size \IdrisBound{n}
-(the tail) to build a vector of size (\IdrisData{1} \IdrisFunction{+} \IdrisBound{n}).
+(the tail) to build a vector of size (\IdrisData{S} \IdrisBound{n})
+(i.e. successor of n).
 
 \ExecuteMetaData[Lookup.idr.tex]{vect}
 
@@ -70,7 +74,7 @@ runtime~\cite{DBLP:journals/pacmpl/Tejiscak20}.
 
 \subsection{Optimising \IdrisType{Vect}, \IdrisType{Fin}, and \IdrisFunction{lookup}}
 
-A Brady-style analysis~\cite{DBLP:conf/types/BradyMM03}
+An analysis in the style of Brady, McBride, and McKinna's~\cite{DBLP:conf/types/BradyMM03}
 can solve the quadratic blowup highlighted above by observing
 that the natural number a vector is indexed by is entirely determined by the spine of
 the vector. In particular, the length of the tail does not need to be stored
@@ -98,14 +102,20 @@ vectors being compiled to its partial-looking counterpart acting on lists.
 \ExecuteMetaData[Lookup.idr.tex]{finallookup}
 
 Even though this is in our opinion a pretty compelling example of erasing away the
-apparent complexity introduced by inductive families, we need to stay
-realistic.
+apparent complexity introduced by inductive families, this approach has two drawbacks.
+
+Firstly, it relies on the fact that the compiler can and will automatically perform
+these optimisations.
 %
-For this approach to work, the compiler needs to be able to automatically map the
-indexed family to a simpler datatype that can then be extracted to the target language.
+But nothing in the type system prevents users from inadvertently using a value they
+thought would get erased, thus preventing the Tejiščák-style optimisation from firing.
 %
-It is particularly important here to observe that if the types have been simplified,
-they still have very much the same structure.
+In performance-critical settings, users may rather want to state their intent
+explicitly and be kept to their word by the compiler in exchange for predictable
+and guaranteed optimisations.
+
+Secondly, this approach is intrinsically limited to transformations that preserve the
+type's overall structure: the runtime data structures are simpler but very similar still.
 %
 We cannot expect much better than that e.g. a change of representation to use a
 balanced binary tree instead of a list in order to get logarithmic lookups rather
@@ -134,7 +144,8 @@ as implemented in \idris{}~\cite{DBLP:conf/ecoop/Brady21} to bridge the gap betw
 an invariant-rich but inefficient representation based on an inductive family and
 an unsafe but efficient implementation using low-level primitives.
 %
-Inductive families allow us to \emph{view}~\cite{DBLP:journals/jfp/McBrideM04} the
-runtime relevant information encoded in the low-level and efficient representation
+Inductive families allow us to
+\emph{view}~\cite{DBLP:conf/popl/Wadler87,DBLP:journals/jfp/McBrideM04}
+the runtime relevant information encoded in the low-level and efficient representation
 as an information-rich compile time data structure. Moreover the quantity annotations
 guarantee that this additional information will be erased away during compilation.

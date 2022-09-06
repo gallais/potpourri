@@ -17,6 +17,9 @@ DEPENDENCIES=\
   build/latex/QuantitativeTT.idr.tex \
   build/latex/Snoc.idr.tex \
   build/latex/Example.idr.tex \
+  build/latex/VectAsList.idr.tex \
+  build/latex/FinAsNat.idr.tex \
+  build/latex/LookupRefactor.idr.tex \
   build/latex/UTLC.idr.tex \
   build/latex/Thin.idr.tex \
   build/latex/Thin/Internal.idr.tex \

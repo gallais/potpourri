@@ -8,8 +8,8 @@ namespace Data
 %<*vect>
 \begin{code}
   data Vect : Nat -> Type -> Type where
-    Nil : Vect 0 a
-    (::) : a -> Vect n a -> Vect (1 + n) a
+    Nil : Vect Z a
+    (::) : a -> Vect n a -> Vect (S n) a
 \end{code}
 %</vect>
 \begin{code}
@@ -19,8 +19,8 @@ namespace Data
 %<*fin>
 \begin{code}
   data Fin : Nat -> Type where
-    Z : Fin (1 + n)
-    S : Fin n -> Fin (1 + n)
+    Z : Fin (S n)
+    S : Fin n -> Fin (S n)
 \end{code}
 %</fin>
 

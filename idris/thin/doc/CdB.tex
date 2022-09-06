@@ -1,7 +1,7 @@
 \section{Thinnings, cooked two ways}\label{sec:codebruijn}
 
-We experienced one such limitation of compilation of inductive families
-during the ongoing development of
+We experienced a major limitation of compilation of inductive families
+during our ongoing development of
 \typos~\cite{MANUAL:talk/types/Allais22}, a domain specific language
 to define concurrent typecheckers and elaborators.
 %
@@ -16,6 +16,9 @@ A thinning (also known as an Order Preserving
 Embedding~\cite{MANUAL:phd/nott/Chapman09})
 between a source and a target scope is an order preserving affine injection
 of the smaller scope into the larger one.
+%
+The omnipresence of thinnings in the co-de Bruijn representation makes their
+runtime representation a performance critical matter.
 
 Let us first remind the reader of the structure of abstract syntax trees in a
 named, a de Bruijn, and a co-de Bruijn representation. We will then discuss two

@@ -1,0 +1,17 @@
+\begin{code}
+module LookupRefactor
+
+import VectAsList
+import FinAsNat
+
+%default total
+
+\end{code}
+%<*lookup>
+\begin{code}
+lookup : Vect n a -> Fin n -> a
+lookup xs@_ k@_ with (view xs) | (view k)
+  _ | x :: _ | Z = x
+  _ | _ :: xs' | S k' = lookup xs' k'
+\end{code}
+%</lookup>

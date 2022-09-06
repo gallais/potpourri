@@ -1,0 +1,69 @@
+\begin{code}
+module FinAsNat
+
+import Data.Nat
+import Data.Nat.Order
+
+%default total
+
+export
+\end{code}
+%<*fin>
+\begin{code}
+record Fin (n : Nat) where
+  constructor MkFin
+  encoding : Nat
+  0 valid : encoding `LT` n
+\end{code}
+%</fin>
+\begin{code}
+
+namespace Smart
+
+  export
+\end{code}
+%<*zero>
+\begin{code}
+  Z : Fin (S n)
+  Z = MkFin 0 (LTESucc LTEZero)
+\end{code}
+%</zero>
+\begin{code}
+
+  export
+\end{code}
+%<*suc>
+\begin{code}
+  S : Fin n -> Fin (S n)
+  S (MkFin k prf) = MkFin (S k) (LTESucc prf)
+\end{code}
+%</suc>
+\begin{code}
+
+public export
+\end{code}
+%<*dataview>
+\begin{code}
+data View : Fin n -> Type where
+  Z : View Z
+  S : (k : Fin n) -> View (S k)
+\end{code}
+%</dataview>
+\begin{code}
+
+irrelevantLTE : (p, q : LTE m n) -> p === q
+irrelevantLTE LTEZero LTEZero = Refl
+irrelevantLTE (LTESucc p) (LTESucc q) = cong LTESucc (irrelevantLTE p q)
+
+namespace Smart
+
+  export
+\end{code}
+%<*view>
+\begin{code}
+  view : (k : Fin n) -> View k
+  view (MkFin Z (LTESucc prf)) = rewrite irrelevantLTE prf LTEZero in Z
+  view (MkFin (S k) (LTESucc prf)) = S (MkFin k prf)
+\end{code}
+%</view>
+\begin{code}

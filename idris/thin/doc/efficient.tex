@@ -75,21 +75,6 @@ be able to take these thinnings apart. We are now going to tackle this issue.
 
 \subsection{Pattern Matching on \IdrisType{Th}}
 
-A view for a type $T$ is, in the sense of McBride and
-McKinna~\cite{DBLP:journals/jfp/McBrideM04}, an inductive family
-$V$ indexed by $T$ together with a total function which maps every element $t$ of $T$
-to a value of type ($V t$).
-%
-This simple gadget provides a powerful, user-extensible, generalisation of
-pattern-matching.
-%
-Patterns are defined inductively as either a binding position, a forced term
-(i.e. an arbitrary expression that is determined by a constraint arising from
-another pattern), or a data constructor fully applied to subpatterns.
-%
-In contrast, the return indices of an inductive family's constructors can be
-arbitrary expressions.
-
 \subsubsection{A simple example of a view}
 
 For instance, it is trivial to check whether a (\IdrisType{List} \IdrisBound{a})
@@ -478,3 +463,7 @@ Thanks to \idris{}'s implementation of Quantitative Type Theory we have managed
 to manufacture a high level representation that can be manipulated like a classic
 inductive family using smart constructors and views without giving up an inch of
 control on its runtime representation.
+
+The remaining issues such as the fact that we form the view's constructors only
+to immediately take them apart thus creating needless allocations can be tackled
+by reusing Wadler's analysis (section 12 of \cite{DBLP:conf/popl/Wadler87}).

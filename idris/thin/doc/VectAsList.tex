@@ -1,0 +1,73 @@
+\begin{code}
+module VectAsList
+
+%default total
+
+export
+\end{code}
+%<*vect>
+\begin{code}
+record Vect (n : Nat) (a : Type) where
+  constructor MkVect
+  encoding : List a
+  0 valid : length encoding === n
+\end{code}
+%</vect>
+\begin{code}
+
+namespace Smart
+
+  export
+\end{code}
+%<*nil>
+\begin{code}
+  Nil : Vect Z a
+  Nil = MkVect [] Refl
+\end{code}
+%</nil>
+
+\begin{code}
+  export
+\end{code}
+%<*cons>
+\begin{code}
+  (::) : a -> Vect n a -> Vect (S n) a
+  x :: MkVect xs eq = MkVect (x :: xs) (cong S eq)
+\end{code}
+%</cons>
+
+\begin{code}
+public export
+\end{code}
+%<*dataview>
+\begin{code}
+data View : Vect n a -> Type where
+  Nil : View Nil
+  (::) : (x : a) -> (xs : Vect n a) -> View (x :: xs)
+\end{code}
+%</dataview>
+\begin{code}
+
+namespace Smart
+
+  export
+\end{code}
+%<*view>
+\begin{code}
+  view : (xs : Vect n a) -> View xs
+  view (MkVect [] Refl) = Nil
+  view (MkVect (x :: xs) Refl) = x :: MkVect xs Refl
+\end{code}
+%</view>
+\begin{code}
+
+export
+\end{code}
+%<*map>
+\begin{code}
+map : (a -> b) -> Vect n a -> Vect n b
+map f xs@_ with (view xs)
+  _ | [] = []
+  _ | hd :: tl = f hd :: map f tl
+\end{code}
+%</map>
