@@ -17,13 +17,15 @@ Embedding~\cite{MANUAL:phd/nott/Chapman09})
 between a source and a target scope is an order preserving affine injection
 of the smaller scope into the larger one.
 %
+They are usually represented using an inductive family.
+%
 The omnipresence of thinnings in the co-de Bruijn representation makes their
 runtime representation a performance critical matter.
 
 Let us first remind the reader of the structure of abstract syntax trees in a
 named, a de Bruijn, and a co-de Bruijn representation. We will then discuss two
 representations of thinnings: a safe and convenient one as an inductive family,
-and an unsafe but efficient encoding as a pair of integers.
+and an unsafe but efficient encoding as a pair of arbitrary precision integers.
 
 \subsection{Named, de Bruijn, and co-de Bruijn syntaxes}
 
@@ -33,8 +35,12 @@ are squares.
 %
 To depict the $S$ combinator we will only need $\lambda{}$-abstraction and
 application (rendered \$) nodes. A constructor's arguments become its children
-in the tree and they are layed out top-to-bottom.
+in the tree.
+%
+The tree is layed out left-to-right and a constructor's arguments are displayed
+top-to-bottom.
 
+\paragraph{Named syntax}
 The first representation is using explicit names. Each binder has an associated
 name and each variable node carries a name. A variable refers to the closest englobing
 binder which happens to be using the same name.
@@ -47,6 +53,7 @@ potentially requires renaming bound names.
 In order to have a simple and cheap $\alpha$-equivalence check we can instead opt
 for a nameless representation.
 
+\paragraph{De Bruijn syntax}
 An abstract syntax tree based on de Bruijn indices~\cite{MANUAL:journals/math/debruijn72}
 replaces names with natural numbers counting the number of binders separating a variable
 from its binding site.
@@ -70,6 +77,7 @@ In order to have a simple and cheap thickening test we can ensure that each subt
 knows precisely what its exact scope (i.e. its \emph{support}) is and how it embeds
 in its parent's.
 
+\paragraph{Co-de Bruijn syntax}
 In a co-de Bruijn
 representation~\cite{DBLP:journals/corr/abs-1807-04085} each subterm
 selects exactly the variables that stay in scope for that term,
@@ -183,5 +191,5 @@ This should allow us to insist on having a high-level interface that resembles
 an inductive family while ensuring that everything but a pair of integers is erased
 at compile time.
 %
-We will first recall the key features of QTT and then study how we can use them
+We will exploit the key features of QTT presented in \cref{sec:quantitativeTT}
 to solve this conundrum.

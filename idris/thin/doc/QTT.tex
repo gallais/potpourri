@@ -199,34 +199,54 @@ and (modulo some re-wraping of the tail) they are effectively the head and the
 tail that were combined using the smart constructor \IdrisFunction{(::)}.
 
 
-\paragraph{Applications: \IdrisFunction{map}, and \IdrisFunction{lookup}}
+\paragraph{Application: \IdrisFunction{map}}
 We can then use these constructs to implement the function \IdrisFunction{map}
 on vectors without ever having to explicitly manipulate the encoding.
-%
-On the left-hand side the view lets us seamlessly pattern-match on the input
-vector, and on the right-hand side the smart constructors let us build the
-output vector.
 
 \ExecuteMetaData[VectAsList.idr.tex]{map}
 
+
+On the left-hand side the view lets us seamlessly pattern-match on the input
+vector.
+%
+Using the \IdrisKeyword{with} keyword we have locally modified the function
+definition to have it take an extra argument, here the result of the intermediate
+computation (\IdrisFunction{view} \IdrisBound{xs}).
+%
+Correspondingly, we have locally extended the pattern-matching definition with
+an additional pattern on the left-hand side of the indented with-clauses
+(the pattern (\IdrisKeyword{\KatlaUnderscore} \IdrisKeyword{|}) signals to Idris
+that we simply reproduce the parent pattern with no modification).
+%
+By matching on the result of the \IdrisFunction{view} call, we get to `match'
+on \IdrisBound{xs} as if \IdrisType{Vect} were an inductive type. This is precisely
+the power of views.
+
+On the right-hand side the smart constructors let us build the output vector.
+
+\paragraph{Application: \IdrisFunction{lookup}}
 The type (\IdrisType{Fin} \IdrisBound{n}) can similarly be represented by a
 single natural number and a runtime irrelevant proof that it is bound by
 \IdrisBound{n}.
 %
 We leave these definitions out of the paper and invite the curious reader
-to either attempt to implement it for themselves or look at the code attached
-to this paper.
+to either attempt to implement them for themselves or look at the accompanying code.
 
-These definitions can all be brought together to define a \IdrisFunction{lookup}
+Bringing these definitions together, we can define a \IdrisFunction{lookup}
 function which is  similar to the one defined in \cref{sec:optimisation-example}.
-%
-The main advantage is that based on its type alone, we know that this function
-is guaranteed to be processing a list and a single natural number at runtime.
+
+\ExecuteMetaData[LookupRefactor.idr.tex]{lookup}
+
+We are seemingly using \IdrisFunction{view} at two different types (\IdrisType{Vect}
+and \IdrisType{Fin} respectively) but both occurrences actually refer to separate
+functions: \idris{} lets us overload functions and performs type-directed disambiguation.
+
+The main advantage of this definition is that, based on its type alone, we know
+that this function is guaranteed to be processing a list and a single natural
+number at runtime.
 %
 This efficient runtime representation does not rely on the assumption that state
 of the art optimisation passes will be deployed by the compiler.
-
-\ExecuteMetaData[LookupRefactor.idr.tex]{lookup}
 
 
 We have seen some of \idris{}'s powerful features and how they can be leveraged
