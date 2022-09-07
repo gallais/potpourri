@@ -102,7 +102,7 @@ length of the source scope \IdrisBound{sx}.
 We proceed by calling the \IdrisFunction{view} function on the input thinning
 which immediately tells us that we only have three cases to consider.
 %
-The \IdrisData{Done} case is easily handled because the branche's refined
+The \IdrisData{Done} case is easily handled because the branch's refined
 types inform us that both \IdrisBound{sx} and \IdrisBound{sy} are the
 empty snoclist \IdrisData{[<]} whose length is evidently \IdrisData{0}.
 %
@@ -319,8 +319,8 @@ thus deliver more efficient code.
 
 \subsection{Compiled Code}\label{sec:compiledview}
 
-The following code block shows the javascript code that is produced when compiling the
-\IdrisFunction{view} function. We chose to use the javascript backend rather than e.g.
+The following code block shows the JavaScript code that is produced when compiling the
+\IdrisFunction{view} function. We chose to use the JavaScript backend rather than e.g.
 the chezscheme one because it produces fairly readable code.
 %
 We have modified the backend to also write comments reminding the reader of the type
@@ -339,11 +339,11 @@ and the proofs
 showing that the invariant tying the efficient runtime representation to the
 high-level specification is maintained.
 %
-A thinning is represented at runtime by a javascript object with two properties
+A thinning is represented at runtime by a JavaScript object with two properties
 corresponding to \IdrisType{Th}'s runtime relevant fields: \IdrisFunction{bigEnd}
 and \IdrisFunction{encoding}.
 %
-Both are storing a javascript \texttt{bigInt} (one corresponding to the
+Both are storing a JavaScript \texttt{bigInt} (one corresponding to the
 \IdrisType{Nat}, the other to the \IdrisType{Integer}).
 %
 For instance the thinning [01101] would be at runtime
