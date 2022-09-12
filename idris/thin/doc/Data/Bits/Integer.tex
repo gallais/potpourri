@@ -42,8 +42,14 @@ full k = complement (cofull k)
 ||| cons takes a bit and an integer and returns an integer whose bit pattern
 ||| is that bit followed by the original integer
 public export
+\end{code}
+%<*cons>
+\begin{code}
 cons : Bool -> Integer -> Integer
 cons b bs = ifThenElse b (`setBit` 0) id (bs `shiftL` 1)
+\end{code}
+%</cons>
+\begin{code}
 
 ------------------------------------------------------------------------------
 -- And properties
@@ -327,7 +333,14 @@ testSetBitSame bs i =
 ------------------------------------------------------------------------------
 
 export
-testBit0Cons : (b : Bool) -> (bs : Integer) -> testBit (cons b bs) 0 === b
+\end{code}
+%<*testBit0Cons>
+\begin{code}
+testBit0Cons : (b : Bool) -> (bs : Integer) ->
+               testBit (cons b bs) 0 === b
+\end{code}
+%</testBit0Cons>
+\begin{code}
 testBit0Cons True bs = soToEq $ testSetBitSame (bs `shiftL` 1) 0
 testBit0Cons False bs = testBit0ShiftL bs 0
 
@@ -345,7 +358,14 @@ testBitSCons False bs i = Calc $
   ~~ testBit bs i                  ...( cong (\ bs => testBit bs i) (shiftL0 bs) )
 
 export
-consShiftR : (b : Bool) -> (bs : Integer) -> (cons b bs) `shiftR` 1 === bs
+\end{code}
+%<*consShiftR>
+\begin{code}
+consShiftR : (b : Bool) -> (bs : Integer) ->
+             (cons b bs) `shiftR` 1 === bs
+\end{code}
+%</consShiftR>
+\begin{code}
 consShiftR True bs =  Calc $
   |~ cons True bs `shiftR` 1
   ~~ (bs `shiftL` 1) `shiftR` 1 ...( setBit0ShiftR (bs `shiftL` 1) )

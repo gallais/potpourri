@@ -20,6 +20,7 @@ DEPENDENCIES=\
   build/latex/VectAsList.idr.tex \
   build/latex/FinAsNat.idr.tex \
   build/latex/LookupRefactor.idr.tex \
+  build/latex/LookupExpanded.idr.tex \
   build/latex/UTLC.idr.tex \
   build/latex/Thin.idr.tex \
   build/latex/Thin/Internal.idr.tex \

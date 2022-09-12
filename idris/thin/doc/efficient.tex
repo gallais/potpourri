@@ -36,8 +36,32 @@ constructors.
 The first and simplest one is \IdrisFunction{done}, a function that packs a pair of
 \IdrisData{0} (the size of the big end, and the empty encoding) together with a proof
 that it is an adequate encoding of the thinning from the empty scope to itself.
+In this instance, the proof is simply the \IdrisData{Done} constructor.
 
 \ExecuteMetaData[Thin.idr.tex]{done}
+
+Both \IdrisFunction{keep} and \IdrisFunction{drop} are going to need to extend the
+encoding with an additional bit.
+%
+For this purpose we introduce the \IdrisFunction{cons} function which takes a bit
+$b$ and an existing encoding $bs$ and returns the new encoding $\bitcons{bs}{b}$.
+
+\ExecuteMetaData[Data/Bits/Integer.idr.tex]{cons}
+
+No matter what the value of the newt bit is, we start by shifting the encoding to
+the left to make space for it; this gives us $\bitcons{bs}{0}$.
+%
+If the bit is \IdrisData{True} then we need to additionally set the bit at position
+$0$ to obtain $\bitcons{bs}{1}$. Otherwise if the bit is \IdrisData{False}, we can readily
+return the $\bitcons{bs}{0}$ encoding obtained by left shifting.
+%
+The correctness of this function is backed by two correctness functions:
+testing the bit at index $0$ after consing amounts to returning the cons'd bit,
+and shifting the cons'd encoding to the right takes us back to the unextended
+encoding.
+
+\ExecuteMetaData[Data/Bits/Integer.idr.tex]{testBit0Cons}
+\ExecuteMetaData[Data/Bits/Integer.idr.tex]{consShiftR}
 
 The \IdrisFunction{keep} smart constructor demonstrates that from a thinning from
 \IdrisBound{sx} to \IdrisBound{sy} and a runtime irrelevant variable \IdrisBound{x}
@@ -45,12 +69,14 @@ we can compute a thinning from the extended source scope
 (\IdrisBound{sx} \IdrisData{:<} \IdrisBound{x}) to the target scope
 (\IdrisBound{sy} \IdrisData{:<} \IdrisBound{x}) where \IdrisBound{x} was kept.
 
+\todo{explain implementation}
 \ExecuteMetaData[Thin.idr.tex]{keep}
 
 Similarly the \IdrisFunction{drop} function demonstrates that we can compute a
 thinning getting rid of the variable \IdrisBound{x} freshly added to the target
 scope.
 
+\todo{explain implementation}
 \ExecuteMetaData[Thin.idr.tex]{drop}
 
 We can already deploy these smart constructors to implement functions producing

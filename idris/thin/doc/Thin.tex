@@ -54,106 +54,112 @@ interface Selable (0 t : SnocList a -> Type) where
 ||| nested namespace to step things when *we* need them to step.
 namespace Smart
 
-  export
+ export
 \end{code}
 %<*done>
 \begin{code}
-  done : Th [<] [<]
+ done : Th [<] [<]
+ done = MkTh { bigEnd = 0, encoding = 0, thinning = Done }
 \end{code}
 %</done>
 \begin{code}
-  done = MkTh Z 0 Done
 
-  export
+ export
 \end{code}
 %<*keep>
 \begin{code}
-  keep : Th sx sy -> (0 x : a) -> Th (sx :< x) (sy :< x)
+ keep : Th sx sy -> (0 x : a) -> Th (sx :< x) (sy :< x)
+ keep th x = MkTh
+  { bigEnd = S (th .bigEnd)
+  , encoding = cons True (th .encoding)
+  , thinning =
+     let 0 b = eqToSo $ testBit0Cons True (th .encoding) in
+     Keep (rewrite consShiftR True (th .encoding) in th.thinning) x
+  }
 \end{code}
 %</keep>
 \begin{code}
-  keep th x
-    = MkTh (S th .bigEnd) (cons True (th .encoding))
-    $ let 0 b = eqToSo $ testBit0Cons True (th .encoding) in
-      Keep (rewrite consShiftR True (th .encoding) in th.thinning) x
 
-  export
+ export
 \end{code}
 %<*drop>
 \begin{code}
-  drop : Th sx sy -> (0 x : a) -> Th sx (sy :< x)
+ drop : Th sx sy -> (0 x : a) -> Th sx (sy :< x)
+ drop th x = MkTh
+  { bigEnd = S (th .bigEnd)
+  , encoding = cons False (th .encoding)
+  , thinning =
+     let 0 nb = eqToSo $ cong not $ testBit0Cons False (th .encoding) in
+     Drop (rewrite consShiftR False (th .encoding) in th .thinning) x
+ }
 \end{code}
 %</drop>
 \begin{code}
-  drop th x
-    = MkTh (S th .bigEnd) (cons False (th .encoding))
-    $ let 0 nb = eqToSo $ cong not $ testBit0Cons False (th .encoding) in
-      Drop (rewrite consShiftR False (th .encoding) in th .thinning) x
 
 ------------------------------------------------------------------------------
 -- Smart destructor (aka view)
 ------------------------------------------------------------------------------
 
-  public export
+ public export
 \end{code}
 %<*view>
 \begin{code}
-  data View : Th sx sy -> Type where
-    Done : View Smart.done
-    Keep : (th : Th sx sy) -> (0 x : a) -> View (keep th x)
-    Drop : (th : Th sx sy) -> (0 x : a) -> View (drop th x)
+ data View : Th sx sy -> Type where
+   Done : View Smart.done
+   Keep : (th : Th sx sy) -> (0 x : a) -> View (keep th x)
+   Drop : (th : Th sx sy) -> (0 x : a) -> View (drop th x)
 \end{code}
 %</view>
 \begin{code}
 
-  cast : {0 th, th' : Thinning i bs sx sy} ->
-         View (MkTh i bs th) ->
-         View (MkTh i bs th')
-  cast v = replace {p = \ th => View (MkTh i bs th)} (irrelevantThinning ? ?) v
+ cast : {0 th, th' : Thinning i bs sx sy} ->
+        View (MkTh i bs th) ->
+        View (MkTh i bs th')
+ cast v = replace {p = \ th => View (MkTh i bs th)} (irrelevantThinning ? ?) v
 
-  export %inline
+ export %inline
 \end{code}
 %<*viewtotal>
 \begin{code}
-  view : (th : Th sx sy) -> View th
+ view : (th : Th sx sy) -> View th
 \end{code}
 %</viewtotal>
 \begin{code}
-  view (MkTh 0 bs th) =
-    let 0 eqs = isDone th in
-    rewrite bsIsZero eqs in
-    rewrite fstIndexIsLin eqs in
-    rewrite sndIndexIsLin eqs in
-    rewrite thinningIsDone eqs in
-    Done
-  view (MkTh (S i) bs th) = case choose (testBit bs Z) of
-    Left so =>
-      let 0 eqs = isKeep th so in
-      rewrite fstIndexIsSnoc eqs in
-      rewrite sndIndexIsSnoc eqs in
-      rewrite thinningIsKeep eqs in
-      rewrite isKeepInteger bs so in
-      cast $ Keep (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
-    Right soNot =>
-      let 0 eqs = isDrop th soNot in
-      rewrite sndIndexIsSnoc eqs in
-      rewrite thinningIsDrop eqs in
-      rewrite isDropInteger bs soNot in
-      cast $ Drop (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
+ view (MkTh 0 bs th) =
+   let 0 eqs = isDone th in
+   rewrite bsIsZero eqs in
+   rewrite fstIndexIsLin eqs in
+   rewrite sndIndexIsLin eqs in
+   rewrite thinningIsDone eqs in
+   Done
+ view (MkTh (S i) bs th) = case choose (testBit bs Z) of
+   Left so =>
+     let 0 eqs = isKeep th so in
+     rewrite fstIndexIsSnoc eqs in
+     rewrite sndIndexIsSnoc eqs in
+     rewrite thinningIsKeep eqs in
+     rewrite isKeepInteger bs so in
+     cast $ Keep (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
+   Right soNot =>
+     let 0 eqs = isDrop th soNot in
+     rewrite sndIndexIsSnoc eqs in
+     rewrite thinningIsDrop eqs in
+     rewrite isDropInteger bs soNot in
+     cast $ Drop (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
 
-  ||| Example of a use of `view`
-  ||| @ sx is runtime irrelevant and yet we can compute its length because
-  |||      it is precisely the number of Keep constructors (aka bits set to 1)
-  |||      in the thinning that we have.
+ ||| Example of a use of `view`
+ ||| @ sx is runtime irrelevant and yet we can compute its length because
+ |||      it is precisely the number of Keep constructors (aka bits set to 1)
+ |||      in the thinning that we have.
 \end{code}
 %<*kept>
 \begin{code}
-  kept : Th sx sy -> (n : Nat ** length sx === n)
-  kept th = case view th of
-    Done      => (0 ** Refl)
-    Keep th x => let (n ** eq) = kept th in
-                 (S n ** cong S eq)
-    Drop th x => kept th
+ kept : Th sx sy -> (n : Nat ** length sx === n)
+ kept th = case view th of
+   Done      => (0 ** Refl)
+   Keep th x => let (n ** eq) = kept th in
+                (S n ** cong S eq)
+   Drop th x => kept th
 \end{code}
 %</kept>
 \begin{code}
@@ -161,35 +167,35 @@ namespace Smart
 -- Unfold lemmas for the view
 ------------------------------------------------------------------------------
 
-  chooseTrueUnfold : choose True === Left Oh
-  chooseTrueUnfold with (choose True)
-    _ | Left Oh = Refl
-    _ | Right ohno = absurd ohno
+ chooseTrueUnfold : choose True === Left Oh
+ chooseTrueUnfold with (choose True)
+   _ | Left Oh = Refl
+   _ | Right ohno = absurd ohno
 
-  chooseFalseUnfold : choose False === Right Oh
-  chooseFalseUnfold with (choose False)
-    _ | Left ohyes = absurd ohyes
-    _ | Right Oh = Refl
+ chooseFalseUnfold : choose False === Right Oh
+ chooseFalseUnfold with (choose False)
+   _ | Left ohyes = absurd ohyes
+   _ | Right Oh = Refl
 
-  export
-  viewDoneUnfold : view Smart.done === Done
-  viewDoneUnfold = Refl
+ export
+ viewDoneUnfold : view Smart.done === Done
+ viewDoneUnfold = Refl
 
-  export
-  viewKeepUnfold : (th : Th sx sy) -> (0 x : a) -> view (keep th x) === Keep th x
-  viewKeepUnfold (MkTh i bs p) x
-    = rewrite testBit0Cons True bs in
-      rewrite chooseTrueUnfold in
-      rewrite consShiftR True bs in
-      Refl
+ export
+ viewKeepUnfold : (th : Th sx sy) -> (0 x : a) -> view (keep th x) === Keep th x
+ viewKeepUnfold (MkTh i bs p) x
+   = rewrite testBit0Cons True bs in
+     rewrite chooseTrueUnfold in
+     rewrite consShiftR True bs in
+     Refl
 
-  export
-  viewDropUnfold : (th : Th sx sy) -> (0 x : a) -> view (drop th x) === Drop th x
-  viewDropUnfold (MkTh i bs p) x
-    = rewrite testBit0Cons False bs in
-      rewrite chooseFalseUnfold in
-      rewrite consShiftR False bs in
-      Refl
+ export
+ viewDropUnfold : (th : Th sx sy) -> (0 x : a) -> view (drop th x) === Drop th x
+ viewDropUnfold (MkTh i bs p) x
+   = rewrite testBit0Cons False bs in
+     rewrite chooseFalseUnfold in
+     rewrite consShiftR False bs in
+     Refl
 
 export
 irrelevantDone : (th, ph : Th sx [<]) -> th === ph

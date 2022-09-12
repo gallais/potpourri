@@ -237,9 +237,14 @@ function which is  similar to the one defined in \cref{sec:optimisation-example}
 
 \ExecuteMetaData[LookupRefactor.idr.tex]{lookup}
 
+
 We are seemingly using \IdrisFunction{view} at two different types (\IdrisType{Vect}
 and \IdrisType{Fin} respectively) but both occurrences actually refer to separate
 functions: \idris{} lets us overload functions and performs type-directed disambiguation.
+
+\todo{explain xs@\_}
+\ExecuteMetaData[LookupExpanded.idr.tex]{lookup}
+
 
 The main advantage of this definition is that, based on its type alone, we know
 that this function is guaranteed to be processing a list and a single natural
