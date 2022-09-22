@@ -1,0 +1,29 @@
+\begin{code}
+module WithExpanded
+
+import VectAsList
+import FinAsNat
+
+%hide VectAsList.map
+
+%default total
+
+\end{code}
+%<*map>
+\begin{code}
+map : (a -> b) -> Vect n a -> Vect n b
+map f xs with (view xs)
+  map f .([]) | [] = []
+  map f .(hd :: tl) | hd :: tl = f hd :: map f tl
+\end{code}
+%</map>
+
+\end{code}
+%<*lookup>
+\begin{code}
+lookup : Vect n a -> Fin n -> a
+lookup xs k with (view xs) | (view k)
+  lookup .(hd :: tl) .(Z) | hd :: tl | Z = hd
+  lookup .(hd :: tl) .(S k') | hd :: tl | S k' = lookup tl k'
+\end{code}
+%</lookup>

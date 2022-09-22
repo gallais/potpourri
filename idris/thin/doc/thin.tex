@@ -33,14 +33,15 @@
 \maketitle
 
 \begin{abstract}
-  Remembering that types give us a way to make sense of unstructured data stored
-  in memory, we demonstrate how to use Quantitative Type Theory to define an
-  invariant-rich typechecking time data structure that is guaranteed to compile
-  to an efficient runtime one.
+  Remembering that types originally gave us a way to make sense of unstructured
+  data stored in memory, we demonstrate how to use Quantitative Type Theory to
+  define an invariant-rich typechecking time data structure that is guaranteed
+  to compile to an efficient runtime memory representation.
 
-  Unlike other approaches, the resulting complexity is entirely predictable, we do
-  not require both representations to have the same structure, and yet we are able
-  to seamlessly program as if we were using the high-level structure.
+  Unlike other approaches, the complexity of the resulting representation is
+  entirely predictable, we do not require both representations to have the
+  same structure, and yet we are able to seamlessly program as if we were
+  using the high-level structure.
 \end{abstract}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -78,7 +79,8 @@ representation.
 
 In \cref{sec:codebruijn} we will then look at an inductive family that we
 use in a performance-critical way in the \typos{}
-project and whose compilation suffers from the limitations highlighted in
+project~\cite{MANUAL:talk/types/Allais22}
+and whose compilation suffers from the limitations highlighted in
 \cref{sec:optimisation-example}.
 %
 Our current and unsatisfactory approach is to rely on the safe and convenient
@@ -226,8 +228,11 @@ inversion~\cite{DBLP:conf/types/CornesT95,DBLP:conf/types/McBride96,monin:inria-
 
 
 \paragraph{Acknowledgements}
-I am grateful to James McKinna for providing useful comments on an early
-draft of this paper.
+I am grateful to
+James McKinna
+and Fredrik Nordvall Forsberg
+for providing useful comments on early
+versions of this paper.
 
 \bibliography{thin}
 

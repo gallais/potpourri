@@ -11,7 +11,7 @@ import FinAsNat
 \begin{code}
 lookup : Vect n a -> Fin n -> a
 lookup xs@_ k@_ with (view xs) | (view k)
-  _ | x :: _ | Z = x
-  _ | _ :: xs' | S k' = lookup xs' k'
+  _ | hd :: _ | Z = hd
+  _ | _ :: tl | S k' = lookup tl k'
 \end{code}
 %</lookup>

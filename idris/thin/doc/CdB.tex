@@ -107,8 +107,8 @@ representation of thinnings.
 
 \subsection{The Performance Challenges of co-de Bruijn}~\label{sec:thinningsintypos}
 
-Having a precise handle on each term's support makes operations like thinning,
-substitution, and unification more efficient.
+Having a precise handle on each term's support makes operations such as thinning,
+substitution, or unification more efficient.
 %
 An arbitrary term is represented by the pairing of a term in co-de Bruijn syntax
 with a thinning from its support into the wider scope.
@@ -120,7 +120,7 @@ Similarly, we can easily detect when a substitution's domain does not contain an
 of the variables present in the term, and the action of the substitution is therefore
 the identity.
 %
-Finally we can perform cheap thickening tests when trying to solve a metavariable with
+We can also perform cheap thickening tests when trying to solve a metavariable with
 a term that arose in a wider scope.
 
 For all of these reasons we have, as we mentioned earlier, opted for a co-de Bruijn

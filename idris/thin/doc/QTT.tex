@@ -184,6 +184,10 @@ was used to build the vector being taken apart.
 The inductive family \IdrisType{View} is indexed by a vector and has two
 constructors corresponding to the two smart constructors.
 %
+We use \idris{}'s overloading capabilities to give each of the
+\IdrisType{View}'s constructors the name of the smart constructor
+it corresponds to.
+%
 By pattern-matching on a value of type (\IdrisType{View} \IdrisBound{xs}),
 we will be able to break \IdrisBound{xs} in its constitutive parts and
 either observe it is equal to \IdrisFunction{Nil} or recover its head
@@ -198,33 +202,58 @@ If it is not then we got our hands on the head and the tail of the encoding
 and (modulo some re-wrapping of the tail) they are effectively the head and the
 tail that were combined using the smart constructor \IdrisFunction{(::)}.
 
+\subsubsection{Application: \IdrisFunction{map}}
 
-\paragraph{Application: \IdrisFunction{map}}
 We can then use these constructs to implement the function \IdrisFunction{map}
 on vectors without ever having to explicitly manipulate the encoding.
+%
+The maximally sugared version of \IdrisFunction{map} is as follows:
 
 \ExecuteMetaData[VectAsList.idr.tex]{map}
-
 
 On the left-hand side the view lets us seamlessly pattern-match on the input
 vector.
 %
 Using the \IdrisKeyword{with} keyword we have locally modified the function
-definition to have it take an extra argument, here the result of the intermediate
+definition so that it takes an extra argument, here the result of the intermediate
 computation (\IdrisFunction{view} \IdrisBound{xs}).
 %
-Correspondingly, we have locally extended the pattern-matching definition with
-an additional pattern on the left-hand side of the indented with-clauses
-(the pattern (\IdrisKeyword{\KatlaUnderscore} \IdrisKeyword{|}) signals to Idris
-that we simply reproduce the parent pattern with no modification).
-%
-By matching on the result of the \IdrisFunction{view} call, we get to `match'
-on \IdrisBound{xs} as if \IdrisType{Vect} were an inductive type. This is precisely
-the power of views.
+Correspondingly, we have two clauses matching on this extra argument: it can
+either have the shape \IdrisData{[]} or (\IdrisBound{hd} \IdrisData{::} \IdrisBound{tl})
+and, correspondingly, we learn that \IdrisBound{xs} is either \IdrisFunction{[]} or
+(\IdrisBound{hd} \IdrisFunction{::} \IdrisBound{tl}).
 
 On the right-hand side the smart constructors let us build the output vector.
+Mapping a function over the empty vector yields the empty vector while mapping
+over a cons node yields a cons node whose head and tail have been appropriately
+modified.
 
-\paragraph{Application: \IdrisFunction{lookup}}
+
+This sugared version of \IdrisFunction{map} is equivalent to the following more
+explicit one:
+
+\ExecuteMetaData[WithExpanded.idr.tex]{map}
+
+In the parent clause we have explicitly bound \IdrisBound{xs}
+instead of merely introducing an alias for it by writing
+{(\IdrisBound{xs}\IdrisKeyword{@}\IdrisKeyword{\_})}
+and so we will need to be explicit about the ways in which this
+pattern is refined in the two with-clauses.
+
+In the with-clauses, we have explicitly repeated the refined version
+of the parent clause's left-hand side. In particular we have used dotted
+patterns to insists that \IdrisBound{xs} is now entirely \emph{forced}
+by the match on the result of (\IdrisFunction{view} \IdrisBound{xs}).
+
+We have seen that by matching on the result of the
+(\IdrisFunction{view} \IdrisBound{xs}) call,
+we get to `match' on \IdrisBound{xs} as if \IdrisType{Vect} were an
+inductive type.
+%
+This is precisely the power of views.
+
+\subsubsection{Application: \IdrisFunction{lookup}}
+
 The type (\IdrisType{Fin} \IdrisBound{n}) can similarly be represented by a
 single natural number and a runtime irrelevant proof that it is bound by
 \IdrisBound{n}.
@@ -237,13 +266,14 @@ function which is  similar to the one defined in \cref{sec:optimisation-example}
 
 \ExecuteMetaData[LookupRefactor.idr.tex]{lookup}
 
-
 We are seemingly using \IdrisFunction{view} at two different types (\IdrisType{Vect}
 and \IdrisType{Fin} respectively) but both occurrences actually refer to separate
 functions: \idris{} lets us overload functions and performs type-directed disambiguation.
 
-\todo{explain xs@\_}
-\ExecuteMetaData[LookupExpanded.idr.tex]{lookup}
+For pedagogical purposes, this sugared version of \IdrisFunction{lookup} can
+also be expanded to a more explicit one that demonstrates the views' power.
+
+\ExecuteMetaData[WithExpanded.idr.tex]{lookup}
 
 
 The main advantage of this definition is that, based on its type alone, we know

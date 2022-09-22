@@ -80,7 +80,7 @@ that the natural number a vector is indexed by is entirely determined by the spi
 the vector. In particular, the length of the tail does not need to be stored
 as part of the constructor: it can be reconstructed as the predecessor of the length
 of the overall vector. As a consequence, a vector can be adequately represented at
-runtime by a pair of a natural number and a list. Similarly the bounded number can be
+runtime by a pair of a natural number and a list. Similarly a bounded number can be
 adequately represented by a pair of natural numbers. Putting all of this together and
 remembering that the vector and the finite number share the same \IdrisBound{n},
 \IdrisFunction{lookup} can be compiled to a function taking two natural numbers and a list.
