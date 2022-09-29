@@ -1,6 +1,8 @@
 .PRECIOUS: build/ttc/%.ttm build/ttc/%.ttc
 .PHONY: paper
 
+
+
 PAPER=thin
 DEPENDENCIES=\
   build/latex/robust-catch.tex \
@@ -29,12 +31,12 @@ DEPENDENCIES=\
 
 all: paper
 
-build/ttc/%.ttm build/ttc/%.ttc: %.tex
+build/ttc/**/%.ttm build/ttc/**/%.ttc: %.tex
 	idris2 -p contrib -c $^
 
-build/latex/%.idr.tex: %.tex build/ttc/%.ttm build/ttc/%.ttc
+build/latex/%.idr.tex: %.tex build/ttc/**/%.ttm build/ttc/**/%.ttc
 	mkdir -p $(basename $@)
-	katla literate $*.tex build/ttc/$*.ttm > $@
+	katla literate $*.tex build/ttc/**/$*.ttm > $@
 
 build/latex/%.tex: %.tex
 	mkdir -p build/latex

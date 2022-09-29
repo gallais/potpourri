@@ -55,7 +55,7 @@ If the bit is \IdrisData{True} then we need to additionally set the bit at posit
 $0$ to obtain $\bitcons{bs}{1}$. Otherwise if the bit is \IdrisData{False}, we can readily
 return the $\bitcons{bs}{0}$ encoding obtained by left shifting.
 %
-The correctness of this function is backed by two correctness functions:
+The correctness of this function is backed by two lemma:
 testing the bit at index $0$ after consing amounts to returning the cons'd bit,
 and shifting the cons'd encoding to the right takes us back to the unextended
 encoding.
@@ -69,15 +69,25 @@ we can compute a thinning from the extended source scope
 (\IdrisBound{sx} \IdrisData{:<} \IdrisBound{x}) to the target scope
 (\IdrisBound{sy} \IdrisData{:<} \IdrisBound{x}) where \IdrisBound{x} was kept.
 
-\todo{explain implementation}
 \ExecuteMetaData[Thin.idr.tex]{keep}
+
+The outer scope has grown by one variable and so we increment \IdrisFunction{bigEnd}.
+%
+The encoding is obtained by \IdrisFunction{cons}-ing the boolean \IdrisData{True} to
+record the fact that this new variable is kept.
+%
+Finally, we use the two lemmas shown above to convince \idris{} the invariant
+has been maintained.
 
 Similarly the \IdrisFunction{drop} function demonstrates that we can compute a
 thinning getting rid of the variable \IdrisBound{x} freshly added to the target
 scope.
 
-\todo{explain implementation}
 \ExecuteMetaData[Thin.idr.tex]{drop}
+
+We once again increment the \IdrisFunction{bigEnd}, use \IdrisFunction{cons} to
+record that the variable is being discarded and use the lemmas ensuring its
+correctness to convince \idris{} the invariant is maintained.
 
 We can already deploy these smart constructors to implement functions producing
 thinnings. We use \IdrisFunction{which} as our example. It is a filter-like
@@ -108,14 +118,62 @@ data constructor associated to each smart constructor and storing its arguments.
 
 The accompanying \IdrisFunction{view} function witnesses the fact that any
 thinning arises as one of these three cases.
-%
-We leave out the slightly technical definition of \IdrisFunction{view}, the
-interested reader can find it in the accompanying material.
-%
-We will however discuss the code it compiles to after erasure in
-\cref{sec:compiledview}.
 
 \ExecuteMetaData[Thin.idr.tex]{viewtotal}
+
+We show the implementation of \IdrisFunction{view} in its entirety but leave
+out the slightly technical auxiliary lemma it invokes.
+%
+The interested reader can find them in the accompanying material.
+%
+We will however inspect the code \IdrisFunction{view} compiles to after erasure
+in \cref{sec:compiledview} to confirm that these auxiliary definitions do not
+incur any additioanl runtime cost.
+
+We first start by pattern matching on the \IdrisFunction{bigEnd} of the thinning.
+If it is \IdrisData{0} then we know the thinning has to be the empty thinning.
+%
+Thanks to an inversion lemma called \IdrisFunction{isDone}, we can collect a lot
+of equality proofs: the encoding \emph{has to} be \IdrisData{0}, the
+source and target scopes \emph{have to} be the empty snoclists, and the
+proof of the invariant has to be of a specific shape.
+%
+Rewriting by these equalities changes the goal type enough that it is ultimately
+manifest that the thinning was constructed using the \IdrisFunction{done} smart
+constructor and so we can use the view's \IdrisData{Done} constructor.
+
+\ExecuteMetaData[Thin.idr.tex]{viewDone}
+
+In case the thinning is non-empty, we need to inspect the 0-th bit of the encoding
+to know whether it keeps or discards its most local variable.
+%
+This is done by calling the \IdrisFunction{choose} function which takes a boolean
+\IdrisFunction{b} and returns a value of type
+{(\IdrisType{Either} (\IdrisType{So} \IdrisBound{b}) (\IdrisType{So} (\IdrisFunction{not} \IdrisBound{b}))}
+i.e. we not only inspect the boolean but also record which value we got in a proof
+using the \IdrisType{So} family introduced in~\cref{sec:quantitativeTT}.
+
+\ExecuteMetaData[Thin.idr.tex]{viewKeepDrop}
+
+If the bit is set then we know the variable is kept.
+%
+And so we can invoke an inversion lemma that will once again provide us with
+a lot of equalities that we immediately deploy to reshape the goal's type.
+%
+This ultimately lets us assemble a sub-thinning and use the view's
+\IdrisData{Keep} constructor.
+
+\ExecuteMetaData[Thin.idr.tex]{viewKeep}
+
+If the bit is not set then we learn that the thinning was constructed using
+\IdrisFunction{drop}. We can once again use an inversion lemma to rearrange
+the goal and finally invoke the view's \IdrisData{Drop} constructor.
+
+\ExecuteMetaData[Thin.idr.tex]{viewDrop}
+
+
+
+
 
 We can readily use this function to implement pattern matching functions taking
 a thinning apart. We can for instance define \IdrisFunction{kept}, the function

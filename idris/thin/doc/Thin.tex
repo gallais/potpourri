@@ -89,7 +89,8 @@ namespace Smart
   { bigEnd = S (th .bigEnd)
   , encoding = cons False (th .encoding)
   , thinning =
-     let 0 nb = eqToSo $ cong not $ testBit0Cons False (th .encoding) in
+    let 0 prf = testBit0Cons False (th .encoding)
+        0 nb = eqToSo $ cong not prf in
      Drop (rewrite consShiftR False (th .encoding) in th .thinning) x
  }
 \end{code}
@@ -124,6 +125,7 @@ namespace Smart
  view : (th : Th sx sy) -> View th
 \end{code}
 %</viewtotal>
+%<*viewDone>
 \begin{code}
  view (MkTh 0 bs th) =
    let 0 eqs = isDone th in
@@ -132,20 +134,39 @@ namespace Smart
    rewrite sndIndexIsLin eqs in
    rewrite thinningIsDone eqs in
    Done
+\end{code}
+%</viewDone>
+%<*viewKeepDrop>
+\begin{code}
  view (MkTh (S i) bs th) = case choose (testBit bs Z) of
+\end{code}
+%</viewKeepDrop>
+%<*viewKeep>
+\begin{code}
    Left so =>
      let 0 eqs = isKeep th so in
      rewrite fstIndexIsSnoc eqs in
      rewrite sndIndexIsSnoc eqs in
      rewrite thinningIsKeep eqs in
      rewrite isKeepInteger bs so in
-     cast $ Keep (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
+     let th : Th eqs.fstIndexTail eqs.sndIndexTail
+         th = MkTh i (bs `shiftR` 1) eqs.subThinning in
+     cast $ Keep th eqs.keptHead
+\end{code}
+%</viewKeep>
+%<*viewDrop>
+\begin{code}
    Right soNot =>
      let 0 eqs = isDrop th soNot in
      rewrite sndIndexIsSnoc eqs in
      rewrite thinningIsDrop eqs in
      rewrite isDropInteger bs soNot in
-     cast $ Drop (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
+     let th : Th sx eqs.sndIndexTail
+         th = MkTh i (bs `shiftR` 1) eqs.subThinning in
+     cast $ Drop th eqs.keptHead
+\end{code}
+%</viewDrop>
+\begin{code}
 
  ||| Example of a use of `view`
  ||| @ sx is runtime irrelevant and yet we can compute its length because
