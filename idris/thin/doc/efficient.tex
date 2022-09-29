@@ -324,7 +324,8 @@ Second, it can be inverted~\cite{DBLP:conf/types/CornesT95} knowing only two bit
 whether the natural number is empty and what the value of the bit at position
 \IdrisData{Z} of the encoding is.
 %
-This means that \IdrisFunction{view} can be efficiently implemented by using
+This is what allows us to efficiently implement the \IdrisFunction{view} function
+by using
 these two checks and then inverting the \IdrisType{Thinning} proof to gain access
 to the proof that the remainder of the thinning's encoding is valid.
 %
