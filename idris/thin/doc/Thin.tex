@@ -371,14 +371,26 @@ namespace Smart
   ||| Empty thinning
   -- TODO: only take the length as an argument?
   export
+\end{code}
+%<*none>
+\begin{code}
   none : (sx : SnocList a) -> Th [<] sx
-  none sx = MkTh (length sx) zeroBits (none sx)
+  none sx = MkTh (length sx) 0 (none sx)
+\end{code}
+%</none>
+\begin{code}
 
   ||| Identity thinning
   -- TODO: only take the length as an argument?
   export
+\end{code}
+%<*ones>
+\begin{code}
   ones : (sx : SnocList a) -> Th sx sx
-  ones sx = let i : Nat; i = length sx in MkTh i (full i) (ones sx)
+  ones sx = let n : Nat; n = length sx in MkTh n (full n) (ones sx)
+\end{code}
+%</ones>
+\begin{code}
 
 ------------------------------------------------------------------------------
 -- And their properties

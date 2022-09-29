@@ -246,10 +246,17 @@ valid representations of useful thinnings.
 
 For instance, we can always define a thinning from the empty scope to
 an arbitrary scope \IdrisBound{sy}.
-%
+
+\ExecuteMetaData[Thin.idr.tex]{none}
+
 The \IdrisFunction{encoding} of this thinning is \IdrisData{0} because
 every variable is being discarded and its \IdrisFunction{bigEnd} is
 the length of the outer scope \IdrisBound{sy}.
+%
+The proof that this encoding is valid is provided by
+the \IdrisFunction{none} lemma (we once again use \idris{}'s overloading
+to give the same to functions that play essentially the same role but at
+different types) proven below.
 
 \ExecuteMetaData[Thin/Internal.idr.tex]{none}
 
@@ -268,8 +275,8 @@ which means the induction hypothesis has exactly the right type.
 
 The definition of the identity thinning is a bit more involved.
 %
-For a scope of size $k$, we are going to need to generate a bit pattern with
-$k$ ones followed by zeros.
+For a scope of size $n$, we are going to need to generate a bit pattern with
+$n$ ones followed by zeros.
 %
 We define it in two steps.
 %
@@ -286,9 +293,15 @@ Then, we obtain \IdrisFunction{full} by taking the complement of \IdrisFunction{
 \ExecuteMetaData[Data/Bits/Integer.idr.tex]{full}
 \end{minipage}
 
-We can then prove that the identity thinning for a scope of size \IdrisBound{n} is
-represented by the pairing of (\IdrisFunction{full} \IdrisBound{n}) as the
-\IdrisFunction{encoding} and \IdrisBound{n} as the \IdrisFunction{bigEnd}.
+We can then define the identity thinning for a scope of size $n$ by pairing
+(\IdrisFunction{full} \IdrisBound{n}) as the
+\IdrisFunction{encoding} and \IdrisBound{n}
+as the \IdrisFunction{bigEnd}.
+
+\ExecuteMetaData[Thin.idr.tex]{ones}
+
+The bulk of the work is once again in the eponymous lemma proving that this
+is a valid encoding.
 
 \ExecuteMetaData[Thin/Internal.idr.tex]{ones}
 

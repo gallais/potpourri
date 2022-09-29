@@ -15,26 +15,26 @@ import Syntax.PreorderReasoning
 -- Additional functions
 ------------------------------------------------------------------------------
 
-||| cofull takes a natural number k and returns an integer whose bit pattern is
-||| k zeros followed by ones
+||| cofull takes a natural number n and returns an integer whose bit pattern is
+||| n zeros followed by ones
 public export
 \end{code}
 %<*cofull>
 \begin{code}
 cofull : Nat -> Integer
-cofull k = oneBits `shiftL` k
+cofull n = oneBits `shiftL` n
 \end{code}
 %</cofull>
 \begin{code}
 
-||| full takes a natural number k and returns an integer whose bit pattern is
-||| k ones followed by zeros
+||| full takes a natural number n and returns an integer whose bit pattern is
+||| n ones followed by zeros
 public export
 \end{code}
 %<*full>
 \begin{code}
 full : Nat -> Integer
-full k = complement (cofull k)
+full n = complement (cofull n)
 \end{code}
 %</full>
 \begin{code}
