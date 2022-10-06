@@ -27,16 +27,17 @@ DEPENDENCIES=\
   build/latex/Thin.idr.tex \
   build/latex/Thin/Internal.idr.tex \
   build/latex/Data/Bits/Integer.idr.tex \
+  build/latex/Data/Bits/Integer/Postulated.idr.tex \
   build/latex/idris2.sty
 
 all: paper
 
-build/ttc/**/%.ttm build/ttc/**/%.ttc: %.tex
+build/ttc/%.ttm build/ttc/%.ttc: %.tex
 	idris2 -p contrib -c $^
 
-build/latex/%.idr.tex: %.tex build/ttc/**/%.ttm build/ttc/**/%.ttc
+build/latex/%.idr.tex: %.tex build/ttc/%.ttm build/ttc/%.ttc
 	mkdir -p $(basename $@)
-	katla literate $*.tex build/ttc/**/$*.ttm > $@
+	katla literate $*.tex build/ttc/$*.ttm > $@
 
 build/latex/%.tex: %.tex
 	mkdir -p build/latex
