@@ -1,0 +1,35 @@
+\section{Current Limitations of \idris{}}\label{appendix:limitations}
+
+This challenge, suggested by Jacques Carette, highlights some of the current
+limitations of \idris{}.
+%
+The goal is to use the \IdrisType{Vect} type defined in~\cref{sec:vectaslist}
+and define a view that un-does vector-append.
+%
+Vector append can easily be defined by induction over the first vector.
+
+\ExecuteMetaData[VectAsList.idr.tex]{append}
+
+If the first vector is empty we can readily return the second vector.
+%
+If it is cons-headed, we can return the head and compute the tail by performing
+a recursive call.
+
+\ExecuteMetaData[VectAsList.idr.tex]{splitAtrel}
+
+\ExecuteMetaData[VectAsList.idr.tex]{splitAtcons}
+
+\todo{explain match on Refl}
+
+\ExecuteMetaData[VectAsList.idr.tex]{splitAt}
+
+More damning is the unwritten story: this somewhat unsatisfactory solution is
+the one we arrived at during interactive development.
+%
+Other attemps ended with error messages that would have puzzled more junior users
+of the system.
+%
+Some of these errors revealed underlying bugs in \idris{} while others qualify
+more as open research questions on the development of practical programming
+languages based on quantitative type theory.
+\todo{remind people idris is a research project?}

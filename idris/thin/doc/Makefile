@@ -7,6 +7,8 @@ PAPER=thin
 DEPENDENCIES=\
   build/latex/robust-catch.tex \
   build/latex/view.tex \
+  build/latex/appendix-axioms.tex \
+  build/latex/appendix-limitations.tex \
   build/latex/optimisation.tex \
   build/latex/QTT.tex \
   build/latex/CdB.tex \

@@ -252,84 +252,16 @@ James McKinna,
 Fredrik Nordvall Forsberg,
 Ohad Kammar,
 and Jacques Carette
-for providing useful comments on early
+for providing helpful comments and suggestions on early
 versions of this paper.
 
 \bibliography{thin}
 
 \appendix
-\section{Postulated lemmas for the \IdrisType{Bits} interface}\label{appendix:postulated}
 
-It is often more convenient to reason about integers in terms of their bits.
-We define the notion of bitwise equality as the pointwise equality according
-to the \IdrisFunction{testBit}.
+\input{appendix-axioms}
 
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{extensionalEq}
-
-Our first postulate is a sort of extensionality principle stating that bitwise
-equality implies propositional equality.
-
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{extensionally}
-
-This gives us a powerful reasoning principle once combined with axioms
-explaining the behaviour of various primitives at the bit level.
-%
-This is why almost all of the remaining axioms are expressed in terms
-of \IdrisFunction{testBit} calls.
-
-\subsection{Logical operations}
-
-Our first batch of axioms relates logical operations on integers to their
-boolean counterparts. This is essentially stating that these operations are
-bitwise.
-
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{testBitAnd}
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{testBitOr}
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{testBitComplement}
-
-Together with the extensionality principle mentioned above this already
-allows us to prove for instance that the binary operators are commutative
-and associative, that the de Morgan laws hold, or that conjunction distributes
-over disjunction.
-
-\subsection{Bit Shifting}
-
-The second set of axiom describes the action of left and right shifting on
-bit patterns.
-
-A right shift of size \IdrisBound{k} will drop the \IdrisBound{k} least
-significant bits; consequently testing the bit \IdrisBound{i} on the
-right-shifted integer amounts to testing the bit
-(\IdrisBound{k} \IdrisFunction{+} \IdrisBound{i}) on the original integer.
-
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{testBitShiftR}
-
-A right shift will add \IdrisBound{k} new least significant bits initialised
-at \IdrisBound{0}; consequently testing a bit \IdrisBound{i} on the left-shifted
-integer will either return \IdrisData{0} if \IdrisBound{i} is strictly less than
-\IdrisBound{k}, or the bit at position (\IdrisBound{i} \IdrisFunction{-} \IdrisBound{k})
-in the original integer.
-
-For simplicity we state these results without mentioning the `strictly less than'
-relation, by considering on the one hand the effect of a non-zero left shift,
-and on the other the fact that a left-shift by 0 bits is the identity function.
-
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{testBit0ShiftL}
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{testBitSShiftL}
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{shiftL0}
-
-\subsection{Bit testing}
-
-The last set of axioms specifies what happens when a bit is set.
-
-Testing a bit other than the one that was set amounts to testing it on the
-original integer.
-
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{testSetBitOther}
-
-Finally, we have an axiom stating that the integer
-(\IdrisFunction{bit} \IdrisBound{i}) (i.e. $2^i$) is non-zero.
-
-\ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{bitNonZero}
+\todo{Drop this section?}
+\input{appendix-limitations}
 
 \end{document}

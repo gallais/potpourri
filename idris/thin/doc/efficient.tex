@@ -298,13 +298,13 @@ which means the induction hypothesis has exactly the right type.
 
 The definition of the identity thinning is a bit more involved.
 %
-For a scope of size $n$, we are going to need to generate a bit pattern with
-$n$ ones followed by zeros.
+For a scope of size $n$, we are going to need to generate a bit pattern
+consisting of $n$ ones.
 %
 We define it in two steps.
 %
-First, \IdrisFunction{cofull} defines a bit pattern of $k$ zeros followed by ones
-by shifting $k$ places to the left a bit pattern of ones only.
+First, \IdrisFunction{cofull} defines a bit pattern of $k$ zeros followed by
+infinitely many ones by shifting $k$ places to the left a bit pattern of ones only.
 %
 Then, we obtain \IdrisFunction{full} by taking the complement of \IdrisFunction{cofull}.
 

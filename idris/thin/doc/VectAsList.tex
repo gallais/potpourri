@@ -17,7 +17,7 @@ record Vect (n : Nat) (a : Type) where
 
 namespace Smart
 
-  export
+  public export
 \end{code}
 %<*nil>
 \begin{code}
@@ -27,7 +27,7 @@ namespace Smart
 %</nil>
 
 \begin{code}
-  export
+  public export
 \end{code}
 %<*cons>
 \begin{code}
@@ -50,7 +50,7 @@ data View : Vect n a -> Type where
 
 namespace Smart
 
-  export
+  public export
 \end{code}
 %<*view>
 \begin{code}
@@ -71,3 +71,49 @@ map f xs@_ with (view xs)
   _ | hd :: tl = f hd :: map f tl
 \end{code}
 %</map>
+
+
+%<*append>
+\begin{code}
+(++) : Vect m a -> Vect n a -> Vect (m + n) a
+xs@_ ++ ys with (view xs)
+  _ | [] = ys
+  _ | hd :: tl = hd :: (tl ++ ys)
+\end{code}
+%</append>
+\begin{code}
+
+\end{code}
+%<*splitAtrel>
+\begin{code}
+data SplitAt : (m : Nat) -> Vect p a -> Type where
+  MkSplitAt : (xs : Vect m a) -> (ys : Vect n a) ->
+              SplitAt m (xs ++ ys)
+\end{code}
+%</splitAtrel>
+\begin{code}
+
+namespace SplitAt
+
+
+ export
+\end{code}
+%<*splitAtcons>
+\begin{code}
+ (::) : (x : a) -> SplitAt m xs -> SplitAt (S m) (x :: xs)
+ x :: MkSplitAt pref@(MkVect _ Refl) suff
+   = MkSplitAt (x :: pref) suff
+\end{code}
+%</splitAtcons>
+\begin{code}
+
+\end{code}
+%<*splitAt>
+\begin{code}
+splitAt : (m : Nat) -> (xs : Vect (m + n) a) -> SplitAt m xs
+splitAt 0 xs = MkSplitAt [] xs
+splitAt (S m) xs@_ with (view xs)
+  _ | hd :: tl = hd :: splitAt m tl
+\end{code}
+%</splitAt>
+\begin{code}
