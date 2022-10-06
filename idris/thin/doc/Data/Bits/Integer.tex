@@ -46,7 +46,8 @@ public export
 %<*cons>
 \begin{code}
 cons : Bool -> Integer -> Integer
-cons b bs = ifThenElse b (`setBit` 0) id (bs `shiftL` 1)
+cons b bs = let bs0 = bs `shiftL` 1 in
+            if b then (bs0 `setBit` 0) else bs0
 \end{code}
 %</cons>
 \begin{code}

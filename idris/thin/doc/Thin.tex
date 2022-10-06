@@ -17,7 +17,7 @@ import Thin.Internal
 -- Type and interfaces
 ------------------------------------------------------------------------------
 
-||| A Th is a thin wrapper around Thinning that only keeps the
+||| A Th is a thin wrapper around Invariant that only keeps the
 ||| minimal amount of information as runtime relevant.
 public export
 \end{code}
@@ -27,7 +27,7 @@ record Th {a : Type} (sx, sy : SnocList a) where
   constructor MkTh
   bigEnd : Nat
   encoding : Integer
-  0 thinning : Thinning bigEnd encoding sx sy
+  0 invariant : Invariant bigEnd encoding sx sy
 \end{code}
 %</thin>
 \begin{code}
@@ -59,7 +59,7 @@ namespace Smart
 %<*done>
 \begin{code}
  done : Th [<] [<]
- done = MkTh { bigEnd = 0, encoding = 0, thinning = Done }
+ done = MkTh { bigEnd = 0, encoding = 0, invariant = Done }
 \end{code}
 %</done>
 \begin{code}
@@ -72,9 +72,9 @@ namespace Smart
  keep th x = MkTh
   { bigEnd = S (th .bigEnd)
   , encoding = cons True (th .encoding)
-  , thinning =
+  , invariant =
      let 0 b = eqToSo $ testBit0Cons True (th .encoding) in
-     Keep (rewrite consShiftR True (th .encoding) in th.thinning) x
+     Keep (rewrite consShiftR True (th .encoding) in th.invariant) x
   }
 \end{code}
 %</keep>
@@ -88,10 +88,10 @@ namespace Smart
  drop th x = MkTh
   { bigEnd = S (th .bigEnd)
   , encoding = cons False (th .encoding)
-  , thinning =
+  , invariant =
     let 0 prf = testBit0Cons False (th .encoding)
         0 nb = eqToSo $ cong not prf in
-     Drop (rewrite consShiftR False (th .encoding) in th .thinning) x
+     Drop (rewrite consShiftR False (th .encoding) in th .invariant) x
  }
 \end{code}
 %</drop>
@@ -113,10 +113,10 @@ namespace Smart
 %</view>
 \begin{code}
 
- cast : {0 th, th' : Thinning i bs sx sy} ->
+ cast : {0 th, th' : Invariant i bs sx sy} ->
         View (MkTh i bs th) ->
         View (MkTh i bs th')
- cast v = replace {p = \ th => View (MkTh i bs th)} (irrelevantThinning ? ?) v
+ cast v = replace {p = \ th => View (MkTh i bs th)} (irrelevantInvariant ? ?) v
 
  export %inline
 \end{code}
@@ -127,42 +127,42 @@ namespace Smart
 %</viewtotal>
 %<*viewDone>
 \begin{code}
- view (MkTh 0 bs th) =
-   let 0 eqs = isDone th in
+ view (MkTh 0 bs prf) =
+   let 0 eqs = isDone prf in
    rewrite bsIsZero eqs in
    rewrite fstIndexIsLin eqs in
    rewrite sndIndexIsLin eqs in
-   rewrite thinningIsDone eqs in
+   rewrite invariantIsDone eqs in
    Done
 \end{code}
 %</viewDone>
 %<*viewKeepDrop>
 \begin{code}
- view (MkTh (S i) bs th) = case choose (testBit bs Z) of
+ view (MkTh (S i) bs prf) = case choose (testBit bs Z) of
 \end{code}
 %</viewKeepDrop>
 %<*viewKeep>
 \begin{code}
    Left so =>
-     let 0 eqs = isKeep th so in
+     let 0 eqs = isKeep prf so in
      rewrite fstIndexIsSnoc eqs in
      rewrite sndIndexIsSnoc eqs in
-     rewrite thinningIsKeep eqs in
+     rewrite invariantIsKeep eqs in
      rewrite isKeepInteger bs so in
      let th : Th eqs.fstIndexTail eqs.sndIndexTail
-         th = MkTh i (bs `shiftR` 1) eqs.subThinning in
+         th = MkTh i (bs `shiftR` 1) eqs.subInvariant in
      cast $ Keep th eqs.keptHead
 \end{code}
 %</viewKeep>
 %<*viewDrop>
 \begin{code}
    Right soNot =>
-     let 0 eqs = isDrop th soNot in
+     let 0 eqs = isDrop prf soNot in
      rewrite sndIndexIsSnoc eqs in
-     rewrite thinningIsDrop eqs in
+     rewrite invariantIsDrop eqs in
      rewrite isDropInteger bs soNot in
      let th : Th sx eqs.sndIndexTail
-         th = MkTh i (bs `shiftR` 1) eqs.subThinning in
+         th = MkTh i (bs `shiftR` 1) eqs.subInvariant in
      cast $ Drop th eqs.keptHead
 \end{code}
 %</viewDrop>
@@ -171,7 +171,7 @@ namespace Smart
  ||| Example of a use of `view`
  ||| @ sx is runtime irrelevant and yet we can compute its length because
  |||      it is precisely the number of Keep constructors (aka bits set to 1)
- |||      in the thinning that we have.
+ |||      in the invariant that we have.
 \end{code}
 %<*kept>
 \begin{code}
@@ -283,7 +283,7 @@ namespace Smart
     keepInjective (MkTh i bs p) (MkTh i cs q) eq | Refl
       with (consInjective True bs cs (cong encoding eq))
       keepInjective (MkTh i bs p) (MkTh i bs q) eq | Refl | Refl
-        = rewrite irrelevantThinning p q in Refl
+        = rewrite irrelevantInvariant p q in Refl
 
   export
   dropInjective : (th, ph : Th sx sy) -> drop th x === drop ph x -> th === ph
@@ -292,7 +292,7 @@ namespace Smart
     dropInjective (MkTh i bs p) (MkTh i cs q) eq | Refl
       with (shiftLInjective bs cs 1 (cong encoding eq))
       dropInjective (MkTh i bs p) (MkTh i bs q) eq | Refl | Refl
-        = rewrite irrelevantThinning p q in Refl
+        = rewrite irrelevantInvariant p q in Refl
 
   export
   mapReflects : p <=> q -> Reflects p b -> Reflects q b
@@ -342,7 +342,7 @@ namespace Smart
   ThEqEquiv : (th, ph : Th {a} sx sy) ->
               (th.bigEnd === ph.bigEnd, th.encoding === ph.encoding) <=> th === ph
   ThEqEquiv (MkTh i bs p) (MkTh j cs q)
-    = MkEquivalence (uncurry $ \ Refl, Refl => rewrite irrelevantThinning p q in Refl)
+    = MkEquivalence (uncurry $ \ Refl, Refl => rewrite irrelevantInvariant p q in Refl)
                     (\ eq => (cong bigEnd eq, cong encoding eq))
 
   export
@@ -483,8 +483,8 @@ namespace Smart
   meet thl thr
     = Evidence ?
     $ MkTh (thl .bigEnd) (thl .encoding .&. thr .encoding)
-    $ snd $ Internal.meet (thl .thinning)
-    $ rewrite irrelevantSize (thl .thinning) (thr .thinning) in thr .thinning
+    $ snd $ Internal.meet (thl .invariant)
+    $ rewrite irrelevantSize (thl .invariant) (thr .invariant) in thr .invariant
 
   ||| Meet is indeed computing a lower bound
   ||| TODO: prove it is the largest such
@@ -506,8 +506,8 @@ namespace Smart
   join thl thr
     = Evidence ?
     $ MkTh (thl .bigEnd) (thl .encoding .|. thr .encoding)
-    $ snd $ Internal.join (thl .thinning)
-    $ rewrite irrelevantSize (thl .thinning) (thr .thinning) in thr .thinning
+    $ snd $ Internal.join (thl .invariant)
+    $ rewrite irrelevantSize (thl .invariant) (thr .invariant) in thr .invariant
 
   ||| Join is indeed computing an upper bound
   ||| TODO: prove it is the smallest such
@@ -527,7 +527,7 @@ namespace Smart
 ||| Concatenate two thinnings
 export
 (++) : Th sa sb -> Th sx sy -> Th (sa ++ sx) (sb ++ sy)
-thl ++ thr = MkTh ? ? (thl.thinning ++ thr.thinning)
+thl ++ thr = MkTh ? ? (thl.invariant ++ thr.invariant)
 
 ||| Like filter but returns a thinning
 export

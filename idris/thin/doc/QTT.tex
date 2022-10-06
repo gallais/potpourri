@@ -5,14 +5,15 @@
 a Martin-Löf type theory enriched with a semiring of quantities
 classifying the ways in which values may be used.
 %
-In a type, each binder is annotated with the quantity its argument must abide by.
+In a type, each binder is annotated with the quantity by which its
+argument must abide.
 
 \subsection{Quantities}
 
 A value may be \emph{runtime irrelevant}, \emph{linear}, or \emph{unrestricted}.
 
 \emph{Runtime irrelevant} values (\IdrisKeyword{0} quantity) cannot possibly influence
-control flow.
+control flow as it will be erased entirely during compilation.
 %
 This forces the language to impose strong restrictions on pattern-matching over these
 values.
@@ -43,13 +44,16 @@ quantities is the identity function.
 
 \ExecuteMetaData[QuantitativeTT.idr.tex]{identity}
 
-Its type starts with a binder using curly braces. This means it introduces an implicit
-variable that does not need to be filled in by the user at call sites and will be
-reconstructed by unification. The variable it introduces is named \IdrisBound{a} and
+Its type starts with a binder using curly braces.
+%
+This means it introduces an implicit variable that does not need to be filled in by
+the user at call sites and will be reconstructed by unification.
+%
+The variable it introduces is named \IdrisBound{a} and
 has type \IdrisType{Type}. It has the \IdrisKeyword{0} quantity annotation which means
 that this argument is runtime irrelevant and so will be erased during compilation.
 
-The second binder is using parentheses. It introduces an explicit variable whose name
+The second binder uses parentheses. It introduces an explicit variable whose name
 is \IdrisBound{x} and whose type is the type \IdrisBound{a} that was just bound. It has
 no quantity annotation which means it will be an unrestricted variable.
 
@@ -74,14 +78,14 @@ that \IdrisBound{x} cannot be used at an unrestricted quantity on the right-hand
 
 \subsection{Proof Search}\label{sec:proofsearch}
 
-In \idris{}, Haskell-style ad-hoc polymorphism is superseded by a more general
-proof search mechanism.
+In \idris{}, Haskell-style ad-hoc polymorphism~\cite{DBLP:conf/popl/WadlerB89}
+is superseded by a more general proof search mechanism.
 %
-Instead of having blessed notions of type classes, instances and constraints, any
-pi binder in a type can be marked as \IdrisKeyword{auto}.
+Instead of having blessed notions of type classes, instances and constraints,
+the domain of any dependent function type can be marked as \IdrisKeyword{auto}.
 %
 This signals to the compiler that the corresponding argument will be an implicit
-argument and that it should not be reconstructed by unification but rather by
+argument and that it should not be reconstructed by unification alone but rather by
 proof search using the appropriate user-declared hints as well as the local
 variables in scope.
 
@@ -97,7 +101,7 @@ means for \IdrisBound{n} to be an even number by storing its \IdrisFunction{half
 together with a proof that is both runtime irrelevant an filled in by proof search.
 %
 Because (\IdrisData{2} \IdrisFunction{*} \IdrisData{3} \IdrisFunction{==} \IdrisData{6})
-computes to \IdrisData{True}, \idris{} is able to fill in the missing proof in the
+computes to \IdrisData{True}, \idris{} is able to fill-in the missing proof in the
 definition of \IdrisFunction{even6} using the \IdrisData{Oh} hint.
 
 \noindent
@@ -114,7 +118,8 @@ We will use both \IdrisType{So} and the \IdrisKeyword{auto} mechanism in
 \subsection{Application: \IdrisType{Vect}, as \IdrisType{List}}
 
 We can use the features of Quantitative Type Theory to give an implementation
-of \IdrisType{Vect} that is guaranteed to erase to a \IdrisType{List} at runtime.
+of \IdrisType{Vect} that is guaranteed to erase to a \IdrisType{List} at runtime
+independently of the optimisation passes implemented by the compiler.
 %
 The advantage over the optimisation passes described in \cref{sec:optimisation-example}
 is that the user has control over the runtime representation and does not need to
@@ -151,7 +156,9 @@ Using \IdrisFunction{(::)} we can combine a head and a tail of size \IdrisBound{
 to obtain a vector of size (\IdrisData{S} \IdrisBound{n}).
 %
 The encoding is obtained by consing the head in front of the tail's encoding
-and the proof this is valid is obtained by using the fact that propositional
+and the proof this is valid
+{(\IdrisFunction{cong} \IdrisData{S} \IdrisBound{eq})}
+uses the fact that propositional
 equality is a congruence and that
 (\IdrisFunction{length} (\IdrisBound{x} \IdrisData{::} \IdrisBound{xs}))
 computes to (\IdrisData{S} (\IdrisFunction{length} \IdrisBound{xs})).
@@ -175,7 +182,7 @@ another pattern), or a data constructor fully applied to subpatterns.
 In contrast, the return indices of an inductive family's constructors can be
 arbitrary expressions.
 
-In the case that interests us, the view will allow us to emulate `matching'
+In the case that interests us, the view allows us to emulate `matching'
 on which of the two smart constructors \IdrisFunction{Nil} or \IdrisFunction{(::)}
 was used to build the vector being taken apart.
 
@@ -189,7 +196,7 @@ We use \idris{}'s overloading capabilities to give each of the
 it corresponds to.
 %
 By pattern-matching on a value of type (\IdrisType{View} \IdrisBound{xs}),
-we will be able to break \IdrisBound{xs} in its constitutive parts and
+we will be able to break \IdrisBound{xs} into its constitutive parts and
 either observe it is equal to \IdrisFunction{Nil} or recover its head
 and its tail.
 
@@ -200,7 +207,7 @@ constructor was used by inspecting the \IdrisFunction{encoding} list. If it
 is empty, the vector was built using the \IdrisFunction{Nil} smart constructor.
 If it is not then we got our hands on the head and the tail of the encoding
 and (modulo some re-wrapping of the tail) they are effectively the head and the
-tail that were combined using the smart constructor \IdrisFunction{(::)}.
+tail that were combined using the smart constructor.
 
 \subsubsection{Application: \IdrisFunction{map}}
 
@@ -242,7 +249,7 @@ pattern is refined in the two with-clauses.
 
 In the with-clauses, we have explicitly repeated the refined version
 of the parent clause's left-hand side. In particular we have used dotted
-patterns to insists that \IdrisBound{xs} is now entirely \emph{forced}
+patterns to insist that \IdrisBound{xs} is now entirely \emph{forced}
 by the match on the result of (\IdrisFunction{view} \IdrisBound{xs}).
 
 We have seen that by matching on the result of the
@@ -258,7 +265,7 @@ The type (\IdrisType{Fin} \IdrisBound{n}) can similarly be represented by a
 single natural number and a runtime irrelevant proof that it is bound by
 \IdrisBound{n}.
 %
-We leave these definitions out of the paper and invite the curious reader
+We leave these definitions out, and invite the curious reader
 to either attempt to implement them for themselves or look at the accompanying code.
 
 Bringing these definitions together, we can define a \IdrisFunction{lookup}
@@ -281,7 +288,7 @@ that this function is guaranteed to be processing a list and a single natural
 number at runtime.
 %
 This efficient runtime representation does not rely on the assumption that state
-of the art optimisation passes will be deployed by the compiler.
+of the art optimisation passes will be deployed.
 
 
 We have seen some of \idris{}'s powerful features and how they can be leveraged

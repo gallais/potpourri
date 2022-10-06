@@ -14,7 +14,7 @@ thinnings.
 %
 A thinning (also known as an Order Preserving
 Embedding~\cite{MANUAL:phd/nott/Chapman09})
-between a source and a target scope is an order preserving affine injection
+between a source and a target scope is an order preserving injection
 of the smaller scope into the larger one.
 %
 They are usually represented using an inductive family.
@@ -29,7 +29,9 @@ and an unsafe but efficient encoding as a pair of arbitrary precision integers.
 
 \subsection{Named, de Bruijn, and co-de Bruijn syntaxes}
 
-In this section we will use the $S$ combinator as a running example and represent
+In this section we will use
+the $S$ combinator ($\lambda g. \lambda f. \lambda x. g x (f x)$)
+as a running example and represent
 terms using a syntax tree whose constructor nodes are circles and variable nodes
 are squares.
 %
@@ -63,9 +65,10 @@ $\lambda$-abstractions do not carry a name anymore and that variables are simply
 to the binder that introduced them. We have left the squares empty but in practice
 the various coloured arrows would be represented by a natural number.
 %
-For instance the {\color{magenta}magenta} one corresponds to $1$ because you need
-to ignore one $\lambda{}$-abstraction (the {\color{orange}orange} one) on your way
-towards the root of the tree before your reach the corresponding magenta binder.
+For instance the {\color{magenta}dashed magenta} one corresponds to $1$
+because you need to ignore one $\lambda{}$-abstraction
+(the {\color{orange}orange} one) on your way towards the root of the tree
+before you reach the corresponding magenta binder.
 
 \ExecuteMetaData[ast.tex]{debruijn}
 
@@ -173,7 +176,7 @@ This has led to numerous and hard to diagnose bugs.
 
 \subsubsection{Thinnings in \idris}
 
-\idris{} is a bootstrapped language whose core datatype is currently based on
+\idris{} is a self-hosting language whose core datatype is currently based on
 a well-scoped de Bruijn representation.
 %
 This precise indexing of terms by their scope helped entirely eliminate a whole
@@ -192,4 +195,4 @@ an inductive family while ensuring that everything but a pair of integers is era
 at compile time.
 %
 We will exploit the key features of QTT presented in \cref{sec:quantitativeTT}
-to solve this conundrum.
+to have our cake and eat it.

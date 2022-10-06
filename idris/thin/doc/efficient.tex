@@ -16,12 +16,12 @@ will compile it to an unbounded integer.
 Secondly, we have an integer called \IdrisFunction{encoding} corresponding to
 the thinning represented as a bit vector stating, for each variable, whether
 it is kept or dropped. We only care about the integer's \IdrisFunction{bigEnd}
-first bits and assume the rest is set to 0.
+least significant bits and assume the rest is set to 0.
 
-Thirdly, we have a runtime irrelevant proof \IdrisFunction{thinning} that
+Thirdly, we have a runtime irrelevant proof \IdrisFunction{invariant} that
 \IdrisFunction{encoding} is indeed a valid encoding of size \IdrisFunction{bigEnd}
 of a thinning from \IdrisBound{sx} to \IdrisBound{sy}. We will explore the
-definition of the relation \IdrisType{Thinning} later on
+definition of the relation \IdrisType{Invariant} later on
 in \cref{sec:thininginternal}.
 
 \ExecuteMetaData[Thin.idr.tex]{thin}
@@ -40,7 +40,18 @@ In this instance, the proof is simply the \IdrisData{Done} constructor.
 
 \ExecuteMetaData[Thin.idr.tex]{done}
 
-Both \IdrisFunction{keep} and \IdrisFunction{drop} are going to need to extend the
+To implement both \IdrisFunction{keep} and \IdrisFunction{drop}, we are going to need
+to perform bit-level manipulations.
+%
+These are made easy by \idris{}'s \IdrisType{Bits} interface which provides us with
+functions to
+shift the bit patterns left or right (\IdrisFunction{shiftl}, \IdrisFunction{shiftr}),
+set or clear bits at specified positions (\IdrisFunction{setBit}, \IdrisFunction{clearBit}),
+take bitwise logical operations like disjunction (\IdrisFunction{.|.})
+or conjunction (\IdrisFunction{.\&.}), etc.
+
+
+In both  \IdrisFunction{keep} and \IdrisFunction{drop}, we need to extend the
 encoding with an additional bit.
 %
 For this purpose we introduce the \IdrisFunction{cons} function which takes a bit
@@ -49,7 +60,8 @@ $b$ and an existing encoding $bs$ and returns the new encoding $\bitcons{bs}{b}$
 \ExecuteMetaData[Data/Bits/Integer.idr.tex]{cons}
 
 No matter what the value of the newt bit is, we start by shifting the encoding to
-the left to make space for it; this gives us $\bitcons{bs}{0}$.
+the left to make space for it; this gives us \IdrisBound{bs0} which contains the
+bit pattern $\bitcons{bs}{0}$.
 %
 If the bit is \IdrisData{True} then we need to additionally set the bit at position
 $0$ to obtain $\bitcons{bs}{1}$. Otherwise if the bit is \IdrisData{False}, we can readily
@@ -91,9 +103,13 @@ correctness to convince \idris{} the invariant is maintained.
 
 We can already deploy these smart constructors to implement functions producing
 thinnings. We use \IdrisFunction{which} as our example. It is a filter-like
-function that returns the elements that satisfy a boolean predicate together with
-a proof that there is a thinning embedding them back into the input snoclist.
-%
+function that returns a dependent pair
+containing the elements that satisfy a boolean predicate
+together with a proof that there is a thinning embedding
+them back into the input snoclist.
+
+\ExecuteMetaData[Thin.idr.tex]{which}
+
 If the input snoclist is empty then the output shall also be, and
 \IdrisFunction{done} builds a thinning from \IdrisData{[<]} to itself.
 %
@@ -101,7 +117,6 @@ If it is not empty we can perform a recursive call on the tail of the snoclist
 and then depending on whether the predicates holds true of the head we can either
 \IdrisFunction{keep} or \IdrisFunction{drop} it.
 
-\ExecuteMetaData[Thin.idr.tex]{which}
 
 We are now equipped with these smart constructors that allow us to seamlessly
 build thinnings.
@@ -122,7 +137,7 @@ thinning arises as one of these three cases.
 \ExecuteMetaData[Thin.idr.tex]{viewtotal}
 
 We show the implementation of \IdrisFunction{view} in its entirety but leave
-out the slightly technical auxiliary lemma it invokes.
+out the technical auxiliary lemma it invokes.
 %
 The interested reader can find them in the accompanying material.
 %
@@ -134,12 +149,15 @@ We first start by pattern matching on the \IdrisFunction{bigEnd} of the thinning
 If it is \IdrisData{0} then we know the thinning has to be the empty thinning.
 %
 Thanks to an inversion lemma called \IdrisFunction{isDone}, we can collect a lot
-of equality proofs: the encoding \emph{has to} be \IdrisData{0}, the
-source and target scopes \emph{have to} be the empty snoclists, and the
-proof of the invariant has to be of a specific shape.
+of equality proofs:
+the encoding \IdrisBound{bs} \emph{has to} be \IdrisData{0},
+the source and target scopes \IdrisBound{sx} and \IdrisBound{sy} \emph{have to}
+be the empty snoclists,
+and the proof \IdrisBound{prf} of the invariant has to be of a specific shape.
 %
-Rewriting by these equalities changes the goal type enough that it is ultimately
-manifest that the thinning was constructed using the \IdrisFunction{done} smart
+Rewriting by these equalities changes the goal type enough
+for the typechecker to ultimately see
+that the thinning was constructed using the \IdrisFunction{done} smart
 constructor and so we can use the view's \IdrisData{Done} constructor.
 
 \ExecuteMetaData[Thin.idr.tex]{viewDone}
@@ -204,20 +222,23 @@ call.
 It is runtime irrelevant but it can still be successfully used as a termination
 measure by the compiler.
 
-\subsection{The \IdrisType{Thinning} Relation}\label{sec:thininginternal}
+\subsection{The \IdrisType{Invariant} Relation}\label{sec:thininginternal}
 
 We have shown the user-facing \IdrisType{Th} and have claimed that it is possible
 to define smart constructors \IdrisFunction{done}, \IdrisFunction{keep},
 and \IdrisFunction{drop}, as well as a \IdrisFunction{view} function.
 %
-This should become apparent once we show the actual definition of \IdrisType{Thinning}.
+This should become apparent once we show the actual definition of \IdrisType{Invariant}.
 
-\subsubsection{Definition of \IdrisType{Thinning}}
+\subsubsection{Definition of \IdrisType{Invariant}}
 
 The relation maintains the invariant between the record's
 fields \IdrisFunction{bigEnd} (a \IdrisType{Nat})
 and \IdrisFunction{encoding} (an \IdrisType{Integer})
 and the index scopes \IdrisBound{sx} and \IdrisBound{sy}.
+%
+Its definition can favour ease-of-use of runtime efficiency because we statically
+know that all of the \IdrisType{Invariant} proofs will be erased during compilation.
 
 \ExecuteMetaData[Thin/Internal.idr.tex]{thinning}
 
@@ -242,7 +263,7 @@ it insists the bit at position \IdrisData{Z} should \emph{not} be set.
 We can readily use this relation to prove that some basic encoding are
 valid representations of useful thinnings.
 
-\subsubsection{Examples of \IdrisType{Thinning} proofs}
+\subsubsection{Examples of \IdrisType{Invariant} proofs}
 
 For instance, we can always define a thinning from the empty scope to
 an arbitrary scope \IdrisBound{sy}.
@@ -250,13 +271,15 @@ an arbitrary scope \IdrisBound{sy}.
 \ExecuteMetaData[Thin.idr.tex]{none}
 
 The \IdrisFunction{encoding} of this thinning is \IdrisData{0} because
-every variable is being discarded and its \IdrisFunction{bigEnd} is
+every variable is being and its \IdrisFunction{bigEnd} is
 the length of the outer scope \IdrisBound{sy}.
 %
 The proof that this encoding is valid is provided by
-the \IdrisFunction{none} lemma (we once again use \idris{}'s overloading
-to give the same to functions that play essentially the same role but at
-different types) proven below.
+the \IdrisFunction{none} lemma proven below.
+%
+We once again use \idris{}'s overloading
+to give the same to functions that play similar roles but at
+different types.
 
 \ExecuteMetaData[Thin/Internal.idr.tex]{none}
 
@@ -301,7 +324,7 @@ as the \IdrisFunction{bigEnd}.
 \ExecuteMetaData[Thin.idr.tex]{ones}
 
 The bulk of the work is once again in the eponymous lemma proving that this
-is a valid encoding.
+encoding is valid.
 
 \ExecuteMetaData[Thin/Internal.idr.tex]{ones}
 
@@ -311,7 +334,7 @@ This proof proceeds once more by induction on the scope.
 If the scope is empty then once again the constructor for the empty thinning will do.
 %
 In the non-empty case, we first appeal to an auxiliary lemma (not shown here) to
-construct \IdrisBound{nb} a proof that the bit at position \IdrisData{Z} for a
+construct a proof \IdrisBound{nb} that the bit at position \IdrisData{Z} for a
 non-zero \IdrisFunction{full} integer is known to be \IdrisData{True}.
 %
 We then need to use another lemma to cast the induction hypothesis which mentions
@@ -320,7 +343,7 @@ used in a position where we expect a proof talking about
 (\IdrisFunction{full} (\IdrisFunction{length} (\IdrisBound{sx} \IdrisData{:<} \IdrisBound{x}))
 \IdrisFunction{`shiftR`} \IdrisData{1}).
 
-\subsubsection{Properties of the \IdrisType{Thinning} relation}
+\subsubsection{Properties of the \IdrisType{Invariant} relation}
 
 This relation has a lot of convenient properties.
 
@@ -337,16 +360,16 @@ Second, it can be inverted~\cite{DBLP:conf/types/CornesT95} knowing only two bit
 whether the natural number is empty and what the value of the bit at position
 \IdrisData{Z} of the encoding is.
 %
-This is what allows us to efficiently implement the \IdrisFunction{view} function
+This is what allowed us to efficiently implement the \IdrisFunction{view} function
 by using
-these two checks and then inverting the \IdrisType{Thinning} proof to gain access
+these two checks and then inverting the \IdrisType{Invariant} proof to gain access
 to the proof that the remainder of the thinning's encoding is valid.
 %
 We will see in \cref{sec:compiledview} that this leads to efficient runtime code for the view.
 
 \subsection{Choose Your Own Abstraction Level}
 
-Access to both the high-level \IdrisType{View} and the internal \IdrisType{Thinning}
+Access to both the high-level \IdrisType{View} and the internal \IdrisType{Invariant}
 relation means that programmers can pick the level of abstraction at which they
 want to work.
 %
@@ -367,7 +390,7 @@ on the first thinning and case analysis on the second, emitting a \IdrisData{Kee
 constructor whenever either of the inputs does.
 %
 Or we can observe that the bit pattern in the join is exactly the disjunction of
-the inputs' respective bit patterns and prove a lemma about the \IdrisType{Thinning}
+the inputs' respective bit patterns and prove a lemma about the \IdrisType{Invariant}
 relation instead.
 %
 This can be visualised as follows. In each column, the meet is a
@@ -382,7 +405,7 @@ $\bullet$ whenever either of the inputs is.
 \end{array}
 \]
 
-The join is of particular importance because it appears when we convert and `opened'
+The join is of particular importance because it appears when we convert an `opened'
 view of a term into its co-de Bruijn counterpart.
 %
 As we mentioned earlier, co-de Bruijn terms in an arbitrary scope are represented by
@@ -424,6 +447,8 @@ the chezscheme one because it produces fairly readable code.
 We have modified the backend to also write comments reminding the reader of the type
 of the function being defined and the data constructors the natural number tags
 correspond to.
+%
+These changes are now available to all in \idris{}'s current development version.
 
 The only manual modifications we have performed are the inlining of a function
 corresponding to a \IdrisKeyword{case} block, renaming variables and property names

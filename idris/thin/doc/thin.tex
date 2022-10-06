@@ -26,17 +26,23 @@
 
 \begin{document}
 
-\title{Builtin Types viewed as Inductive Families \\
-{\large Efficiently Representing Thinnings in \idris, a case study}}
+\title{Builtin Types viewed as Inductive Families
+%{\\ \large Efficiently Representing Thinnings in \idris, a case study}}
+}
 \author{Guillaume Allais}
 
 \maketitle
 
 \begin{abstract}
-  Remembering that types originally gave us a way to make sense of unstructured
-  data stored in memory, we demonstrate how to use Quantitative Type Theory to
-  define an invariant-rich typechecking time data structure that is guaranteed
-  to compile to an efficient runtime memory representation.
+  State of the art optimisation passes for dependently typed languages can help
+  erase the redundant information typical of invariant-rich data structures and
+  programs.
+  These automated processes do not dramatically change the \emph{structure} of
+  the data, even though more efficient representations could be available.
+
+  Using Quantitative Type Theory, we demonstrate how to define an invariant-rich,
+  typechecking time data structure that is \emph{guaranteed} to compile to an
+  efficient runtime memory representation.
 
   Unlike other approaches, the complexity of the resulting representation is
   entirely predictable, we do not require both representations to have the
@@ -62,10 +68,18 @@ invariants being maintained.
 %
 This programming style is dubbed `correct by construction'.
 
-However relying on inductive families can have a non-negligible runtime cost if
+However, relying on inductive families can have a non-negligible runtime cost if
 the host language is compiling them naïvely. And even state of the art optimisation
 passes for dependently typed languages cannot make miracles: if the source code is
 not efficient, the executable will not be either.
+
+A state of the art compiler will for instance succesfully compile length-indexed
+lists to mere lists thus reducing the space complexity from quadratic to linear
+in the size of the list.
+%
+But, confronted with a list of booleans whose length is statically known to be
+less than 64, it will fail to pack it into a single machine word thus spending
+linear space when constant would have sufficed.
 
 In \cref{sec:optimisation-example}, we will look at an optimisation example
 that highlights both the strengths and the limitations of the current state
@@ -229,8 +243,10 @@ inversion~\cite{DBLP:conf/types/CornesT95,DBLP:conf/types/McBride96,monin:inria-
 
 \paragraph{Acknowledgements}
 I am grateful to
-James McKinna
-and Fredrik Nordvall Forsberg
+James McKinna,
+Fredrik Nordvall Forsberg,
+Ohad Kammar,
+and Jacques Carette
 for providing useful comments on early
 versions of this paper.
 
