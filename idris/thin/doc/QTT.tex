@@ -86,8 +86,10 @@ the domain of any dependent function type can be marked as \IdrisKeyword{auto}.
 %
 This signals to the compiler that the corresponding argument will be an implicit
 argument and that it should not be reconstructed by unification alone but rather by
-proof search using the appropriate user-declared hints as well as the local
-variables in scope.
+proof search.
+%
+The search algorithm will use the appropriate user-declared hints as well as
+the local variables in scope.
 
 By default, a datatype's constructors are always added to the database of hints.
 And so the following declaration brings into scope both an indexed family
@@ -98,7 +100,7 @@ constructor \IdrisData{Oh} that is automatically added as a hint.
 
 As a consequence, we can for instance define a record type specifying what it
 means for \IdrisBound{n} to be an even number by storing its \IdrisFunction{half}
-together with a proof that is both runtime irrelevant an filled in by proof search.
+together with a proof that is both runtime irrelevant and filled in by proof search.
 %
 Because (\IdrisData{2} \IdrisFunction{*} \IdrisData{3} \IdrisFunction{==} \IdrisData{6})
 computes to \IdrisData{True}, \idris{} is able to fill-in the missing proof in the
@@ -225,7 +227,12 @@ Using the \IdrisKeyword{with} keyword we have locally modified the function
 definition so that it takes an extra argument, here the result of the intermediate
 computation (\IdrisFunction{view} \IdrisBound{xs}).
 %
-Correspondingly, we have two clauses matching on this extra argument: it can
+Correspondingly, we have two clauses matching on this extra argument;
+the symbol \IdrisKeyword{|} separates the original left-hand side
+(here ellided using \IdrisKeyword{\KatlaUnderscore{}} because it is exactly the
+same as in the parent clause) from the additional pattern.
+%
+This pattern can
 either have the shape \IdrisData{[]} or (\IdrisBound{hd} \IdrisData{::} \IdrisBound{tl})
 and, correspondingly, we learn that \IdrisBound{xs} is either \IdrisFunction{[]} or
 (\IdrisBound{hd} \IdrisFunction{::} \IdrisBound{tl}).
