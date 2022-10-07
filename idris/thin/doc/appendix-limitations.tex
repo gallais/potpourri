@@ -2,10 +2,16 @@
 
 This challenge, suggested by Jacques Carette, highlights some of the current
 limitations of \idris{}.
-%
+
+\subsection{Problem statement}
+
 The goal is to use the \IdrisType{Vect} type defined in~\cref{sec:vectaslist}
 and define a view that un-does vector-append.
 %
+This is a classic exercise in dependently-typed programming, the interesting
+question being whether we can implement the function just as seamlessly with
+our encoding.
+
 Vector append can easily be defined by induction over the first vector.
 
 \ExecuteMetaData[VectAsList.idr.tex]{append}
@@ -15,21 +21,94 @@ If the first vector is empty we can readily return the second vector.
 If it is cons-headed, we can return the head and compute the tail by performing
 a recursive call.
 
+Equipped with this definition, we can declare the view type which we call
+\IdrisType{SplitAt} by analogy with its weakly typed equivalent processing
+lists.
+%
+It states that a vector \IdrisBound{xs} of length \IdrisBound{p} can be split
+at \IdrisBound{m} if
+\IdrisBound{p} happens to be
+(\IdrisBound{m} \IdrisFunction{+} \IdrisBound{n})
+and \IdrisBound{xs} happens to be
+(\IdrisBound{pref} \IdrisFunction{++} \IdrisBound{suff})
+where \IdrisBound{pref} and \IdrisBound{suff} are
+respective lengths are \IdrisBound{m} and \IdrisBound{n}.
+
 \ExecuteMetaData[VectAsList.idr.tex]{splitAtrel}
+
+The challenge is to define the function proving that a vector of size
+(\IdrisBound{m} \IdrisFunction{+} \IdrisBound{n}) can be split at
+\IdrisBound{m}.
+
+\subsection{Failing attempts}
+
+The proof will necessarily go by induction on \IdrisBound{m}, followed by
+a case analysis on the input vector and a recursive call in the non-zero
+case.
+
+Our first failing attempt successfully splits the natural number, calls the
+view on the vector \IdrisBound{xs} to take it apart but then fails when
+performing the recursive call to \IdrisFunction{splitAt}.
+
+\ExecuteMetaData[VectAsList.idr.tex]{splitAtFail1}
+
+This reveals an issue in \idris{}'s handling of the interplay between
+\IdrisKeyword{@}-patterns and quantities: the compiler arbitrarily decided
+to make the alias \IdrisBound{tl} runtime irrelevant only to then complain
+that \IdrisBound{tl} is not accessible when we want to perform the recursive
+call (\IdrisFunction{splitAt} \IdrisBound{m} \IdrisBound{tl})!
+
+
+In order to work around this limitation, we decided to let go of
+\IdrisKeyword{@}-patterns and write the fully explicit clause ourselves,
+using dotted patterns to mark the forced expressions.
+
+\ExecuteMetaData[VectAsList.idr.tex]{splitAtFail2}
+
+The left-hand side now typechecks but the case tree builder fails with a
+perplexing error.
+%
+This reveals a bug in \idris{}'s implementation of elaboration of
+pattern-matching functions to case trees.
+%
+Instead of ignoring dotted expressions when building the case tree (these
+expressions are forced and so the variables they mention will have necessarily
+been bound in another pattern), it attempts to use them to drive the case-splitting
+strategy.
+%
+This is a well-studied problem and should be fixable by referring to
+Cockx and Abel's work~\cite{DBLP:journals/jfp/CockxA20}.
+
+\subsection{Working Around \idris{}'s Limitations}
+
+This leads us to our working solution.
+%
+Somewhat paradoxically, working around these \idris{} bugs led us to a more
+principled solution whereby the pattern-matching step needed to adjust the
+result returned by the recursive call is abstracted away in an auxiliary
+function which type clarifies what is happening.
+
+From an \IdrisBound{m} split on \IdrisBound{xs}, we can easily compute an
+(\IdrisData{S} \IdrisBound{m}) split on (\IdrisBound{x} \IdrisFunction{::} \IdrisBound{xs})
+by cons-ing \IdrisBound{xs} on the prefix.
 
 \ExecuteMetaData[VectAsList.idr.tex]{splitAtcons}
 
-\todo{explain match on Refl}
+In this auxiliary function, \IdrisBound{xs} is clearly runtime irrelevant and
+so the case-splitter will not attempt to inspect it, thus generating the correct
+case tree.
+%
+We are forced to match further on \IdrisBound{pref} (in particular by making
+the equality proof \IdrisData{Refl}) so that just enough computation happens
+at the type level for the typechecker to see that things do line up.
+%
+A proof irrelevant type of propositional equality would have helped us here.
+
+We can put all of these pieces together and finally get our
+\IdrisFunction{splitAt} view.
 
 \ExecuteMetaData[VectAsList.idr.tex]{splitAt}
 
-More damning is the unwritten story: this somewhat unsatisfactory solution is
-the one we arrived at during interactive development.
-%
-Other attemps ended with error messages that would have puzzled more junior users
-of the system.
-%
-Some of these errors revealed underlying bugs in \idris{} while others qualify
-more as open research questions on the development of practical programming
-languages based on quantitative type theory.
-\todo{remind people idris is a research project?}
+We do want to reiterate that these limitations are not intrinsic limitations of
+the approach, there are just flaws in the current experimental implementation of
+the \idris{} language and can and should be remedied.

@@ -86,15 +86,14 @@ xs@_ ++ ys with (view xs)
 \end{code}
 %<*splitAtrel>
 \begin{code}
-data SplitAt : (m : Nat) -> Vect p a -> Type where
-  MkSplitAt : (xs : Vect m a) -> (ys : Vect n a) ->
-              SplitAt m (xs ++ ys)
+data SplitAt : (m : Nat) -> (xs : Vect p a) -> Type where
+  MkSplitAt : (pref : Vect m a) -> (suff : Vect n a) ->
+              SplitAt m (pref ++ suff)
 \end{code}
 %</splitAtrel>
 \begin{code}
 
 namespace SplitAt
-
 
  export
 \end{code}
@@ -105,6 +104,36 @@ namespace SplitAt
    = MkSplitAt (x :: pref) suff
 \end{code}
 %</splitAtcons>
+\begin{code}
+
+\end{code}
+%<*splitAtFail1>
+\begin{code}
+failing "tl is not accessible in this context"
+
+  splitAt : (m : Nat) -> (xs : Vect (m + n) a) -> SplitAt m xs
+  splitAt 0 xs = MkSplitAt [] xs
+  splitAt (S m) xs@_ with (view xs)
+    _ | hd :: tl@_ with (splitAt m tl)
+      _ | res = ?a
+\end{code}
+%</splitAtFail1>
+\begin{code}
+
+\end{code}
+%<*splitAtFail2>
+\begin{code}
+failing "Can't match on ?postpone [no locals in scope] (User dotted)"
+
+  splitAt : (m : Nat) -> (xs : Vect (m + n) a) -> SplitAt m xs
+  splitAt 0 xs = MkSplitAt [] xs
+  splitAt (S m) xs@_ with (view xs)
+    _ | hd :: tl with (splitAt m tl)
+      splitAt (S m) .(hd :: (pref ++ suff))
+        | hd :: .(pref ++ suff)
+        | MkSplitAt pref suff = ?a
+\end{code}
+%</splitAtFail2>
 \begin{code}
 
 \end{code}
