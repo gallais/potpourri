@@ -1,8 +1,20 @@
-%<*thinning>
 \begin{code}
-data Thinning : (sx, sy : SnocList a) -> Type where
-  Done : Thinning [<] [<]
-  Keep : Thinning sx sy -> (0 x : a) -> Thinning (sx :< x) (sy :< x)
-  Drop : Thinning sx sy -> (0 x : a) -> Thinning sx (sy :< x)
+namespace Family
 \end{code}
-%</thinning>
+%<*family>
+\begin{code}
+ data Thinning : (sx, sy : SnocList a) -> Type where
+   Done : Thinning [<] [<]
+   Keep : Thinning sx sy -> (0 x : a) -> Thinning (sx :< x) (sy :< x)
+   Drop : Thinning sx sy -> (0 x : a) -> Thinning sx (sy :< x)
+\end{code}
+%</family>
+
+\begin{code}
+namespace Bare
+\end{code}
+%<*bare>
+\begin{code}
+ data Thinning = Done | Keep Thinning | Drop Thinning
+\end{code}
+%</bare>
