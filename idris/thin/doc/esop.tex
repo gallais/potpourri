@@ -1,26 +1,66 @@
-\documentclass{article}
+% This is samplepaper.tex, a sample chapter demonstrating the
+% LLNCS macro package for Springer Computer Science proceedings;
+% Version 2.21 of 2022/01/12
+%
+\documentclass[runningheads]{llncs}
+%
+\usepackage[T1]{fontenc}
+% T1 fonts will be used to generate the final print and online PDFs,
+% so please use T1 fonts in your manuscript whenever possible.
+% Other font encondings may result in incorrect characters.
+%
+\usepackage{graphicx}
+% Used for displaying a sample figure. If possible, figure files should
+% be included in EPS format.
+%
+% If you use the hyperref package, please uncomment the following two lines
+% to display URLs in blue roman font according to Springer's eBook style:
+%\usepackage{color}
+%\renewcommand\UrlFont{\color{blue}\rmfamily}
+%
 
 \input{imports}
-\bibliographystyle{alpha}
-\overfullrule=1mm
 \toggletrue{BLIND}
 
+
 \begin{document}
-
-\title{Builtin Types viewed as Inductive Families
-%{\\ \large Efficiently Representing Thinnings in \idris, a case study}}
+%
+\title{Builtin Types viewed as Inductive Families}
+%
+%\titlerunning{Abbreviated paper title}
+% If the paper title is too long for the running head, you can set
+% an abbreviated paper title here
+%
+\author{
+\iftoggle{BLIND}
+{ANONYMOUS
+}{
+  Guillaume Allais\inst{University of St Andrews}
+  \orcidID{0000-0002-4091-657X}
 }
-\author{\iftoggle{BLIND}{ANONYMOUS}{Guillaume Allais}}
+}
 
-\maketitle
+%
+\authorrunning{\iftoggle{BLIND}{ANONYMOUS}{G. Allais}}
+% First names are abbreviated in the running head.
+% If there are more than two authors, 'et al.' is used.
+%
+\institute{
+\iftoggle{BLIND}{ANONYMOUS}
+{University of St Andrews, UK\\
+\email{guillaume.allais@ens-lyon.org}
+}}
+%
+\maketitle              % typeset the header of the contribution
+
+% ---- Abstract ----
 
 \begin{abstract}
-  \input{abstract}
+\input{abstract}
+\keywords{Quantitative Type Theory \and Indexed families \and Runtime representation \and \idris{}}
 \end{abstract}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% imports
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ---- Content ----
 
 \input{introduction}
 \input{optimisation}
@@ -30,6 +70,9 @@
 \input{conclusion}
 \input{acknowledgements}
 
+% ---- Bibliography ----
+
+\bibliographystyle{splncs04}
 \bibliography{thin}
 
 \appendix

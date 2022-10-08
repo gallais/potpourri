@@ -2,6 +2,8 @@
 
 PAPER=esop
 DEPENDENCIES=\
+  build/latex/llncs.cls \
+  build/latex/splncs04.bst \
   build/latex/robust-catch.tex \
   build/latex/view.tex \
   build/latex/imports.tex \
@@ -43,6 +45,14 @@ build/latex/%.idr.tex: %.tex build/ttc/%.ttm build/ttc/%.ttc
 	katla literate $*.tex build/ttc/$*.ttm > $@
 
 build/latex/%.tex: %.tex
+	mkdir -p build/latex
+	cp $^ build/latex/
+
+build/latex/%.cls: %.cls
+	mkdir -p build/latex
+	cp $^ build/latex/
+
+build/latex/%.bst: %.bst
 	mkdir -p build/latex
 	cp $^ build/latex/
 

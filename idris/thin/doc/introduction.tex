@@ -45,10 +45,11 @@ In \cref{sec:codebruijn} we will look at an inductive family that
 and whose compilation suffers from the limitations highlighted in
 \cref{sec:optimisation-example}.
 %
-\iftoggle{BLIND}{Their}{Our}
+\iftoggle{BLIND}{The project's authors}{Our}
 current and unsatisfactory approach is to rely on the safe and convenient
 inductive family when experimenting in Agda and then replace it with an unsafe
-but vastly more efficient representation in our actual Haskell implementation.
+but vastly more efficient representation in
+\iftoggle{BLIND}{their}{our} actual Haskell implementation.
 
 Finally in \cref{sec:efficient}, we will study the actual implementation of
 our efficient and invariant-rich solution implemented in \idris{}. We will
