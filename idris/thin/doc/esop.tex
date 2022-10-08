@@ -1,0 +1,40 @@
+\documentclass{article}
+
+\input{imports}
+\bibliographystyle{alpha}
+\overfullrule=1mm
+\toggletrue{BLIND}
+
+\begin{document}
+
+\title{Builtin Types viewed as Inductive Families
+%{\\ \large Efficiently Representing Thinnings in \idris, a case study}}
+}
+\author{\iftoggle{BLIND}{ANONYMOUS}{Guillaume Allais}}
+
+\maketitle
+
+\begin{abstract}
+  \input{abstract}
+\end{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% imports
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\input{introduction}
+\input{optimisation}
+\input{QTT}
+\input{CdB}
+\input{efficient}
+\input{conclusion}
+\input{acknowledgements}
+
+\bibliography{thin}
+
+\appendix
+
+\input{appendix-axioms}
+\input{appendix-limitations}
+
+\end{document}

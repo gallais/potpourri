@@ -1,9 +1,6 @@
 .PRECIOUS: build/ttc/%.ttm build/ttc/%.ttc
-.PHONY: paper
 
-
-
-PAPER=thin
+PAPER=esop
 DEPENDENCIES=\
   build/latex/robust-catch.tex \
   build/latex/view.tex \
@@ -19,8 +16,7 @@ DEPENDENCIES=\
   build/latex/conclusion.tex \
   build/latex/acknowledgements.tex \
   build/latex/efficient.tex \
-  build/latex/${PAPER}.tex \
-  build/latex/${PAPER}.bib \
+  build/latex/thin.bib \
   build/latex/Lookup.idr.tex \
   build/latex/Thinnings.idr.tex \
   build/latex/QuantitativeTT.idr.tex \
@@ -37,7 +33,7 @@ DEPENDENCIES=\
   build/latex/Data/Bits/Integer/Postulated.idr.tex \
   build/latex/idris2.sty
 
-all: paper
+all: esop.pdf thin.pdf
 
 build/ttc/%.ttm build/ttc/%.ttc: %.tex
 	idris2 -p contrib -c $^
@@ -58,12 +54,12 @@ build/latex/%.sty: %.sty
 	mkdir -p build/latex
 	cp $^ build/latex
 
-paper: $(DEPENDENCIES)
+%.pdf: build/latex/%.tex $(DEPENDENCIES)
 	mkdir -p build/latex
 	cd build/latex && \
 	sed -i "s/Smart\.//g" Thin.idr.tex && \
-	latexmk -shell-escape -pdf -bibtex ${PAPER}.tex
-	ln -sf build/latex/${PAPER}.pdf ${PAPER}.pdf
+	latexmk -shell-escape -pdf -bibtex $*.tex
+	ln -sf build/latex/$*.pdf $*.pdf
 
 clean:
 	rm -r build/latex

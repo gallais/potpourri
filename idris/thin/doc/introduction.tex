@@ -36,13 +36,17 @@ Type Theory, the expressive language that grants programmers the ability
 to have both strong invariants and, reliably, a very efficient runtime
 representation.
 
-In \cref{sec:codebruijn} we will then look at an inductive family that we
-use in a performance-critical way in the \typos{}
-project~\cite{MANUAL:talk/types/Allais22}
+In \cref{sec:codebruijn} we will look at an inductive family that
+\iftoggle{BLIND}
+  {the \typos{} project~\cite{MANUAL:talk/types/Allais22}
+    uses in a performance-critical way}
+  {we use in a performance-critical way in the
+    \typos{} project~\cite{MANUAL:talk/types/Allais22}}
 and whose compilation suffers from the limitations highlighted in
 \cref{sec:optimisation-example}.
 %
-Our current and unsatisfactory approach is to rely on the safe and convenient
+\iftoggle{BLIND}{Their}{Our}
+current and unsatisfactory approach is to rely on the safe and convenient
 inductive family when experimenting in Agda and then replace it with an unsafe
 but vastly more efficient representation in our actual Haskell implementation.
 

@@ -1,9 +1,15 @@
 \section{Thinnings, cooked two ways}\label{sec:codebruijn}
 
-We experienced a major limitation of compilation of inductive families
+\iftoggle{BLIND}
+{In their work on \typos~\cite{MANUAL:talk/types/Allais22}, a domain specific language
+to define concurrent typecheckers and elaborators, the authors go out of their way
+to avoid using inductive families because of their inefficient runtime representation.
+}
+{We experienced a major limitation of compilation of inductive families
 during our ongoing development of
 \typos~\cite{MANUAL:talk/types/Allais22}, a domain specific language
 to define concurrent typecheckers and elaborators.
+}
 %
 Core to this project is the definition of actors manipulating a generic notion
 of syntax with binding.
@@ -129,18 +135,28 @@ solve a metavariable declared in a given context with a terms seemingly living
 in a wider one. We once more do not need to traverse the term to perform this
 test, and can simply check whether the outer thinning can be thickened.
 
-For all of these reasons we have, as we mentioned earlier, opted for a co-de Bruijn
+For all of these reasons
+\iftoggle{BLIND}
+{the \typos~\cite{MANUAL:talk/types/Allais22} authors have, as we mentioned earlier,
+opted for a co-de Bruijn representation.
+
+}{
+we have, as we mentioned earlier, opted for a co-de Bruijn
 representation in the implementation of \typos~\cite{MANUAL:talk/types/Allais22}.
+}
 %
-And so it is crucial for performance that we have a compact representation of thinnings.
+And so it is crucial for performance that
+\iftoggle{BLIND}{they}{we} have a compact representation of thinnings.
 %
 
 \subsubsection{Thinnings in \typos}
 
-We first carefully worked out the trickier parts of the implementation in Agda before
+\iftoggle{BLIND}{The authors}{We}
+first carefully worked out the trickier parts of the implementation in Agda before
 porting the resulting code to Haskell.
 %
-This process highlighted a glaring gap between on the one hand the experiments done
+This process \iftoggle{BLIND}{highlights}{highlighted}
+a glaring gap between on the one hand the experiments done
 using a strongly typed inductive representation of thinnings and on the other hand
 their more efficient but unsafe encoding in Haskell.
 
@@ -185,7 +201,7 @@ of this list of booleans as a pair of integers.
 %
 One integer represents the length \IdrisBound{n} of the list, and the other
 integer's \IdrisBound{n} least significant bits encode the list as a bit pattern
-where \IdrisData{1} is  \IdrisData{Keep} and \IdrisData{0} is \IdrisData{Drop}.
+where \IdrisData{1} is \IdrisData{Keep} and \IdrisData{0} is \IdrisData{Drop}.
 
 Basic operations on thinnings are implemented by explicitly manipulating individual bits.
 %
@@ -200,8 +216,10 @@ a well-scoped de Bruijn representation.
 This precise indexing of terms by their scope helped entirely eliminate a whole
 class of bugs that would plague Idris 1's unification machinery.
 
-If we were to switch to a co-de Bruijn representation for our core language we
-would want, and should be able, to have the best of both worlds:
+If \iftoggle{BLIND}{\idris{}}{we} were to switch to a co-de Bruijn
+representation for \iftoggle{BLIND}{the}{our} core language
+\iftoggle{BLIND}{the core developers would want}{we would want},
+and should be able, to have the best of both worlds:
 a safe \emph{and} efficient representation!
 
 Thankfully \idris{} implements Quantitative Type Theory (QTT) which gives us a
