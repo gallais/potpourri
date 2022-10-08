@@ -60,7 +60,7 @@ An abstract syntax tree based on de Bruijn indices~\cite{MANUAL:journals/math/de
 replaces names with natural numbers counting the number of binders separating a variable
 from its binding site.
 %
-The $S$ combinator is now written $(\lambda\, \lambda\, \lambda\, 2\, 0\, (1\, 0\,))$.
+The $S$ combinator is now written $(\lambda\, \lambda\, \lambda\, 2\, 0\, (1\, 0))$.
 
 You can see in the following graphical depiction that
 $\lambda$-abstractions do not carry a name anymore and that variables are simply pointing
@@ -171,7 +171,7 @@ The `name' (\IdrisBound{x} of type \IdrisBound{a}) is marked with the quantity
 During compilation, \idris{} would erase the families' indices as they are forced,
 and drop the constructor arguments marked as runtime irrelevant.
 %
-The resulting inductive type would the following simple data type.
+The resulting inductive type would be the following simple data type.
 
 \ExecuteMetaData[Thinnings.idr.tex]{bare}
 
