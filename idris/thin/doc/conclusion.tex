@@ -1,0 +1,134 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% conclusion
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Conclusion}\label{sec:conclusion}
+
+We have seen that inductive families provide programmers with ways to root out bugs
+by enforcing strong invariants. Unfortunately these families can get in the way of
+producing performant code despite existing optimisation passes erasing redundant
+or runtime irrelevant data.
+%
+This tension has led us to take advantage of Quantitative Type Theory
+in order to design a library
+combining the best of both worlds: the strong invariants and ease of use of inductive
+families together with the runtime performance of explicit bit manipulations.
+
+\subsection{Related Work}
+
+For historical and ergonomic reasons, idiomatic code in \coq{} tends to center programs
+written in a subset of the language quite close to OCaml and then prove properties
+about these programs in the runtime irrelevant \texttt{Prop} fragment.
+%
+This can lead to awkward encodings when the unrefined inputs force the user to consider
+cases which ought to be impossible. Common coping strategies involve relaxing the types
+to insert a modicum of partiality e.g. returning an option type or taking an additional
+input to be used as the default return value.
+%
+This approach completely misses the point of type-driven development.
+%
+We benefit a lot from having as much information as possible available during
+interactive editing.
+%
+This information not only helps tremendously getting the definitions right by
+ensuring we always maintain vital invariants thus making invalid states
+unrepresentable, it also gives programmers access to type-driven automation.
+%
+Thankfully libraries such as Equations~\cite{DBLP:conf/itp/Sozeau10,DBLP:journals/pacmpl/SozeauM19}
+can help users write more dependently typed programs, by taking care of the complex
+encoding required in \coq{}. A view-based approach similar to ours but using \texttt{Prop}
+instead of the zero quantity ought to be possible.
+
+Prior work on erasure~\cite{DBLP:journals/pacmpl/Tejiscak20} has the advantage of
+offering a fully automated analysis of the code. The main inconvenient is that users
+cannot state explicitly that a piece of data ought to be runtime irrelevant and so
+they may end up inadvertently using it which would prevent its erasure.
+%
+Quantitative Type Theory allows us users to explicitly choose what is and is not
+runtime relevant, with the quantity checker keeping us true to our word.
+%
+This should ensure that the resulting program has a much more predictable complexity.
+
+A somewhat related idea was explored by Brady, McKinna, and Hammond in the context of
+circuit design~\cite{DBLP:conf/sfp/BradyMH07}. In their verification work they index
+an efficient representation (natural numbers as a list of bits) by its meaning as a
+unary natural number. All the operations are correct by construction as witnessed by
+the use of their unary counterparts acting as type-level specifications.
+%
+In the end their algorithms still process the inductive family instead of working
+directly with binary numbers. This makes sense in their setting where they construct
+circuits and so are explicitly manipulating wires carrying bits.
+%
+By contrast, in our motivating example we really want to get down to actual (unbounded)
+integers rather than linked lists of bits.
+
+%\todo{IIRC Iris does pointer manipulations. What about bit masks?
+%  High level invariants linking memory-mapped data to high level concepts?}
+
+\subsection{Limitations and Future Work}
+
+Overall we found this case study using \idris{}, a state of the art language
+based on Quantitative Type Theory, very encouraging.
+%
+The language implementation is still experimental (see for instance
+\cref{appendix:limitations} for some of the bugs we found) but none of
+the issues are intrinsic limitations.
+%
+We hope to be able to push this line of work further, tackling the following
+limitations and exploring more advanced use cases.
+
+Unfortunately it is only \emph{propositionally} true that
+(\IdrisFunction{view} (\IdrisFunction{keep} \IdrisBound{th} \IdrisBound{x}))
+computes to (\IdrisData{Keep} \IdrisBound{th} \IdrisBound{x}) (and similarly for
+\IdrisFunction{done}/\IdrisData{Done} and \IdrisFunction{drop}/\IdrisData{Drop}).
+%
+This means that users may need to manually deploy these lemmas when proving the
+properties of functions defined by pattern matching on the result of calling the
+\IdrisFunction{view} function.
+%
+This annoyance would disappear if we had the ability to extend \idris{}'s reduction rules
+with user-proven equations as implemented in Agda and formally studied
+by Cockx, Tabareau, and Winterhalter~\cite{DBLP:journals/pacmpl/CockxTW21}.
+
+In this paper's case study, we were able to design the core \IdrisType{Invariant}
+relation making the invariants explicit in such a way that it would be provably
+proof irrelevant.
+%
+This may not always be possible given the type theory currently implemented by
+\idris{}. Adding support for a proof-irrelevant sort of propositions (see e.g.
+Altenkirch, McBride, and Swierstra's work~\cite{DBLP:conf/plpv/AltenkirchMS07})
+could solve this issue once and for all.
+
+Our objectives with this work and that to come are twofold: we would like to
+explore more memory-mapped representations equipped with a high level interface
+and extend language support for this style of programming.
+
+The \idris{} standard library thankfully gave us access to a polished pure interface
+to explicitly manipulate an integer's bits.
+%
+However these built-in operations came with no built-in properties whatsoever.
+%
+And so we had to postulate a (minimal) set of axioms (see \cref{appendix:postulated})
+and prove a lot of useful corollaries ourselves.
+%
+There is even less support for other low-level operations such as reading from
+a read-only array, or manipulating pointers.
+
+We also found the use of runtime irrelevance (the \IdrisKeyword{0} quantity)
+sometimes somewhat frustrating.
+%
+Pattern-matching on a runtime irrelevant value in a runtime relevant context
+is currently only possible if it is manifest for the compiler that the value
+could only arise using one of the family's constructors.
+%
+In non-trivial cases this is unfortunately only merely provable rather than
+self-evident.
+%
+Consequently we are forced to jump through hoops to appease the quantity
+checker, and end up defining complex inversion lemmas to bypass these
+limitations.
+%
+This could be solved by a mix of improvements to the typechecker and
+meta-programming using prior ideas on automating
+inversion~\cite{DBLP:conf/types/CornesT95,DBLP:conf/types/McBride96,monin:inria-00489412}.

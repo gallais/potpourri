@@ -1,25 +1,6 @@
 \documentclass{article}
 
-\usepackage{catchfilebetweentags}
-\input{robust-catch}
-
-\usepackage{idris2}
-
-\usepackage{minted}
-\usepackage{cleveref}
-
-\usepackage{todonotes}
-\setuptodonotes{inline}
-
-\usepackage{tikz}
-\usetikzlibrary{shapes.geometric}
-
-\newcommand{\typos}{TypOS}
-\newcommand{\idris}{Idris 2}
-\newcommand{\coq}{Coq}
-\newcommand{\agda}{Agda}
-\newcommand{\bitcons}[2]{#1\!\cdot{}\!#2}
-
+\input{imports}
 \bibliographystyle{alpha}
 
 \overfullrule=1mm
@@ -33,231 +14,23 @@
 
 \maketitle
 
+\togglefalse{BLIND}
+
 \begin{abstract}
-  State of the art optimisation passes for dependently typed languages can help
-  erase the redundant information typical of invariant-rich data structures and
-  programs.
-  These automated processes do not dramatically change the \emph{structure} of
-  the data, even though more efficient representations could be available.
-
-  Using Quantitative Type Theory, we demonstrate how to define an invariant-rich,
-  typechecking time data structure that is \emph{guaranteed} to compile to an
-  efficient runtime memory representation.
-
-  Unlike other approaches, the complexity of the resulting representation is
-  entirely predictable, we do not require both representations to have the
-  same structure, and yet we are able to seamlessly program as if we were
-  using the high-level structure.
+  \input{abstract}
 \end{abstract}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% introduction
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\section{Introduction}
-
-Dependently typed languages have empowered users to precisely describe their domain
-of discourse by using inductive families~\cite{DBLP:journals/fac/Dybjer94}.
-%
-Programmers can bake crucial invariants directly into their definitions thus refining
-both their functions' inputs and outputs.
-%
-The constrained inputs allow them to only consider the relevant cases during pattern
-matching, while the refined outputs guarantee that client code can safely rely on the
-invariants being maintained.
-%
-This programming style is dubbed `correct by construction'.
-
-However, relying on inductive families can have a non-negligible runtime cost if
-the host language is compiling them naïvely. And even state of the art optimisation
-passes for dependently typed languages cannot make miracles: if the source code is
-not efficient, the executable will not be either.
-
-A state of the art compiler will for instance successfully compile length-indexed
-lists to mere lists thus reducing the space complexity from quadratic to linear
-in the size of the list.
-%
-But, confronted with a list of booleans whose length is statically known to be
-less than 64, it will fail to pack it into a single machine word thus spending
-linear space when constant would have sufficed.
-
-In \cref{sec:optimisation-example}, we will look at an optimisation example
-that highlights both the strengths and the limitations of the current state
-of the art when it comes to removing the runtime overheads potentially
-incurred by using inductive families.
-
-In \cref{sec:quantitativeTT} we will give a quick introduction to Quantitative
-Type Theory, the expressive language that grants programmers the ability
-to have both strong invariants and, reliably, a very efficient runtime
-representation.
-
-In \cref{sec:codebruijn} we will then look at an inductive family that we
-use in a performance-critical way in the \typos{}
-project~\cite{MANUAL:talk/types/Allais22}
-and whose compilation suffers from the limitations highlighted in
-\cref{sec:optimisation-example}.
-%
-Our current and unsatisfactory approach is to rely on the safe and convenient
-inductive family when experimenting in Agda and then replace it with an unsafe
-but vastly more efficient representation in our actual Haskell implementation.
-
-Finally in \cref{sec:efficient}, we will study the actual implementation of
-our efficient and invariant-rich solution implemented in \idris{}. We will
-also demonstrate that we can recover almost all the conveniences of programming
-with inductive families thanks to smart constructors and views.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% imports
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\input{introduction}
 \input{optimisation}
 \input{QTT}
 \input{CdB}
 \input{efficient}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% conclusion
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\section{Conclusion}\label{sec:conclusion}
-
-We have seen that inductive families provide programmers with ways to root out bugs
-by enforcing strong invariants. Unfortunately these families can get in the way of
-producing performant code despite existing optimisation passes erasing redundant
-or runtime irrelevant data.
-%
-This tension has led us to take advantage of Quantitative Type Theory
-in order to design a library
-combining the best of both worlds: the strong invariants and ease of use of inductive
-families together with the runtime performance of explicit bit manipulations.
-
-\subsection{Related Work}
-
-For historical and ergonomic reasons, idiomatic code in \coq{} tends to center programs
-written in a subset of the language quite close to OCaml and then prove properties
-about these programs in the runtime irrelevant \texttt{Prop} fragment.
-%
-This can lead to awkward encodings when the unrefined inputs force the user to consider
-cases which ought to be impossible. Common coping strategies involve relaxing the types
-to insert a modicum of partiality e.g. returning an option type or taking an additional
-input to be used as the default return value.
-%
-This approach completely misses the point of type-driven development.
-%
-We benefit a lot from having as much information as possible available during
-interactive editing.
-%
-This information not only helps tremendously getting the definitions right by
-ensuring we always maintain vital invariants thus making invalid states
-unrepresentable, it also gives programmers access to type-driven automation.
-%
-Thankfully libraries such as Equations~\cite{DBLP:conf/itp/Sozeau10,DBLP:journals/pacmpl/SozeauM19}
-can help users write more dependently typed programs, by taking care of the complex
-encoding required in \coq{}. A view-based approach similar to ours but using \texttt{Prop}
-instead of the zero quantity ought to be possible.
-
-Prior work on erasure~\cite{DBLP:journals/pacmpl/Tejiscak20} has the advantage of
-offering a fully automated analysis of the code. The main inconvenient is that users
-cannot state explicitly that a piece of data ought to be runtime irrelevant and so
-they may end up inadvertently using it which would prevent its erasure.
-%
-Quantitative Type Theory allows us users to explicitly choose what is and is not
-runtime relevant, with the quantity checker keeping us true to our word.
-%
-This should ensure that the resulting program has a much more predictable complexity.
-
-A somewhat related idea was explored by Brady, McKinna, and Hammond in the context of
-circuit design~\cite{DBLP:conf/sfp/BradyMH07}. In their verification work they index
-an efficient representation (natural numbers as a list of bits) by its meaning as a
-unary natural number. All the operations are correct by construction as witnessed by
-the use of their unary counterparts acting as type-level specifications.
-%
-In the end their algorithms still process the inductive family instead of working
-directly with binary numbers. This makes sense in their setting where they construct
-circuits and so are explicitly manipulating wires carrying bits.
-%
-By contrast, in our motivating example we really want to get down to actual (unbounded)
-integers rather than linked lists of bits.
-
-%\todo{IIRC Iris does pointer manipulations. What about bit masks?
-%  High level invariants linking memory-mapped data to high level concepts?}
-
-\subsection{Limitations and Future Work}
-
-Overall we found this case study using \idris{}, a state of the art language
-based on Quantitative Type Theory, very encouraging.
-%
-The language implementation is still experimental (see for instance
-\cref{appendix:limitations} for some of the bugs we found) but none of
-the issues are intrinsic limitations.
-%
-We hope to be able to push this line of work further, tackling the following
-limitations and exploring more advanced use cases.
-
-Unfortunately it is only \emph{propositionally} true that
-(\IdrisFunction{view} (\IdrisFunction{keep} \IdrisBound{th} \IdrisBound{x}))
-computes to (\IdrisData{Keep} \IdrisBound{th} \IdrisBound{x}) (and similarly for
-\IdrisFunction{done}/\IdrisData{Done} and \IdrisFunction{drop}/\IdrisData{Drop}).
-%
-This means that users may need to manually deploy these lemmas when proving the
-properties of functions defined by pattern matching on the result of calling the
-\IdrisFunction{view} function.
-%
-This annoyance would disappear if we had the ability to extend \idris{}'s reduction rules
-with user-proven equations as implemented in Agda and formally studied
-by Cockx, Tabareau, and Winterhalter~\cite{DBLP:journals/pacmpl/CockxTW21}.
-
-In this paper's case study, we were able to design the core \IdrisType{Invariant}
-relation making the invariants explicit in such a way that it would be provably
-proof irrelevant.
-%
-This may not always be possible given the type theory currently implemented by
-\idris{}. Adding support for a proof-irrelevant sort of propositions (see e.g.
-Altenkirch, McBride, and Swierstra's work~\cite{DBLP:conf/plpv/AltenkirchMS07})
-could solve this issue once and for all.
-
-Our objectives with this work and that to come are twofold: we would like to
-explore more memory-mapped representations equipped with a high level interface
-and extend language support for this style of programming.
-
-The \idris{} standard library thankfully gave us access to a polished pure interface
-to explicitly manipulate an integer's bits.
-%
-However these built-in operations came with no built-in properties whatsoever.
-%
-And so we had to postulate a (minimal) set of axioms (see \cref{appendix:postulated})
-and prove a lot of useful corollaries ourselves.
-%
-There is even less support for other low-level operations such as reading from
-a read-only array, or manipulating pointers.
-
-We also found the use of runtime irrelevance (the \IdrisKeyword{0} quantity)
-sometimes somewhat frustrating.
-%
-Pattern-matching on a runtime irrelevant value in a runtime relevant context
-is currently only possible if it is manifest for the compiler that the value
-could only arise using one of the family's constructors.
-%
-In non-trivial cases this is unfortunately only merely provable rather than
-self-evident.
-%
-Consequently we are forced to jump through hoops to appease the quantity
-checker, and end up defining complex inversion lemmas to bypass these
-limitations.
-%
-This could be solved by a mix of improvements to the typechecker and
-meta-programming using prior ideas on automating
-inversion~\cite{DBLP:conf/types/CornesT95,DBLP:conf/types/McBride96,monin:inria-00489412}.
-
-
-\paragraph{Acknowledgements}
-I am grateful to
-James McKinna,
-Fredrik Nordvall Forsberg,
-Ohad Kammar,
-and Jacques Carette
-for providing helpful comments and suggestions on early
-versions of this paper.
+\input{conclusion}
+\input{acknowledgements}
 
 \bibliography{thin}
 
