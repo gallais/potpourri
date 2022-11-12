@@ -44,9 +44,9 @@ right-shifted integer amounts to testing the bit
 
 \ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{testBitShiftR}
 
-A right shift will add \IdrisBound{k} new least significant bits initialised
+A left shift will add \IdrisBound{k} new least significant bits initialised
 at \IdrisBound{0}; consequently testing a bit \IdrisBound{i} on the left-shifted
-integer will either return \IdrisData{0} if \IdrisBound{i} is strictly less than
+integer will either return \IdrisData{False} if \IdrisBound{i} is strictly less than
 \IdrisBound{k}, or the bit at position (\IdrisBound{i} \IdrisFunction{-} \IdrisBound{k})
 in the original integer.
 

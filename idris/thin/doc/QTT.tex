@@ -13,7 +13,7 @@ argument must abide.
 A value may be \emph{runtime irrelevant}, \emph{linear}, or \emph{unrestricted}.
 
 \emph{Runtime irrelevant} values (\IdrisKeyword{0} quantity) cannot possibly influence
-control flow as it will be erased entirely during compilation.
+control flow as they will be erased entirely during compilation.
 %
 This forces the language to impose strong restrictions on pattern-matching over these
 values.
@@ -29,7 +29,7 @@ irrelevant and the language will insist that it needs to be convinced it indeed 
 \emph{Linear} values (\IdrisKeyword{1} quantity) have to be used exactly once.
 %
 Typical examples include the \IdrisData{\%World} token used by \idris{} to implement the
-\IdrisType{IO} monad à la Haskell, or file handles that cannot be discarded without explicitly
+\IdrisType{IO} monad à la Haskell, or file handles that cannot be discarded without first explicitly
 closing the file.
 %
 At runtime these values can be updated destructively. We will not use linearity in this paper.

@@ -59,7 +59,7 @@ $b$ and an existing encoding $bs$ and returns the new encoding $\bitcons{bs}{b}$
 
 \ExecuteMetaData[Data/Bits/Integer.idr.tex]{cons}
 
-No matter what the value of the newt bit is, we start by shifting the encoding to
+No matter what the value of the new bit is, we start by shifting the encoding to
 the left to make space for it; this gives us \IdrisBound{bs0} which contains the
 bit pattern $\bitcons{bs}{0}$.
 %
@@ -267,7 +267,7 @@ an arbitrary scope \IdrisBound{sy}.
 \ExecuteMetaData[Thin.idr.tex]{none}
 
 The \IdrisFunction{encoding} of this thinning is \IdrisData{0} because
-every variable is being and its \IdrisFunction{bigEnd} is
+every variable is being discarded and its \IdrisFunction{bigEnd} is
 the length of the outer scope \IdrisBound{sy}.
 %
 The proof that this encoding is valid is provided by

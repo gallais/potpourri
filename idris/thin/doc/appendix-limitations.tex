@@ -31,7 +31,7 @@ at \IdrisBound{m} if
 (\IdrisBound{m} \IdrisFunction{+} \IdrisBound{n})
 and \IdrisBound{xs} happens to be
 (\IdrisBound{pref} \IdrisFunction{++} \IdrisBound{suff})
-where \IdrisBound{pref} and \IdrisBound{suff} are
+where \IdrisBound{pref} and \IdrisBound{suff}'s
 respective lengths are \IdrisBound{m} and \IdrisBound{n}.
 
 \ExecuteMetaData[VectAsList.idr.tex]{splitAtrel}
@@ -86,7 +86,7 @@ This leads us to our working solution.
 Somewhat paradoxically, working around these \idris{} bugs led us to a more
 principled solution whereby the pattern-matching step needed to adjust the
 result returned by the recursive call is abstracted away in an auxiliary
-function which type clarifies what is happening.
+function whose type clarifies what is happening.
 
 From an \IdrisBound{m} split on \IdrisBound{xs}, we can easily compute an
 (\IdrisData{S} \IdrisBound{m}) split on (\IdrisBound{x} \IdrisFunction{::} \IdrisBound{xs})
