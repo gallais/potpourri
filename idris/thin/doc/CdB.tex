@@ -184,7 +184,8 @@ constructor, a sort of flipped `cons').
 The `name' (\IdrisBound{x} of type \IdrisBound{a}) is marked with the quantity
 \IdrisKeyword{0} to ensure it is erased at compile time (cf. \cref{sec:quantitativeTT}).
 
-During compilation, \idris{} would erase the families' indices as they are forced,
+During compilation, \idris{} would erase the families' indices as they are forced
+(in the sense of Brady, McBride, and McKinna~\cite{DBLP:conf/types/BradyMM03}),
 and drop the constructor arguments marked as runtime irrelevant.
 %
 The resulting inductive type would be the following simple data type.
@@ -214,7 +215,7 @@ This has led to numerous and hard to diagnose bugs.
 a well-scoped de Bruijn representation.
 %
 This precise indexing of terms by their scope helped entirely eliminate a whole
-class of bugs that would plague Idris 1's unification machinery.
+class of bugs that plagued Idris 1's unification machinery.
 
 If \iftoggle{BLIND}{\idris{}}{we} were to switch to a co-de Bruijn
 representation for \iftoggle{BLIND}{the}{our} core language
