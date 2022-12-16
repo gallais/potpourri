@@ -82,10 +82,10 @@ before you reach the corresponding magenta binder.
 
 To check whether a subterm does not mention a given set of variables
 (a \emph{thickening} test, the opposite of a \emph{thinning} which extends the
-current scope with unused variables), you need to traverse the term in its entirety.
+current scope with unused variables), you need to traverse the whole term.
 %
-In order to have a simple and cheap thickening test we can ensure that each subterms
-knows precisely what its exact scope (i.e. its \emph{support}) is and how it embeds
+In order to have a simple cheap thickening test we can ensure that each subterms
+knows precisely what its \emph{support} is and how it embeds
 in its parent's.
 
 \paragraph{Co-de Bruijn syntax}
