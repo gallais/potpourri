@@ -34,6 +34,9 @@ This makes it an implicit argument of the constructor. Consequently, given that
 \IdrisType{Nat} is a type of \emph{unary} natural numbers, a naïve runtime
 representation of a {(\IdrisType{Vect} \IdrisBound{n} \IdrisBound{a})} would
 have a size quadratic in \IdrisBound{n}.
+%
+A smarter representation with perfect sharing would still represent quite an
+overhead as observed by Brady, McBride, and McKinna~\cite{DBLP:conf/types/BradyMM03}.
 
 A finite number is a number known to be strictly smaller than a given natural
 number. The type \IdrisType{Fin} is indexed by said bound.
