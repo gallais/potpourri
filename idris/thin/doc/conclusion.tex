@@ -39,6 +39,14 @@ Thankfully libraries such as Equations~\cite{DBLP:conf/itp/Sozeau10,DBLP:journal
 can help users write more dependently typed programs, by taking care of the complex
 encoding required in \coq{}. A view-based approach similar to ours but using \texttt{Prop}
 instead of the zero quantity ought to be possible.
+%
+We expect that the views encoded this way in Coq will have an even worse computational
+behaviour given that Equations uses a sophisticated elaboration process to encode dependent
+pattern-matching into Gallina.
+%
+However Coq does benefit from good automation support for unfolding lemmas, inversion
+principles, and rewriting by equalities which may compensate for the awkwardness introduced
+by the encoding.
 
 Prior work on erasure~\cite{DBLP:journals/pacmpl/Tejiscak20} has the advantage of
 offering a fully automated analysis of the code. The main inconvenience is that users
@@ -78,6 +86,8 @@ the issues are intrinsic limitations.
 We hope to be able to push this line of work further, tackling the following
 limitations and exploring more advanced use cases.
 
+\subsubsection{Limitations}
+
 Unfortunately it is only \emph{propositionally} true that
 (\IdrisFunction{view} (\IdrisFunction{keep} \IdrisBound{th} \IdrisBound{x}))
 computes to (\IdrisData{Keep} \IdrisBound{th} \IdrisBound{x}) (and similarly for
@@ -99,10 +109,6 @@ This may not always be possible given the type theory currently implemented by
 \idris{}. Adding support for a proof-irrelevant sort of propositions (see e.g.
 Altenkirch, McBride, and Swierstra's work~\cite{DBLP:conf/plpv/AltenkirchMS07})
 could solve this issue once and for all.
-
-Our objectives with this work and that to come are twofold: we would like to
-explore more memory-mapped representations equipped with a high level interface
-and extend language support for this style of programming.
 
 The \idris{} standard library thankfully gave us access to a polished pure interface
 to explicitly manipulate an integer's bits.
@@ -132,3 +138,38 @@ limitations.
 This could be solved by a mix of improvements to the typechecker and
 meta-programming using prior ideas on automating
 inversion~\cite{DBLP:conf/types/CornesT95,DBLP:conf/types/McBride96,monin:inria-00489412}.
+
+\subsubsection{Future work}
+
+We are planning to explore more memory-mapped representations equipped with a high
+level interface.
+
+We already have experimental results demonstrating that we can use a read-only array
+as a runtime representation of a binary search tree.
+%
+Search can be implemented as a proven-correct high level decision procedure that
+is seemingly recursively exploring the "tree".
+%
+At runtime however, this will effectively execute like a classic search by dichotomy
+over the array.
+
+More generally, we expect that a lot of the work on programming on serialised
+data done in LoCal~\cite{DBLP:conf/pldi/VollmerKRS0N19} thanks to specific support
+from the compiler can be done as-is in a QTT-based programming language.
+%
+Indeed, QTT's type system is powerful enough that tracking these invariants can
+be done purely in library code.
+
+In the short term, we would like to design a small embedded domain specific language
+giving users the ability to more easily build and take apart products and sums
+efficiently represented in the style we presented here.
+%
+Staging would help here to ensure that the use of the eDSL comes at no runtime cost.
+%
+There are plans to add type-enforced staging to Idris 2, thus really making it the
+ideal host language for our project.
+
+Our long term plan is to go beyond read-only data and look at imperative programs
+proven correct using separation logic and see how much of this after-the-facts
+reasoning can be brought back into the types to enable a high-level
+correct-by-construction programming style that behaves the same at runtime.
