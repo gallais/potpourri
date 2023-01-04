@@ -2,7 +2,7 @@
 
 ## Correspondence with the paper
 
-### File `VectAsList.idr`
+### File [`VectAsList.idr`](src/VectAsList.idr)
 
 This combines the content of Section 3.3:
 
@@ -13,16 +13,16 @@ as well as appendix B
 - defining `(++)`, `SplitAt`, `(::)`, `splitAt`
 - showing the rejected `splitAt` variants using `failing` blocks
 
-### File `Data/Bits/Integer/Postulated.idr`
+### File [`Data/Bits/Integer/Postulated.idr`](src/Data/Bits/Integer/Postulated.idr)
 
 This matches the content of appendix A.
 
-### File `Data/Bits/Integer.idr`
+### File [`Data/Bits/Integer.idr`](src/Data/Bits/Integer.idr)
 
 This includes part of Section 5.3's definitions
 (`cons`, `cofull`, `full`, `testBit0Cons`, `consShiftR`)
 
-### File `Thin/Internal.idr`
+### File [`Thin/Internal.idr`](src/Thin/Internal.idr)
 
 This matches the content of the rest Section 5.3:
 
@@ -30,7 +30,7 @@ This matches the content of the rest Section 5.3:
 - proving the relation to be proof-irrelevant (`irrelevantInvariant`)
 - and invertible (`isDone`, `isKeep`, `isDrop`)
 
-### File `Thin.idr`
+### File [`Thin.idr`](src/Thin.idr)
 
 This matches the content of the rest of Section 5:
 
