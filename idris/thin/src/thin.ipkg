@@ -22,6 +22,7 @@ modules = Data.Bits.Integer
         , DB
         , Thin
         , Thin.Internal
+        , VectAsList
 
 -- main file (i.e. file to load at REPL)
 -- main =

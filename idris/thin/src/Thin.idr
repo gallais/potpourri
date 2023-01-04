@@ -16,14 +16,14 @@ import Thin.Internal
 -- Type and interfaces
 ------------------------------------------------------------------------------
 
-||| A Th is a thin wrapper around Thinning that only keeps the
+||| A Th is a thin wrapper around Invariant that only keeps the
 ||| minimal amount of information as runtime relevant.
 public export
 record Th {a : Type} (sx, sy : SnocList a) where
   constructor MkTh
-  bigEnd     : Nat
-  encoding   : Integer
-  0 thinning : Thinning bigEnd encoding sx sy
+  bigEnd : Nat
+  encoding : Integer
+  0 invariant : Invariant bigEnd encoding sx sy
 
 %name Th th, ph, ps
 
@@ -48,106 +48,118 @@ interface Selable (0 t : SnocList a -> Type) where
 ||| nested namespace to step things when *we* need them to step.
 namespace Smart
 
-  export
-  done : Th [<] [<]
-  done = MkTh Z 0 Done
+ export
+ done : Th [<] [<]
+ done = MkTh { bigEnd = 0, encoding = 0, invariant = Done }
 
-  export
-  keep : Th sx sy -> (0 x : a) -> Th (sx :< x) (sy :< x)
-  keep th x
-    = MkTh (S th .bigEnd) (cons True (th .encoding))
-    $ let 0 b = eqToSo $ testBit0Cons True (th .encoding) in
-      Keep (rewrite consShiftR True (th .encoding) in th.thinning) x
+ export
+ keep : Th sx sy -> (0 x : a) -> Th (sx :< x) (sy :< x)
+ keep th x = MkTh
+  { bigEnd = S (th .bigEnd)
+  , encoding = cons True (th .encoding)
+  , invariant =
+     let 0 b = eqToSo $ testBit0Cons True (th .encoding) in
+     Keep (rewrite consShiftR True (th .encoding) in th.invariant) x
+  }
 
-  export
-  drop : Th sx sy -> (0 x : a) -> Th sx (sy :< x)
-  drop th x
-    = MkTh (S th .bigEnd) (cons False (th .encoding))
-    $ let 0 nb = eqToSo $ cong not $ testBit0Cons False (th .encoding) in
-      Drop (rewrite consShiftR False (th .encoding) in th .thinning) x
+ export
+ drop : Th sx sy -> (0 x : a) -> Th sx (sy :< x)
+ drop th x = MkTh
+  { bigEnd = S (th .bigEnd)
+  , encoding = cons False (th .encoding)
+  , invariant =
+    let 0 prf = testBit0Cons False (th .encoding)
+        0 nb = eqToSo $ cong not prf in
+     Drop (rewrite consShiftR False (th .encoding) in th .invariant) x
+ }
 
 ------------------------------------------------------------------------------
 -- Smart destructor (aka view)
 ------------------------------------------------------------------------------
 
-  public export
-  data View : Th sx sy -> Type where
-    Done :                                 View Smart.done
-    Keep : (th : Th sx sy) -> (0 x : a) -> View (keep th x)
-    Drop : (th : Th sx sy) -> (0 x : a) -> View (drop th x)
+ public export
+ data View : Th sx sy -> Type where
+   Done : View Smart.done
+   Keep : (th : Th sx sy) -> (0 x : a) -> View (keep th x)
+   Drop : (th : Th sx sy) -> (0 x : a) -> View (drop th x)
 
-  cast : {0 th, th' : Thinning i bs sx sy} ->
-         View (MkTh i bs th) ->
-         View (MkTh i bs th')
-  cast v = replace {p = \ th => View (MkTh i bs th)} (irrelevantThinning ? ?) v
+ cast : {0 th, th' : Invariant i bs sx sy} ->
+        View (MkTh i bs th) ->
+        View (MkTh i bs th')
+ cast v = replace {p = \ th => View (MkTh i bs th)} (irrelevantInvariant ? ?) v
 
-  export
-  view : (th : Th sx sy) -> View th
-  view (MkTh 0 bs th) =
-    let 0 eqs = isDone th in
-    rewrite bsIsZero eqs in
-    rewrite fstIndexIsLin eqs in
-    rewrite sndIndexIsLin eqs in
-    rewrite thinningIsDone eqs in
-    Done
-  view (MkTh (S i) bs th) = case choose (testBit bs Z) of
-    Left so =>
-      let 0 eqs = isKeep th so in
-      rewrite fstIndexIsSnoc eqs in
-      rewrite sndIndexIsSnoc eqs in
-      rewrite thinningIsKeep eqs in
-      rewrite isKeepInteger bs so in
-      cast $ Keep (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
-    Right soNot =>
-      let 0 eqs = isDrop th soNot in
-      rewrite sndIndexIsSnoc eqs in
-      rewrite thinningIsDrop eqs in
-      rewrite isDropInteger bs soNot in
-      cast $ Drop (MkTh i (bs `shiftR` 1) eqs.subThinning) eqs.keptHead
+ export %inline
+ view : (th : Th sx sy) -> View th
+ view (MkTh 0 bs prf) =
+   let 0 eqs = isDone prf in
+   rewrite bsIsZero eqs in
+   rewrite fstIndexIsLin eqs in
+   rewrite sndIndexIsLin eqs in
+   rewrite invariantIsDone eqs in
+   Done
+ view (MkTh (S i) bs prf) = case choose (testBit bs Z) of
+   Left so =>
+     let 0 eqs = isKeep prf so in
+     rewrite fstIndexIsSnoc eqs in
+     rewrite sndIndexIsSnoc eqs in
+     rewrite invariantIsKeep eqs in
+     rewrite isKeepInteger bs so in
+     let th : Th eqs.fstIndexTail eqs.sndIndexTail
+         th = MkTh i (bs `shiftR` 1) eqs.subInvariant in
+     cast $ Keep th eqs.keptHead
+   Right soNot =>
+     let 0 eqs = isDrop prf soNot in
+     rewrite sndIndexIsSnoc eqs in
+     rewrite invariantIsDrop eqs in
+     rewrite isDropInteger bs soNot in
+     let th : Th sx eqs.sndIndexTail
+         th = MkTh i (bs `shiftR` 1) eqs.subInvariant in
+     cast $ Drop th eqs.keptHead
 
-  ||| Example of a use of `view`
-  ||| @ sx is runtime irrelevant and yet we can compute its length because
-  |||      it is precisely the number of Keep constructors (aka bits set to 1)
-  |||      in the thinning that we have.
-  kept : Th sx sy -> (n : Nat ** length sx === n)
-  kept th = case view th of
-    Done => (0 ** Refl)
-    Keep th x => bimap S (cong S) (kept th)
-    Drop th x => kept th
+ ||| Example of a use of `view`
+ ||| @ sx is runtime irrelevant and yet we can compute its length because
+ |||      it is precisely the number of Keep constructors (aka bits set to 1)
+ |||      in the invariant that we have.
+ kept : Th sx sy -> (n : Nat ** length sx === n)
+ kept th = case view th of
+   Done      => (0 ** Refl)
+   Keep th x => let (n ** eq) = kept th in
+                (S n ** cong S eq)
+   Drop th x => kept th
 
 ------------------------------------------------------------------------------
 -- Unfold lemmas for the view
 ------------------------------------------------------------------------------
 
-  chooseTrueUnfold : choose True === Left Oh
-  chooseTrueUnfold with (choose True)
-    _ | Left Oh = Refl
-    _ | Right ohno = absurd ohno
+ chooseTrueUnfold : choose True === Left Oh
+ chooseTrueUnfold with (choose True)
+   _ | Left Oh = Refl
+   _ | Right ohno = absurd ohno
 
-  chooseFalseUnfold : choose False === Right Oh
-  chooseFalseUnfold with (choose False)
-    _ | Left ohyes = absurd ohyes
-    _ | Right Oh = Refl
+ chooseFalseUnfold : choose False === Right Oh
+ chooseFalseUnfold with (choose False)
+   _ | Left ohyes = absurd ohyes
+   _ | Right Oh = Refl
 
-  export
-  viewDoneUnfold : view Smart.done === Done
-  viewDoneUnfold = Refl
+ export
+ viewDoneUnfold : view Smart.done === Done
+ viewDoneUnfold = Refl
 
-  export
-  viewKeepUnfold : (th : Th sx sy) -> (0 x : a) -> view (keep th x) === Keep th x
-  viewKeepUnfold (MkTh i bs p) x
-    = rewrite testBit0Cons True bs in
-      rewrite chooseTrueUnfold in
-      rewrite consShiftR True bs in
-      Refl
+ export
+ viewKeepUnfold : (th : Th sx sy) -> (0 x : a) -> view (keep th x) === Keep th x
+ viewKeepUnfold (MkTh i bs p) x
+   = rewrite testBit0Cons True bs in
+     rewrite chooseTrueUnfold in
+     rewrite consShiftR True bs in
+     Refl
 
-  export
-  viewDropUnfold : (th : Th sx sy) -> (0 x : a) -> view (drop th x) === Drop th x
-  viewDropUnfold (MkTh i bs p) x
-    = rewrite testBit0Cons False bs in
-      rewrite chooseFalseUnfold in
-      rewrite consShiftR False bs in
-      Refl
+ export
+ viewDropUnfold : (th : Th sx sy) -> (0 x : a) -> view (drop th x) === Drop th x
+ viewDropUnfold (MkTh i bs p) x
+   = rewrite testBit0Cons False bs in
+     rewrite chooseFalseUnfold in
+     rewrite consShiftR False bs in
+     Refl
 
 export
 irrelevantDone : (th, ph : Th sx [<]) -> th === ph
@@ -214,7 +226,7 @@ namespace Smart
     keepInjective (MkTh i bs p) (MkTh i cs q) eq | Refl
       with (consInjective True bs cs (cong encoding eq))
       keepInjective (MkTh i bs p) (MkTh i bs q) eq | Refl | Refl
-        = rewrite irrelevantThinning p q in Refl
+        = rewrite irrelevantInvariant p q in Refl
 
   export
   dropInjective : (th, ph : Th sx sy) -> drop th x === drop ph x -> th === ph
@@ -223,7 +235,7 @@ namespace Smart
     dropInjective (MkTh i bs p) (MkTh i cs q) eq | Refl
       with (shiftLInjective bs cs 1 (cong encoding eq))
       dropInjective (MkTh i bs p) (MkTh i bs q) eq | Refl | Refl
-        = rewrite irrelevantThinning p q in Refl
+        = rewrite irrelevantInvariant p q in Refl
 
   export
   mapReflects : p <=> q -> Reflects p b -> Reflects q b
@@ -273,7 +285,7 @@ namespace Smart
   ThEqEquiv : (th, ph : Th {a} sx sy) ->
               (th.bigEnd === ph.bigEnd, th.encoding === ph.encoding) <=> th === ph
   ThEqEquiv (MkTh i bs p) (MkTh j cs q)
-    = MkEquivalence (uncurry $ \ Refl, Refl => rewrite irrelevantThinning p q in Refl)
+    = MkEquivalence (uncurry $ \ Refl, Refl => rewrite irrelevantInvariant p q in Refl)
                     (\ eq => (cong bigEnd eq, cong encoding eq))
 
   export
@@ -302,14 +314,14 @@ namespace Smart
   ||| Empty thinning
   -- TODO: only take the length as an argument?
   export
-  none : (sx : SnocList a) -> Th [<] sx
-  none sx = MkTh (length sx) zeroBits (none sx)
+  none : (sy : SnocList a) -> Th [<] sy
+  none sy = MkTh (length sy) 0 (none sy)
 
   ||| Identity thinning
   -- TODO: only take the length as an argument?
   export
   ones : (sx : SnocList a) -> Th sx sx
-  ones sx = let i : Nat; i = length sx in MkTh i (full i) (ones sx)
+  ones sx = let n : Nat; n = length sx in MkTh n (full n) (ones sx)
 
 ------------------------------------------------------------------------------
 -- And their properties
@@ -402,8 +414,8 @@ namespace Smart
   meet thl thr
     = Evidence ?
     $ MkTh (thl .bigEnd) (thl .encoding .&. thr .encoding)
-    $ snd $ Internal.meet (thl .thinning)
-    $ rewrite irrelevantSize (thl .thinning) (thr .thinning) in thr .thinning
+    $ snd $ Internal.meet (thl .invariant)
+    $ rewrite irrelevantSize (thl .invariant) (thr .invariant) in thr .invariant
 
   ||| Meet is indeed computing a lower bound
   ||| TODO: prove it is the largest such
@@ -425,8 +437,8 @@ namespace Smart
   join thl thr
     = Evidence ?
     $ MkTh (thl .bigEnd) (thl .encoding .|. thr .encoding)
-    $ snd $ Internal.join (thl .thinning)
-    $ rewrite irrelevantSize (thl .thinning) (thr .thinning) in thr .thinning
+    $ snd $ Internal.join (thl .invariant)
+    $ rewrite irrelevantSize (thl .invariant) (thr .invariant) in thr .invariant
 
   ||| Join is indeed computing an upper bound
   ||| TODO: prove it is the smallest such
@@ -446,14 +458,20 @@ namespace Smart
 ||| Concatenate two thinnings
 export
 (++) : Th sa sb -> Th sx sy -> Th (sa ++ sx) (sb ++ sy)
-thl ++ thr = MkTh ? ? (thl.thinning ++ thr.thinning)
+thl ++ thr = MkTh ? ? (thl.invariant ++ thr.invariant)
 
 ||| Like filter but returns a thinning
 export
-which : (a -> Bool) -> (sy : SnocList a) -> (sx : SnocList a ** Th sx sy)
+which : (a -> Bool) -> (sy : SnocList a) ->
+        (sx : SnocList a ** Th sx sy)
 which p [<] = ([<] ** done)
-which p (sy :< y)
-  = ifThenElse (p y)
-     (bimap (:< y) (`keep` y))
-     (bimap id (`drop` y))
-     (which p sy)
+which p (sy :< y) =
+  let (sx ** th) = which p sy in
+  if p y then (sx :< y ** keep th y)
+         else (sx ** drop th y)
+
+{-
+test : List (sx : SnocList Nat ** Th sx ([<] <>< [0..10]))
+test = flip map [2..5] $ \ i =>
+        which (\ n => n `mod` i /= 0) ([<] <>< [0..10])
+-}

@@ -14,23 +14,24 @@ import Syntax.PreorderReasoning
 -- Additional functions
 ------------------------------------------------------------------------------
 
-||| cofull takes a natural number k and returns an integer whose bit pattern is
-||| k zeros followed by ones
+||| cofull takes a natural number n and returns an integer whose bit pattern is
+||| n zeros followed by ones
 public export
 cofull : Nat -> Integer
-cofull k = oneBits `shiftL` k
+cofull n = oneBits `shiftL` n
 
-||| full takes a natural number k and returns an integer whose bit pattern is
-||| k ones followed by zeros
+||| full takes a natural number n and returns an integer whose bit pattern is
+||| n ones followed by zeros
 public export
 full : Nat -> Integer
-full k = complement (cofull k)
+full n = complement (cofull n)
 
 ||| cons takes a bit and an integer and returns an integer whose bit pattern
 ||| is that bit followed by the original integer
 public export
 cons : Bool -> Integer -> Integer
-cons b bs = ifThenElse b (`setBit` 0) id (bs `shiftL` 1)
+cons b bs = let bs0 = bs `shiftL` 1 in
+            if b then (bs0 `setBit` 0) else bs0
 
 ------------------------------------------------------------------------------
 -- And properties
@@ -80,14 +81,6 @@ setBit0ShiftR bs = extensionally $ \ i => Calc $
   ~~ testBit (bs `shiftR` 1) i          ...( sym $ testBitShiftR bs 1 i )
 
 export
-clearBit0ShiftR : (bs : Integer) -> clearBit bs 0 `shiftR` 1 === bs `shiftR` 1
-clearBit0ShiftR bs = extensionally $ \ i => Calc $
-  |~ testBit (clearBit bs 0 `shiftR` 1) i
-  ~~ testBit (clearBit bs 0) (S i)        ...( testBitShiftR (clearBit bs 0) 1 i )
-  ~~ testBit bs (S i)                     ...( testClearBitOther bs 0 (S i) absurd )
-  ~~ testBit (bs `shiftR` 1) i            ...( sym $ testBitShiftR bs 1 i )
-
-export
 shiftLInjective : (bs, cs : Integer) -> (k : Nat) ->
                   bs `shiftL` k === cs `shiftL` k -> bs === cs
 shiftLInjective bs cs 0 eq = Calc $
@@ -133,18 +126,6 @@ testBitZeroBits i = Calc $
   |~ testBit (the Integer zeroBits) i
   ~~ not (testBit (the Integer oneBits) i) ...( testBitComplement oneBits i )
   ~~ False                                 ...( cong not (testBitOneBits i) )
-
-export
-zeroBitsShiftL : (k : Nat) -> zeroBits {a = Integer} `shiftL` k === Bits.zeroBits
-zeroBitsShiftL 0 = shiftL0 zeroBits
-zeroBitsShiftL (S k) = extensionally $ \case
-  0 => testBit0ShiftL zeroBits k
-  S i => Calc $
-    |~ testBit (zeroBits {a = Integer} `shiftL` S k) (S i)
-    ~~ testBit (zeroBits {a = Integer} `shiftL` k) i       ...( testBitSShiftL zeroBits k i )
-    ~~ testBit (zeroBits {a = Integer}) i                  ...( cong (`testBit` i) (zeroBitsShiftL k) )
-    ~~ False                                               ...( testBitZeroBits i )
-    ~~ testBit (zeroBits {a = Integer}) (S i)              ...( sym (testBitZeroBits (S i)) )
 
 ------------------------------------------------------------------------------
 -- Or properties
@@ -226,20 +207,6 @@ testBitBitSame i =
   rewrite bitNonZero i in
   Refl
 
-export
-testBitBitOther : (i, j : Nat) -> Not (i === j) ->
-                  testBit {a = Integer} (bit i) j === False
-testBitBitOther 0 0 neq = absurd (neq Refl)
-testBitBitOther 0 (S j) neq = Calc $
-  |~ testBit (the Integer 1 `shiftL` 0) (S j)
-  ~~ testBit 1 (S j)  ...( cong (`testBit` S j) (shiftL0 1) )
-  ~~ False            ...( testOneS j )
-testBitBitOther (S i) 0 neq = testBit0ShiftL 1 i
-testBitBitOther (S i) (S j) neq = Calc $
-  |~ testBit (the Integer 1 `shiftL` S i) (S j)
-  ~~ testBit (the Integer $ bit i) j  ...( testBitSShiftL 1 i j )
-  ~~ False                            ...( testBitBitOther i j (neq . cong S) )
-
 ------------------------------------------------------------------------------
 -- Constant properties
 ------------------------------------------------------------------------------
@@ -247,29 +214,6 @@ testBitBitOther (S i) (S j) neq = Calc $
 notSoToSoNot : {b : Bool} -> Not (So b) -> So (not b)
 notSoToSoNot {b = False} p = Oh
 notSoToSoNot {b = True} notSo = absurd (notSo Oh)
-
-export
-bitInjective : (i, j : Nat) -> (bit {a = Integer} i == bit j) === (i == j)
-bitInjective i j = case choose (i == j) of
-  Left so => rewrite equalNatComplete i j so in
-             rewrite eqReflexive (bit j) in
-             sym $ soToEq $ equalNatSound j j Refl
-  Right soNot => Calc $
-    |~ (the Integer (bit i) == bit j)
-    ~~ not (not (the Integer (bit i) == bit j)) ...( sym $ notInvolutive ? )
-    ~~ False                                    ...( cong not (soToEq (aux soNot)) )
-    ~~ not (not (equalNat i j))                 ...( sym $ cong not (soToEq soNot) )
-    ~~ (i == j)                                 ...( notInvolutive ? )
-
-  where
-
-  aux : So (not (i == j)) -> So (not $ the Integer (bit i) == bit j)
-  aux soNot = notSoToSoNot $ \ so => absurd $ Calc $
-    let neq : Not (j === i) = soNotToNotSo soNot . equalNatSound i j . symmetric in
-    |~ True
-    ~~ testBit (the Integer $ bit i) i ...( sym $ testBitBitSame i )
-    ~~ testBit (the Integer $ bit j) i ...( cong (`testBit` i) (eqSound so) )
-    ~~ False                           ...( testBitBitOther j i neq )
 
 ------------------------------------------------------------------------------
 -- (Co)Full properties
@@ -314,7 +258,8 @@ testSetBitSame bs i =
 ------------------------------------------------------------------------------
 
 export
-testBit0Cons : (b : Bool) -> (bs : Integer) -> testBit (cons b bs) 0 === b
+testBit0Cons : (b : Bool) -> (bs : Integer) ->
+               testBit (cons b bs) 0 === b
 testBit0Cons True bs = soToEq $ testSetBitSame (bs `shiftL` 1) 0
 testBit0Cons False bs = testBit0ShiftL bs 0
 
@@ -332,7 +277,8 @@ testBitSCons False bs i = Calc $
   ~~ testBit bs i                  ...( cong (\ bs => testBit bs i) (shiftL0 bs) )
 
 export
-consShiftR : (b : Bool) -> (bs : Integer) -> (cons b bs) `shiftR` 1 === bs
+consShiftR : (b : Bool) -> (bs : Integer) ->
+             (cons b bs) `shiftR` 1 === bs
 consShiftR True bs =  Calc $
   |~ cons True bs `shiftR` 1
   ~~ (bs `shiftL` 1) `shiftR` 1 ...( setBit0ShiftR (bs `shiftL` 1) )
