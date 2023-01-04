@@ -2,8 +2,44 @@
 
 ## Correspondence with the paper
 
+### File `VectAsList.idr`
 
-## Dependencies
+This combines the content of Section 3.3
+(defining `Vect`, `Nil`, `(::)`, `View`, `view`, `map`, `lookup`)
+as well as appendix B (defining `(++)`, `SplitAt`, `(::)`,
+`splitAt` and its rejected variants).
+
+### File `Data/Bits/Integer/Postulated.idr`
+
+This matches the content of appendix A.
+
+### File `Data/Bits/Integer.idr`
+
+This includes part of Section 5.3's definition
+(`cons`, `cofull`, `full`, `testBit0Cons`, `consShiftR`)
+
+### File `Data/Thin/Internal.idr`
+
+This matches the content of the rest Section 5.3
+(defining `Invariant`, `none`, `ones`,
+proving the relation to be proof-irrelevant
+and invertible via the definition of `isDone`, `isKeep`, `isDrop`)
+
+### File `Data/Thin.idr`
+
+This matches the content of the rest of Section 5
+(defining `Th`, `done`, `keep`, `drop`, `which`, `View`, `view`,
+`kept`).
+
+### Compiled code
+
+Cf. [Running the artifact](#running-the-artifact) for a description of
+how to obtain the compiled version of the `view` function in order to
+reproduced the result in Section 5.5.
+
+## Running the VM on the code
+
+### Dependencies
 
 The VM used for this artifact requires (using Ubuntu's package names):
 
@@ -11,7 +47,7 @@ The VM used for this artifact requires (using Ubuntu's package names):
 - virtualbox
 - virtualbox-guest-additions-iso
 
-## Running the artifact
+### Running the artifact
 
 Verifying the results should be as simple as running `cd run; make`.
 This will load a VM containing `idris2` and run the script defined
@@ -25,4 +61,8 @@ describing the machine's booting process, four main steps:
 2. Checking the code
 3. Compiling the code
 
-After this last step, the code the `view` function was compiled to is displayed.
+After this last step, the code the `view` function was compiled to is
+displayed in the trace thus allowing you to check it corresponds to what
+is shown in Section 5.5.
+
+Overall this should not take more than a couple of minutes.
