@@ -88,7 +88,7 @@ namespace Smart
         View (MkTh i bs th')
  cast v = replace {p = \ th => View (MkTh i bs th)} (irrelevantInvariant ? ?) v
 
- export %inline
+ export
  view : (th : Th sx sy) -> View th
  view (MkTh 0 bs prf) =
    let 0 eqs = isDone prf in
@@ -104,7 +104,7 @@ namespace Smart
      rewrite sndIndexIsSnoc eqs in
      rewrite invariantIsKeep eqs in
      rewrite isKeepInteger bs so in
-     let th : Th eqs.fstIndexTail eqs.sndIndexTail
+     let %inline th : Th eqs.fstIndexTail eqs.sndIndexTail
          th = MkTh i (bs `shiftR` 1) eqs.subInvariant in
      cast $ Keep th eqs.keptHead
    Right soNot =>
@@ -112,7 +112,7 @@ namespace Smart
      rewrite sndIndexIsSnoc eqs in
      rewrite invariantIsDrop eqs in
      rewrite isDropInteger bs soNot in
-     let th : Th sx eqs.sndIndexTail
+     let %inline th : Th sx eqs.sndIndexTail
          th = MkTh i (bs `shiftR` 1) eqs.subInvariant in
      cast $ Drop th eqs.keptHead
 
