@@ -19,7 +19,6 @@ depends = contrib
 modules = Data.Bits.Integer
         , Data.Bits.Integer.Postulated
         , Data.SnocList.AtIndex
-        , DB
         , Thin
         , Thin.Internal
         , VectAsList
