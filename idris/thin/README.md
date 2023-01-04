@@ -15,17 +15,18 @@ This matches the content of appendix A.
 
 ### File `Data/Bits/Integer.idr`
 
-This includes part of Section 5.3's definition
+This includes part of Section 5.3's definitions
 (`cons`, `cofull`, `full`, `testBit0Cons`, `consShiftR`)
 
-### File `Data/Thin/Internal.idr`
+### File `Thin/Internal.idr`
 
-This matches the content of the rest Section 5.3
-(defining `Invariant`, `none`, `ones`,
-proving the relation to be proof-irrelevant
-and invertible via the definition of `isDone`, `isKeep`, `isDrop`)
+This matches the content of the rest Section 5.3:
 
-### File `Data/Thin.idr`
+- defining `Invariant`, `none`, `ones`
+- proving the relation to be proof-irrelevant (`irrelevantInvariant`)
+- and invertible (`isDone`, `isKeep`, `isDrop`)
+
+### File `Thin.idr`
 
 This matches the content of the rest of Section 5
 (defining `Th`, `done`, `keep`, `drop`, `which`, `View`, `view`,
