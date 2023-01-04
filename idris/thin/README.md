@@ -4,10 +4,14 @@
 
 ### File `VectAsList.idr`
 
-This combines the content of Section 3.3
-(defining `Vect`, `Nil`, `(::)`, `View`, `view`, `map`, `lookup`)
-as well as appendix B (defining `(++)`, `SplitAt`, `(::)`,
-`splitAt` and its rejected variants).
+This combines the content of Section 3.3:
+
+- defining `Vect`, `Nil`, `(::)`, `View`, `view`, `map`, `lookup`
+
+as well as appendix B
+
+- defining `(++)`, `SplitAt`, `(::)`, `splitAt`
+- showing the rejected `splitAt` variants using `failing` blocks
 
 ### File `Data/Bits/Integer/Postulated.idr`
 
@@ -28,9 +32,10 @@ This matches the content of the rest Section 5.3:
 
 ### File `Thin.idr`
 
-This matches the content of the rest of Section 5
-(defining `Th`, `done`, `keep`, `drop`, `which`, `View`, `view`,
-`kept`).
+This matches the content of the rest of Section 5:
+
+- defining `Th`, `done`, `keep`, `drop`, `which`, `View`, `view`,
+`kept`
 
 ### Compiled code
 
