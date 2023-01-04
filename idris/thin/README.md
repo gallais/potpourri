@@ -71,4 +71,4 @@ After this last step, the code the `view` function was compiled to is
 displayed in the trace thus allowing you to check it corresponds to what
 is shown in Section 5.5.
 
-Overall this should not take more than a couple of minutes.
+Running this VM should not take more than a couple of minutes.
