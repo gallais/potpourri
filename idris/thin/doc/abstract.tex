@@ -1,14 +1,15 @@
-  State of the art optimisation passes for dependently typed languages can help
-  erase the redundant information typical of invariant-rich data structures and
-  programs.
-  These automated processes do not dramatically change the \emph{structure} of
-  the data, even though more efficient representations could be available.
+State of the art optimisation passes for dependently typed languages can help
+erase the redundant information typical of invariant-rich data structures and
+programs.
+These automated processes do not dramatically change the \emph{structure} of
+the data, even though more efficient representations could be available.
 
-  Using Quantitative Type Theory, we demonstrate how to define an invariant-rich,
-  typechecking time data structure that is \emph{guaranteed} to compile to an
-  efficient runtime memory representation.
+Using Quantitative Type Theory, we demonstrate how to define an invariant-rich,
+typechecking time data structure packing an efficient runtime representation
+together with runtime irrelevant invariants. The compiler can then aggressively
+erase all such invariants during compilation.
 
-  Unlike other approaches, the complexity of the resulting representation is
-  entirely predictable, we do not require both representations to have the
-  same structure, and yet we are able to seamlessly program as if we were
-  using the high-level structure.
+Unlike other approaches, the complexity of the resulting representation is
+entirely predictable, we do not require both representations to have the
+same structure, and yet we are able to seamlessly program as if we were
+using the high-level structure.
