@@ -11,6 +11,15 @@ import Data.Nat.Order
 
 import Syntax.PreorderReasoning
 
+-- The Syntax.PreorderReasoning module ships as part of Idris 2's standard
+-- library. It defines the preorder-reasoning syntax which allows us write:
+--     |~ x
+--     ~~ y ...( eq1 )
+--     ~~ z ...( eq2 )
+-- to derive (x === z) by combining eq1 of type (x === y) and
+-- eq2 of type (y === z)
+
+
 %default total
 
 ------------------------------------------------------------------------------
