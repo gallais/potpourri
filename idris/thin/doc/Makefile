@@ -37,11 +37,11 @@ DEPENDENCIES=\
 
 all: esop.pdf thin.pdf
 
-build/ttc/%.ttm build/ttc/%.ttc: %.tex
+build/ttc/*/%.ttm build/ttc/*/%.ttc: %.tex
 	idris2 -p contrib -c $^
 
 build/latex/%.idr.tex: %.tex build/ttc/*/%.ttm build/ttc/*/%.ttc
-	mkdir -p $(basename $@)
+	mkdir -p $(dir $@)
 	katla literate $*.tex build/ttc/*/$*.ttm > $@
 
 build/latex/%.tex: %.tex
