@@ -1,6 +1,7 @@
 module Thin
 
 import Data.Bool.Decidable
+import Data.Bool.Decidable.Extra
 import Data.Bits
 import Data.Bits.Integer
 import Data.DPair
@@ -16,8 +17,24 @@ import Thin.Internal
 -- Type and interfaces
 ------------------------------------------------------------------------------
 
-||| A Th is a thin wrapper around Invariant that only keeps the
+-- Snoclists are lists that grow on the right, just like contexts in typing
+-- rules. They can be constructed using the empty snoclist constructor `Lin`
+-- (sugared [<]) and `Snoc` (sugared (:<)).
+-- They are defined in Idris 2's prelude.
+
+||| A Th(inning) is a thin wrapper around Invariant that only keeps the
 ||| minimal amount of information as runtime relevant.
+|||
+||| A thinning from sx to sy is a proof that the snoclist sx can be
+||| embedded in an order-preserving manner into sy.
+|||
+||| A less efficient but more common definition is:
+|||
+|||   data Th : (sx, sy : SnocList a) -> Type where
+|||     Done : Th [<] [<]
+|||     Keep : Th sx sy -> (0 x : a) -> Th (sx :< x) (sy :< x)
+|||     Drop : Th sx sy -> (0 x : a) -> Th sx (sy :< x)
+|||
 public export
 record Th {a : Type} (sx, sy : SnocList a) where
   constructor MkTh
@@ -28,17 +45,25 @@ record Th {a : Type} (sx, sy : SnocList a) where
 %name Th th, ph, ps
 
 infixr 10 *^
+||| A type family t is Th(in)able if we can use a thinning from sa to sb
+||| to transport values of type (t sa) to values of type (t sb).
 public export
 interface Thable (0 t : SnocList a -> Type) where
   (*^) : {0 sa, sb : SnocList a} -> t sa -> Th sa sb -> t sb
 
 infixr 10 ^?
+||| A type family t is Sel(ect)able if we can use a thinning from sa to sb
+||| to restrict values of type (t sb) to values of type (t sa).
 public export
 interface Selable (0 t : SnocList a -> Type) where
   (^?) : {0 sa, sb : SnocList a} -> Th sa sb -> t sb -> t sa
 
 ------------------------------------------------------------------------------
 -- Smart constructors
+--
+-- We can define smart constructors that allow us to build `Th` values
+-- just as seamlessly as if we had defined it using the less efficient
+-- formulation as an inductive family.
 ------------------------------------------------------------------------------
 
 ||| We define the smart constructors, deconstructors, combinators, etc. in a
@@ -49,10 +74,14 @@ interface Selable (0 t : SnocList a -> Type) where
 namespace Smart
 
  export
+ ||| The empty snoclist trivially embeds into itself
  done : Th [<] [<]
  done = MkTh { bigEnd = 0, encoding = 0, invariant = Done }
 
  export
+ ||| Given an existing thinning th from sx to sy,
+ ||| we can define a new one embedding (sx :< x) into (sy :< x)
+ ||| that behaves like th on sx and simply propagates x
  keep : Th sx sy -> (0 x : a) -> Th (sx :< x) (sy :< x)
  keep th x = MkTh
   { bigEnd = S (th .bigEnd)
@@ -63,6 +92,9 @@ namespace Smart
   }
 
  export
+ ||| Given an existing thinning th from sx to sy,
+ ||| we can define a new one embedding sx into (sy :< x)
+ ||| that behaves like tx on sy and simply ignores x
  drop : Th sx sy -> (0 x : a) -> Th sx (sy :< x)
  drop th x = MkTh
   { bigEnd = S (th .bigEnd)
@@ -75,19 +107,32 @@ namespace Smart
 
 ------------------------------------------------------------------------------
 -- Smart destructor (aka view)
+--
+-- We can define a smart destructor that allows us to pattern match on Th
+-- values just as seamlessly as if we had defined them using the less
+-- efficient formulation as an inductive family
 ------------------------------------------------------------------------------
 
+ ||| This sum type exposes three constructors corresponding to the three
+ ||| smart constructors defined above.
+ ||| By matching on a value of type (View th), we get to learn whether th
+ ||| was built using done, keep, or drop.
  public export
  data View : Th sx sy -> Type where
    Done : View Smart.done
    Keep : (th : Th sx sy) -> (0 x : a) -> View (keep th x)
    Drop : (th : Th sx sy) -> (0 x : a) -> View (drop th x)
 
+ ||| Auxiliary definition deploying the fact that the Invariant relation
+ ||| is proof irrelevant
  cast : {0 th, th' : Invariant i bs sx sy} ->
         View (MkTh i bs th) ->
         View (MkTh i bs th')
  cast v = replace {p = \ th => View (MkTh i bs th)} (irrelevantInvariant ? ?) v
 
+ ||| The view function proves that every Th value was necessarily built using
+ ||| one of the three smart constructors.
+ ||| This result empowers us to 'pattern-match' on Th values.
  export
  view : (th : Th sx sy) -> View th
  view (MkTh 0 bs prf) =
@@ -131,21 +176,36 @@ namespace Smart
 -- Unfold lemmas for the view
 ------------------------------------------------------------------------------
 
+ -- The inductive family So is defined in Idris 2's standard library module
+ -- Data.So. It allows us to record whether a boolean holds.
+ -- It is defined like so:
+ --   data So : Bool -> Type where
+ --     Oh : So True
+ -- which means that a proof of type (So b) guarantees b is True.
+ --
+ -- The choose function also defined in Data.So states that every boolean is
+ -- either True or its negation is. Its type is
+ --   choose : (b : Bool) -> Either (So b) (So (not b))
+
+ ||| Unfolding lemma for (choose True)
  chooseTrueUnfold : choose True === Left Oh
  chooseTrueUnfold with (choose True)
    _ | Left Oh = Refl
    _ | Right ohno = absurd ohno
 
+ ||| Unfolding lemma for (choose False)
  chooseFalseUnfold : choose False === Right Oh
  chooseFalseUnfold with (choose False)
    _ | Left ohyes = absurd ohyes
    _ | Right Oh = Refl
 
  export
+ ||| view correctly 'uncomputes' the smart constructor done
  viewDoneUnfold : view Smart.done === Done
  viewDoneUnfold = Refl
 
  export
+ ||| view correctly 'uncomputes' the smart constructor keep
  viewKeepUnfold : (th : Th sx sy) -> (0 x : a) -> view (keep th x) === Keep th x
  viewKeepUnfold (MkTh i bs p) x
    = rewrite testBit0Cons True bs in
@@ -154,6 +214,7 @@ namespace Smart
      Refl
 
  export
+ ||| view correctly 'uncomputes' the smart constructor drop
  viewDropUnfold : (th : Th sx sy) -> (0 x : a) -> view (drop th x) === Drop th x
  viewDropUnfold (MkTh i bs p) x
    = rewrite testBit0Cons False bs in
@@ -162,6 +223,8 @@ namespace Smart
      Refl
 
 export
+||| Thinnings into the empty snoclist are proof irrelevant
+||| (because they cannot be anything but done, the empty thinning)
 irrelevantDone : (th, ph : Th sx [<]) -> th === ph
 irrelevantDone th ph = case view th of
   Done => case view ph of
@@ -171,6 +234,7 @@ irrelevantDone th ph = case view th of
 -- Instances
 ------------------------------------------------------------------------------
 
+||| Thinnings are thinnable (composition)
 export
 Thable (Th sx) where
   th *^ ph = case view ph of
@@ -180,14 +244,18 @@ Thable (Th sx) where
       Keep th x => keep (th *^ ph) x
       Drop th x => drop (th *^ ph) x
 
+||| Thinnings are selectable (composition)
 export
 Selable (`Th` sy) where
   (^?) = (*^)
 
+||| Equality can be checked cheaply by comparing the encodings
 export
 Eq (Th sx sy) where
   MkTh i bs _ == MkTh j cs _ = i == j && bs == cs
 
+||| We can show thinnings as list of bits by taking them apart
+||| constructor by constructor thanks to the view
 export
 Show (Th sx sy) where
   show th = pack ('[' :: go th [']']) where
@@ -197,6 +265,9 @@ Show (Th sx sy) where
       Keep th x => go th . ('1'::)
       Drop th x => go th . ('0'::)
 
+||| Given a thinning from sx to sy,
+||| a proof that there is a value in sx that satisfies p can be
+||| thinnned to a proof that there is a value in sy that satisfies p
 export
 Thable (Any p) where
   psx *^ th = case view th of
@@ -206,6 +277,9 @@ Thable (Any p) where
       There psx => There (psx *^ th)
     Drop th x => There (psx *^ th)
 
+||| Given a thinning from sx to sy,
+||| a proof that all of the values in sy satisfy p can be
+||| selected to a proof that all the values in the sub-snoclist sx satisfy p
 export
 Selable (All p) where
   th ^? psy = case view th of
@@ -219,6 +293,7 @@ Selable (All p) where
 
 namespace Smart
 
+  ||| The keep smart constructor is injective
   export
   keepInjective : (th, ph : Th sx sy) -> keep th x === keep ph x -> th === ph
   keepInjective (MkTh i bs p) (MkTh j cs q) eq
@@ -228,6 +303,7 @@ namespace Smart
       keepInjective (MkTh i bs p) (MkTh i bs q) eq | Refl | Refl
         = rewrite irrelevantInvariant p q in Refl
 
+  ||| The drop smart constructor is injective
   export
   dropInjective : (th, ph : Th sx sy) -> drop th x === drop ph x -> th === ph
   dropInjective (MkTh i bs p) (MkTh j cs q) eq
@@ -237,50 +313,8 @@ namespace Smart
       dropInjective (MkTh i bs p) (MkTh i bs q) eq | Refl | Refl
         = rewrite irrelevantInvariant p q in Refl
 
-  export
-  mapReflects : p <=> q -> Reflects p b -> Reflects q b
-  mapReflects pq (RTrue p) = RTrue (leftToRight pq p)
-  mapReflects pq (RFalse np) = RFalse (np . rightToLeft pq)
-
-  export
-  symmetric : p <=> q -> q <=> p
-  symmetric (MkEquivalence f g) = MkEquivalence g f
-
-  export
-  reflectsEquiv : p <=> q -> Reflects p b <=> Reflects q b
-  reflectsEquiv pq = MkEquivalence (mapReflects pq) (mapReflects $ symmetric pq)
-
-  export
-  andReflects : Reflects p b -> Reflects q c -> Reflects (p, q) (b && c)
-  andReflects (RTrue p) (RTrue q) = RTrue (p, q)
-  andReflects (RTrue p) (RFalse nq) = RFalse (nq . snd)
-  andReflects (RFalse np) rq = RFalse (np . fst)
-
-  export
-  orReflects : Reflects p b -> Reflects q c -> Reflects (Either p q) (b || c)
-  orReflects (RTrue p) _ = RTrue (Left p)
-  orReflects (RFalse np) (RTrue q) = RTrue (Right q)
-  orReflects (RFalse np) (RFalse nq) = RFalse (either np nq)
-
-  export
-  reflectsNat : (m, n : Nat) -> Reflects (m === n) (m == n)
-  reflectsNat 0 0 = RTrue Refl
-  reflectsNat 0 (S _) = RFalse absurd
-  reflectsNat (S _) 0 = RFalse absurd
-  reflectsNat (S m) (S n)
-    = mapReflects (MkEquivalence (cong S) injective)
-    $ reflectsNat m n
-
-  ||| Boolean equality of integers reflects their propositional equality
-  ||| We can prove this thanks to the fact that DecEq for Integers is implemented
-  ||| using boolean equality
-  export
-  reflectsInteger : (bs, cs : Integer) -> Reflects (bs === cs) (bs == cs)
-  reflectsInteger bs cs with (decEq bs cs) proof eq
-    _ | p with (bs == cs)
-      reflectsInteger bs cs | Yes prf | True = RTrue prf
-      reflectsInteger bs cs | No nprf | False = RFalse nprf
-
+  ||| Propositional equality of thinnings is equivalent to propositional
+  ||| equality of their encodings (because the Invariant proof is proof irrelevant)
   export
   ThEqEquiv : (th, ph : Th {a} sx sy) ->
               (th.bigEnd === ph.bigEnd, th.encoding === ph.encoding) <=> th === ph
@@ -288,17 +322,13 @@ namespace Smart
     = MkEquivalence (uncurry $ \ Refl, Refl => rewrite irrelevantInvariant p q in Refl)
                     (\ eq => (cong bigEnd eq, cong encoding eq))
 
+  ||| Boolean equality on thinnings (as defined above) reflects propositional
+  ||| equality. Proven using Data.Bool.Decidable.Extra's results.
   export
   eqReflects : (th, ph : Th {a} sx sy) -> Reflects (th === ph) (th == ph)
   eqReflects th@(MkTh i bs p) ph@(MkTh j cs q)
     = mapReflects (ThEqEquiv th ph)
     $ andReflects (reflectsNat i j) (reflectsInteger bs cs)
-
-||| If we know there's a boolean that reflects a type then the type is decidable
-export
-toDec : Reflects p b -> Dec p
-toDec (RTrue yes) = Yes yes
-toDec (RFalse no) = No no
 
 ||| As a consequence equality of thinnings is decidable
 export
@@ -312,26 +342,26 @@ DecEq (Th sx sy) where
 namespace Smart
 
   ||| Empty thinning
-  -- TODO: only take the length as an argument?
   export
   none : (sy : SnocList a) -> Th [<] sy
   none sy = MkTh (length sy) 0 (none sy)
 
   ||| Identity thinning
-  -- TODO: only take the length as an argument?
   export
   ones : (sx : SnocList a) -> Th sx sx
   ones sx = let n : Nat; n = length sx in MkTh n (full n) (ones sx)
 
 ------------------------------------------------------------------------------
--- And their properties
+-- And various properties of Thinnings
 
+||| We cannot possibly embed a non-empty snoclist into its tail
 export
 tooBig : {sx : SnocList a} -> Not (Th (sx :< x) sx)
 tooBig th = case view th of
   Keep th x => tooBig th
   Drop th x => tooBig (drop (ones ?) ? *^ th)
 
+||| The thinning from the empty snoclist are proof irrelevant
 export
 irrelevantNone : (th, ph : Th [<] sx) -> th === ph
 irrelevantNone th ph = case view th of
@@ -339,10 +369,13 @@ irrelevantNone th ph = case view th of
   Drop th x => case view ph of
     Drop ph x => cong (`drop` x) (irrelevantNone th ph)
 
+||| As a corollary, we can prove that none is equivalent to an inductive
+||| definition repeatedly using drop
 export
 noneIsDrop : none (sx :< x) === drop (none sx) x
 noneIsDrop = irrelevantEq $ irrelevantNone ? ?
 
+||| The identity thinning is proof irrelevant
 export
 irrelevantOnes : (th, ph : Th sx sx) -> th === ph
 irrelevantOnes th ph = case view th of
@@ -352,10 +385,13 @@ irrelevantOnes th ph = case view th of
     Drop ph x => void $ tooBig ph
   Drop th x => void $ tooBig th
 
+||| As a corollary, we can prove that ones is equivalent to an inductive
+||| definition repeatedly using keep
 export
 onesIsKeep : (0 sx : SnocList a) -> (0 x : _) -> ones (sx :< x) === keep (ones sx) x
 onesIsKeep sx x = irrelevantEq $ irrelevantOnes ? ?
 
+||| Ones is left-neutral wrt composition
 export
 onesLeftNeutral : (th : Th {a} sx sx) -> (ph : Th sx sy) -> th *^ ph === ph
 onesLeftNeutral th ph with (view ph)
@@ -367,6 +403,7 @@ onesLeftNeutral th ph with (view ph)
       = void $ tooBig th
   onesLeftNeutral th _ | Drop ph x = cong (`drop` x) (onesLeftNeutral th ph)
 
+||| Ones is right-neutral wrt composition
 export
 onesRightNeutral : (th : Th {a} sx sy) -> (ph : Th sy sy) -> th *^ ph === th
 onesRightNeutral th ph with (view ph)
@@ -378,6 +415,7 @@ onesRightNeutral th ph with (view ph)
       = cong (`drop` x) (onesRightNeutral th ph)
   onesRightNeutral th _ | Drop ph x = void $ tooBig ph
 
+||| Composition is associative
 export
 transAssoc : (th : Th {a} sw sx) -> (ph : Th sx sy) -> (ps : Th sy sz) ->
              ((th *^ ph) *^ ps) === (th *^ (ph *^ ps))
@@ -409,6 +447,7 @@ transAssoc th ph ps with (view ps)
 
 namespace Smart
 
+  ||| Computing the meet of two source snoclists
   export
   meet : Th sxl sx -> Th sxr sx -> Exists (`Th` sx)
   meet thl thr
@@ -432,6 +471,7 @@ namespace Smart
       Keep ph x => mapSnd (`drop` x) (isMeet th ph)
       Drop ph x => isMeet th ph
 
+  ||| Computing the join of two source snoclists
   export
   join : Th sxl sx -> Th sxr sx -> Exists (`Th` sx)
   join thl thr
@@ -469,9 +509,3 @@ which p (sy :< y) =
   let (sx ** th) = which p sy in
   if p y then (sx :< y ** keep th y)
          else (sx ** drop th y)
-
-{-
-test : List (sx : SnocList Nat ** Th sx ([<] <>< [0..10]))
-test = flip map [2..5] $ \ i =>
-        which (\ n => n `mod` i /= 0) ([<] <>< [0..10])
--}
