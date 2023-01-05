@@ -19,12 +19,14 @@ This matches the content of appendix A.
 
 ### File [`Data/Bits/Integer.idr`](src/Data/Bits/Integer.idr)
 
-This includes part of Section 5.3's definitions
-(`cons`, `cofull`, `full`, `testBit0Cons`, `consShiftR`)
+This matches part of Section 5.3:
+
+- defining `cons`, `cofull`, `full`
+- proving `testBit0Cons`, `consShiftR`
 
 ### File [`Thin/Internal.idr`](src/Thin/Internal.idr)
 
-This matches the content of the rest Section 5.3:
+This matches the content of the rest of Section 5.3:
 
 - defining `Invariant`, `none`, `ones`
 - proving the relation to be proof-irrelevant (`irrelevantInvariant`)
@@ -34,8 +36,7 @@ This matches the content of the rest Section 5.3:
 
 This matches the content of the rest of Section 5:
 
-- defining `Th`, `done`, `keep`, `drop`, `which`, `View`, `view`,
-`kept`
+- defining `Th`, `done`, `keep`, `drop`, `which`, `View`, `view`, `kept`
 
 ### Compiled code
 
