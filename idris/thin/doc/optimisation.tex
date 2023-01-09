@@ -98,8 +98,8 @@ corresponding to the vector's size is decreased by one. The invariant, despite n
 being explicit anymore, is maintained.
 
 A Tejiščák-style analysis~\cite{DBLP:journals/pacmpl/Tejiscak20} can additionally
-notice that the lookup function never makes
-use of the bound's value and drop it entirely. This leads to the lookup function on
+notice that the lookup function does not
+use the bound's value and drop it. This leads to the lookup function on
 vectors being compiled to its partial-looking counterpart acting on lists.
 
 \ExecuteMetaData[Lookup.idr.tex]{finallookup}
@@ -153,4 +153,4 @@ Inductive families allow us to
 \emph{view}~\cite{DBLP:conf/popl/Wadler87,DBLP:journals/jfp/McBrideM04}
 the runtime relevant information encoded in the low-level and efficient representation
 as an information-rich compile time data structure. Moreover the quantity annotations
-guarantee that this additional information will be erased away during compilation.
+guarantee the erasure of this additional information during compilation.

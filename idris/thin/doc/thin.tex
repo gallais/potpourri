@@ -14,6 +14,7 @@
 
 \maketitle
 
+\toggletrue{APPENDIX}
 \togglefalse{BLIND}
 
 \begin{abstract}
@@ -34,9 +35,11 @@
 
 \bibliography{thin}
 
+\iftoggle{APPENDIX}{
 \appendix
 
 \input{appendix-axioms}
 \input{appendix-limitations}
+}{}
 
 \end{document}

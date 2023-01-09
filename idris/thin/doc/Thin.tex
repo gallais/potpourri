@@ -91,8 +91,8 @@ namespace Smart
   , invariant =
     let 0 prf = testBit0Cons False (th .encoding)
         0 nb = eqToSo $ cong not prf in
-     Drop (rewrite consShiftR False (th .encoding) in th .invariant) x
- }
+    Drop (rewrite consShiftR False (th .encoding) in th .invariant) x
+  }
 \end{code}
 %</drop>
 \begin{code}

@@ -1,4 +1,4 @@
-\section{Thinnings, cooked two ways}\label{sec:codebruijn}
+\section{Thinnings, Cooked Two Ways}\label{sec:codebruijn}
 
 \iftoggle{BLIND}
 {In their work on \typos~\cite{MANUAL:talk/types/Allais22}, a domain specific language
@@ -33,7 +33,7 @@ named, a de Bruijn, and a co-de Bruijn representation. We will then discuss two
 representations of thinnings: a safe and convenient one as an inductive family,
 and an unsafe but efficient encoding as a pair of arbitrary precision integers.
 
-\subsection{Named, de Bruijn, and co-de Bruijn syntaxes}
+\subsection{Named, de Bruijn, and co-de Bruijn Syntaxes}
 
 In this section we will use
 the $S$ combinator ($\lambda g. \lambda f. \lambda x. g x (f x)$)
@@ -48,7 +48,7 @@ in the tree.
 The tree is laid out left-to-right and a constructor's arguments are displayed
 top-to-bottom.
 
-\paragraph{Named syntax}
+\paragraph{Named Syntax}
 The first representation is using explicit names. Each binder has an associated
 name and each variable node carries a name. A variable refers to the closest enclosing
 binder which happens to be using the same name.
@@ -61,7 +61,7 @@ potentially requires renaming bound names.
 In order to have a simple and cheap $\alpha$-equivalence check we can instead opt
 for a nameless representation.
 
-\paragraph{De Bruijn syntax}
+\paragraph{De Bruijn Syntax}
 An abstract syntax tree based on de Bruijn indices~\cite{MANUAL:journals/math/debruijn72}
 replaces names with natural numbers counting the number of binders separating a variable
 from its binding site.
@@ -88,7 +88,7 @@ In order to have a simple cheap thickening test we can ensure that each subterms
 knows precisely what its \emph{support} is and how it embeds
 in its parent's.
 
-\paragraph{Co-de Bruijn syntax}
+\paragraph{Co-de Bruijn Syntax}
 In a co-de Bruijn
 representation~\cite{DBLP:journals/corr/abs-1807-04085} each subterm
 selects exactly the variables that stay in scope for that term,

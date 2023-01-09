@@ -79,9 +79,10 @@ integers rather than linked lists of bits.
 Overall we found this case study using \idris{}, a state of the art language
 based on Quantitative Type Theory, very encouraging.
 %
-The language implementation is still experimental (see for instance
-\cref{appendix:limitations} for some of the bugs we found) but none of
-the issues are intrinsic limitations.
+The language implementation is still experimental
+\iftoggle{APPENDIX}{
+  (see for instance \cref{appendix:limitations} for some of the bugs we found)}{}
+but none of the issues are intrinsic limitations.
 %
 We hope to be able to push this line of work further, tackling the following
 limitations and exploring more advanced use cases.
@@ -115,7 +116,8 @@ to explicitly manipulate an integer's bits.
 %
 However these built-in operations came with no built-in properties whatsoever.
 %
-And so we had to postulate a (minimal) set of axioms (see \cref{appendix:postulated})
+And so we had to postulate a (minimal) set of axioms
+\iftoggle{APPENDIX}{(see \cref{appendix:postulated})}{}
 and prove a lot of useful corollaries ourselves.
 %
 There is even less support for other low-level operations such as reading from

@@ -20,7 +20,8 @@
 %
 
 \input{imports}
-\toggletrue{BLIND}
+\togglefalse{BLIND}
+\togglefalse{APPENDIX}
 
 
 \begin{document}
@@ -35,7 +36,7 @@
 \iftoggle{BLIND}
 {ANONYMOUS
 }{
-  Guillaume Allais\inst{University of St Andrews}
+  Guillaume Allais
   \orcidID{0000-0002-4091-657X}
 }
 }
@@ -75,9 +76,12 @@
 \bibliographystyle{splncs04}
 \bibliography{thin}
 
+
+\iftoggle{APPENDIX}{
 \appendix
 
 \input{appendix-axioms}
 \input{appendix-limitations}
+}{}
 
 \end{document}

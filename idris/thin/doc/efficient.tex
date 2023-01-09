@@ -122,7 +122,7 @@ We are now equipped with these smart constructors that allow us to seamlessly
 build thinnings.
 %
 To recover the full expressive power of the inductive family, we also need to
-be able to take these thinnings apart. We are now going to tackle this issue.
+be able to take these thinnings apart. Let us now tackle this issue.
 
 \subsection{Pattern Matching on \IdrisType{Th}}
 
@@ -270,7 +270,7 @@ The \IdrisFunction{encoding} of this thinning is \IdrisData{0} because
 every variable is being discarded and its \IdrisFunction{bigEnd} is
 the length of the outer scope \IdrisBound{sy}.
 %
-The proof that this encoding is valid is provided by
+The validity proof is provided by
 the \IdrisFunction{none} lemma proven below.
 %
 We once again use \idris{}'s overloading
@@ -385,11 +385,11 @@ The join can for instance be thought of either as a function defined by inductio
 on the first thinning and case analysis on the second, emitting a \IdrisData{Keep}
 constructor whenever either of the inputs does.
 %
-Or we can observe that the bit pattern in the join is exactly the disjunction of
-the inputs' respective bit patterns and prove a lemma about the \IdrisType{Invariant}
+Or we can observe that the bit pattern in the join is the disjunction of
+the inputs' bit patterns and prove a lemma about the \IdrisType{Invariant}
 relation instead.
 %
-This can be visualised as follows. In each column, the meet is a
+This can be visualised as follows: in each column the meet is a
 $\bullet$ whenever either of the inputs is.
 
 \[
@@ -444,7 +444,7 @@ We have modified the backend to also write comments reminding the reader of the 
 of the function being defined and the data constructors the natural number tags
 correspond to.
 %
-These changes are now available to all in \idris{}'s current development version.
+These changes are now available to all in \idris{} version 0.6.0.
 
 The only manual modifications we have performed are the inlining of a function
 corresponding to a \IdrisKeyword{case} block, renaming variables and property names

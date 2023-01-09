@@ -1,4 +1,4 @@
-\section{Postulated lemmas for the \IdrisType{Bits} interface}\label{appendix:postulated}
+\section{Postulated Lemmas for the \IdrisType{Bits} Interface}\label{appendix:postulated}
 
 It is often more convenient to reason about integers in terms of their bits.
 We define the notion of bitwise equality as the pointwise equality according
@@ -17,7 +17,7 @@ explaining the behaviour of various primitives at the bit level.
 This is why almost all of the remaining axioms are expressed in terms
 of \IdrisFunction{testBit} calls.
 
-\subsection{Logical operations}
+\subsection{Logical Operations}
 
 Our first batch of axioms relates logical operations on integers to their
 boolean counterparts. This is essentially stating that these operations are
@@ -58,7 +58,7 @@ and on the other the fact that a left-shift by 0 bits is the identity function.
 \ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{testBitSShiftL}
 \ExecuteMetaData[Data/Bits/Integer/Postulated.idr.tex]{shiftL0}
 
-\subsection{Bit testing}
+\subsection{Bit Testing}
 
 The last set of axioms specifies what happens when a bit is set.
 
