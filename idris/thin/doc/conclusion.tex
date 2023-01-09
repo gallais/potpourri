@@ -28,7 +28,7 @@ input to be used as the default return value.
 %
 This approach completely misses the point of type-driven development.
 %
-We benefit a lot from having as much information as possible available during
+We benefit from having as much information as possible available during
 interactive editing.
 %
 This information not only helps tremendously getting the definitions right by
@@ -45,7 +45,7 @@ behaviour given that Equations uses a sophisticated elaboration process to encod
 pattern-matching into Gallina.
 %
 However Coq does benefit from good automation support for unfolding lemmas, inversion
-principles, and rewriting by equalities which may compensate for the awkwardness introduced
+principles, and rewriting by equalities. It may compensate for the awkwardness introduced
 by the encoding.
 
 Prior work on erasure~\cite{DBLP:journals/pacmpl/Tejiscak20} has the advantage of
@@ -122,7 +122,7 @@ There is even less support for other low-level operations such as reading from
 a read-only array, or manipulating pointers.
 
 We also found the use of runtime irrelevance (the \IdrisKeyword{0} quantity)
-sometimes somewhat frustrating.
+sometimes frustrating.
 %
 Pattern-matching on a runtime irrelevant value in a runtime relevant context
 is currently only possible if it is manifest for the compiler that the value
