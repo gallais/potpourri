@@ -192,8 +192,9 @@ namespace Pointer
   Layer Byte _ _ = Bits8
   Layer Rec cs t = Pointer.Mu cs t
 
+
   data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
-    MkPair : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t, u)
+    (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t, u)
 
   layer : {s : Nat} -> (d : Desc s n b) ->
           forall t. Elem d cs t -> IO (Layer d cs t)
@@ -203,7 +204,7 @@ namespace Pointer
          forall t. Poke d cs t -> IO (Layer d cs t)
     go None p = pure ()
     go Byte p = pure p
-    go (Prod d e) {t} (MkPair p q) = rewrite etaPair t in MkPair <$> layer d p <*> layer e q
+    go (Prod d e) {t} (MkPair p q) = rewrite etaPair t in [| layer d p # layer e q |]
     go Rec p = pure p
 
   data Out : (cs : Data) -> (t : Data.Mu cs) -> Type where
@@ -270,7 +271,7 @@ sum : Pointer.Mu Tree t -> IO Nat
 sum t = case !(out t) of
   MkOut 0 el => pure 0
   MkOut 1 el => do
-    (MkPair l (MkPair b r)) <- layer _ el
+    (l # b # r) <- layer _ el
     pure (!(sum l) + cast b + !(sum r))
 
 init : (cs : Data) -> Buffer -> IO (Exists (Pointer.Mu cs))
