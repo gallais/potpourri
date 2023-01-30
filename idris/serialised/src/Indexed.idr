@@ -181,14 +181,19 @@ namespace Pointer
     pure (left, right)
   poke Rec el = pure (MkMu (elemBuffer el) (elemPosition el))
 
-  data Layer : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
-    MkUnit : Layer None cs t
-    MkVal  : Bits8 -> Layer Byte cs t
-    MkPair : Layer d cs t -> Layer e cs u -> Layer (Prod d e) cs (t, u)
-    Box    : Pointer.Mu cs t -> Layer Rec cs t
-
   etaPair : (p : (a, b)) -> p === (fst p, snd p)
   etaPair (t, u) = Refl
+
+  data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
+
+  Layer : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
+  Layer d@(Prod _ _) cs t = Layer' d cs t
+  Layer None _ _ = ()
+  Layer Byte _ _ = Bits8
+  Layer Rec cs t = Pointer.Mu cs t
+
+  data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
+    MkPair : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t, u)
 
   layer : {s : Nat} -> (d : Desc s n b) ->
           forall t. Elem d cs t -> IO (Layer d cs t)
@@ -196,10 +201,10 @@ namespace Pointer
 
     go : forall n, b. {s : Nat} -> (d : Desc s n b) ->
          forall t. Poke d cs t -> IO (Layer d cs t)
-    go None p = pure MkUnit
-    go Byte p = pure (MkVal p)
-    go (Prod d e) {t} (p, q) = rewrite etaPair t in MkPair <$> layer d p <*> layer e q
-    go Rec p = pure (Box p)
+    go None p = pure ()
+    go Byte p = pure p
+    go (Prod d e) {t} (MkPair p q) = rewrite etaPair t in MkPair <$> layer d p <*> layer e q
+    go Rec p = pure p
 
   data Out : (cs : Data) -> (t : Data.Mu cs) -> Type where
     MkOut : (k : (Fin (length cs))) ->
@@ -265,7 +270,7 @@ sum : Pointer.Mu Tree t -> IO Nat
 sum t = case !(out t) of
   MkOut 0 el => pure 0
   MkOut 1 el => do
-    (MkPair (Box l) (MkPair (MkVal b) (Box r))) <- layer _ el
+    (MkPair l (MkPair b r)) <- layer _ el
     pure (!(sum l) + cast b + !(sum r))
 
 init : (cs : Data) -> Buffer -> IO (Exists (Pointer.Mu cs))
