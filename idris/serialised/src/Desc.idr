@@ -198,15 +198,21 @@ Tree = [ MkConstructor None                       -- Leaf
        , MkConstructor (Prod Rec (Prod Byte Rec)) -- Node Tree Bits8 Tree
        ]
 
-example : Data.Mu Tree
+ATree : Type
+ATree = Data.Mu Tree
+
+leaf : ATree
+leaf = mkMu Tree 0
+
+node : ATree -> Bits8 -> ATree -> ATree
+node = mkMu Tree 1
+
+example : ATree
 example
-  = mkMu Tree 1
-      (mkMu Tree 0)
+  = node
+      (node (node leaf 1 leaf) 5 leaf)
       10
-      (mkMu Tree 1
-         (mkMu Tree 0)
-         20
-         (mkMu Tree 0))
+      (node leaf 20 leaf)
 
 sum : Pointer.Mu Tree -> IO Nat
 sum t = case !(out t) of
