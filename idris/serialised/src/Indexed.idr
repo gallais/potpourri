@@ -65,34 +65,6 @@ namespace Data
   Data : Type
   Data = List Constructor
 
-  data Lookup : (xs : List a) -> (k : Nat) -> a -> Type where
-    [search xs k, uniqueSearch]
-    Z : Lookup (x :: xs) 0 x
-    S : Lookup xs k x -> Lookup (_ :: xs) (S k) x
-
-  namespace Singleton
-
-    public export
-    data Singleton : a -> Type where
-      MkSingleton : (x : a) -> Singleton x
-
-    public export
-    getSingleton : Singleton {a} x -> a
-    getSingleton (MkSingleton x) = x
-
-    export
-    lookup : {xs : List a} -> {k : Nat} -> (0 prf : Lookup xs k x) -> Singleton x
-    lookup {xs = x :: xs} {k = 0} Z = MkSingleton x
-    lookup {xs = x :: xs} {k = S k} (S prf) = lookup prf
-
-  namespace Tentative
-
-    export
-    lookup : (xs : List a) -> (k : Nat) -> Maybe (Subset a (Lookup xs k))
-    lookup [] k = Nothing
-    lookup (x :: xs) 0 = Nothing
-    lookup (x :: xs) (S k) = bimap id S <$> lookup xs k
-
   ||| Fixpoint of the description:
   ||| 1. pick a constructor
   ||| 2. give its meaning where subterms are entire subtrees
