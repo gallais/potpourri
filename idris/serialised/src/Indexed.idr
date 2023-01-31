@@ -7,6 +7,8 @@ import Data.Vect
 import Data.Buffer
 import System.File.Buffer
 
+import Decidable.Equality
+
 %default total
 
 namespace Tuple
@@ -196,11 +198,6 @@ namespace Pointer
             forall t. Elem (description (index' cs k)) cs t ->
             Out cs (MkMu k t)
 
-  -- postulated, utterly unsafe
-  0 unfoldAs :
-    (k : Fin (length cs)) -> (t : Data.Mu cs) ->
-    (val : Meaning (description (index' cs k)) (Data.Mu cs) ** t === MkMu k val)
-
   out : {cs : _} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
   out {t} mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
@@ -211,6 +208,15 @@ namespace Pointer
     pure (rewrite sub.snd in val)
 
     where
+
+    -- postulated, utterly unsafe
+    0 unfoldAs :
+      (k : Fin (length cs)) -> (t : Data.Mu cs) ->
+      (val : Meaning (description (index' cs k)) (Data.Mu cs)
+       ** t === MkMu k val)
+    unfoldAs k (MkMu l@_ val) with (decEq k l)
+      _ | Yes Refl = (val ** Refl)
+      _ | No _ = assert_total (idris_crash "The IMPOSSIBLE has happened")
 
     getOffsets : Buffer -> Int -> -- Buffer & position
                  (n : Nat) ->
