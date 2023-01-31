@@ -265,8 +265,43 @@ rightmost dflt t = case !(out t) of
     (_ # b # r) <- layer _ el
     rightmost (Just b) r
 
-init : (cs : Data) -> Buffer -> IO (Exists (Pointer.Mu cs))
-init cs buf = pure (Evidence t (MkMu buf 0)) where 0 t : Mu cs
+data Singleton : a -> Type where
+  MkSingleton : (x : a) -> Singleton x
+
+getSingleton : Singleton {a} x -> a
+getSingleton (MkSingleton x) = x
+
+(<$>) : (f : a -> b) -> Singleton x -> Singleton (f x)
+f <$> MkSingleton x = MkSingleton (f x)
+
+(<*>) : Singleton f -> Singleton x -> Singleton (f x)
+MkSingleton f <*> MkSingleton x = MkSingleton (f x)
+
+namespace Data
+
+  public export
+  size : Data.Mu Tree -> Nat
+  size = fold $ \ k, v => case k of
+    0 => 0
+    1 => let (l, _, r) = v in S (l + r)
+
+namespace Pointer
+
+  export
+  size : Pointer.Mu Tree t -> IO (Singleton (size t))
+  size t = case !(out t) of
+    MkOut 0 el => pure (MkSingleton 0)
+    MkOut 1 el => do
+      (l # _ # r) <- layer _ el
+      m <- size l
+      n <- size r
+      pure (S <$> (plus <$> m <*> n))
+
+||| init allows you to create a pointer to a datastructure stored in
+||| binary format inside a buffer
+||| @ cs is the datatype you want to use to decode the buffer's content
+init : (cs : Data) ->  Buffer -> IO (Exists (Pointer.Mu cs))
+init cs buf = pure (Evidence t (MkMu buf 0)) where 0 t : Mu cs -- postulated as an abstract value
 
 main : IO ()
 main = do
@@ -276,3 +311,4 @@ main = do
   Evidence _ tree <- init Tree buf
   putStrLn "Sum: \{show !(sum tree)}"
   putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"
+  putStrLn "Tree size: \{show !(getSingleton <$> size tree)}"
