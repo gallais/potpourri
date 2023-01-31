@@ -49,6 +49,13 @@ namespace Tuple
   curry (Prod d e) k = curry d (curry e . curry k)
   curry Rec k = k
 
+  public export
+  fmap : {d : Desc{}} -> (a -> b) -> Meaning d a -> Meaning d b
+  fmap {d = None} f v = v
+  fmap {d = Byte} f v = v
+  fmap {d = Prod d e} f (v, w) = (fmap f v, fmap f w)
+  fmap {d = Rec} f v = f v
+
 namespace Data
 
   ||| A constructor description is essentially an existential type
@@ -77,6 +84,11 @@ namespace Data
   mkMu : (cs : Data) -> (k : Fin (length cs)) ->
          Meaning' (description (index' cs k)) (Mu cs) (Mu cs)
   mkMu cs k = curry (description (index' cs k)) (MkMu k)
+
+  fold : {cs : Data} ->
+         (alg : (k : Fin (length cs)) -> Meaning (description (index' cs k)) a -> a) ->
+         (t : Mu cs) -> a
+  fold alg (MkMu k t) = alg k (assert_total $ fmap (fold alg) t)
 
   parameters {cs : Data} (buf : Buffer)
 
@@ -246,6 +258,13 @@ sum t = case !(out t) of
     (l # b # r) <- layer _ el
     pure (!(sum l) + cast b + !(sum r))
 
+rightmost : Maybe Bits8 -> Pointer.Mu Tree t -> IO (Maybe Bits8)
+rightmost dflt t = case !(out t) of
+  MkOut 0 el => pure dflt
+  MkOut 1 el => do
+    (_ # b # r) <- layer _ el
+    rightmost (Just b) r
+
 init : (cs : Data) -> Buffer -> IO (Exists (Pointer.Mu cs))
 init cs buf = pure (Evidence t (MkMu buf 0)) where 0 t : Mu cs
 
@@ -255,5 +274,5 @@ main = do
   Right buf <- createBufferFromFile "tmp"
     | Left err => assert_total (idris_crash (show err))
   Evidence _ tree <- init Tree buf
-  val <- sum tree
-  putStrLn "Sum: \{show val}"
+  putStrLn "Sum: \{show !(sum tree)}"
+  putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"
