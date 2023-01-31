@@ -26,29 +26,29 @@ namespace Tuple
            Desc (sl + sr) (m + n) b
     Rec : Desc 0 (ifThenElse b 0 1) b
 
+namespace Data
+
   ||| Meaning where subterms are interpreted using the parameter
   public export
-  Meaning : Desc s n b -> Type -> Type
+  Meaning : Desc{} -> Type -> Type
   Meaning None x = ()
   Meaning Byte x = Bits8
   Meaning (Prod d e) x = (Meaning d x, Meaning e x)
   Meaning Rec x = x
 
   public export
-  Meaning' : Desc s n b -> Type -> Type -> Type
+  Meaning' : Desc{} -> Type -> Type -> Type
   Meaning' None x r = r
   Meaning' Byte x r = Bits8 -> r
   Meaning' (Prod d e) x r = Meaning' d x (Meaning' e x r)
   Meaning' Rec x r = x -> r
 
   public export
-  curry : (d : Desc s n b) -> (Meaning d x -> r) -> Meaning' d x r
+  curry : (d : Desc{}) -> (Meaning d x -> r) -> Meaning' d x r
   curry None k = k ()
   curry Byte k = k
   curry (Prod d e) k = curry d (curry e . curry k)
   curry Rec k = k
-
-namespace Data
 
   ||| A constructor description is essentially an existential type
   ||| around a description
@@ -73,7 +73,8 @@ namespace Data
            Meaning (description $ index' cs k) (Mu cs) ->
            Mu cs
 
-  mkMu : (cs : Data) -> (k : Fin (length cs)) -> Meaning' (description $ index' cs k) (Mu cs) (Mu cs)
+  mkMu : (cs : Data) -> (k : Fin (length cs)) ->
+         Meaning' (description $ index' cs k) (Mu cs) (Mu cs)
   mkMu cs k = curry (description $ index' cs k) (MkMu k)
 
   parameters {ds : Data} (buf : Buffer)

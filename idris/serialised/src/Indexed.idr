@@ -27,6 +27,8 @@ namespace Tuple
            Desc (sl + sr) (m + n) b
     Rec : Desc 0 (ifThenElse b 0 1) b
 
+namespace Data
+
   ||| Meaning where subterms are interpreted using the parameter
   public export
   Meaning : Desc s n b -> Type -> Type
@@ -55,8 +57,6 @@ namespace Tuple
   fmap {d = Byte} f v = v
   fmap {d = Prod d e} f (v, w) = (fmap f v, fmap f w)
   fmap {d = Rec} f v = f v
-
-namespace Data
 
   ||| A constructor description is essentially an existential type
   ||| around a description
@@ -136,7 +136,7 @@ namespace Data
 
 namespace Pointer
 
-  record Elem (d : Desc s n b) (cs : Data) (0 t : Meaning d (Data.Mu cs)) where
+  record Elem (d : Desc s n b) (cs : Data) (t : Meaning d (Data.Mu cs)) where
     constructor MkElem
     subterms : Vect n Int
     elemBuffer : Buffer
@@ -252,7 +252,7 @@ example
       (node leaf 20 leaf)
 
 sum : Pointer.Mu Tree t -> IO Nat
-sum t = case !(out t) of
+sum ptr = case !(out ptr) of
   MkOut 0 el => pure 0
   MkOut 1 el => do
     (l # b # r) <- layer _ el
@@ -265,7 +265,7 @@ rightmost dflt t = case !(out t) of
     (_ # b # r) <- layer _ el
     rightmost (Just b) r
 
-data Singleton : a -> Type where
+data Singleton : {0 a : Type} -> (x : a) -> Type where
   MkSingleton : (x : a) -> Singleton x
 
 getSingleton : Singleton {a} x -> a
@@ -285,11 +285,14 @@ namespace Data
     0 => 0
     1 => let (l, _, r) = v in S (l + r)
 
+  public export
+  map : (Bits8 -> Bits8) -> Data.Mu Tree -> Data.Mu Tree
+
 namespace Pointer
 
   export
-  size : Pointer.Mu Tree t -> IO (Singleton (size t))
-  size t = case !(out t) of
+  size : {0 t : Data.Mu Tree} -> Pointer.Mu Tree t -> IO (Singleton (size t))
+  size ptr = case !(out ptr) of
     MkOut 0 el => pure (MkSingleton 0)
     MkOut 1 el => do
       (l # _ # r) <- layer _ el
@@ -297,11 +300,15 @@ namespace Pointer
       n <- size r
       pure (S <$> (plus <$> m <*> n))
 
+  map : {0 t : Data.Mu Tree} ->
+        (f : Bits8 -> Bits8) -> Pointer.Mu Tree t ->
+        IO (Pointer.Mu Tree (map f t))
+
 ||| init allows you to create a pointer to a datastructure stored in
 ||| binary format inside a buffer
 ||| @ cs is the datatype you want to use to decode the buffer's content
 init : (cs : Data) ->  Buffer -> IO (Exists (Pointer.Mu cs))
-init cs buf = pure (Evidence t (MkMu buf 0)) where 0 t : Mu cs -- postulated as an abstract value
+init cs buf = pure (Evidence t (MkMu buf 0)) where 0 t : Data.Mu cs -- postulated as an abstract value
 
 main : IO ()
 main = do
