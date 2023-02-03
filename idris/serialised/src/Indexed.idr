@@ -9,6 +9,8 @@ import System.File.Buffer
 
 import Decidable.Equality
 
+import Data.Singleton
+
 %default total
 
 namespace Tuple
@@ -151,14 +153,16 @@ namespace Pointer
 
   Poke : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
   Poke None _ t = ()
-  Poke Byte cs t = Bits8
+  Poke Byte cs t = Singleton t
   Poke (Prod d e) cs t = (Elem d cs (fst t), Elem e cs (snd t))
   Poke Rec cs t = Pointer.Mu cs t
 
   poke : {s : Nat} -> (d : Desc s n b) ->
          forall t. Elem d cs t -> IO (Poke d cs t)
   poke None el = pure ()
-  poke Byte el = getBits8 (elemBuffer el) (elemPosition el)
+  poke Byte el = do
+    bs <- getBits8 (elemBuffer el) (elemPosition el)
+    pure (believe_me $ MkSingleton bs)
   poke (Prod {sl} d e) el = do
     let (n1, n2) = splitAt _ (subterms el)
     let left = MkElem n1 (elemBuffer el) (elemPosition el)
@@ -175,22 +179,22 @@ namespace Pointer
   Layer : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
   Layer d@(Prod _ _) cs t = Layer' d cs t
   Layer None _ _ = ()
-  Layer Byte _ _ = Bits8
+  Layer Byte _ t = Singleton t
   Layer Rec cs t = Pointer.Mu cs t
 
 
   data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
     (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t, u)
 
-  layer : {s : Nat} -> (d : Desc s n b) ->
+  layer : {s : Nat} -> {d : Desc s n b} ->
           forall t. Elem d cs t -> IO (Layer d cs t)
-  layer d el = poke d el >>= go d where
+  layer el = poke d el >>= go d where
 
     go : forall n, b. {s : Nat} -> (d : Desc s n b) ->
          forall t. Poke d cs t -> IO (Layer d cs t)
     go None p = pure ()
     go Byte p = pure p
-    go (Prod d e) {t} (MkPair p q) = rewrite etaPair t in [| layer d p # layer e q |]
+    go (Prod d e) {t} (p, q) = rewrite etaPair t in [| layer p # layer q |]
     go Rec p = pure p
 
   data Out : (cs : Data) -> (t : Data.Mu cs) -> Type where
@@ -257,31 +261,20 @@ example
       10
       (node leaf 20 leaf)
 
-sum : Pointer.Mu Tree t -> IO Nat
-sum ptr = case !(out ptr) of
+||| Raw sum
+rsum : Pointer.Mu Tree t -> IO Nat
+rsum ptr = case !(out ptr) of
   MkOut 0 el => pure 0
   MkOut 1 el => do
-    (l # b # r) <- layer _ el
-    pure (!(sum l) + cast b + !(sum r))
+    (l # b # r) <- layer el
+    pure (!(rsum l) + cast (getSingleton b) + !(rsum r))
 
 rightmost : Maybe Bits8 -> Pointer.Mu Tree t -> IO (Maybe Bits8)
 rightmost dflt t = case !(out t) of
   MkOut 0 el => pure dflt
   MkOut 1 el => do
-    (_ # b # r) <- layer _ el
-    rightmost (Just b) r
-
-data Singleton : {0 a : Type} -> (x : a) -> Type where
-  MkSingleton : (x : a) -> Singleton x
-
-getSingleton : Singleton {a} x -> a
-getSingleton (MkSingleton x) = x
-
-(<$>) : (f : a -> b) -> Singleton x -> Singleton (f x)
-f <$> MkSingleton x = MkSingleton (f x)
-
-(<*>) : Singleton f -> Singleton x -> Singleton (f x)
-MkSingleton f <*> MkSingleton x = MkSingleton (f x)
+    (_ # b # r) <- layer el
+    rightmost (Just (getSingleton b)) r
 
 namespace Data
 
@@ -292,23 +285,34 @@ namespace Data
     1 => let (l, _, r) = v in S (l + r)
 
   public export
-  map : (Bits8 -> Bits8) -> Data.Mu Tree -> Data.Mu Tree
+  sum : Data.Mu Tree -> Nat
+  sum = fold $ \ k, v => case k of
+    0 => 0
+    1 => let (l, b, r) = v in l + cast b + r
 
 namespace Pointer
 
   export
-  size : {0 t : Data.Mu Tree} -> Pointer.Mu Tree t -> IO (Singleton (size t))
+  size : {0 t : Data.Mu Tree} -> Pointer.Mu Tree t ->
+         IO (Singleton (Data.size t))
   size ptr = case !(out ptr) of
     MkOut 0 el => pure (MkSingleton 0)
     MkOut 1 el => do
-      (l # _ # r) <- layer _ el
+      (l # _ # r) <- layer el
       m <- size l
       n <- size r
       pure (S <$> (plus <$> m <*> n))
 
-  map : {0 t : Data.Mu Tree} ->
-        (f : Bits8 -> Bits8) -> Pointer.Mu Tree t ->
-        IO (Pointer.Mu Tree (map f t))
+  sum : {0 t : Data.Mu Tree} ->
+        Pointer.Mu Tree t ->
+        IO (Singleton (Data.sum t))
+  sum ptr = case !(out ptr) of
+    MkOut 0 el => pure (MkSingleton 0)
+    MkOut 1 el => do
+      (l # b # r) <- layer el
+      m <- sum l
+      n <- sum r
+      pure (plus <$> (plus <$> m <*> cast <$> b) <*> n)
 
 ||| init allows you to create a pointer to a datastructure stored in
 ||| binary format inside a buffer
@@ -322,6 +326,7 @@ main = do
   Right buf <- createBufferFromFile "tmp"
     | Left err => assert_total (idris_crash (show err))
   Evidence _ tree <- init Tree buf
+  putStrLn "RSum: \{show !(rsum tree)}"
   putStrLn "Sum: \{show !(sum tree)}"
   putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"
-  putStrLn "Tree size: \{show !(getSingleton <$> size tree)}"
+  putStrLn "Tree size: \{show !(size tree)}"

@@ -16,7 +16,9 @@ authors = "gallais"
 -- depends =
 
 -- modules to install
-modules = Desc
+modules = Data.Singleton
+        , Desc
+        , Indexed
 
 -- main file (i.e. file to load at REPL)
 -- main =
