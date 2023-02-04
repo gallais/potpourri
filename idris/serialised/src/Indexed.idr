@@ -9,9 +9,13 @@ import System.File.Buffer
 
 import Decidable.Equality
 
+import Data.String
 import Data.Singleton
 
 %default total
+
+failWith : String -> a
+failWith str = assert_total (idris_crash str)
 
 namespace Desc
 
@@ -102,40 +106,40 @@ namespace Data
       = do setInt buf start i
            setInts (start + 8) is
 
-    muToBuffer : Int -> Mu cs -> IO Int
-    elemToBuffer :
+    setMu : Int -> Mu cs -> IO Int
+    setMeaning :
       Int ->
       {b : Bool} -> (d : Desc s n b) ->
       Meaning d (Mu cs) ->
       IO (Vect n Int, Int)
 
-    muToBuffer start (MkMu k t) with (index' cs k)
+    setMu start (MkMu k t) with (index' cs k)
       _ | cons
         = do -- [ Tag | ... offsets ... | t1 | t2 | ... ]
              setBits8 buf start (cast $ cast {to = Nat} k)
              let afterTag  = start + 1
              let afterOffs = afterTag + 8 * cast (offsets cons)
-             (is, end) <- elemToBuffer afterOffs (description cons) t
+             (is, end) <- setMeaning afterOffs (description cons) t
              setInts afterTag is
              pure end
 
-    elemToBuffer start None v = pure ([], start)
-    elemToBuffer start Byte v = ([], start + 1) <$ setBits8 buf start v
-    elemToBuffer start (Prod d e) (v, w)
-      = do (n1, afterLeft) <- elemToBuffer start d v
-           (n2, afterRight) <- elemToBuffer afterLeft e w
+    setMeaning start None v = pure ([], start)
+    setMeaning start Byte v = ([], start + 1) <$ setBits8 buf start v
+    setMeaning start (Prod d e) (v, w)
+      = do (n1, afterLeft) <- setMeaning start d v
+           (n2, afterRight) <- setMeaning afterLeft e w
            pure (n1 ++ n2, afterRight)
-    elemToBuffer start {b} Rec v
-      = do end <- muToBuffer start v
+    setMeaning start {b} Rec v
+      = do end <- setMu start v
            pure $ (,end) $ if b then [] else [end - start]
 
   writeToFile : {cs : Data} -> String -> Mu cs -> IO ()
   writeToFile fp mu = do
     Just buf <- newBuffer 655360
-      | Nothing => assert_total (idris_crash "Couldn't allocate buffer")
-    size <- muToBuffer buf 0 mu
+      | Nothing => failWith "Couldn't allocate buffer"
+    size <- setMu buf 0 mu
     Right () <- writeBufferToFile fp buf size
-      | Left (err, _) => assert_total (idris_crash (show err))
+      | Left (err, _) => failWith (show err)
     pure ()
 
 namespace Pointer
@@ -206,7 +210,7 @@ namespace Pointer
   out {t} mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
     let Just k = natToFin (cast tag) (length cs)
-      | _ => assert_total (idris_crash "Invalid representation")
+      | _ => failWith "Invalid representation"
     let 0 sub = unfoldAs k t
     val <- MkOut k <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
     pure (rewrite sub.snd in val)
@@ -220,7 +224,7 @@ namespace Pointer
        ** t === MkMu k val)
     unfoldAs k (MkMu l@_ val) with (decEq k l)
       _ | Yes Refl = (val ** Refl)
-      _ | No _ = assert_total (idris_crash "The IMPOSSIBLE has happened")
+      _ | No _ = failWith "The IMPOSSIBLE has happened"
 
     getOffsets : Buffer -> Int -> -- Buffer & position
                  (n : Nat) ->
@@ -314,18 +318,19 @@ namespace Pointer
       n <- sum r
       pure (plus <$> (plus <$> m <*> cast <$> b) <*> n)
 
-||| init allows you to create a pointer to a datastructure stored in
-||| binary format inside a buffer
+||| initFromFile creates a pointer to a datastructure stored in a file
 ||| @ cs is the datatype you want to use to decode the buffer's content
-init : (cs : Data) ->  Buffer -> IO (Exists (Pointer.Mu cs))
-init cs buf = pure (Evidence t (MkMu buf 0)) where 0 t : Data.Mu cs -- postulated as an abstract value
+initFromFile : (cs : Data) -> String -> IO (Exists (Pointer.Mu cs))
+initFromFile cs fp
+  = do Right buf <- createBufferFromFile fp
+         | Left err => failWith (show err)
+       pure (Evidence t (MkMu buf 0))
+  where 0 t : Data.Mu cs -- postulated as an abstract value
 
 main : IO ()
 main = do
   writeToFile "tmp" example
-  Right buf <- createBufferFromFile "tmp"
-    | Left err => assert_total (idris_crash (show err))
-  Evidence _ tree <- init Tree buf
+  Evidence _ tree <- initFromFile Tree "tmp"
   putStrLn "RSum: \{show !(rsum tree)}"
   putStrLn "Sum: \{show !(sum tree)}"
   putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"
