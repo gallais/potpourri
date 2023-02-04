@@ -9,9 +9,13 @@ import System.File.Buffer
 
 import Decidable.Equality
 
+import Data.String
 import Data.Singleton
 
 %default total
+
+failWith : String -> a
+failWith str = assert_total (idris_crash str)
 
 namespace Desc
 
@@ -30,6 +34,104 @@ namespace Desc
            (e : Desc sr n b) ->
            Desc (sl + sr) (m + n) b
     Rec : Desc 0 (ifThenElse b 0 1) b
+
+  export
+  Show (Desc s n b) where
+    showPrec _ None = "()"
+    showPrec _ Byte = "Bits8"
+    showPrec p (Prod d e) =
+      showParens (p <= Open) $ showPrec Open d ++ " * " ++ showPrec App e
+    showPrec _ Rec = "X"
+
+  ||| Heterogeneous equality check for descriptions
+  eqDesc : Desc s n b -> Desc s' n' b' -> Bool
+  eqDesc None None = True
+  eqDesc Byte Byte = True
+  eqDesc (Prod d e) (Prod s t) = eqDesc d s && eqDesc e t
+  eqDesc Rec Rec = True
+  eqDesc _ _ = False
+
+  ||| A constructor description is essentially an existential type
+  ||| around a description
+  public export
+  record Constructor where
+    constructor MkConstructor
+    {size : Nat}
+    {offsets : Nat}
+    description : Desc size offsets True
+
+  export
+  Eq Constructor where
+    MkConstructor d == MkConstructor e = eqDesc d e
+
+  ||| A data description is a sum over a list of constructor types
+  public export
+  Data : Type
+  Data = List Constructor
+
+  export
+  showData : Data -> String
+  showData [] = "⊥"
+  showData (c :: cs) = unlines
+    $  ("μX. " ++ show (description c))
+    :: (("  + " ++) <$> map (\ c => show (description c)) cs)
+
+  parameters (buf : Buffer)
+
+    setDesc : Int -> Desc s n b -> IO Int
+    setDesc start None = (start + 1) <$ setBits8 buf start 0
+    setDesc start Byte = (start + 1) <$ setBits8 buf start 1
+    setDesc start (Prod d e)
+      = do setBits8 buf start 2
+           afterLeft <- setDesc (start + 1) d
+           setDesc afterLeft e
+    setDesc start Rec = (start + 1) <$ setBits8 buf start 3
+
+    setConstructors : Int -> List Constructor -> IO Int
+    setConstructors start [] = pure start
+    setConstructors start (MkConstructor d :: cs)
+      = do afterC <- setDesc start d
+           setConstructors afterC cs
+
+    export
+    setData : Int -> Data -> IO Int
+    setData start cs = do
+      setBits8 buf start (cast $ length cs)
+      setConstructors (start + 1) cs
+
+    record IDesc (b : Bool) where
+      constructor MkIDesc
+      {size : Nat}
+      {offsets : Nat}
+      runIDesc : Desc size offsets b
+
+    IProd : IDesc False -> IDesc b -> IDesc b
+    IProd (MkIDesc d) (MkIDesc e) = MkIDesc (Prod d e)
+
+    getDesc : {b : Bool} -> Int -> IO (Int, IDesc b)
+    getDesc start = case !(getBits8 buf start) of
+      0 => pure (start + 1, MkIDesc None)
+      1 => pure (start + 1, MkIDesc Byte)
+      2 => do (afterLeft, d) <- assert_total (getDesc {b = False} (start + 1))
+              (end, e) <- assert_total (getDesc {b} afterLeft)
+              pure (end, IProd d e)
+      3 => pure (start + 1, MkIDesc Rec)
+      _ => failWith "Invalid Description"
+
+    getConstructors : Int -> Nat -> IO (List Constructor)
+    getConstructors start 0 = pure []
+    getConstructors start (S n)
+      = do (afterD, d) <- getDesc start
+           cs <- getConstructors afterD n
+           pure (MkConstructor (runIDesc d) :: cs)
+
+    export
+    getData : Int -> IO Data
+    getData start = do
+      n <- getBits8 buf start
+      let Just n = ifThenElse (n < 0) Nothing (Just (cast n))
+         | Nothing => failWith "Invalid header"
+      getConstructors (start + 1) n
 
 namespace Data
 
@@ -62,33 +164,21 @@ namespace Data
   fmap {d = Prod d e} f (v, w) = (fmap f v, fmap f w)
   fmap {d = Rec} f v = f v
 
-  ||| A constructor description is essentially an existential type
-  ||| around a description
-  public export
-  record Constructor where
-    constructor MkConstructor
-    {size : Nat}
-    {offsets : Nat}
-    description : Desc size offsets True
-
-  ||| A data description is a sum over a list of constructor types
-  public export
-  Data : Type
-  Data = List Constructor
-
   ||| Fixpoint of the description:
   ||| 1. pick a constructor
   ||| 2. give its meaning where subterms are entire subtrees
-  covering
+  public export covering
   data Mu : Data -> Type where
     MkMu : (k : Fin (length cs)) ->
            Meaning (description (index' cs k)) (Mu cs) ->
            Mu cs
 
+  export
   mkMu : (cs : Data) -> (k : Fin (length cs)) ->
          Meaning' (description (index' cs k)) (Mu cs) (Mu cs)
   mkMu cs k = curry (description (index' cs k)) (MkMu k)
 
+  public export
   fold : {cs : Data} ->
          (alg : (k : Fin (length cs)) -> Meaning (description (index' cs k)) a -> a) ->
          (t : Mu cs) -> a
@@ -102,40 +192,43 @@ namespace Data
       = do setInt buf start i
            setInts (start + 8) is
 
-    muToBuffer : Int -> Mu cs -> IO Int
-    elemToBuffer :
+    setMu : Int -> Mu cs -> IO Int
+    setMeaning :
       Int ->
       {b : Bool} -> (d : Desc s n b) ->
       Meaning d (Mu cs) ->
       IO (Vect n Int, Int)
 
-    muToBuffer start (MkMu k t) with (index' cs k)
+    setMu start (MkMu k t) with (index' cs k)
       _ | cons
         = do -- [ Tag | ... offsets ... | t1 | t2 | ... ]
              setBits8 buf start (cast $ cast {to = Nat} k)
              let afterTag  = start + 1
              let afterOffs = afterTag + 8 * cast (offsets cons)
-             (is, end) <- elemToBuffer afterOffs (description cons) t
+             (is, end) <- setMeaning afterOffs (description cons) t
              setInts afterTag is
              pure end
 
-    elemToBuffer start None v = pure ([], start)
-    elemToBuffer start Byte v = ([], start + 1) <$ setBits8 buf start v
-    elemToBuffer start (Prod d e) (v, w)
-      = do (n1, afterLeft) <- elemToBuffer start d v
-           (n2, afterRight) <- elemToBuffer afterLeft e w
+    setMeaning start None v = pure ([], start)
+    setMeaning start Byte v = ([], start + 1) <$ setBits8 buf start v
+    setMeaning start (Prod d e) (v, w)
+      = do (n1, afterLeft) <- setMeaning start d v
+           (n2, afterRight) <- setMeaning afterLeft e w
            pure (n1 ++ n2, afterRight)
-    elemToBuffer start {b} Rec v
-      = do end <- muToBuffer start v
+    setMeaning start {b} Rec v
+      = do end <- setMu start v
            pure $ (,end) $ if b then [] else [end - start]
 
+  export
   writeToFile : {cs : Data} -> String -> Mu cs -> IO ()
   writeToFile fp mu = do
     Just buf <- newBuffer 655360
-      | Nothing => assert_total (idris_crash "Couldn't allocate buffer")
-    size <- muToBuffer buf 0 mu
+      | Nothing => failWith "Couldn't allocate buffer"
+    end <- setData buf 8 cs
+    setInt buf 0 (end - 8)
+    size <- setMu buf end mu
     Right () <- writeBufferToFile fp buf size
-      | Left (err, _) => assert_total (idris_crash (show err))
+      | Left (err, _) => failWith (show err)
     pure ()
 
 namespace Pointer
@@ -206,7 +299,7 @@ namespace Pointer
   out {t} mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
     let Just k = natToFin (cast tag) (length cs)
-      | _ => assert_total (idris_crash "Invalid representation")
+      | _ => failWith "Invalid representation"
     let 0 sub = unfoldAs k t
     val <- MkOut k <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
     pure (rewrite sub.snd in val)
@@ -218,9 +311,11 @@ namespace Pointer
       (k : Fin (length cs)) -> (t : Data.Mu cs) ->
       (val : Meaning (description (index' cs k)) (Data.Mu cs)
        ** t === MkMu k val)
+    {-
     unfoldAs k (MkMu l@_ val) with (decEq k l)
       _ | Yes Refl = (val ** Refl)
-      _ | No _ = assert_total (idris_crash "The IMPOSSIBLE has happened")
+      _ | No _ = failWith "The IMPOSSIBLE has happened"
+    -}
 
     getOffsets : Buffer -> Int -> -- Buffer & position
                  (n : Nat) ->
@@ -317,14 +412,27 @@ namespace Pointer
 ||| init allows you to create a pointer to a datastructure stored in
 ||| binary format inside a buffer
 ||| @ cs is the datatype you want to use to decode the buffer's content
-init : (cs : Data) ->  Buffer -> IO (Exists (Pointer.Mu cs))
-init cs buf = pure (Evidence t (MkMu buf 0)) where 0 t : Data.Mu cs -- postulated as an abstract value
+init : {default True safe : Bool} -> (cs : Data) ->  Buffer -> IO (Exists (Pointer.Mu cs))
+init cs buf
+  = do skip <- getInt buf 0
+       when safe $ do
+         cs' <- getData buf 8
+         unless (cs == cs') $ failWith $ unlines
+           [ "Description mismatch:"
+           , "expected:"
+           , showData cs
+           , "but got:"
+           , showData cs'
+           ]
+       pure (Evidence t (MkMu buf (skip + 8)))
+
+  where 0 t : Data.Mu cs -- postulated as an abstract value
 
 main : IO ()
 main = do
   writeToFile "tmp" example
   Right buf <- createBufferFromFile "tmp"
-    | Left err => assert_total (idris_crash (show err))
+    | Left err => failWith (show err)
   Evidence _ tree <- init Tree buf
   putStrLn "RSum: \{show !(rsum tree)}"
   putStrLn "Sum: \{show !(sum tree)}"

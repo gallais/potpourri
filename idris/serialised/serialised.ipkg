@@ -19,6 +19,7 @@ authors = "gallais"
 modules = Data.Singleton
         , Desc
         , Indexed
+        , SaferIndexed
 
 -- main file (i.e. file to load at REPL)
 -- main =
