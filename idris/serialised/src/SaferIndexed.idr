@@ -1,4 +1,4 @@
-module Indexed
+module SaferIndexed
 
 import Data.Fin
 import Data.DPair
@@ -409,12 +409,14 @@ namespace Pointer
       n <- sum r
       pure (plus <$> (plus <$> m <*> cast <$> b) <*> n)
 
-||| init allows you to create a pointer to a datastructure stored in
-||| binary format inside a buffer
-||| @ cs is the datatype you want to use to decode the buffer's content
-init : {default True safe : Bool} -> (cs : Data) ->  Buffer -> IO (Exists (Pointer.Mu cs))
-init cs buf
-  = do skip <- getInt buf 0
+||| initFromFile creates a pointer to a datastructure stored in a file
+||| @ cs   is the datatype you want to use to decode the buffer's content
+||| @ safe signals whether to check the file's header matches the declared datatype
+initFromFile : {default True safe : Bool} ->  (cs : Data) -> String -> IO (Exists (Pointer.Mu cs))
+initFromFile cs fp
+  = do Right buf <- createBufferFromFile fp
+         | Left err => failWith (show err)
+       skip <- getInt buf 0
        when safe $ do
          cs' <- getData buf 8
          unless (cs == cs') $ failWith $ unlines
@@ -431,9 +433,7 @@ init cs buf
 main : IO ()
 main = do
   writeToFile "tmp" example
-  Right buf <- createBufferFromFile "tmp"
-    | Left err => failWith (show err)
-  Evidence _ tree <- init Tree buf
+  Evidence _ tree <- initFromFile Tree "tmp"
   putStrLn "RSum: \{show !(rsum tree)}"
   putStrLn "Sum: \{show !(sum tree)}"
   putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"
