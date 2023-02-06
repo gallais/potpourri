@@ -65,6 +65,12 @@ namespace Serialising
     constructor MkSerialising
     runSerialising : Buffer -> Int -> IO Int
 
+  export
+  (>>=) : IO a -> (a -> Serialising cs t) -> Serialising cs t
+  io >>= f = MkSerialising $ \buf, start =>
+               do x <- io
+                  runSerialising (f x) buf start
+
   parameters (buf : Buffer)
 
     goMeaning : Int ->
@@ -300,14 +306,12 @@ namespace Pointer
   export
   map : (f : Bits8 -> Bits8) ->
         Pointer.Mu Tree t ->
-        IO (Serialising Tree (map f t))
+        Serialising Tree (map f t)
   map f ptr = case !(out ptr) of
-    MkOut 0 t => pure (setMuK Tree 0)
+    MkOut 0 t => setMuK Tree 0
     MkOut 1 t => do
       (l # b # r) <- layer t
-      l <- map f l
-      r <- map f r
-      pure (setMuK Tree 1 l (f <$> b) r)
+      setMuK Tree 1 (map f l) (f <$> b) (map f r)
 
   export
   display : Pointer.Mu Tree t -> IO String
@@ -359,6 +363,6 @@ main = do
   putStrLn (replicate 72 '-')
 
   -- Second Tree: mapping over the first one
-  serialiseToFile "tmp2" !(map (1+) tree)
+  serialiseToFile "tmp2" (map (1+) tree)
   Evidence _ tree2 <- initFromFile Tree "tmp2"
   testing tree2
