@@ -125,7 +125,7 @@ namespace Serialising
                     Serialising cs t -> IO ()
   serialiseToFile fp t = do
     Just buf <- newBuffer blockSize
-      | Nothing => failWith "Couldn't allocate buffer"
+      | Nothing => failWith "\{__LOC__} Couldn't allocate buffer"
     end <- setData buf 8 cs
     setInt buf 0 (end - 8)
     size <- runSerialising t buf end
@@ -260,30 +260,47 @@ rightmost dflt t = case !(out t) of
     (_ # b # r) <- layer el
     rightmost (Just (getSingleton b)) r
 
+-- Here we define the functional specification of the functions we
+-- want to write over pointers. This will, via Singleton & Serialising,
+-- allow us to write correct by construction effectful functions
 namespace Data
 
+  ||| The size of the tree is given by the number of nodes
   public export
   size : Data.Mu Tree -> Nat
   size = fold $ \ k, v => case k of
     0 => 0
     1 => let (l, _, r) = v in S (l + r)
 
+  ||| The sum of the tree's node is given by casting the Bits8 nodes
+  ||| to Nat and summing them up
   public export
   sum : Data.Mu Tree -> Nat
   sum = fold $ \ k, v => case k of
     0 => 0
     1 => let (l, b, r) = v in l + cast b + r
 
+  ||| Map is obtained by applying a function transforming Bit8 values
+  ||| to all of the Bits8 stored in the tree's nodes
   public export
   map : (Bits8 -> Bits8) -> Data.Mu Tree -> Data.Mu Tree
   map f = fold $ \ k, v => case k of
     0 => leaf
     1 => let (l, b, r) = v in node l (f b) r
 
+-- Here we define the effectful functions processing a pointer
+-- IO allows us to inspect the content addressed by the pointer to take the tree apart
+-- Serialising lets us build a specified output tree
 namespace Pointer
 
+  ||| Correct by construction size function.
+  ||| @ t   is the phantom name of the tree represented by the buffer
+  ||| @ ptr is the position of t inside the buffer
+  ||| Singleton ensures that the value we return is the same as if
+  ||| we had directly processed `t`.
   export
-  size : {0 t : Data.Mu Tree} -> Pointer.Mu Tree t ->
+  size : {0 t : Data.Mu Tree} ->
+         (ptr : Pointer.Mu Tree t) ->
          IO (Singleton (Data.size t))
   size ptr = case !(out ptr) of
     MkOut 0 t => pure (MkSingleton 0)
@@ -293,9 +310,14 @@ namespace Pointer
       n <- size r
       pure (S <$> (plus <$> m <*> n))
 
+  ||| Correct by construction sum function.
+  ||| @ t   is the phantom name of the tree represented by the buffer
+  ||| @ ptr is the position of t inside the buffer
+  ||| Singleton ensures that the value we return is the same as if
+  ||| we had directly processed `t`.
   export
   sum : {0 t : Data.Mu Tree} ->
-        Pointer.Mu Tree t ->
+        (ptr : Pointer.Mu Tree t) ->
         IO (Singleton (Data.sum t))
   sum ptr = case !(out ptr) of
     MkOut 0 t => pure (MkSingleton 0)
@@ -305,16 +327,23 @@ namespace Pointer
       n <- sum r
       pure (plus <$> (plus <$> m <*> cast <$> b) <*> n)
 
+  ||| Correct by construction map function.
+  ||| @ f   is the function to map over the tree's nodes
+  ||| @ t   is the phantom name of the tree represented by the buffer
+  ||| @ ptr is the position of t inside the buffer
+  ||| Serialising ensures that the value we compute is the same as if
+  ||| we had directly processed `t`.
   export
   map : (f : Bits8 -> Bits8) ->
-        Pointer.Mu Tree t ->
-        Serialising Tree (map f t)
-  map f ptr = case !(out ptr) of
+        (ptr : Pointer.Mu Tree t) ->
+        Serialising Tree (Data.map f t)
+  map f ptr = case !(out ptr) of -- here we use Serialising's (>>=)
     MkOut 0 t => setMuK Tree 0
     MkOut 1 t => do
-      (l # b # r) <- layer t
+      (l # b # r) <- layer t -- Again, Serialising's (>>=) rather than Prelude's
       setMuK Tree 1 (map f l) (f <$> b) (map f r)
 
+  ||| Simple printing function
   export
   display : Pointer.Mu Tree t -> IO String
   display ptr = case !(out ptr) of
@@ -332,9 +361,11 @@ namespace Serialising
                     Serialising cs t -> IO (Pointer.Mu cs t)
   execSerialising act = do
     Just buf <- newBuffer blockSize
-      | Nothing => failWith "Couldn't allocate buffer"
+      | Nothing => failWith "\{__LOC__} Couldn't allocate buffer"
+    -- Do we care about storing the data description in this case?
     end <- setData buf 8 cs
     setInt buf 0 (end - 8)
+    -- Anyway, here's the actual data:
     size <- runSerialising act buf end
     pure (MkMu buf end)
 
