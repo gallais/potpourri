@@ -203,10 +203,10 @@ namespace Data
   ||| Fixpoint of the description:
   ||| 1. pick a constructor
   ||| 2. give its meaning where subterms are entire subtrees
-  public export covering
+  public export
   data Mu : Data -> Type where
     MkMu : (k : Fin (length cs)) ->
-           Meaning (description (index' cs k)) (Mu cs) ->
+           Meaning (description (index' cs k)) (assert_total (Mu cs)) ->
            Mu cs
 
   ||| Curried version of the constructor; more convenient to use
