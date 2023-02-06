@@ -1,0 +1,13 @@
+# A Universe for Serialised Data
+
+In typed functional languages, one can typically only manipulate data
+in a type-safe manner if it first has been deserialised into an in-memory
+tree represented as a graph of nodes-as-structs and subterms-as-pointers.
+
+We demonstrate how we can use QTT as implemented in Idris 2 to define
+a small universe of serialised datatypes, and provide generic programs
+allowing users to process values stored contiguously in buffers.
+
+Our approach allows implementors to prove the full functional correctness,
+in a correct by construction manner, of the IO functions processing the
+data stored in the buffer.
