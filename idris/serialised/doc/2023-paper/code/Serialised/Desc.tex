@@ -1,3 +1,4 @@
+\begin{code}
 module Serialised.Desc
 
 import Data.Buffer
@@ -19,29 +20,46 @@ import Lib
 |||  @rightmost telling us whether we are in the rightmost subterm
 |||             in which case `Rec` won't need to record an additional offset
 public export
+\end{code}
+%<*desc>
+\begin{code}
 data Desc : (size : Nat) -> (offsets : Nat) -> (rightmost : Bool) -> Type where
   None : Desc 0 0 b
   Byte : Desc 1 0 b
-  Prod : {sl, sr, m, n : Nat} -> -- does not matter: Descs are meant to go away with staging
+  Prod : {sl, sr, m, n : Nat} ->
          (d : Desc sl m False) ->
          (e : Desc sr n b) ->
          Desc (sl + sr) (m + n) b
   Rec : Desc 0 (ifThenElse b 0 1) b
-
+\end{code}
+%</desc>
+\begin{code}
 ||| A constructor description is essentially an existential type
 ||| around a description
 public export
+\end{code}
+%<*constructor>
+\begin{code}
 record Constructor where
   constructor MkConstructor
   {size : Nat}
   {offsets : Nat}
   description : Desc size offsets True
+\end{code}
+%</constructor>
+\begin{code}
 
 ||| A data description is a sum over a list of constructor types
 -- TODO: use a vector instead?
 public export
+\end{code}
+%<*data>
+\begin{code}
 Data : Type
 Data = List Constructor
+\end{code}
+%</data>
+\begin{code}
 
 ------------------------------------------------------------------------
 -- Show instances
@@ -170,11 +188,17 @@ namespace Data
 
   ||| Meaning where subterms are interpreted using the parameter
   public export
+\end{code}
+%<*meaning>
+\begin{code}
   Meaning : Desc s n b -> Type -> Type
   Meaning None x = ()
   Meaning Byte x = Bits8
   Meaning (Prod d e) x = (Meaning d x, Meaning e x)
   Meaning Rec x = x
+\end{code}
+%</meaning>
+\begin{code}
 
   public export
   Meaning' : Desc s n b -> Type -> Type -> Type
@@ -191,27 +215,45 @@ namespace Data
   curry Rec k = k
 
   public export
+\end{code}
+%<*fmap>
+\begin{code}
   fmap : {d : Desc{}} -> (a -> b) -> Meaning d a -> Meaning d b
   fmap {d = None} f v = v
   fmap {d = Byte} f v = v
   fmap {d = Prod d e} f (v, w) = (fmap f v, fmap f w)
   fmap {d = Rec} f v = f v
+\end{code}
+%</fmap>
+\begin{code}
 
 ------------------------------------------------------------------------
 -- Meaning of data descriptions as fixpoints
 
   public export
+\end{code}
+%<*alg>
+\begin{code}
   Alg : Data -> Type -> Type
   Alg cs x = (k : Fin (length cs)) ->
              Meaning (description (index' cs k)) x ->
              x
+\end{code}
+%</alg>
+\begin{code}
 
   ||| Fixpoint of the description:
   ||| 1. pick a constructor
   ||| 2. give its meaning where subterms are entire subtrees
   public export
+\end{code}
+%<*mu>
+\begin{code}
   data Mu : Data -> Type where
     MkMu : Alg cs (assert_total (Mu cs))
+\end{code}
+%</mu>
+\begin{code}
 
   ||| Curried version of the constructor; more convenient to use
   ||| when writing examples
@@ -222,8 +264,14 @@ namespace Data
 
   ||| Fixpoints are initial algebras
   public export
+\end{code}
+%<*fold>
+\begin{code}
   fold : {cs : Data} -> (alg : Alg cs a) -> (t : Mu cs) -> a
   fold alg (MkMu k t) = alg k (assert_total $ fmap (fold alg) t)
+\end{code}
+%</fold>
+\begin{code}
 
 ------------------------------------------------------------------------
 -- Examples
@@ -231,27 +279,46 @@ namespace Data
 namespace Tree
 
   public export
+\end{code}
+%<*treedesc>
+\begin{code}
   Tree : Data
-  Tree = [ MkConstructor None                       -- Leaf
-         , MkConstructor (Prod Rec (Prod Byte Rec)) -- Node Tree Bits8 Tree
+  Tree = [ MkConstructor None
+         , MkConstructor (Prod Rec (Prod Byte Rec))
          ]
+\end{code}
+%</treedesc>
+\begin{code}
 
   public export
-  ATree : Type
-  ATree = Data.Mu Tree
-
-  public export
-  leaf : ATree
+\end{code}
+%<*leaf>
+\begin{code}
+  leaf : Mu Tree
   leaf = mkMu Tree 0
+\end{code}
+%</leaf>
+\begin{code}
 
   public export
-  node : ATree -> Bits8 -> ATree -> ATree
+\end{code}
+%<*node>
+\begin{code}
+  node : Mu Tree -> Bits8 -> Mu Tree -> Mu Tree
   node = mkMu Tree 1
+\end{code}
+%</node>
+\begin{code}
 
   public export
-  example : ATree
+\end{code}
+%<*example>
+\begin{code}
+  example : Mu Tree
   example
     = node
         (node (node leaf 1 leaf) 5 leaf)
         10
         (node leaf 20 leaf)
+\end{code}
+%</example>

@@ -1,6 +1,10 @@
 \documentclass{article}
 
 \usepackage{idris2}
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+
+\usepackage{fullpage}
 
 \title{A Universe for Serialised Data}
 \author{Guillaume Allais}
@@ -24,6 +28,69 @@ data stored in the buffer.
 \end{abstract}
 
 \section{Introduction}
+
+\section{Descriptions}
+
+Descriptions are essentially arbitrarily nested tuples of
+values of type unit,
+bytes,
+and recursive substructures.
+
+Our type of description has three indices corresponding to three important
+invariants being tracked.
+%
+First, the statically known size of the described data.
+%
+Second, the number of offsets that need to be stored to compensate for the
+fact that some subterms do not have a statically known size.
+%
+Third, whether the current description is being used in the rightmost branch
+of the overall layer description.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{desc}
+
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{constructor}
+
+A datatype description is given by a list of constructor descriptions.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{data}
+
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{treedesc}
+
+
+
+\section{Meaning as Trees}
+
+\subsection{\IdrisType{Desc}s as Functors}
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
+\ExecuteMetaData[Serialised/Desc.idr.tex]{fmap}
+
+\subsection{\IdrisType{Data} as Trees}
+
+Type of algebras for the functor described by a \IdrisType{Data} description
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{alg}
+
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{mu}
+
+\IdrisType{Mu} give us the initial fixpoint for these algebras i.e.
+we have a \IdrisFunction{fold} function.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{fold}
+
+
+Convenient aliases for the for the \IdrisFunction{Tree} definition
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
+\ExecuteMetaData[Serialised/Desc.idr.tex]{node}
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{example}
+
+\section{Meaning as Pointers into a Buffer}
 
 
 \end{document}
