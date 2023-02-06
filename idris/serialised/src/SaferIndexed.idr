@@ -299,8 +299,7 @@ namespace Pointer
   ||| Singleton ensures that the value we return is the same as if
   ||| we had directly processed `t`.
   export
-  size : {0 t : Data.Mu Tree} ->
-         (ptr : Pointer.Mu Tree t) ->
+  size : (ptr : Pointer.Mu Tree t) ->
          IO (Singleton (Data.size t))
   size ptr = case !(out ptr) of
     MkOut 0 t => pure (MkSingleton 0)
@@ -316,8 +315,7 @@ namespace Pointer
   ||| Singleton ensures that the value we return is the same as if
   ||| we had directly processed `t`.
   export
-  sum : {0 t : Data.Mu Tree} ->
-        (ptr : Pointer.Mu Tree t) ->
+  sum : (ptr : Pointer.Mu Tree t) ->
         IO (Singleton (Data.sum t))
   sum ptr = case !(out ptr) of
     MkOut 0 t => pure (MkSingleton 0)

@@ -1,0 +1,59 @@
+\usepackage{inconsolata}
+\usepackage{fancyvrb}
+\usepackage[x11names]{xcolor}
+\newcommand{\Katla}                [2][]{\VerbatimInput[commandchars=\\\{\}#1]{#2}}
+\newcommand{\KatlaNewline}            {\\}
+\newcommand{\KatlaSpace}              {\hphantom{ }}
+\newcommand{\KatlaUnderscore}         {\string_}
+\newcommand{\KatlaTilde}              {\raisebox{-.35em}{\textasciitilde}}
+\newcommand{\IdrisHlightFont}         {\ttfamily}
+\newcommand{\IdrisHlightStyleData}    {}
+\newcommand{\IdrisHlightStyleType}    {}
+\newcommand{\IdrisHlightStyleBound}   {}
+\newcommand{\IdrisHlightStyleFunction}{}
+\newcommand{\IdrisHlightStyleKeyword} {\bfseries}
+\newcommand{\IdrisHlightStyleImplicit}{}
+\newcommand{\IdrisHlightStyleComment} {\itshape}
+\newcommand{\IdrisHlightStyleHole}    {\bfseries}
+\newcommand{\IdrisHlightStyleNamespace}{\itshape}
+\newcommand{\IdrisHlightStylePostulate}{\bfseries}
+\newcommand{\IdrisHlightStyleModule}   {\itshape}
+
+\newcommand{\IdrisHlightColourData}    {IndianRed1}
+\newcommand{\IdrisHlightColourType}    {DeepSkyBlue3}
+\newcommand{\IdrisHlightColourBound}   {DarkOrchid3}
+\newcommand{\IdrisHlightColourFunction}{Chartreuse4}
+\newcommand{\IdrisHlightColourKeyword} {black}
+\newcommand{\IdrisHlightColourImplicit}{DarkOrchid3}
+\newcommand{\IdrisHlightColourComment} {Ivory3}
+\newcommand{\IdrisHlightColourHole}    {yellow}
+\newcommand{\IdrisHlightColourNamespace}{black}
+\newcommand{\IdrisHlightColourPostulate}{DarkOrchid3}
+\newcommand{\IdrisHlightColourModule}   {black}
+
+\newcommand{\IdrisHole}[1]{{%
+    \colorbox{\IdrisHlightColourHole}{%
+      \IdrisHlightStyleHole\IdrisHlightFont%
+      #1}}}
+
+\newcommand{\RawIdrisHighlight}[3]{{\textcolor{#1}{\IdrisHlightFont#2{#3}}}}
+
+\newcommand{\IdrisData}[1]{\RawIdrisHighlight{\IdrisHlightColourData}{\IdrisHlightStyleData}{#1}}
+\newcommand{\IdrisType}[1]{\RawIdrisHighlight{\IdrisHlightColourType}{\IdrisHlightStyleType}{#1}}
+\newcommand{\IdrisBound}[1]{\RawIdrisHighlight{\IdrisHlightColourBound}{\IdrisHlightStyleBound}{#1}}
+\newcommand{\IdrisFunction}[1]{\RawIdrisHighlight{\IdrisHlightColourFunction}{\IdrisHlightStyleFunction}{#1}}
+\newcommand{\IdrisKeyword}[1]{\RawIdrisHighlight{\IdrisHlightColourKeyword}{\IdrisHlightStyleKeyword}{#1}}
+\newcommand{\IdrisImplicit}[1]{\RawIdrisHighlight{\IdrisHlightColourImplicit}{\IdrisHlightStyleImplicit}{#1}}
+\newcommand{\IdrisComment}[1]{\RawIdrisHighlight{\IdrisHlightColourComment}{\IdrisHlightStyleComment}{#1}}
+\newcommand{\IdrisNamespace}[1]{\RawIdrisHighlight{\IdrisHlightColourNamespace}{\IdrisHlightStyleNamespace}{#1}}
+\newcommand{\IdrisPostulate}[1]{\RawIdrisHighlight{\IdrisHlightColourPostulate}{\IdrisHlightStylePostulate}{#1}}
+\newcommand{\IdrisModule}[1]{\RawIdrisHighlight{\IdrisHlightColourModule}{\IdrisHlightStyleModule}{#1}}
+
+\newenvironment{code}
+    {\vspace{1em}\noindent\begin{minipage}{\linewidth}\obeyspaces\ttfamily}
+    {\end{minipage}}
+
+% Bugfix in fancyvrb to allow inline saved listings
+\makeatletter
+\let\FV@ProcessLine\relax
+\makeatother
