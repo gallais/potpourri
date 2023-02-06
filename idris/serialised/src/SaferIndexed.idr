@@ -17,6 +17,9 @@ import Serialised.Desc
 
 %default total
 
+blockSize : Int
+blockSize = 1000
+
 namespace Data
 
   data All' : (d : Desc s n b) -> (p : x -> Type) -> Meaning d x -> Type
@@ -117,12 +120,11 @@ namespace Serialising
     _ | cons = SaferIndexed.Data.curry (description cons) $ \ layer =>
                MkSerialising $ \ buf, start => goMu buf start k cons layer
 
-
   export
   serialiseToFile : {cs : Data} -> String -> {0 t : Mu cs} ->
-                    Serialising cs t -> IO () -- IO (Pointer.Mu cs t) instead?
+                    Serialising cs t -> IO ()
   serialiseToFile fp t = do
-    Just buf <- newBuffer 655360
+    Just buf <- newBuffer blockSize
       | Nothing => failWith "Couldn't allocate buffer"
     end <- setData buf 8 cs
     setInt buf 0 (end - 8)
@@ -323,6 +325,20 @@ namespace Pointer
       r <- display r
       pure "(node \{l} \{show (getSingleton b)} \{r})"
 
+namespace Serialising
+
+  export
+  execSerialising : {cs : Data} -> {0 t : Data.Mu cs} ->
+                    Serialising cs t -> IO (Pointer.Mu cs t)
+  execSerialising act = do
+    Just buf <- newBuffer blockSize
+      | Nothing => failWith "Couldn't allocate buffer"
+    end <- setData buf 8 cs
+    setInt buf 0 (end - 8)
+    size <- runSerialising act buf end
+    pure (MkMu buf end)
+
+
 ||| initFromFile creates a pointer to a datastructure stored in a file
 ||| @ cs   is the datatype you want to use to decode the buffer's content
 ||| @ safe signals whether to check the file's header matches the declared datatype
@@ -366,3 +382,9 @@ main = do
   serialiseToFile "tmp2" (map (1+) tree)
   Evidence _ tree2 <- initFromFile Tree "tmp2"
   testing tree2
+
+  putStrLn (replicate 72 '-')
+
+  -- Third Tree: don't go via a file
+  tree3 <- execSerialising (map (2+) tree2)
+  testing tree3
