@@ -1,0 +1,29 @@
+\section{Descriptions}\label{sec:desc}
+
+Descriptions are essentially arbitrarily nested tuples of
+values of type unit,
+bytes,
+and recursive substructures.
+
+Our type of description has three indices corresponding to three important
+invariants being tracked.
+%
+First, the statically known size of the described data.
+%
+Second, the number of offsets that need to be stored to compensate for the
+fact that some subterms do not have a statically known size.
+%
+Third, whether the current description is being used in the rightmost branch
+of the overall layer description.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{desc}
+
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{constructor}
+
+A datatype description is given by a list of constructor descriptions.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{data}
+
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{treedesc}

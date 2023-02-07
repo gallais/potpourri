@@ -4,7 +4,10 @@ PAPER=paper
 DEPENDENCIES=\
   build/latex/robust-catch.tex \
   build/latex/idris2.sty \
-  build/latex/Serialised/Desc.idr.tex
+  build/latex/Serialised/Desc.idr.tex \
+  build/latex/desc.tex \
+  build/latex/trees.tex \
+  build/latex/pointers.tex \
 
 all: paper.pdf
 

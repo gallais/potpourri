@@ -1,0 +1,71 @@
+\section{Meaning as Trees}\label{sec:trees}
+
+\subsection{\IdrisType{Desc}s as Functors}
+
+We can define the meaning of descriptions as strictly positive
+endofunctors on \IdrisType{Type} by induction on said descriptions.
+%
+\IdrisFunction{Meaning} gives us the action of the functors on objects
+while \IdrisFunction{fmap} gives us their action on morphisms.
+%
+Verifying that these definitions respect the functor laws is left as
+an exercise for the reader.
+
+Both \IdrisData{None} and \IdrisData{Byte} are interpreted by constant
+functors (respectively the one return the unit type, and the one returning
+the type of bytes),
+%
+(\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e}) is interpreted as the
+pairing of the interpretation of \IdrisBound{d} and \IdrisBound{e} respectively,
+%
+and \IdrisData{Rec} is the identity functor.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
+
+
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{fmap}
+
+\subsection{\IdrisType{Data} as Trees}
+
+We can define the type of algebras for the functor described by a
+\IdrisType{Data} description as follows
+%: for each choice of constructor
+%(\IdrisType{Fin} (\IdrisFunction{length} \IdrisBound{cs})),
+%we can collapse a layer
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{alg}
+
+We can then define the fixpoints of functors as
+
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{mu}
+
+%
+Note that here we are forced to use \assertTotal{} to force \idris{}
+to accept the definition.
+%
+Indeed, unlike Agda, \idris{} does not (yet!) track whether a function's
+arguments are used in a strictly positive manner.
+%
+Consequently the positivity checker
+is unfortunately unable to see that \IdrisFunction{Meaning} uses its second
+argument in a strictly positive manner
+and that this is therefore a legal definition.
+
+\IdrisType{Mu} give us the initial fixpoint for these algebras i.e.
+we have a \IdrisFunction{fold} function. Here we only use \assertTotal
+for convenience but this could easily be bypassed by mutually defining
+an inlined and specialised version of
+(\IdrisFunction{fmap} (\IdrisFunction{fold} \IdrisBound{alg})).
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{fold}
+
+We can define convenient aliases for the \IdrisFunction{Tree} constructors.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
+\ExecuteMetaData[Serialised/Desc.idr.tex]{node}
+
+This enables us to define our running example.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{example}
