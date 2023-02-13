@@ -157,48 +157,62 @@ namespace Pointer
     muBuffer : Buffer
     muPosition : Int
 
-  Poke : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
-  Poke None _ t = ()
-  Poke Byte cs t = Singleton t
-  Poke (Prod d e) cs t = (Elem d cs (fst t), Elem e cs (snd t))
-  Poke Rec cs t = Pointer.Mu cs t
+  namespace Poke
 
-  poke : {s : Nat} -> (d : Desc s n b) ->
-         forall t. Elem d cs t -> IO (Poke d cs t)
-  poke None el = pure ()
-  poke Byte el = do
-    bs <- getBits8 (elemBuffer el) (elemPosition el)
-    pure (believe_me $ MkSingleton bs)
-  poke (Prod {sl} d e) el = do
-    let (n1, n2) = splitAt _ (subterms el)
-    let left = MkElem n1 (elemBuffer el) (elemPosition el)
-    let pos = elemPosition el + sum n1 + cast sl
-    let right = MkElem n2 (elemBuffer el) pos
-    pure (left, right)
-  poke Rec el = pure (MkMu (elemBuffer el) (elemPosition el))
+    public export
+    data Poke' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
 
-  data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
+    public export
+    Poke : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
+    Poke None _ t = ()
+    Poke Byte cs t = Singleton t
+    Poke d@(Prod _ _) cs t = Poke' d cs t
+    Poke Rec cs t = Pointer.Mu cs t
 
-  Layer : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
-  Layer d@(Prod _ _) cs t = Layer' d cs t
-  Layer None _ _ = ()
-  Layer Byte _ t = Singleton t
-  Layer Rec cs t = Pointer.Mu cs t
+    data Poke' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
+      (#) : Elem d cs t -> Elem e cs u -> Poke' (Prod d e) cs (t, u)
 
+    export
+    poke : {s : Nat} -> {d : Desc s n b} ->
+           forall t. Elem d cs t -> IO (Poke d cs t)
+    poke {d = None} el = pure ()
+    poke {d = Byte} el = do
+      bs <- getBits8 (elemBuffer el) (elemPosition el)
+      pure (believe_me $ MkSingleton bs)
+    poke {d = Prod {sl} d e} {t} el = do
+      let (n1, n2) = splitAt _ (subterms el)
+      let left = MkElem n1 (elemBuffer el) (elemPosition el)
+      let pos = elemPosition el + sum n1 + cast sl
+      let right = MkElem n2 (elemBuffer el) pos
+      pure (rewrite etaPair t in left # right)
+    poke {d = Rec} el = pure (MkMu (elemBuffer el) (elemPosition el))
 
-  data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
-    (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t, u)
+  namespace Layer
 
-  layer : {s : Nat} -> {d : Desc s n b} ->
-          forall t. Elem d cs t -> IO (Layer d cs t)
-  layer el = poke d el >>= go d where
+    public export
+    data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
 
-    go : forall n, b. {s : Nat} -> (d : Desc s n b) ->
-         forall t. Poke d cs t -> IO (Layer d cs t)
-    go None p = pure ()
-    go Byte p = pure p
-    go (Prod d e) {t} (p, q) = rewrite etaPair t in [| layer p # layer q |]
-    go Rec p = pure p
+    public export
+    Layer : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
+    Layer d@(Prod _ _) cs t = Layer' d cs t
+    Layer None _ _ = ()
+    Layer Byte _ t = Singleton t
+    Layer Rec cs t = Pointer.Mu cs t
+
+    data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
+      (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t, u)
+
+    export
+    layer : {s : Nat} -> {d : Desc s n b} ->
+            forall t. Elem d cs t -> IO (Layer d cs t)
+    layer el = poke el >>= go d where
+
+      go : forall n, b. {s : Nat} -> (d : Desc s n b) ->
+           forall t. Poke d cs t -> IO (Layer d cs t)
+      go None p = pure ()
+      go Byte p = pure p
+      go (Prod d e) (p # q) = [| layer p # layer q |]
+      go Rec p = pure p
 
   data Out : (cs : Data) -> (t : Data.Mu cs) -> Type where
     MkOut : (k : (Fin (length cs))) ->
@@ -245,13 +259,21 @@ namespace Pointer
       = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index' cs k))
       $ \ subterms, pos => MkElem subterms (muBuffer mu) pos
 
+  data View : (cs : Data) -> (t : Data.Mu cs) -> Type where
+    MkNode : (k : (Fin (length cs))) ->
+             forall t. Layer (description (index' cs k)) cs t ->
+             View cs (MkMu k t)
+
+  view : {cs : _} -> forall t. Pointer.Mu cs t -> IO (View cs t)
+  view ptr = do MkOut k el <- out ptr
+                vs <- layer el
+                pure (MkNode k vs)
+
 ||| Raw sum
 rsum : Pointer.Mu Tree t -> IO Nat
-rsum ptr = case !(out ptr) of
-  MkOut 0 el => pure 0
-  MkOut 1 el => do
-    (l # b # r) <- layer el
-    pure (!(rsum l) + cast (getSingleton b) + !(rsum r))
+rsum ptr = case !(view ptr) of
+  MkNode 0 el => pure 0
+  MkNode 1 (l # b # r) => pure (!(rsum l) + cast (getSingleton b) + !(rsum r))
 
 rightmost : Maybe Bits8 -> Pointer.Mu Tree t -> IO (Maybe Bits8)
 rightmost dflt t = case !(out t) of
@@ -304,9 +326,10 @@ namespace Pointer
   size ptr = case !(out ptr) of
     MkOut 0 t => pure (MkSingleton 0)
     MkOut 1 t => do
-      (l # _ # r) <- layer t
-      m <- size l
-      n <- size r
+      l # br <- poke t
+      m <- size !(poke l)
+      _ # r <- poke br
+      n <- size !(poke r)
       pure (S <$> (plus <$> m <*> n))
 
   ||| Correct by construction sum function.
@@ -325,6 +348,18 @@ namespace Pointer
       n <- sum r
       pure (plus <$> (plus <$> m <*> cast <$> b) <*> n)
 
+  export
+  leaf : Serialising Tree Tree.leaf
+  leaf = setMuK Tree 0
+
+  export
+  node : Serialising Tree l -> Singleton b -> Serialising Tree r ->
+            Serialising Tree (Tree.node l b r)
+  node = setMuK Tree 1
+
+  Leaf : View Tree Tree.leaf
+  Leaf = MkNode 0 ()
+
   ||| Correct by construction map function.
   ||| @ f   is the function to map over the tree's nodes
   ||| @ t   is the phantom name of the tree represented by the buffer
@@ -335,11 +370,9 @@ namespace Pointer
   map : (f : Bits8 -> Bits8) ->
         (ptr : Pointer.Mu Tree t) ->
         Serialising Tree (Data.map f t)
-  map f ptr = case !(out ptr) of -- here we use Serialising's (>>=)
-    MkOut 0 t => setMuK Tree 0
-    MkOut 1 t => do
-      (l # b # r) <- layer t -- Again, Serialising's (>>=) rather than Prelude's
-      setMuK Tree 1 (map f l) (f <$> b) (map f r)
+  map f ptr = case !(view ptr) of
+    MkNode 0 () => leaf
+    MkNode 1 (l # b # r) => node (map f l) (f <$> b) (map f r)
 
   ||| Simple printing function
   export
