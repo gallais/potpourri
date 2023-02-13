@@ -269,11 +269,28 @@ namespace Pointer
                 vs <- layer el
                 pure (MkNode k vs)
 
-||| Raw sum
-rsum : Pointer.Mu Tree t -> IO Nat
-rsum ptr = case !(view ptr) of
-  MkNode 0 el => pure 0
-  MkNode 1 (l # b # r) => pure (!(rsum l) + cast b + !(rsum r))
+namespace Tree
+
+  ||| Tree sum
+  sum : Data.Mu Tree -> Nat
+  sum t = case t of
+    MkMu 0 _ => 0
+    MkMu 1 (l, b, r) =>
+      let m = sum l
+          n = sum r
+      in (m + cast b + n)
+
+namespace Raw
+
+  ||| Raw sum
+  export
+  sum : Pointer.Mu Tree _ -> IO Nat
+  sum ptr = case !(view ptr) of
+    MkNode 0 _ => pure 0
+    MkNode 1 (l # b # r) =>
+      do m <- sum l
+         n <- sum r
+         pure (m + cast b + n)
 
 rightmost : Maybe Bits8 -> Pointer.Mu Tree t -> IO (Maybe Bits8)
 rightmost dflt t = case !(out t) of
@@ -425,8 +442,8 @@ initFromFile cs fp
 testing : Pointer.Mu Tree t -> IO ()
 testing tree = do
   putStrLn "Tree: \{!(display tree)}"
-  putStrLn "RSum: \{show !(rsum tree)}"
-  putStrLn "Sum: \{show !(sum tree)}"
+  putStrLn "RSum: \{show !(Raw.sum tree)}"
+  putStrLn "Sum: \{show !(Pointer.sum tree)}"
   putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"
   putStrLn "Tree size: \{show !(size tree)}"
 

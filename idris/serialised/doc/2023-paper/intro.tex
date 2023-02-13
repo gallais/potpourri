@@ -8,7 +8,7 @@ instead of trees
 %
 Forgetting about correctness for now, this can be summed up by the
 two following code snippets describing how we can compute the sum
-of the value stored in a tree of numbers.
+of the values stored in a tree of non-negative numbers.
 
 \noindent
 \begin{minipage}{.4\textwidth}
@@ -20,7 +20,7 @@ of the value stored in a tree of numbers.
 
 On the left, we have a function taking apart a tree and either returning
 \IdrisData{0} if it is a leaf or, when faced with a node, recursively
-summing the left and right subtrees before adding these results to value
+summing the left and right subtrees before adding these results to the value
 stored in the node.
 %
 On the right, we have a procedure using \IdrisType{IO} actions to inspect

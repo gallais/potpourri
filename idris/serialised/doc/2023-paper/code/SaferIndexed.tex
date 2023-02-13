@@ -295,7 +295,7 @@ namespace Raw
 \begin{code}
   sum : Pointer.Mu Tree _ -> IO Nat
   sum ptr = case !(view ptr) of
-    MkNode 0 el => pure 0
+    MkNode 0 _ => pure 0
     MkNode 1 (l # b # r) =>
       do m <- sum l
          n <- sum r
