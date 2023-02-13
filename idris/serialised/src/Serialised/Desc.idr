@@ -250,8 +250,8 @@ namespace Tree
 
   public export
   example : ATree
-  example
-    = node
-        (node (node leaf 1 leaf) 5 leaf)
-        10
-        (node leaf 20 leaf)
+  example =
+    (node
+      (node (node leaf 1 leaf) 5 leaf)
+      10
+      (node leaf 20 leaf))

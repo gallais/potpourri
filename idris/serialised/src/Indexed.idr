@@ -166,7 +166,7 @@ rsum ptr = case !(out ptr) of
   MkOut 0 el => pure 0
   MkOut 1 el => do
     (l # b # r) <- layer el
-    pure (!(rsum l) + cast (getSingleton b) + !(rsum r))
+    pure (!(rsum l) + cast b + !(rsum r))
 
 rightmost : Maybe Bits8 -> Pointer.Mu Tree t -> IO (Maybe Bits8)
 rightmost dflt t = case !(out t) of

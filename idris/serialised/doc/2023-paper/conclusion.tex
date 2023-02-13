@@ -1,0 +1,7 @@
+\section{Limitations and Future Work}
+
+
+We currently do not support in-place updates to the data stored in a buffer.
+This could however be beneficial for functions like \IdrisFunction{map}.
+We ought to be able to leverage \idris{}'s linear quantity to provide users
+with serialised value that can be safely updated in place.

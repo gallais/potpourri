@@ -5,9 +5,13 @@ DEPENDENCIES=\
   build/latex/robust-catch.tex \
   build/latex/idris2.sty \
   build/latex/Serialised/Desc.idr.tex \
+  build/latex/SaferIndexed.idr.tex \
+  build/latex/intro.tex \
   build/latex/desc.tex \
   build/latex/trees.tex \
+  build/latex/hexdump.tex \
   build/latex/pointers.tex \
+  build/latex/conclusion.tex \
 
 all: paper.pdf
 

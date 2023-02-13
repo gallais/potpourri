@@ -1,0 +1,30 @@
+\section{Introduction}
+
+Our goal with this work is to be able to seamlessly and correctly
+operate on algebraic data stored in a buffer in serialised format
+(i.e. a linear representation laid out in contiguous memory blocks),
+instead of trees
+(i.e. data represented by nodes-as-structs and subtrees-as-pointers).
+%
+Forgetting about correctness for now, this can be summed up by the
+two following code snippets describing how we can compute the sum
+of the value stored in a tree of numbers.
+
+\noindent
+\begin{minipage}{.4\textwidth}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{tsum}
+\end{minipage}
+\hfill\begin{minipage}{.55\textwidth}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
+\end{minipage}
+
+On the left, we have a function taking apart a tree and either returning
+\IdrisData{0} if it is a leaf or, when faced with a node, recursively
+summing the left and right subtrees before adding these results to value
+stored in the node.
+%
+On the right, we have a procedure using \IdrisType{IO} actions to inspect
+positions in a buffer and compute the same result.
+%
+Crucially, both functions look eerily similar, and the one operating on
+serialised data does not explicitly perform error-prone pointer arithmetic.
