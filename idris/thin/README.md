@@ -1,5 +1,22 @@
 # Builtin Types viewed as Inductive Families
 
+## Architecture of the artefact
+
+The directory `src/` contains the annotated source files whose content
+is described in the paper.
+
+The directory `run` contains the virtual machine as well as the support
+code to run the executable. More specifically:
+
+  1. `run/idris2-vm` contains the virtual machine generated using
+     [packer-idris](https://github.com/jfdm/packer-idris).
+  2. `run/scripts` contains the bash script the virtual machine runs
+  3. `run/build-source-code.json` is the file driving the VM's execution:
+     it first obtains the source code (passed via a tarball) and then
+     calls the `load-code.sh` defined in `run/scripts`.
+  4. `run/Makefile` describes the various targets. Crucially, before running
+     the VM we generate a tarball containing the sourced code present in `src/`.
+
 ## Correspondence with the paper
 
 ### File [`VectAsList.idr`](src/VectAsList.idr)
@@ -12,6 +29,13 @@ as well as appendix B
 
 - defining `(++)`, `SplitAt`, `(::)`, `splitAt`
 - showing the rejected `splitAt` variants using `failing` blocks
+
+### File [`FinAsNat.idr`](src/FinAsNat.idr)
+
+This contains the definition left out of Section 3.3.2:
+
+- defining `Fin`, `Z`, `S`, `View`, `view`
+
 
 ### File [`Data/Bits/Integer/Postulated.idr`](src/Data/Bits/Integer/Postulated.idr)
 

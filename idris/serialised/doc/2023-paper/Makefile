@@ -46,5 +46,5 @@ build/latex/%.sty: %.sty
 
 clean:
 	rm -rf build/latex
-	rm -rf code/build/ttc
+	rm -rf code/build/
 	rm -f *~

@@ -1,8 +1,10 @@
 module VectAsList
 
+import FinAsNat
+
 %default total
 
-||| A record of as of size n is defined as
+||| A vector of as of size n is defined as
 ||| 1. its encoding as a list of as
 ||| 2. a runtime irrelevant proof that the encoding's length is n
 |||
@@ -57,6 +59,14 @@ map f xs@_ with (view xs)
   _ | [] = []
   _ | hd :: tl = f hd :: map f tl
 
+||| Using the Fin type defined in FinAsNat, we can define a lookup
+||| function which, at runtime, will be exactly like its partial
+||| counterpart of type `List a -> Nat -> a`.
+lookup : Vect n a -> Fin n -> a
+lookup xs@_ k@_ with (view xs) | (view k)
+  _ | hd :: _ | Z = hd
+  _ | _ :: tl | S k' = lookup tl k'
+
 ||| Appending to vectors of respective sizes m and n,
 ||| yields a new vector of size (m + n).
 (++) : Vect m a -> Vect n a -> Vect (m + n) a
@@ -76,7 +86,7 @@ namespace SplitAt
 
  ||| If we know how to split a vector xs at index m, then we know
  ||| how to split (x :: xs) at index (S m): we can simply push x
- ||| on top of the suffix.
+ ||| on top of the prefix.
  export
  (::) : (x : a) -> SplitAt m xs -> SplitAt (S m) (x :: xs)
  x :: MkSplitAt pref@(MkVect _ Refl) suff
