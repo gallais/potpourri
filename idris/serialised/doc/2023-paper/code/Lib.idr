@@ -9,9 +9,19 @@ export
 failWith : String -> a
 failWith str = assert_total (idris_crash str)
 
+public export
+record (*) (a, b : Type) where
+  constructor (#)
+  fst : a
+  snd : b
+
+public export
+curry : ((a * b) -> r) -> a -> b -> r
+curry f x y = f (x # y)
+
 export
-etaPair : (p : (a, b)) -> p === (fst p, snd p)
-etaPair (t, u) = Refl
+etaPair : (p : (a * b)) -> p === (fst p # snd p)
+etaPair (t # u) = Refl
 
 parameters (buf : Buffer)
 

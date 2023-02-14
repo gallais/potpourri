@@ -1,10 +1,16 @@
 \documentclass[10pt]{article}
 
+\bibliographystyle{alpha}
+
 \usepackage{idris2}
 \usepackage{catchfilebetweentags}
 \input{robust-catch}
+\usepackage{cleveref}
 
 %\usepackage{fullpage}
+
+\usepackage{todonotes}
+\setuptodonotes{inline}
 
 \title{A Universe for Serialised Data}
 \author{Guillaume Allais}
@@ -32,7 +38,7 @@ a small universe of serialised datatypes, and provide generic programs
 allowing users to process values stored contiguously in buffers.
 
 Our approach allows implementors to prove the full functional correctness,
-in a correct by construction manner, of the IO functions processing the
+in a correct-by-construction manner, of the IO functions processing the
 data stored in the buffer.
 \end{abstract}
 
@@ -44,5 +50,7 @@ data stored in the buffer.
 \input{pointers}
 
 \input{conclusion}
+
+\bibliography{paper}
 
 \end{document}

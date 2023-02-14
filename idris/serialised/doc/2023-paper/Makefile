@@ -6,6 +6,7 @@ DEPENDENCIES=\
   build/latex/idris2.sty \
   build/latex/Serialised/Desc.idr.tex \
   build/latex/SaferIndexed.idr.tex \
+  build/latex/paper.bib \
   build/latex/intro.tex \
   build/latex/desc.tex \
   build/latex/trees.tex \

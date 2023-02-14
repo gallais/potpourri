@@ -11,6 +11,10 @@ getSingleton : Singleton {a} x -> a
 getSingleton (MkSingleton x) = x
 
 public export
+pure : (x : a) -> Singleton x
+pure = MkSingleton
+
+public export
 (<$>) : (f : a -> b) -> Singleton x -> Singleton (f x)
 f <$> MkSingleton x = MkSingleton (f x)
 

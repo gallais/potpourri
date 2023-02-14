@@ -1,7 +1,15 @@
 \section{Limitations and Future Work}
 
+Partial evaluation and program specialisation to remove the interpretation
+overhead incurred by working generically.
+\todo{Look into 2LTT}
 
 We currently do not support in-place updates to the data stored in a buffer.
 This could however be beneficial for functions like \IdrisFunction{map}.
 We ought to be able to leverage \idris{}'s linear quantity to provide users
 with serialised value that can be safely updated in place.
+
+
+A natural next candidate is a universe of indexed data: we can currently
+model lists or trees but we cannot model vectors, or correct-by-construction
+red-black trees.\todo{correct RB trees: cite (Weirich?)}

@@ -1,5 +1,15 @@
 \section{Introduction}
 
+\todo{include sum.c}
+
+
+QTT~\cite{DBLP:conf/birthday/McBride16, DBLP:conf/lics/Atkey18}
+as implemented in \idris{}~\cite{DBLP:conf/ecoop/Brady21}
+
+
+
+\subsection{Seamless Programming over Serialised Data}
+
 Our goal with this work is to be able to seamlessly and correctly
 operate on algebraic data stored in a buffer in serialised format
 (i.e. a linear representation laid out in contiguous memory blocks),
@@ -18,13 +28,76 @@ of the values stored in a tree of non-negative numbers.
   \ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
 \end{minipage}
 
-On the left, we have a function taking apart a tree and either returning
-\IdrisData{0} if it is a leaf or, when faced with a node, recursively
-summing the left and right subtrees before adding these results to the value
-stored in the node.
+We reserve for later our detailed explanations of the representations
+used in these snippets
+(\IdrisType{Data.Mu} in \cref{sec:trees} and
+\IdrisType{Pointer.Mu} in \cref{sec:pointers}).
 %
-On the right, we have a procedure using \IdrisType{IO} actions to inspect
-positions in a buffer and compute the same result.
+For now, it is enough to understand that the function on the left hand
+side is taking a tree apart by pattern-matching and returning a natural
+number corresponding to the sum of the values stored in its nodes;
 %
-Crucially, both functions look eerily similar, and the one operating on
-serialised data does not explicitly perform error-prone pointer arithmetic.
+and that the one on the right hand side is an \IdrisType{IO} process
+inspecting a buffer that contains such a tree stored in serialised format
+and computing the same sum.
+
+In both cases, if we have uncovered a leaf
+({\IdrisData{MkMu} \IdrisData{0}} \IdrisKeyword{\KatlaUnderscore{}})
+then we return zero,
+and if we have uncovered a node
+({\IdrisData{MkMu} \IdrisData{1}} \IdrisKeyword{(}\IdrisBound{l} \IdrisData{\#} \IdrisBound{b}  \IdrisData{\#} \IdrisBound{r}\IdrisKeyword{)})
+with
+a left branch \IdrisBound{l},
+a stored byte \IdrisBound{b},
+and a right branch \IdrisBound{r},
+then we recursively compute the sums for the left and right subtrees,
+cast the byte to a natural number and add everything up.
+
+Crucially, the two functions look eerily similar, and the one operating on
+serialised data does not explicitly perform error-prone pointer arithmetic,
+or low-level buffer reads. This is the first way in which our approach shines.
+
+Coming back to correctness, we will see that we can actually refine that
+second definition and obtain a correct-by-construction version of
+\IdrisFunction{sum}, with almost exactly the same code.
+
+\begin{center}
+  \begin{minipage}{.7\textwidth}
+    \ExecuteMetaData[SaferIndexed.idr.tex]{csum}
+  \end{minipage}
+\end{center}
+
+In the above snippet, we can see that the \IdrisType{Pointer.Mu} is indexed
+by a phantom parameter: a runtime irrelevant \IdrisBound{t} which has type
+(\IdrisType{Data.Mu} \IdrisFunction{Tree}).
+%
+And so the return type is able to mention the pure \IdrisFunction{sum}
+function that consumes inductively defined trees.
+%
+\IdrisType{Singleton} is, as its name suggests, a singleton type. That is
+to say that the natural number we compute is now proven to be equal to the
+one computed by the pure \IdrisFunction{sum} function.
+%
+The implementation itself only differs in that we had to use idiom
+brackets~\cite{DBLP:journals/jfp/McbrideP08}, something we will explain
+in \todo{ref to singleton section}
+
+In other words, our approach also allows us to prove the functional
+correctness of the \IdrisType{IO} procedures processing trees stored
+in buffer in serialised format. This is our second main contribution.
+
+Last but not least, all of our results are obtained by generic programming,
+meaning that we are not limited to the type of binary trees with bytes stored
+in the nodes we used in the examples above: we capture an entire universe of
+inductive types.
+
+
+In summary, we are going to define a library for the
+generic,
+seamless,
+and correct-by-construction
+manipulation of algebraic types in serialised format.
+
+\subsection{Index}
+
+\todo{Add index here}

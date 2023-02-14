@@ -259,15 +259,19 @@ namespace Pointer
       = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index' cs k))
       $ \ subterms, pos => MkElem subterms (muBuffer mu) pos
 
-  data View : (cs : Data) -> (t : Data.Mu cs) -> Type where
-    MkNode : (k : (Fin (length cs))) ->
-             forall t. Layer (description (index' cs k)) cs t ->
-             View cs (MkMu k t)
+  namespace View
 
-  view : {cs : _} -> forall t. Pointer.Mu cs t -> IO (View cs t)
-  view ptr = do MkOut k el <- out ptr
-                vs <- layer el
-                pure (MkNode k vs)
+    public export
+    data View : (cs : Data) -> (t : Data.Mu cs) -> Type where
+      MkMu : (k : (Fin (length cs))) ->
+               forall t. Layer (description (index' cs k)) cs t ->
+               View cs (MkMu k t)
+
+    export
+    view : {cs : _} -> forall t. Pointer.Mu cs t -> IO (View cs t)
+    view ptr = do MkOut k el <- out ptr
+                  vs <- layer el
+                  pure (MkMu k vs)
 
 namespace Tree
 
@@ -286,8 +290,8 @@ namespace Raw
   export
   sum : Pointer.Mu Tree _ -> IO Nat
   sum ptr = case !(view ptr) of
-    MkNode 0 _ => pure 0
-    MkNode 1 (l # b # r) =>
+    MkMu 0 _ => pure 0
+    MkMu 1 (l # b # r) =>
       do m <- sum l
          n <- sum r
          pure (m + cast b + n)
@@ -358,11 +362,11 @@ namespace Pointer
   sum : (ptr : Pointer.Mu Tree t) ->
         IO (Singleton (Data.sum t))
   sum ptr = case !(view ptr) of
-    MkNode 0 t => pure (MkSingleton 0)
-    MkNode 1 (l # b # r) =>
+    MkMu 0 t => pure (MkSingleton 0)
+    MkMu 1 (l # b # r) =>
       do m <- sum l
          n <- sum r
-         pure (plus <$> (plus <$> m <*> cast <$> b) <*> n)
+         pure [| [| m + [| cast b |] |] + n |]
 
   export
   leaf : Serialising Tree Tree.leaf
@@ -372,9 +376,6 @@ namespace Pointer
   node : Serialising Tree l -> Singleton b -> Serialising Tree r ->
             Serialising Tree (Tree.node l b r)
   node = setMuK Tree 1
-
-  Leaf : View Tree Tree.leaf
-  Leaf = MkNode 0 ()
 
   ||| Correct by construction map function.
   ||| @ f   is the function to map over the tree's nodes
@@ -387,8 +388,8 @@ namespace Pointer
         (ptr : Pointer.Mu Tree t) ->
         Serialising Tree (Data.map f t)
   map f ptr = case !(view ptr) of
-    MkNode 0 () => leaf
-    MkNode 1 (l # b # r) => node (map f l) (f <$> b) (map f r)
+    MkMu 0 () => leaf
+    MkMu 1 (l # b # r) => node (map f l) (f <$> b) (map f r)
 
   ||| Simple printing function
   export
