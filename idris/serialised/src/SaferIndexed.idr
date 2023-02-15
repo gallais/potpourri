@@ -2,7 +2,6 @@ module SaferIndexed
 
 import Data.Fin
 import Data.DPair
-import Data.List
 import Data.Vect
 import Data.Buffer
 import System.File.Buffer
@@ -92,7 +91,7 @@ namespace Serialising
            pure $ (,end) $ if b then [] else [end - start]
 
     goMu : Int ->
-           (k : Fin (length cs)) -> (c : Constructor) ->
+           (k : Fin (consNumber cs)) -> (c : Constructor) ->
            {0 t : Meaning (description c) (Data.Mu cs)} ->
            All (description c) (Serialising cs) t ->
            IO Int
@@ -106,17 +105,17 @@ namespace Serialising
            pure end
 
   export
-  setMu : {cs : Data} -> (k : Fin (length cs)) ->
-          {0 t : Meaning (description (index' cs k)) (Data.Mu cs)} ->
-          All (description (index' cs k)) (Serialising cs) t ->
+  setMu : {cs : Data} -> (k : Fin (consNumber cs)) ->
+          {0 t : Meaning (description (index k $ constructors cs)) (Data.Mu cs)} ->
+          All (description (index k $ constructors cs)) (Serialising cs) t ->
           Serialising cs (MkMu k t)
-  setMu k layer = MkSerialising $ \ buf, start => goMu buf start k (index' cs k) layer
+  setMu k layer = MkSerialising $ \ buf, start => goMu buf start k (index k $ constructors cs) layer
 
   export
-  setMuK : (cs : Data) -> (k : Fin (length cs)) ->
-           {0 t : Meaning (description (index' cs k)) (Data.Mu cs)} ->
-           AllK (description (index' cs k)) (Serialising cs) t (Serialising cs (MkMu k t))
-  setMuK cs k with (index' cs k)
+  setMuK : (cs : Data) -> (k : Fin (consNumber cs)) ->
+           {0 t : Meaning (description (index k $ constructors cs)) (Data.Mu cs)} ->
+           AllK (description (index k $ constructors cs)) (Serialising cs) t (Serialising cs (MkMu k t))
+  setMuK cs k with (index k $ constructors cs)
     _ | cons = SaferIndexed.Data.curry (description cons) $ \ layer =>
                MkSerialising $ \ buf, start => goMu buf start k cons layer
 
@@ -138,7 +137,7 @@ namespace Buffer
   setMu : {cs : Data} -> (t : Data.Mu cs) -> Serialising cs t
   setMu (MkMu k t)
     = Serialising.setMu k
-    $ all (description (index' cs k)) (assert_total Buffer.setMu) t
+    $ all (description (index k $ constructors cs)) (assert_total Buffer.setMu) t
 
   export
   writeToFile : {cs : Data} -> String -> Mu cs -> IO ()
@@ -215,14 +214,14 @@ namespace Pointer
       go Rec p = pure p
 
   data Out : (cs : Data) -> (t : Data.Mu cs) -> Type where
-    MkOut : (k : (Fin (length cs))) ->
-            forall t. Elem (description (index' cs k)) cs t ->
+    MkOut : (k : (Fin (consNumber cs))) ->
+            forall t. Elem (description (index k $ constructors cs)) cs t ->
             Out cs (MkMu k t)
 
   out : {cs : _} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
   out {t} mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
-    let Just k = natToFin (cast tag) (length cs)
+    let Just k = natToFin (cast tag) (consNumber cs)
       | _ => failWith "Invalid representation"
     let 0 sub = unfoldAs k t
     val <- MkOut k <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
@@ -232,8 +231,8 @@ namespace Pointer
 
     -- postulated, utterly unsafe
     0 unfoldAs :
-      (k : Fin (length cs)) -> (t : Data.Mu cs) ->
-      (val : Meaning (description (index' cs k)) (Data.Mu cs)
+      (k : Fin (consNumber cs)) -> (t : Data.Mu cs) ->
+      (val : Meaning (description (index k $ constructors cs)) (Data.Mu cs)
        ** t === MkMu k val)
     {-
     unfoldAs k (MkMu l@_ val) with (decEq k l)
@@ -251,20 +250,20 @@ namespace Pointer
       getOffsets buf (8 + pos) n (k . (off ::))
 
     getConstructor :
-      (k : Fin (length cs)) ->
+      (k : Fin (consNumber cs)) ->
       forall t.
       Pointer.Mu cs (MkMu k t) ->
-      IO (Elem (description (index' cs k)) cs t)
+      IO (Elem (description (index k $ constructors cs)) cs t)
     getConstructor k mu
-      = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index' cs k))
+      = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index k $ constructors cs))
       $ \ subterms, pos => MkElem subterms (muBuffer mu) pos
 
   namespace View
 
     public export
     data View : (cs : Data) -> (t : Data.Mu cs) -> Type where
-      MkMu : (k : (Fin (length cs))) ->
-               forall t. Layer (description (index' cs k)) cs t ->
+      MkMu : (k : (Fin (consNumber cs))) ->
+               forall t. Layer (description (index k $ constructors cs)) cs t ->
                View cs (MkMu k t)
 
     export
@@ -431,9 +430,9 @@ initFromFile cs fp
          unless (cs == cs') $ failWith $ unlines
            [ "Description mismatch:"
            , "expected:"
-           , showData cs
+           , show cs
            , "but got:"
-           , showData cs'
+           , show cs'
            ]
        pure (Evidence t (MkMu buf (skip + 8)))
 

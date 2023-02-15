@@ -3,6 +3,7 @@ module Serialised.Desc
 import Data.Buffer
 import Data.Fin
 import Data.String
+import Data.Vect
 
 import Lib
 
@@ -38,10 +39,11 @@ record Constructor where
   description : Desc size offsets True
 
 ||| A data description is a sum over a list of constructor types
--- TODO: use a vector instead?
 public export
-Data : Type
-Data = List Constructor
+record Data where
+  constructor MkData
+  {consNumber : Nat}
+  constructors : Vect consNumber Constructor
 
 ------------------------------------------------------------------------
 -- Show instances
@@ -55,11 +57,14 @@ Show (Desc s n b) where
   showPrec _ Rec = "X"
 
 export
-showData : Data -> String
-showData [] = "⊥"
-showData (c :: cs) = concat
-  $  ("μX. " ++ show (description c))
-  :: ((" + " ++) <$> map (\ c => show (description c)) cs)
+Show Data where
+  show cs = go (constructors cs) where
+
+    go : Vect n Constructor -> String
+    go [] = "⊥"
+    go (c :: cs) = concat
+      $  ("μX. " ++ show (description c))
+      :: ((" + " ++) <$> map (\ c => show (description c)) cs)
 
 ------------------------------------------------------------------------
 -- Eq instances
@@ -75,6 +80,16 @@ eqDesc _ _ = False
 export
 Eq Constructor where
   MkConstructor d == MkConstructor e = eqDesc d e
+
+||| Heterogeneous equality check for vectors of constructors
+eqConstructors : Vect m Constructor -> Vect n Constructor -> Bool
+eqConstructors [] [] = True
+eqConstructors (c :: cs) (c' :: cs') = c == c' && eqConstructors cs cs'
+eqConstructors _ _ = False
+
+export
+Eq Data where
+  MkData cs == MkData cs' = eqConstructors cs cs'
 
 ------------------------------------------------------------------------
 -- Serialisation of descriptions to a Buffer
@@ -98,7 +113,7 @@ parameters (buf : Buffer)
   ||| @ start position in the buffer to set the constructors at
   ||| @ cs    list of constructors to serialise
   ||| Returns the end position
-  setConstructors : (start : Int) -> (cs : List Constructor) -> IO Int
+  setConstructors : (start : Int) -> (cs : Vect n Constructor) -> IO Int
   setConstructors start [] = pure start
   setConstructors start (MkConstructor d :: cs)
     = do afterC <- setDesc start d
@@ -110,10 +125,10 @@ parameters (buf : Buffer)
   ||| Returns the end position
   export
   setData : (start : Int) -> (cs : Data) -> IO Int
-  setData start cs = do
+  setData start (MkData {consNumber} cs) = do
     -- We first store the length of the list so that we know how
     -- many constructors to deserialise on the way out
-    setBits8 buf start (cast $ length cs)
+    setBits8 buf start (cast consNumber)
     setConstructors (start + 1) cs
 
   ||| Existential wrapper to deserialise descriptions
@@ -145,7 +160,7 @@ parameters (buf : Buffer)
   ||| Get a list of constructor from a buffer
   ||| @ start position the list of constructors starts at in the buffer
   ||| @ n     number of constructors to deserialise
-  getConstructors : (start : Int) -> (n : Nat) -> IO (List Constructor)
+  getConstructors : (start : Int) -> (n : Nat) -> IO (Vect n Constructor)
   getConstructors start 0 = pure []
   getConstructors start (S n)
     = do (afterD, d) <- getDesc start
@@ -160,7 +175,7 @@ parameters (buf : Buffer)
     n <- getBits8 buf start
     let Just n = ifThenElse (n < 0) Nothing (Just (cast n))
        | Nothing => failWith "Invalid header"
-    getConstructors (start + 1) n
+    MkData <$> getConstructors (start + 1) n
 
 
 ------------------------------------------------------------------------
@@ -202,8 +217,8 @@ namespace Data
 
   public export
   Alg : Data -> Type -> Type
-  Alg cs x = (k : Fin (length cs)) ->
-             Meaning (description (index' cs k)) x ->
+  Alg cs x = (k : Fin (consNumber cs)) ->
+             Meaning (description (index k (constructors cs))) x ->
              x
 
   ||| Fixpoint of the description:
@@ -216,9 +231,9 @@ namespace Data
   ||| Curried version of the constructor; more convenient to use
   ||| when writing examples
   public export
-  mkMu : (cs : Data) -> (k : Fin (length cs)) ->
-         Meaning' (description (index' cs k)) (Mu cs) (Mu cs)
-  mkMu cs k = curry (description (index' cs k)) (MkMu k)
+  mkMu : (cs : Data) -> (k : Fin (consNumber cs)) ->
+         Meaning' (description (index k $ constructors cs)) (Mu cs) (Mu cs)
+  mkMu cs k = curry (description (index k $ constructors cs)) (MkMu k)
 
   ||| Fixpoints are initial algebras
   public export
@@ -232,9 +247,10 @@ namespace Tree
 
   public export
   Tree : Data
-  Tree = [ MkConstructor None                       -- Leaf
-         , MkConstructor (Prod Rec (Prod Byte Rec)) -- Node Tree Bits8 Tree
-         ]
+  Tree = MkData
+    [ MkConstructor None                       -- Leaf
+    , MkConstructor (Prod Rec (Prod Byte Rec)) -- Node Tree Bits8 Tree
+    ]
 
   public export
   ATree : Type
