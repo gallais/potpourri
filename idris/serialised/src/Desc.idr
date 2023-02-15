@@ -2,7 +2,6 @@ module Desc
 
 import Data.Fin
 import Data.Vect
-import Data.List
 import Data.Buffer
 import System.File.Buffer
 
@@ -22,7 +21,7 @@ namespace Data
       Meaning d (Mu ds) ->
       IO (Vect n Int, Int)
 
-    muToBuffer start (MkMu k t) with (index' ds k)
+    muToBuffer start (MkMu k t) with (index k $ constructors ds)
       _ | cons = do -- [ Tag | ... offsets ... | t1 | t2 | ... ]
                     setBits8 buf start (cast $ cast {to = Nat} k)
                     let afterTag  = start + 1
@@ -33,7 +32,7 @@ namespace Data
 
     elemToBuffer start None v = pure ([], start)
     elemToBuffer start Byte v = ([], start + 1) <$ setBits8 buf start v
-    elemToBuffer start (Prod d e) (v, w)
+    elemToBuffer start (Prod d e) (v # w)
       = do (n1, afterLeft) <- elemToBuffer start d v
            (n2, afterRight) <- elemToBuffer afterLeft e w
            pure (n1 ++ n2, afterRight)
@@ -98,15 +97,15 @@ namespace Pointer
 
   record Out (cs : Data) where
     constructor MkOut
-    choice : Fin (length cs)
-    encoding : Elem (description $ index' cs choice) cs
+    choice : Fin (consNumber cs)
+    encoding : Elem (description $ index choice $ constructors cs) cs
 
   out : {cs : _} -> Pointer.Mu cs -> IO (Out cs)
   out mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
-    let Just choice = natToFin (cast tag) (length cs)
+    let Just choice = natToFin (cast tag) (consNumber cs)
       | _ => failWith "Invalid representation"
-    MkOut choice <$> getConstructor (index' cs choice) mu
+    MkOut choice <$> getConstructor (index choice $ constructors cs) mu
 
     where
 

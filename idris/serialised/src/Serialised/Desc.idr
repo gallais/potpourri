@@ -188,7 +188,7 @@ namespace Data
   Meaning : Desc s n b -> Type -> Type
   Meaning None x = ()
   Meaning Byte x = Bits8
-  Meaning (Prod d e) x = (Meaning d x, Meaning e x)
+  Meaning (Prod d e) x = (Meaning d x * Meaning e x)
   Meaning Rec x = x
 
   public export
@@ -209,7 +209,7 @@ namespace Data
   fmap : {d : Desc{}} -> (a -> b) -> Meaning d a -> Meaning d b
   fmap {d = None} f v = v
   fmap {d = Byte} f v = v
-  fmap {d = Prod d e} f (v, w) = (fmap f v, fmap f w)
+  fmap {d = Prod d e} f (v # w) = (fmap f v # fmap f w)
   fmap {d = Rec} f v = f v
 
 ------------------------------------------------------------------------

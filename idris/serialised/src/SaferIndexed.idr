@@ -32,14 +32,14 @@ namespace Data
 
   public export
   data All' : (d : Desc s n b) -> (p : x -> Type) -> Meaning d x -> Type where
-    (#) : All d p t -> All e p u -> All' (Prod d e) p (t, u)
+    (#) : All d p t -> All e p u -> All' (Prod d e) p (t # u)
 
   export
   all : (d : Desc s n b) -> ((a : x) -> p a) ->
         (t : Meaning d x) -> All d p t
   all None f t = t
   all Byte f t = MkSingleton t
-  all (Prod d e) f (t, u) = (all d f t # all e f u)
+  all (Prod d e) f (t # u) = (all d f t # all e f u)
   all Rec f t = f t
 
   public export
@@ -169,7 +169,7 @@ namespace Pointer
     Poke Rec cs t = Pointer.Mu cs t
 
     data Poke' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
-      (#) : Elem d cs t -> Elem e cs u -> Poke' (Prod d e) cs (t, u)
+      (#) : Elem d cs t -> Elem e cs u -> Poke' (Prod d e) cs (t # u)
 
     export
     poke : {s : Nat} -> {d : Desc s n b} ->
@@ -199,7 +199,7 @@ namespace Pointer
     Layer Rec cs t = Pointer.Mu cs t
 
     data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
-      (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t, u)
+      (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t # u)
 
     export
     layer : {s : Nat} -> {d : Desc s n b} ->
@@ -278,7 +278,7 @@ namespace Tree
   sum : Data.Mu Tree -> Nat
   sum t = case t of
     MkMu 0 _ => 0
-    MkMu 1 (l, b, r) =>
+    MkMu 1 (l # b # r) =>
       let m = sum l
           n = sum r
       in (m + cast b + n)
@@ -312,7 +312,7 @@ namespace Data
   size : Data.Mu Tree -> Nat
   size = fold $ \ k, v => case k of
     0 => 0
-    1 => let (l, _, r) = v in S (l + r)
+    1 => let (l # _ # r) = v in S (l + r)
 
   ||| The sum of the tree's node is given by casting the Bits8 nodes
   ||| to Nat and summing them up
@@ -320,7 +320,7 @@ namespace Data
   sum : Data.Mu Tree -> Nat
   sum = fold $ \ k, v => case k of
     0 => 0
-    1 => let (l, b, r) = v in l + cast b + r
+    1 => let (l # b # r) = v in l + cast b + r
 
   ||| Map is obtained by applying a function transforming Bit8 values
   ||| to all of the Bits8 stored in the tree's nodes
@@ -328,7 +328,7 @@ namespace Data
   map : (Bits8 -> Bits8) -> Data.Mu Tree -> Data.Mu Tree
   map f = fold $ \ k, v => case k of
     0 => leaf
-    1 => let (l, b, r) = v in node l (f b) r
+    1 => let (l # b # r) = v in node l (f b) r
 
 -- Here we define the effectful functions processing a pointer
 -- IO allows us to inspect the content addressed by the pointer to take the tree apart

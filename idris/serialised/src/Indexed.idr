@@ -2,7 +2,6 @@ module Indexed
 
 import Data.Fin
 import Data.DPair
-import Data.List
 import Data.Vect
 import Data.Buffer
 import System.File.Buffer
@@ -28,7 +27,7 @@ namespace Data
       Meaning d (Mu cs) ->
       IO (Vect n Int, Int)
 
-    setMu start (MkMu k t) with (index' cs k)
+    setMu start (MkMu k t) with (index k $ constructors cs)
       _ | cons
         = do -- [ Tag | ... offsets ... | t1 | t2 | ... ]
              setBits8 buf start (cast $ cast {to = Nat} k)
@@ -40,7 +39,7 @@ namespace Data
 
     setMeaning start None v = pure ([], start)
     setMeaning start Byte v = ([], start + 1) <$ setBits8 buf start v
-    setMeaning start (Prod d e) (v, w)
+    setMeaning start (Prod d e) (v # w)
       = do (n1, afterLeft) <- setMeaning start d v
            (n2, afterRight) <- setMeaning afterLeft e w
            pure (n1 ++ n2, afterRight)
@@ -71,12 +70,18 @@ namespace Pointer
     muBuffer : Buffer
     muPosition : Int
 
+  data Poke' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
+
   Poke : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
   Poke None _ t = ()
   Poke Byte cs t = Singleton t
-  Poke (Prod d e) cs t = (Elem d cs (fst t), Elem e cs (snd t))
+  Poke d@(Prod _ _) cs t = Poke' d cs t
   Poke Rec cs t = Pointer.Mu cs t
 
+  data Poke' where
+    (#) : Elem d cs t -> Elem e cs u -> Poke' (Prod d e) cs (t # u)
+
+{-
   poke : {s : Nat} -> (d : Desc s n b) ->
          forall t. Elem d cs t -> IO (Poke d cs t)
   poke None el = pure ()
@@ -88,11 +93,8 @@ namespace Pointer
     let left = MkElem n1 (elemBuffer el) (elemPosition el)
     let pos = elemPosition el + sum n1 + cast sl
     let right = MkElem n2 (elemBuffer el) pos
-    pure (left, right)
+    pure (left # right)
   poke Rec el = pure (MkMu (elemBuffer el) (elemPosition el))
-
-  etaPair : (p : (a, b)) -> p === (fst p, snd p)
-  etaPair (t, u) = Refl
 
   data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
 
@@ -101,7 +103,6 @@ namespace Pointer
   Layer None _ _ = ()
   Layer Byte _ t = Singleton t
   Layer Rec cs t = Pointer.Mu cs t
-
 
   data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
     (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t, u)
@@ -114,18 +115,18 @@ namespace Pointer
          forall t. Poke d cs t -> IO (Layer d cs t)
     go None p = pure ()
     go Byte p = pure p
-    go (Prod d e) {t} (p, q) = rewrite etaPair t in [| layer p # layer q |]
+    go (Prod d e) {t} (p # q) = rewrite etaPair t in [| layer p # layer q |]
     go Rec p = pure p
 
   data Out : (cs : Data) -> (t : Data.Mu cs) -> Type where
-    MkOut : (k : (Fin (length cs))) ->
-            forall t. Elem (description (index' cs k)) cs t ->
+    MkOut : (k : (Fin (consNumber cs))) ->
+            forall t. Elem (description (index k $ constructors cs)) cs t ->
             Out cs (MkMu k t)
 
   out : {cs : _} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
   out {t} mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
-    let Just k = natToFin (cast tag) (length cs)
+    let Just k = natToFin (cast tag) (consNumber cs)
       | _ => failWith "Invalid representation"
     let 0 sub = unfoldAs k t
     val <- MkOut k <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
@@ -135,8 +136,8 @@ namespace Pointer
 
     -- postulated, utterly unsafe
     0 unfoldAs :
-      (k : Fin (length cs)) -> (t : Data.Mu cs) ->
-      (val : Meaning (description (index' cs k)) (Data.Mu cs)
+      (k : Fin (consNumber cs)) -> (t : Data.Mu cs) ->
+      (val : Meaning (description (index k $ constructors cs)) (Data.Mu cs)
        ** t === MkMu k val)
     unfoldAs k (MkMu l@_ val) with (decEq k l)
       _ | Yes Refl = (val ** Refl)
@@ -152,12 +153,12 @@ namespace Pointer
       getOffsets buf (8 + pos) n (k . (off ::))
 
     getConstructor :
-      (k : Fin (length cs)) ->
+      (k : Fin (consNumber cs)) ->
       forall t.
       Pointer.Mu cs (MkMu k t) ->
-      IO (Elem (description (index' cs k)) cs t)
+      IO (Elem (description (index k $ constructors cs)) cs t)
     getConstructor k mu
-      = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index' cs k))
+      = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index k $ constructors cs))
       $ \ subterms, pos => MkElem subterms (muBuffer mu) pos
 
 ||| Raw sum
