@@ -1,29 +1,97 @@
 \section{Descriptions}\label{sec:desc}
 
-Descriptions are essentially arbitrarily nested tuples of
+\todo{Discuss data as fixpoint of endofunctors}
+
+In our setting, constructors are essentially arbitrarily nested tuples of
 values of type unit,
 bytes,
 and recursive substructures.
+%
+A datatype is given by listing a choice of constructors.
 
-Our type of description has three indices corresponding to three important
+
+We start with these constructor descriptions;
+they are represented internally by an inductive family \IdrisType{Desc}
+declared below.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{desctype}
+
+This family has three indices corresponding to three crucial
 invariants being tracked.
 %
-First, the statically known size of the described data.
+First, the statically known \IdrisBound{size} of the described data
+in the number of bytes it occupies.
 %
-Second, the number of offsets that need to be stored to compensate for the
-fact that some subterms do not have a statically known size.
+Second, the number of \IdrisBound{offsets} that need to be stored to
+compensate for the fact that subterms do not have a statically known
+size.
 %
-Third, whether the current description is being used in the rightmost branch
-of the overall layer description.
+Third, whether the current description is being used in the
+\IdrisBound{rightmost} branch of the overall constructor description.
+
+Next we define the family proper by giving its four constructors.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{desc}
 
+Each constructor can be used anywhere in a description so their return
+\IdrisBound{rightmost} index can be an arbitrary boolean.
+
+\IdrisData{None} is the description of values of type unit. The static
+size of these values is zero (no data is stored in a value of type unit)
+and they do not require an offset to be stored as we know their size.
+
+\IdrisData{Byte} is the description of bytes.
+%
+Their static size is precisely one byte, and they do not require an
+offset to be stored either.
+
+\IdrisData{Prod} gives us the ability to pair two descriptions together.
+Its static size and the number of offsets are the respective sums of the
+static sizes and numbers of offsets of each subdescription.
+%
+The description of the left element of the pair will never be in the
+rightmost branch of the overall constructors description and so its
+index is \IdrisData{False} while the description of the right element
+of the pair is in the rightmost branch precisely whenever the whole pair
+is hence the propagation of the \IdrisBound{b} arbitrary value from the
+return index into the description of the right component.
+
+Last but not least, \IdrisData{Rec} is a position for a subtree.
+We cannot know its size in bytes statically and so we decide to store
+an offset unless we are in the rightmost branch of the overall description.
+%
+Indeed, in the righmost branch of a constructor then we have no reason to
+skip over the subterm to access other parts of the stored data. And so we
+do not bother recording an offset for it.
+
+\medskip
+
+We represent a constructor as a record packing together the values of each
+of these invariants together with a description of the constructor's payload;
+The three invariants are stored as implicits fields because their value is
+easily reconstructed by \idris{} using unification and so users do not need
+to spell them out explicitly.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{constructor}
 
-A datatype description is given by a list of constructor descriptions.
+Returning to our running example, this gives us the following encodings for
+leaves that do not store anything
+and nodes that contain a left branch, a byte, and a right branch.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{treeleaf}
+\ExecuteMetaData[Serialised/Desc.idr.tex]{treenode}
+
+A datatype description is given by a number of constructors together with
+a vector (also known as a lenght-indexed list) associating a description
+to each of these constructors.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{data}
 
+We can then encode our running example using the following \IdrisType{Data}
+declaration: a binary tree whose node stores bytes is described by the choice
+of either a \IdrisFunction{Leaf} or \IdrisFunction{Node}, as defined above.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{treedesc}
+
+Now that we have a language that allows us to describe our inductive types
+we are going to give them a meaning as trees.

@@ -22,14 +22,19 @@ import Lib
 |||             in which case `Rec` won't need to record an additional offset
 public export
 \end{code}
+%<*desctype>
+\begin{code}
+data Desc : (size : Nat) -> (offsets : Nat) ->
+            (rightmost : Bool) -> Type
+\end{code}
+%</desctype>
 %<*desc>
 \begin{code}
-data Desc : (size : Nat) -> (offsets : Nat) -> (rightmost : Bool) -> Type where
+data Desc where
   None : Desc 0 0 b
   Byte : Desc 1 0 b
   Prod : {sl, sr, m, n : Nat} ->
-         (d : Desc sl m False) ->
-         (e : Desc sr n b) ->
+  Desc sl m False -> Desc sr n b ->
          Desc (sl + sr) (m + n) b
   Rec : Desc 0 (ifThenElse b 0 1) b
 \end{code}
@@ -294,14 +299,33 @@ namespace Data
 
 namespace Tree
 
+
+  public export
+\end{code}
+%<*treeleaf>
+\begin{code}
+  Leaf : Constructor
+  Leaf = MkConstructor None
+\end{code}
+%</treeleaf>
+\begin{code}
+
+  public export
+\end{code}
+%<*treenode>
+\begin{code}
+  Node : Constructor
+  Node = MkConstructor (Prod Rec (Prod Byte Rec))
+\end{code}
+%</treenode>
+\begin{code}
+
   public export
 \end{code}
 %<*treedesc>
 \begin{code}
   Tree : Data
-  Tree = MkData
-    [ MkConstructor None
-    , MkConstructor (Prod Rec (Prod Byte Rec)) ]
+  Tree = MkData [Leaf, Node]
 \end{code}
 %</treedesc>
 \begin{code}
