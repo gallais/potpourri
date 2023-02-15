@@ -1,22 +1,19 @@
-
 \section{Serialised Representation}
 
-In the following binary snippet, each byte is represented by a pair of
-hexadecimal digits.
+Before we can define the meaning of our descriptions as pointers
+into buffers, we need to decide on a serialised representation of
+our trees.
+
+The following binary snippet is a hex dump of a file containing
+the serialised representation of a binary tree belonging to the
+type we have been using as our running example.
 %
-The raw data is semantically highlighted: \hexaoffset{offsets},
-\hexadesc{type} of the stored data, \hexacons{nodes} of the
-tree and \hexadata{data} stored.
-%
-This specific block is the encoding of the \IdrisFunction{example} included
-below and,
-%
-knowing that \IdrisFunction{leaf} is represented by \hexacons{00}
-and \IdrisFunction{node} is represented by \hexacons{01}
-%
-the careful reader can check
-(modulo ignoring the type description and offsets for now)
-that the data is stored in a depth-first, left-to-right traversal of the tree.
+The raw data is semantically highlighted: various bytes spans
+correspond to
+\hexaoffset{offsets},
+\hexadesc{type} description of the stored data,
+\hexacons{nodes} of the tree
+and \hexadata{data} stored in the nodes.
 
 \begin{hexdump}
 87654321  00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF
@@ -26,7 +23,15 @@ that the data is stored in a depth-first, left-to-right traversal of the tree.
 00000030: \hexacons{01} \hexaoffset{01 00 00 00 00 00 00 00} \hexacons{00} \hexadata{14} \hexacons{00}
 \end{hexdump}
 
-\ExecuteMetaData[Serialised/Desc.idr.tex]{example}
+More spefically, this block is the encoding of the \IdrisFunction{example}
+given in the previous section and,
+%
+knowing that a \IdrisFunction{leaf} is represented by \hexacons{00}
+and a \IdrisFunction{node} is represented by \hexacons{01}
+%
+the careful reader can check
+(modulo ignoring the type description and offsets for now)
+that the data is stored in a depth-first, left-to-right traversal of the tree.
 
 
 
