@@ -2,6 +2,7 @@
 
 \bibliographystyle{alpha}
 
+\usepackage{etoolbox}
 \usepackage{idris2}
 \usepackage{catchfilebetweentags}
 \input{robust-catch}
@@ -12,8 +13,15 @@
 \usepackage{todonotes}
 \setuptodonotes{inline}
 
+%%%%%%%%%%%%% BLINDING
+
+\newtoggle{BLIND}
+\togglefalse{BLIND}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \title{A Universe for Serialised Data}
-\author{Guillaume Allais}
+\author{\iftoggle{BLIND}{ANONYMOUS}{Guillaume Allais}}
 
 \newcommand{\idris}{Idris 2}
 \newcommand{\assertTotal}{\IdrisPostulate{assert\KatlaUnderscore{}total}}
@@ -51,6 +59,7 @@ data stored in the buffer.
 
 \input{conclusion}
 
+\input{acknowledgements}
 \bibliography{paper}
 
 \end{document}

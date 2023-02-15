@@ -99,7 +99,7 @@ inductive types.
 
 This is our third contribution.
 
-\subsection{Index}
+\subsection{Plan}
 
 In summary, we are going to define a library for the
 generic,
@@ -108,4 +108,26 @@ and correct-by-construction
 manipulation of algebraic types in serialised format.
 
 
-\todo{Add index here}
+\Cref{sec:desc} introduces the language of descriptions capturing the
+subset of inductively defined types that our work can handle.
+It differs slightly from usual presentation in that it ensures the
+types can be serialised and tracks crucial invariants towards that goal.
+
+\Cref{sec:trees} gives a standard meaning to these data descriptions
+as strictly positive endofunctors whose fixpoints give us the expected
+inductive types.
+%
+We will use this standard meaning in the specification layer of our work.
+
+\Cref{sec:hexdump} explores the serialisation format we have picked
+for these trees and the definition of a generic serialisation function.
+
+\Cref{sec:pointers} defines IO primitives that operate on serialised
+trees stored in an underlying buffer.
+%
+They encapsulate all the unsafe low-level operations and offer a
+high-level interface that allows users to implement correct-by-construction
+procedures.
+
+
+\todo{Add benchmarks?}

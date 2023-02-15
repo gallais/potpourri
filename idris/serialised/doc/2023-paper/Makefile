@@ -13,6 +13,7 @@ DEPENDENCIES=\
   build/latex/hexdump.tex \
   build/latex/pointers.tex \
   build/latex/conclusion.tex \
+  build/latex/acknowledgements.tex \
 
 all: paper.pdf
 
