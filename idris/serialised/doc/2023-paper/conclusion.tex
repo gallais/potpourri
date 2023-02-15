@@ -6,9 +6,25 @@ overhead incurred by working generically.
 
 We currently do not support in-place updates to the data stored in a buffer.
 This could however be beneficial for functions like \IdrisFunction{map}.
-We ought to be able to leverage \idris{}'s linear quantity to provide users
-with serialised value that can be safely updated in place.
+%
+We see two possible approaches here. The first one leverages \idris{}'s
+linear quantity annotation to provide users with serialised value that
+can be safely updated in place: as they are used to take values apart,
+pointers become unavailable and so the underlying data in the buffer can
+be modified.
+%
+Another approach is to build separation logic into our correct-by-construction
+combinators and thus ensure that the system keeps track of the modifications
+being made.
+\todo{Iris}
 
+We have used a minimal universe to demonstrate our approach but a practical
+application would require the ability to store more than just raw bytes.
+An easy extension is to add support for all of the numeric types of
+known size that \idris{} offers
+(\IdrisType{Bits\{16,32,64\}}, \IdrisType{Int\{8,16,32,64\}})
+as well as a unbounded data such as \IdrisType{Nat}, or \IdrisType{String}
+as long as an extra offset is provided for each value.
 
 A natural next candidate is a universe of indexed data: we can currently
 model lists or trees but we cannot model vectors, or correct-by-construction
