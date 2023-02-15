@@ -9,7 +9,7 @@ and recursive substructures.
 %
 A datatype is given by listing a choice of constructors.
 
-
+\paragraph{Descriptions}
 We start with these constructor descriptions;
 they are represented internally by an inductive family \IdrisType{Desc}
 declared below.
@@ -64,8 +64,8 @@ Indeed, in the righmost branch of a constructor then we have no reason to
 skip over the subterm to access other parts of the stored data. And so we
 do not bother recording an offset for it.
 
-\medskip
 
+\paragraph{Constructors}
 We represent a constructor as a record packing together the values of each
 of these invariants together with a description of the constructor's payload;
 The three invariants are stored as implicits fields because their value is
@@ -81,6 +81,8 @@ and nodes that contain a left branch, a byte, and a right branch.
 \ExecuteMetaData[Serialised/Desc.idr.tex]{treeleaf}
 \ExecuteMetaData[Serialised/Desc.idr.tex]{treenode}
 
+
+\paragraph{Datatypes}
 A datatype description is given by a number of constructors together with
 a vector (also known as a lenght-indexed list) associating a description
 to each of these constructors.
@@ -93,5 +95,5 @@ of either a \IdrisFunction{Leaf} or \IdrisFunction{Node}, as defined above.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{treedesc}
 
-Now that we have a language that allows us to describe our inductive types
-we are going to give them a meaning as trees.
+Now that we have a language that allows us to give a description of our
+inductive types, we are going to give these descriptions a meaning as trees.
