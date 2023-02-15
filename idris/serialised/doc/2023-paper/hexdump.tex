@@ -1,19 +1,23 @@
 \section{Serialised Representation}\label{sec:hexdump}
 
-Before we can define the meaning of our descriptions as pointers
-into buffers, we need to decide on a serialised representation of
-our trees.
-
-The following binary snippet is a hex dump of a file containing
-the serialised representation of a binary tree belonging to the
-type we have been using as our running example.
+Before we can give a meaning to descriptions as pointers into a buffer we
+need to decide on a serialisation format.
 %
-The raw data is semantically highlighted: various bytes spans
-correspond to
-\hexaoffset{offsets},
-\hexadesc{type} description of the stored data,
-\hexacons{nodes} of the tree
-and \hexadata{data} stored in the nodes.
+The format we have opted for is split in two parts: a header containing
+data that can be used to check that a user's claim that a given file
+contains a serialised tree of a given type is correct, followed by the
+actual representation of the tree.
+
+
+For instance,the following binary snippet is a hex dump of a file
+containing the serialised representation of a binary tree belonging to
+the type we have been using as our running example.
+%
+The raw data is semantically highlighted:
+8-bytes-long \hexaoffset{offsets},
+a \hexadesc{type} description of the stored data,
+some \hexacons{nodes} of the tree
+and the \hexadata{data} stored in the nodes.
 
 \begin{hexdump}
 87654321  00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF
@@ -26,12 +30,58 @@ and \hexadata{data} stored in the nodes.
 More spefically, this block is the encoding of the \IdrisFunction{example}
 given in the previous section and,
 %
-knowing that a \IdrisFunction{leaf} is represented by \hexacons{00}
+knowing that a \IdrisFunction{leaf} is represented here by \hexacons{00}
 and a \IdrisFunction{node} is represented by \hexacons{01}
 %
 the careful reader can check
 (modulo ignoring the type description and offsets for now)
 that the data is stored in a depth-first, left-to-right traversal of the tree.
+
+
+\subsection{Header}
+
+The header consists of an offset allowing us to jump past it in case we do
+not care to inspect it, followed by a representation of the \IdrisType{Data}.
+%
+It is encoded by a byte giving us the number of constructors, followed by
+these constructors serialised one after the other.
+
+\IdrisData{None} is represented by \hexadesc{00},
+\IdrisData{Byte} is represented by \hexadesc{01},
+(\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e}) is represented by
+\hexadesc{02} followed by the representation of \IdrisBound{d} and then that of \IdrisBound{e},
+and \IdrisData{Rec} is represented by \hexadesc{03}.
+
+
+In our example, the header was as follows:
+\begin{hexdump}
+\hexaoffset{07 00 00 00 00 00 00 00} \hexadesc{02 00 02 03 02 01 03}
+\end{hexdump}
+\noindent and the data description is indeed 7 bytes long. It starts with \hexadesc{02}
+meaning that the type has two constructors.
+The first one is \hexadesc{00} i.e. \IdrisData{None} (that is to say \IdrisFunction{Leaf}),
+and the second one is \hexadesc{02 03 02 01 03} i.e.
+\IdrisKeyword{(}\IdrisData{Prod} \IdrisData{Rec}
+\IdrisKeyword{(}\IdrisData{Prod} \IdrisData{Byte} \IdrisData{Rec}\IdrisKeyword{))}
+(that is to say \IdrisFunction{Node}).
+%
+According to the header, we do have a \IdrisFunction{Tree} value stored here.
+
+\subsection{Tree Serialisation}
+
+Our main focus in the definition of this format is that we should be able
+to process the right subtree of a node without having to look at the left
+subtree first.
+%
+This will allow us to, for instance, implement a function looking up the
+value stored in the rightmost node in the tree (if it exists) in time linear
+in the depth of the tree rather than exponential.
+%
+To this end each node needs to store an offset
+
+Before we can define the meaning of our descriptions as pointers
+into buffers, we need to decide on a serialised representation of
+our trees.
 
 
 
