@@ -281,7 +281,7 @@ namespace Tree
 \begin{code}
   sum : Data.Mu Tree -> Nat
   sum t = case t of
-    MkMu 0 _ => 0
+    MkMu 0 _ => Z
     MkMu 1 (l # b # r) =>
       let m = sum l
           n = sum r
@@ -298,7 +298,7 @@ namespace Raw
 \begin{code}
   sum : Pointer.Mu Tree _ -> IO Nat
   sum ptr = case !(view ptr) of
-    MkMu 0 _ => pure 0
+    MkMu 0 _ => pure Z
     MkMu 1 (l # b # r) =>
       do m <- sum l
          n <- sum r
@@ -376,7 +376,7 @@ namespace Pointer
   sum : Pointer.Mu Tree t ->
         IO (Singleton (Data.sum t))
   sum ptr = case !(view ptr) of
-    MkMu 0 t => pure (MkSingleton 0)
+    MkMu 0 _ => pure [| Z |]
     MkMu 1 (l # b # r) =>
       do m <- sum l
          n <- sum r

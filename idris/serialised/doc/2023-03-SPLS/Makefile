@@ -24,7 +24,7 @@ build/latex/%.tex: %.tex
 
 build/latex/robust-catch.tex: ../common/robust-catch.tex
 	mkdir -p build/latex
-	cp  build/latex
+	cp $^ build/latex
 
 build/latex/idris2.sty: ../common/idris2.sty
 	mkdir -p build/latex
@@ -37,6 +37,7 @@ build/latex/idris2.sty: ../common/idris2.sty
 	ln -sf build/latex/$*.pdf $*.pdf
 
 clean:
+	make clean -C ../common
 	rm -rf build/latex
 	rm -rf code/build/
 	rm -f *~
