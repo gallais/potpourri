@@ -18,7 +18,6 @@ RAW_DEPENDENCIES=\
 DEPENDENCIES=common \
   $(patsubst %,build/latex/%,$(RAW_DEPENDENCIES))
 
-
 all: paper.pdf
 
 common:
@@ -43,6 +42,10 @@ build/latex/%.bst: %.bst
 build/latex/%.bib: %.bib
 	mkdir -p build/latex
 	cp $^ build/latex/
+
+build/latex/robust-catch.tex: ../common/robust-catch.tex
+	mkdir -p build/latex
+	cp $^ build/latex
 
 build/latex/idris2.sty: ../common/idris2.sty
 	mkdir -p build/latex

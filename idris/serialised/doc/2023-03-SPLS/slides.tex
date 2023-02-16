@@ -1,4 +1,11 @@
+\PassOptionsToPackage{x11names}{xcolor}
 \documentclass{beamer}
+
+\beamertemplatenavigationsymbolsempty
+
+\usepackage{idris2}
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
 
 \title{
   \[
@@ -16,7 +23,33 @@
 \date{SPLS, March 8th 2023}
 
 \begin{document}
+
 \begin{frame}
   \maketitle
 \end{frame}
+
+\begin{frame}
+  Trees vs. hexdump
+\end{frame}
+
+\begin{frame}{Seamless}
+  \noindent
+  \begin{minipage}{.7\textwidth}
+    \ExecuteMetaData[SaferIndexed.idr.tex]{tsum}
+  \end{minipage}\hfill
+
+  \vfill
+
+  \hfill\begin{minipage}{.7\textwidth}
+    \ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
+  \end{minipage}
+\end{frame}
+
+
+\begin{frame}{Correct}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{csum}
+\end{frame}
+
+
+
 \end{document}
