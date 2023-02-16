@@ -1,28 +1,32 @@
-.PRECIOUS: code/build/ttc/%.ttm code/build/ttc/%.ttc build/latex/%.idr.tex
+.PHONY: all common
 
 PAPER=paper
-DEPENDENCIES=\
-  build/latex/robust-catch.tex \
-  build/latex/idris2.sty \
-  build/latex/Serialised/Desc.idr.tex \
-  build/latex/SaferIndexed.idr.tex \
-  build/latex/paper.bib \
-  build/latex/intro.tex \
-  build/latex/desc.tex \
-  build/latex/trees.tex \
-  build/latex/hexdump.tex \
-  build/latex/pointers.tex \
-  build/latex/conclusion.tex \
-  build/latex/acknowledgements.tex \
+RAW_DEPENDENCIES=\
+  robust-catch.tex \
+  idris2.sty \
+  Serialised/Desc.idr.tex \
+  SaferIndexed.idr.tex \
+  paper.bib \
+  intro.tex \
+  desc.tex \
+  trees.tex \
+  hexdump.tex \
+  pointers.tex \
+  conclusion.tex \
+  acknowledgements.tex
+
+DEPENDENCIES=common \
+  $(patsubst %,build/latex/%,$(RAW_DEPENDENCIES))
+
 
 all: paper.pdf
 
-code/build/ttc/*/%.ttm code/build/ttc/*/%.ttc: code/%.tex
-	cd code && idris2 -c $*.tex
+common:
+	$(MAKE) -C ../common
 
-build/latex/%.idr.tex: code/%.tex code/build/ttc/*/%.ttm code/build/ttc/*/%.ttc
+build/latex/%.idr.tex: common
 	mkdir -p $(dir $@)
-	katla literate code/$*.tex code/build/ttc/*/$*.ttm > $@
+	cp ../common/$@ $@
 
 build/latex/%.tex: %.tex
 	mkdir -p build/latex
@@ -40,6 +44,10 @@ build/latex/%.bib: %.bib
 	mkdir -p build/latex
 	cp $^ build/latex/
 
+build/latex/idris2.sty: ../common/idris2.sty
+	mkdir -p build/latex
+	cp $^ build/latex
+
 build/latex/%.sty: %.sty
 	mkdir -p build/latex
 	cp $^ build/latex
@@ -54,3 +62,4 @@ clean:
 	rm -rf build/latex
 	rm -rf code/build/
 	rm -f *~
+	$(MAKE) clean -C ../common
