@@ -347,7 +347,7 @@ namespace Pointer
   size : (ptr : Pointer.Mu Tree t) ->
          IO (Singleton (Data.size t))
   size ptr = case !(out ptr) of
-    MkOut "leaf" t => pure (MkSingleton 0)
+    MkOut "leaf" t => pure [| Z |]
     MkOut "node" t => do
       l # br <- poke t
       m <- size !(poke l)
