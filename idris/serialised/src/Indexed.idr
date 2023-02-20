@@ -18,7 +18,7 @@ import Serialised.Desc
 
 namespace Data
 
-  parameters {cs : Data} (buf : Buffer)
+  parameters {cs : Data nm} (buf : Buffer)
 
     setMu : Int -> Mu cs -> IO Int
     setMeaning :
@@ -27,7 +27,7 @@ namespace Data
       Meaning d (Mu cs) ->
       IO (Vect n Int, Int)
 
-    setMu start (MkMu k t) with (index k $ constructors cs)
+    setMu start (MkMu (MkIndex k) t) with (index k $ constructors cs)
       _ | cons
         = do -- [ Tag | ... offsets ... | t1 | t2 | ... ]
              setBits8 buf start (cast $ cast {to = Nat} k)
@@ -48,7 +48,7 @@ namespace Data
            pure $ (,end) $ if b then [] else [end - start]
 
   export
-  writeToFile : {cs : Data} -> String -> Mu cs -> IO ()
+  writeToFile : {cs : Data nm} -> String -> Mu cs -> IO ()
   writeToFile fp mu = do
     Just buf <- newBuffer 655360
       | Nothing => failWith "Couldn't allocate buffer"
@@ -59,75 +59,85 @@ namespace Data
 
 namespace Pointer
 
-  record Elem (d : Desc s n b) (cs : Data) (t : Meaning d (Data.Mu cs)) where
+  record Elem (d : Desc s n b) (cs : Data nm) (t : Meaning d (Data.Mu cs)) where
     constructor MkElem
     subterms : Vect n Int
     elemBuffer : Buffer
     elemPosition : Int
 
-  record Mu (cs : Data) (t : Data.Mu cs) where
+  record Mu (cs : Data nm) (t : Data.Mu cs) where
     constructor MkMu
     muBuffer : Buffer
     muPosition : Int
 
-  data Poke' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
+  namespace Poke
 
-  Poke : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
-  Poke None _ t = ()
-  Poke Byte cs t = Singleton t
-  Poke d@(Prod _ _) cs t = Poke' d cs t
-  Poke Rec cs t = Pointer.Mu cs t
+    public export
+    data Poke' : (d : Desc s n b) -> (cs : Data nm) -> Meaning d (Data.Mu cs) -> Type
 
-  data Poke' where
-    (#) : Elem d cs t -> Elem e cs u -> Poke' (Prod d e) cs (t # u)
+    public export
+    Poke : (d : Desc s n b) -> (cs : Data nm) -> Meaning d (Data.Mu cs) -> Type
+    Poke None _ t = ()
+    Poke Byte cs t = Singleton t
+    Poke d@(Prod _ _) cs t = Poke' d cs t
+    Poke Rec cs t = Pointer.Mu cs t
 
-{-
-  poke : {s : Nat} -> (d : Desc s n b) ->
-         forall t. Elem d cs t -> IO (Poke d cs t)
-  poke None el = pure ()
-  poke Byte el = do
-    bs <- getBits8 (elemBuffer el) (elemPosition el)
-    pure (believe_me $ MkSingleton bs)
-  poke (Prod {sl} d e) el = do
-    let (n1, n2) = splitAt _ (subterms el)
-    let left = MkElem n1 (elemBuffer el) (elemPosition el)
-    let pos = elemPosition el + sum n1 + cast sl
-    let right = MkElem n2 (elemBuffer el) pos
-    pure (left # right)
-  poke Rec el = pure (MkMu (elemBuffer el) (elemPosition el))
+    data Poke' where
+      (#) : Elem d cs t -> Elem e cs u -> Poke' (Prod d e) cs (t # u)
 
-  data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
+    export
+    poke : {0 cs : Data nm} -> {s : Nat} -> (d : Desc s n b) ->
+           forall t. Elem d cs t -> IO (Poke d cs t)
+    poke None el = pure ()
+    poke Byte el = do
+      bs <- getBits8 (elemBuffer el) (elemPosition el)
+      pure (believe_me $ MkSingleton bs)
+    poke (Prod {sl} d e) {t} el = do
+      let (n1, n2) = splitAt _ (subterms el)
+      let left = MkElem n1 (elemBuffer el) (elemPosition el)
+      let pos = elemPosition el + sum n1 + cast sl
+      let right = MkElem n2 (elemBuffer el) pos
+      pure $ rewrite etaPair t in (left # right)
+    poke Rec el = pure (MkMu (elemBuffer el) (elemPosition el))
 
-  Layer : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type
-  Layer d@(Prod _ _) cs t = Layer' d cs t
-  Layer None _ _ = ()
-  Layer Byte _ t = Singleton t
-  Layer Rec cs t = Pointer.Mu cs t
+  namespace Layer
 
-  data Layer' : (d : Desc s n b) -> (cs : Data) -> Meaning d (Data.Mu cs) -> Type where
-    (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t, u)
+    public export
+    data Layer' : (d : Desc s n b) -> (cs : Data nm) -> Meaning d (Data.Mu cs) -> Type
 
-  layer : {s : Nat} -> {d : Desc s n b} ->
-          forall t. Elem d cs t -> IO (Layer d cs t)
-  layer el = poke d el >>= go d where
+    public export
+    Layer : (d : Desc s n b) -> (cs : Data nm) -> Meaning d (Data.Mu cs) -> Type
+    Layer d@(Prod _ _) cs t = Layer' d cs t
+    Layer None _ _ = ()
+    Layer Byte _ t = Singleton t
+    Layer Rec cs t = Pointer.Mu cs t
 
-    go : forall n, b. {s : Nat} -> (d : Desc s n b) ->
-         forall t. Poke d cs t -> IO (Layer d cs t)
-    go None p = pure ()
-    go Byte p = pure p
-    go (Prod d e) {t} (p # q) = rewrite etaPair t in [| layer p # layer q |]
-    go Rec p = pure p
+    data Layer' : (d : Desc s n b) -> (cs : Data nm) -> Meaning d (Data.Mu cs) -> Type where
+      (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t # u)
 
-  data Out : (cs : Data) -> (t : Data.Mu cs) -> Type where
-    MkOut : (k : (Fin (consNumber cs))) ->
-            forall t. Elem (description (index k $ constructors cs)) cs t ->
+    export
+    layer : {0 cs : Data nm} -> {s : Nat} -> {d : Desc s n b} ->
+            forall t. Elem d cs t -> IO (Layer d cs t)
+    layer el = poke d el >>= go d where
+
+      go : forall n, b. {s : Nat} -> (d : Desc s n b) ->
+           forall t. Poke d cs t -> IO (Layer d cs t)
+      go None p = pure ()
+      go Byte p = pure p
+      go (Prod d e) (p # q) = [| layer p # layer q |]
+      go Rec p = pure p
+
+  data Out : (cs : Data nm) -> (t : Data.Mu cs) -> Type where
+    MkOut : (k : Index cs) ->
+            forall t. Elem (description k) cs t ->
             Out cs (MkMu k t)
 
-  out : {cs : _} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
+  out : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
   out {t} mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
     let Just k = natToFin (cast tag) (consNumber cs)
       | _ => failWith "Invalid representation"
+    let k = MkIndex k
     let 0 sub = unfoldAs k t
     val <- MkOut k <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
     pure (rewrite sub.snd in val)
@@ -136,8 +146,8 @@ namespace Pointer
 
     -- postulated, utterly unsafe
     0 unfoldAs :
-      (k : Fin (consNumber cs)) -> (t : Data.Mu cs) ->
-      (val : Meaning (description (index k $ constructors cs)) (Data.Mu cs)
+      (k : Index cs) -> (t : Data.Mu cs) ->
+      (val : Meaning (description k) (Data.Mu cs)
        ** t === MkMu k val)
     unfoldAs k (MkMu l@_ val) with (decEq k l)
       _ | Yes Refl = (val ** Refl)
@@ -153,11 +163,11 @@ namespace Pointer
       getOffsets buf (8 + pos) n (k . (off ::))
 
     getConstructor :
-      (k : Fin (consNumber cs)) ->
+      (k : Index cs) ->
       forall t.
       Pointer.Mu cs (MkMu k t) ->
-      IO (Elem (description (index k $ constructors cs)) cs t)
-    getConstructor k mu
+      IO (Elem (description k) cs t)
+    getConstructor (MkIndex k) mu
       = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index k $ constructors cs))
       $ \ subterms, pos => MkElem subterms (muBuffer mu) pos
 
@@ -182,13 +192,13 @@ namespace Data
   size : Data.Mu Tree -> Nat
   size = fold $ \ k, v => case k of
     0 => 0
-    1 => let (l, _, r) = v in S (l + r)
+    1 => let (l # _ # r) = v in S (l + r)
 
   public export
   sum : Data.Mu Tree -> Nat
   sum = fold $ \ k, v => case k of
     0 => 0
-    1 => let (l, b, r) = v in l + cast b + r
+    1 => let (l # b # r) = v in l + cast b + r
 
 namespace Pointer
 
@@ -216,7 +226,7 @@ namespace Pointer
 
 ||| initFromFile creates a pointer to a datastructure stored in a file
 ||| @ cs is the datatype you want to use to decode the buffer's content
-initFromFile : (cs : Data) -> String -> IO (Exists (Pointer.Mu cs))
+initFromFile : (cs : Data nm) -> String -> IO (Exists (Pointer.Mu cs))
 initFromFile cs fp
   = do Right buf <- createBufferFromFile fp
          | Left err => failWith (show err)

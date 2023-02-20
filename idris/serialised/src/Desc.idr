@@ -12,7 +12,7 @@ import Serialised.Desc
 
 namespace Data
 
-  parameters {ds : Data} (buf : Buffer)
+  parameters {ds : Data nm} (buf : Buffer)
 
     muToBuffer : Int -> Mu ds -> IO Int
     elemToBuffer :
@@ -21,7 +21,7 @@ namespace Data
       Meaning d (Mu ds) ->
       IO (Vect n Int, Int)
 
-    muToBuffer start (MkMu k t) with (index k $ constructors ds)
+    muToBuffer start (MkMu (MkIndex k) t) with (index k $ constructors ds)
       _ | cons = do -- [ Tag | ... offsets ... | t1 | t2 | ... ]
                     setBits8 buf start (cast $ cast {to = Nat} k)
                     let afterTag  = start + 1
@@ -41,7 +41,7 @@ namespace Data
            pure $ (,end) $ if b then [] else [end - start]
 
   export
-  writeToFile : {ds : Data} -> String -> Mu ds -> IO ()
+  writeToFile : {ds : Data nm} -> String -> Mu ds -> IO ()
   writeToFile fp mu = do
     Just buf <- newBuffer 655360
       | Nothing => failWith "Couldn't allocate buffer"
@@ -52,18 +52,18 @@ namespace Data
 
 namespace Pointer
 
-  record Elem (d : Desc s n b) (cs : Data) where
+  record Elem (d : Desc s n b) (cs : Data nm) where
     constructor MkElem
     subterms : Vect n Int
     elemBuffer : Buffer
     elemPosition : Int
 
-  record Mu (cs : Data) where
+  record Mu (cs : Data nm) where
     constructor MkMu
     muBuffer : Buffer
     muPosition : Int
 
-  Poke : (d : Desc s n b) -> (cs : Data) -> Type
+  Poke : (d : Desc s n b) -> (cs : Data nm) -> Type
   Poke None _ = ()
   Poke Byte cs = Bits8
   Poke (Prod d e) cs = (Elem d cs, Elem e cs)
@@ -80,7 +80,7 @@ namespace Pointer
     pure (left, right)
   poke Rec el = pure (MkMu (elemBuffer el) (elemPosition el))
 
-  Layer : (d : Desc s n b) -> (cs : Data) -> Type
+  Layer : (d : Desc s n b) -> (cs : Data nm) -> Type
   Layer None cs = ()
   Layer Byte cs = Bits8
   Layer (Prod d e) cs = (Layer d cs, Layer e cs)
@@ -95,17 +95,17 @@ namespace Pointer
     go (Prod d e) (p, q) = [| (layer d p, layer e q) |]
     go Rec p = pure p
 
-  record Out (cs : Data) where
+  record Out (cs : Data nm) where
     constructor MkOut
-    choice : Fin (consNumber cs)
-    encoding : Elem (description $ index choice $ constructors cs) cs
+    choice : Index cs
+    encoding : Elem (description choice) cs
 
   out : {cs : _} -> Pointer.Mu cs -> IO (Out cs)
   out mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
     let Just choice = natToFin (cast tag) (consNumber cs)
       | _ => failWith "Invalid representation"
-    MkOut choice <$> getConstructor (index choice $ constructors cs) mu
+    MkOut (MkIndex choice) <$> getConstructor (index choice $ constructors cs) mu
 
     where
 
@@ -118,7 +118,7 @@ namespace Pointer
       off <- getInt buf pos
       getOffsets buf (8 + pos) n (k . (off ::))
 
-    getConstructor : (c : Constructor) -> Pointer.Mu cs -> IO (Elem (description c) cs)
+    getConstructor : (c : Constructor _) -> Pointer.Mu cs -> IO (Elem (description c) cs)
     getConstructor c mu
       = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets c)
       $ \ subterms, pos => MkElem subterms (muBuffer mu) pos

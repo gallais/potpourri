@@ -5,6 +5,8 @@ import Data.Fin
 import Data.String
 import Data.Vect
 
+import Decidable.Equality
+
 import Lib
 
 %default total
@@ -31,19 +33,55 @@ data Desc : (size : Nat) -> (offsets : Nat) -> (rightmost : Bool) -> Type where
 
 ||| A constructor description is essentially an existential type
 ||| around a description
+||| @ nm is the type of name we use for the constructor
 public export
-record Constructor where
+record Constructor (nm : Type) where
   constructor MkConstructor
+  name : nm
   {size : Nat}
   {offsets : Nat}
   description : Desc size offsets True
 
 ||| A data description is a sum over a list of constructor types
 public export
-record Data where
+record Data (nm : Type) where
   constructor MkData
   {consNumber : Nat}
-  constructors : Vect consNumber Constructor
+  constructors : Vect consNumber (Constructor nm)
+
+||| A wrapper around fin that helps unification
+public export
+record Index (cs : Data {nm}) where
+  constructor MkIndex
+  getIndex : Fin (consNumber cs)
+
+||| A smart projection
+public export
+description : {cs : Data {nm}} -> (k : Index cs) ->
+              let cons = index (getIndex k) (constructors cs) in
+              Desc (size cons) (offsets cons) True
+description {cs} k = description (index (getIndex k) (constructors cs))
+
+||| A little bit of magic
+public export
+fromString : {cs : Data String} -> (str : String) ->
+             {auto 0 _ : IsJust (findIndex ((str ==) . Constructor.name) (constructors cs))} ->
+             Index cs
+fromString {cs} str with (findIndex ((str ==) . Constructor.name) (constructors cs))
+  _ | Just k = MkIndex k
+
+||| Another kind of magic
+public export
+fromInteger : {cs : Data {nm}} -> (k : Integer) ->
+              {auto 0 _ : So (consNumber cs /= 0)} ->
+              Index cs
+fromInteger {cs = MkData (_::_)} k = MkIndex (restrict _ k)
+
+export
+DecEq (Index cs) where
+  decEq (MkIndex k) (MkIndex l) with (decEq k l)
+    decEq (MkIndex k) (MkIndex .(k)) | Yes Refl = Yes Refl
+    decEq (MkIndex k) (MkIndex l) | No notEq = No (notEq . cong getIndex)
 
 ------------------------------------------------------------------------
 -- Show instances
@@ -57,10 +95,10 @@ Show (Desc s n b) where
   showPrec _ Rec = "X"
 
 export
-Show Data where
+Show (Data {nm}) where
   show cs = go (constructors cs) where
 
-    go : Vect n Constructor -> String
+    go : Vect n (Constructor _) -> String
     go [] = "⊥"
     go (c :: cs) = concat
       $  ("μX. " ++ show (description c))
@@ -78,18 +116,18 @@ eqDesc Rec Rec = True
 eqDesc _ _ = False
 
 export
-Eq Constructor where
-  MkConstructor d == MkConstructor e = eqDesc d e
+eqConstructor : Constructor a -> Constructor b -> Bool
+eqConstructor (MkConstructor _ d) (MkConstructor _ e) = eqDesc d e
 
 ||| Heterogeneous equality check for vectors of constructors
-eqConstructors : Vect m Constructor -> Vect n Constructor -> Bool
+eqConstructors : Vect m (Constructor a) -> Vect n (Constructor b) -> Bool
 eqConstructors [] [] = True
-eqConstructors (c :: cs) (c' :: cs') = c == c' && eqConstructors cs cs'
+eqConstructors (c :: cs) (c' :: cs') = eqConstructor c c' && eqConstructors cs cs'
 eqConstructors _ _ = False
 
 export
-Eq Data where
-  MkData cs == MkData cs' = eqConstructors cs cs'
+eqData : Data {nm = a} -> Data {nm = b} -> Bool
+eqData (MkData cs) (MkData cs') = eqConstructors cs cs'
 
 ------------------------------------------------------------------------
 -- Serialisation of descriptions to a Buffer
@@ -113,9 +151,9 @@ parameters (buf : Buffer)
   ||| @ start position in the buffer to set the constructors at
   ||| @ cs    list of constructors to serialise
   ||| Returns the end position
-  setConstructors : (start : Int) -> (cs : Vect n Constructor) -> IO Int
+  setConstructors : (start : Int) -> (cs : Vect n (Constructor _)) -> IO Int
   setConstructors start [] = pure start
-  setConstructors start (MkConstructor d :: cs)
+  setConstructors start (MkConstructor _ d :: cs)
     = do afterC <- setDesc start d
          setConstructors afterC cs
 
@@ -124,7 +162,7 @@ parameters (buf : Buffer)
   ||| @ cs    data description to serialise
   ||| Returns the end position
   export
-  setData : (start : Int) -> (cs : Data) -> IO Int
+  setData : (start : Int) -> (cs : Data nm) -> IO Int
   setData start (MkData {consNumber} cs) = do
     -- We first store the length of the list so that we know how
     -- many constructors to deserialise on the way out
@@ -160,17 +198,17 @@ parameters (buf : Buffer)
   ||| Get a list of constructor from a buffer
   ||| @ start position the list of constructors starts at in the buffer
   ||| @ n     number of constructors to deserialise
-  getConstructors : (start : Int) -> (n : Nat) -> IO (Vect n Constructor)
+  getConstructors : (start : Int) -> (n : Nat) -> IO (Vect n (Constructor ()))
   getConstructors start 0 = pure []
   getConstructors start (S n)
     = do (afterD, d) <- getDesc start
          cs <- getConstructors afterD n
-         pure (MkConstructor (runIDesc d) :: cs)
+         pure (MkConstructor () (runIDesc d) :: cs)
 
   ||| Get a data description from a buffer
   ||| @ start position the data description starts at in the buffer
   export
-  getData : Int -> IO Data
+  getData : Int -> IO (Data {nm = ()})
   getData start = do
     n <- getBits8 buf start
     let Just n = ifThenElse (n < 0) Nothing (Just (cast n))
@@ -216,28 +254,26 @@ namespace Data
 -- Meaning of data descriptions as fixpoints
 
   public export
-  Alg : Data -> Type -> Type
-  Alg cs x = (k : Fin (consNumber cs)) ->
-             Meaning (description (index k (constructors cs))) x ->
-             x
+  Alg : Data nm -> Type -> Type
+  Alg cs x = (k : Index cs) -> Meaning (description k) x -> x
 
   ||| Fixpoint of the description:
   ||| 1. pick a constructor
   ||| 2. give its meaning where subterms are entire subtrees
   public export
-  data Mu : Data -> Type where
+  data Mu : Data nm -> Type where
     MkMu : Alg cs (assert_total (Mu cs))
 
   ||| Curried version of the constructor; more convenient to use
   ||| when writing examples
   public export
-  mkMu : (cs : Data) -> (k : Fin (consNumber cs)) ->
-         Meaning' (description (index k $ constructors cs)) (Mu cs) (Mu cs)
-  mkMu cs k = curry (description (index k $ constructors cs)) (MkMu k)
+  mkMu : (cs : Data nm) -> (k : Index cs) ->
+         Meaning' (description k) (Mu cs) (Mu cs)
+  mkMu cs k = curry (description k) (MkMu k)
 
   ||| Fixpoints are initial algebras
   public export
-  fold : {cs : Data} -> (alg : Alg cs a) -> (t : Mu cs) -> a
+  fold : {cs : Data nm} -> (alg : Alg cs a) -> (t : Mu cs) -> a
   fold alg (MkMu k t) = alg k (assert_total $ fmap (fold alg) t)
 
 ------------------------------------------------------------------------
@@ -246,10 +282,10 @@ namespace Data
 namespace Tree
 
   public export
-  Tree : Data
+  Tree : Data String
   Tree = MkData
-    [ MkConstructor None                       -- Leaf
-    , MkConstructor (Prod Rec (Prod Byte Rec)) -- Node Tree Bits8 Tree
+    [ MkConstructor "leaf" None
+    , MkConstructor "node" (Prod Rec (Prod Byte Rec))
     ]
 
   public export
@@ -258,11 +294,11 @@ namespace Tree
 
   public export
   leaf : ATree
-  leaf = mkMu Tree 0
+  leaf = mkMu Tree "leaf"
 
   public export
   node : ATree -> Bits8 -> ATree -> ATree
-  node = mkMu Tree 1
+  node = mkMu Tree "node"
 
   public export
   example : ATree
