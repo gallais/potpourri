@@ -1,10 +1,17 @@
+\begin{code}
 module Data.Singleton
 
 %default total
 
 public export
-data Singleton : {0 a : Type} -> (x : a) -> Type where
+\end{code}
+%<*singleton>
+\begin{code}
+data Singleton : (x : a) -> Type where
   MkSingleton : (x : a) -> Singleton x
+\end{code}
+%</singleton>
+\begin{code}
 
 public export
 getSingleton : Singleton {a} x -> a
@@ -29,3 +36,4 @@ Show a => Show (Singleton {a} x) where
 export
 Cast a b => Cast (Singleton {a} x) b where
   cast (MkSingleton x) = cast x
+\end{code}

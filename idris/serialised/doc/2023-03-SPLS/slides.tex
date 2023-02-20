@@ -96,8 +96,7 @@ int sumAt (int buf[], int *ptr, int *res) {
       *res += val;
       int rsum = sumAt(buf, ptr, res);
       return 0;
-    default: return -1;
-}}
+    default: return -1;}}
 \end{lstlisting}
 \end{frame}
 
@@ -116,7 +115,14 @@ int sumAt (int buf[], int *ptr, int *res) {
 
 
 \begin{frame}{Correct}
+  \ExecuteMetaData[Data/Singleton.idr.tex]{singleton}
+  \vfill
   \ExecuteMetaData[SaferIndexed.idr.tex]{csum}
+\end{frame}
+
+
+\begin{frame}{Generic}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{viewfun}
 \end{frame}
 
 

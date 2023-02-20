@@ -271,7 +271,15 @@ namespace Pointer
               View cs (k ::= t)
 
     export
-    view : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (View cs t)
+\end{code}
+%<*viewfun>
+\begin{code}
+    view : {cs : Data nm} ->
+           forall t. Pointer.Mu cs t ->
+           IO (View cs t)
+\end{code}
+%</viewfun>
+\begin{code}
     view ptr = do k ::= el <- out ptr
                   vs <- layer el
                   pure (k ::= vs)
