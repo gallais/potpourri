@@ -51,13 +51,13 @@ record Data (nm : Type) where
 
 ||| A wrapper around fin that helps unification
 public export
-record Index (cs : Data {nm}) where
+record Index (cs : Data nm) where
   constructor MkIndex
   getIndex : Fin (consNumber cs)
 
 ||| A smart projection
 public export
-description : {cs : Data {nm}} -> (k : Index cs) ->
+description : {cs : Data nm} -> (k : Index cs) ->
               let cons = index (getIndex k) (constructors cs) in
               Desc (size cons) (offsets cons) True
 description {cs} k = description (index (getIndex k) (constructors cs))
@@ -72,7 +72,7 @@ fromString {cs} str with (findIndex ((str ==) . Constructor.name) (constructors 
 
 ||| Another kind of magic
 public export
-fromInteger : {cs : Data {nm}} -> (k : Integer) ->
+fromInteger : {cs : Data nm} -> (k : Integer) ->
               {auto 0 _ : So (consNumber cs /= 0)} ->
               Index cs
 fromInteger {cs = MkData (_::_)} k = MkIndex (restrict _ k)
@@ -95,7 +95,7 @@ Show (Desc s n b) where
   showPrec _ Rec = "X"
 
 export
-Show (Data {nm}) where
+Show (Data nm) where
   show cs = go (constructors cs) where
 
     go : Vect n (Constructor _) -> String
@@ -126,7 +126,7 @@ eqConstructors (c :: cs) (c' :: cs') = eqConstructor c c' && eqConstructors cs c
 eqConstructors _ _ = False
 
 export
-eqData : Data {nm = a} -> Data {nm = b} -> Bool
+eqData : Data a -> Data b -> Bool
 eqData (MkData cs) (MkData cs') = eqConstructors cs cs'
 
 ------------------------------------------------------------------------
@@ -208,7 +208,7 @@ parameters (buf : Buffer)
   ||| Get a data description from a buffer
   ||| @ start position the data description starts at in the buffer
   export
-  getData : Int -> IO (Data {nm = ()})
+  getData : Int -> IO (Data ())
   getData start = do
     n <- getBits8 buf start
     let Just n = ifThenElse (n < 0) Nothing (Just (cast n))
