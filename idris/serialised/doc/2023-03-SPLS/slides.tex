@@ -6,9 +6,26 @@
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric}
 
+\usepackage{listings}
+\usepackage{lstautogobble} % Provides autogobble, which is useful to remove indentation based on first line
+
+\lstset{ %
+  language=C,
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=5pt,
+  breaklines=true,
+  autogobble=true, % Removes indentation based on first line
+}
+
+
 \usepackage{idris2}
 \usepackage{catchfilebetweentags}
 \input{robust-catch}
+
+\newenvironment{hexdump}{\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
+\newcommand{\hexadata}[1]{\texttt{\IdrisData{#1}}}
 
 \title{
   \[
@@ -31,12 +48,12 @@
   \maketitle
 \end{frame}
 
-\newcommand{\mknode}[3]{\draw (#1,#2)  circle (.27cm) node[align=center] {#3};}
-\newcommand{\mkleaf}[2]{\draw (#1,#2) node[align=center] {} +(-.1cm,-.1cm) rectangle +(.1cm,.1cm);}
+\newcommand{\mknode}[3]{\draw (#1,#2)  circle (.27cm) node[align=center] {\IdrisData{#3}};}
+\newcommand{\mkleaf}[2]{\draw[fill=black] (#1,#2) node[align=center] {} +(-.1cm,-.1cm) rectangle +(.1cm,.1cm);}
 
 \begin{frame}{Trees and Pattern Matching}
+\begin{minipage}{.5\textwidth}
 \begin{tikzpicture}
-
 \mknode{0}{0}{10}
   \mknode{-1}{-1}{5};
     \mknode{-2}{-2}{1};
@@ -56,11 +73,32 @@
   \draw [->] (.73,-1) to [out=180,in=90] (.2,-1.9);
   \draw [->] (1.27,-1) to [out=0,in=90] (1.8,-1.9);
 \end{tikzpicture}
-
+\end{minipage}\hfill
+\begin{minipage}{.45\textwidth}
+  \ExecuteMetaData[Motivating.idr.tex]{motivation}
+\end{minipage}
 \end{frame}
 
-\begin{frame}
-  Trees vs. hexdump
+\begin{frame}[fragile]{Serialised Data and Pointer Manipulations}
+\begin{hexdump}
+01 01 01 00 \hexadata{01} 00 \hexadata{05} 00 \hexadata{0a} 01 00 \hexadata{14} 00
+\end{hexdump}
+
+\begin{lstlisting}
+int sumAt (int buf[], int *ptr, int *res) {
+  int tag = buf[*ptr]; (*ptr)++;
+  switch (tag) {
+    case 0:
+      return 0;
+    case 1:
+      int lsum = sumAt(buf, ptr, res);
+      int val  = buf[*ptr]; (*ptr)++;
+      *res += val;
+      int rsum = sumAt(buf, ptr, res);
+      return 0;
+    default: return -1;
+}}
+\end{lstlisting}
 \end{frame}
 
 \begin{frame}{Seamless}
@@ -80,7 +118,6 @@
 \begin{frame}{Correct}
   \ExecuteMetaData[SaferIndexed.idr.tex]{csum}
 \end{frame}
-
 
 
 \end{document}

@@ -1,0 +1,15 @@
+%<*motivation>
+\begin{code}
+data Tree
+  = Leaf
+  | Node Tree Bits8 Tree
+
+sum : Tree -> Nat
+sum t = case t of
+  Leaf => 0
+  Node l b r =>
+    let m = sum l
+        n = sum r
+    in m + cast b + n
+\end{code}
+%</motivation>
