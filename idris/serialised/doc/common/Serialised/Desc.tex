@@ -74,9 +74,15 @@ record Data (nm : Type) where
 
 ||| A wrapper around fin that helps unification
 public export
+\end{code}
+%<*index>
+\begin{code}
 record Index (cs : Data nm) where
   constructor MkIndex
   getIndex : Fin (consNumber cs)
+\end{code}
+%</index>
+\begin{code}
 
 ||| A smart projection
 public export
