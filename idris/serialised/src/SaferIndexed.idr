@@ -21,21 +21,21 @@ blockSize = 1000
 
 namespace Data
 
-  data All' : (d : Desc s n b) -> (p : x -> Type) -> Meaning d x -> Type
+  data All' : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type
 
   public export
-  All : (d : Desc s n b) -> (p : x -> Type) -> Meaning d x -> Type
+  All : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type
   All None p t = ()
   All Byte p t = Singleton t
   All d@(Prod _ _) p t = All' d p t
   All Rec p t = p t
 
   public export
-  data All' : (d : Desc s n b) -> (p : x -> Type) -> Meaning d x -> Type where
+  data All' : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type where
     (#) : All d p t -> All e p u -> All' (Prod d e) p (t # u)
 
   export
-  all : (d : Desc s n b) -> ((a : x) -> p a) ->
+  all : (d : Desc r s n) -> ((a : x) -> p a) ->
         (t : Meaning d x) -> All d p t
   all None f t = t
   all Byte f t = MkSingleton t
@@ -43,19 +43,19 @@ namespace Data
   all Rec f t = f t
 
   public export
-  AllK : (d : Desc s n b) -> (p : x -> Type) -> Meaning d x -> Type -> Type
+  AllK : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type -> Type
   AllK None p t r = r
   AllK Byte p t r = Singleton t -> r
   AllK (Prod d e) p t r = AllK d p (fst t) (AllK e p (snd t) r)
   AllK Rec p t r = p t -> r
 
   export
-  curry : {0 p : x -> Type} -> (d : Desc s n b) ->
-          {0 t : Meaning d x} -> (All d p t -> r) -> AllK d p t r
+  curry : {0 p : x -> Type} -> (d : Desc r s n) ->
+          {0 t : Meaning d x} -> (All d p t -> a) -> AllK d p t a
   curry None f = f ()
   curry Byte f = f
   curry (Prod d e) f
-    = SaferIndexed.Data.curry d {r = AllK e p (snd t) r}
+    = SaferIndexed.Data.curry d {a = AllK e p (snd t) a}
     $ \ v => SaferIndexed.Data.curry e
     $ \ w => f (rewrite etaPair t in v # w)
   curry Rec f = f
@@ -76,7 +76,7 @@ namespace Serialising
   parameters (buf : Buffer)
 
     goMeaning : Int ->
-                {b : Bool} -> (d : Desc s n b) ->
+                {r : Bool} -> (d : Desc r s n) ->
                 {0 t : Meaning d (Data.Mu cs)} ->
                 All d (Serialising cs) t ->
                 IO (Vect n Int, Int)
@@ -88,7 +88,7 @@ namespace Serialising
            pure (n1 ++ n2, afterRight)
     goMeaning start Rec layer
       = do end <- runSerialising layer buf start
-           pure $ (,end) $ if b then [] else [end - start]
+           pure $ (,end) $ if r then [] else [end - start]
 
     goMu : Int ->
            (k : Fin (consNumber cs)) -> (c : Constructor _) ->
@@ -147,7 +147,7 @@ namespace Buffer
 
 namespace Pointer
 
-  record Meaning (d : Desc s n b) (cs : Data nm) (t : Data.Meaning d (Data.Mu cs)) where
+  record Meaning (d : Desc r s n) (cs : Data nm) (t : Data.Meaning d (Data.Mu cs)) where
     constructor MkMeaning
     subterms : Vect n Int
     elemBuffer : Buffer
@@ -161,20 +161,20 @@ namespace Pointer
   namespace Poke
 
     public export
-    data Poke' : (d : Desc s n b) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
+    data Poke' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
 
     public export
-    Poke : (d : Desc s n b) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
+    Poke : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
     Poke None _ t = ()
     Poke Byte cs t = Singleton t
     Poke d@(Prod _ _) cs t = Poke' d cs t
     Poke Rec cs t = Pointer.Mu cs t
 
-    data Poke' : (d : Desc s n b) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
+    data Poke' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
       (#) : Pointer.Meaning d cs t -> Pointer.Meaning e cs u -> Poke' (Prod d e) cs (t # u)
 
     export
-    poke : {0 cs : Data nm} -> {s : Nat} -> {d : Desc s n b} ->
+    poke : {0 cs : Data nm} -> {s : Nat} -> {d : Desc r s n} ->
            forall t. Pointer.Meaning d cs t -> IO (Poke d cs t)
     poke {d = None} el = pure ()
     poke {d = Byte} el = do
@@ -191,24 +191,24 @@ namespace Pointer
   namespace Layer
 
     public export
-    data Layer' : (d : Desc s n b) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
+    data Layer' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
 
     public export
-    Layer : (d : Desc s n b) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
+    Layer : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
     Layer d@(Prod _ _) cs t = Layer' d cs t
     Layer None _ _ = ()
     Layer Byte _ t = Singleton t
     Layer Rec cs t = Pointer.Mu cs t
 
-    data Layer' : (d : Desc s n b) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
+    data Layer' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
       (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t # u)
 
     export
-    layer : {0 cs : Data nm} -> {s : Nat} -> {d : Desc s n b} ->
+    layer : {0 cs : Data nm} -> {s : Nat} -> {d : Desc r s n} ->
             forall t. Pointer.Meaning d cs t -> IO (Layer d cs t)
     layer el = poke el >>= go d where
 
-      go : forall n, b. {s : Nat} -> (d : Desc s n b) ->
+      go : forall n, r. {s : Nat} -> (d : Desc r s n) ->
            forall t. Poke d cs t -> IO (Layer d cs t)
       go None p = pure ()
       go Byte p = pure p

@@ -16,20 +16,20 @@ import Lib
 ------------------------------------------------------------------------
 
 ||| A description is a nested tuple of Bytes or recursive positions
-||| It is indexed by:
-|||  @size      the statically known part of the size (in number of bytes)
-|||  @offsets   the dynamically known part of the size (in number of subtrees)
+||| It is indexed by 1 'input' parameter and 2 'ouput' indices:
 |||  @rightmost telling us whether we are in the rightmost subterm
 |||             in which case `Rec` won't need to record an additional offset
+|||  @size      the statically known part of the size (in number of bytes)
+|||  @offsets   the dynamically known part of the size (in number of subtrees)
 public export
-data Desc : (size : Nat) -> (offsets : Nat) -> (rightmost : Bool) -> Type where
-  None : Desc 0 0 b
-  Byte : Desc 1 0 b
+data Desc : (rightmost : Bool) -> (size : Nat) -> (offsets : Nat) -> Type where
+  None : Desc r 0 0
+  Byte : Desc r 1 0
   Prod : {sl, sr, m, n : Nat} -> -- does not matter: Descs are meant to go away with staging
-         (d : Desc sl m False) ->
-         (e : Desc sr n b) ->
-         Desc (sl + sr) (m + n) b
-  Rec : Desc 0 (ifThenElse b 0 1) b
+         (d : Desc False sl m) ->
+         (e : Desc r sr n) ->
+         Desc r (sl + sr) (m + n)
+  Rec : Desc r 0 (ifThenElse r 0 1)
 
 ||| A constructor description is essentially an existential type
 ||| around a description
@@ -40,7 +40,7 @@ record Constructor (nm : Type) where
   name : nm
   {size : Nat}
   {offsets : Nat}
-  description : Desc size offsets True
+  description : Desc True size offsets
 
 ||| A data description is a sum over a list of constructor types
 public export
@@ -59,7 +59,7 @@ record Index (cs : Data nm) where
 public export
 description : {cs : Data nm} -> (k : Index cs) ->
               let cons = index (getIndex k) (constructors cs) in
-              Desc (size cons) (offsets cons) True
+              Desc True (size cons) (offsets cons)
 description {cs} k = description (index (getIndex k) (constructors cs))
 
 ||| A little bit of magic
@@ -87,7 +87,7 @@ DecEq (Index cs) where
 -- Show instances
 
 export
-Show (Desc s n b) where
+Show (Desc r s n) where
   showPrec _ None = "()"
   showPrec _ Byte = "Bits8"
   showPrec p (Prod d e) =
@@ -108,7 +108,7 @@ Show (Data nm) where
 -- Eq instances
 
 ||| Heterogeneous equality check for descriptions
-eqDesc : Desc s n b -> Desc s' n' b' -> Bool
+eqDesc : Desc r s n -> Desc r' s' n' -> Bool
 eqDesc None None = True
 eqDesc Byte Byte = True
 eqDesc (Prod d e) (Prod s t) = eqDesc d s && eqDesc e t
@@ -138,7 +138,7 @@ parameters (buf : Buffer)
   ||| @ start position in the buffer to set the description at
   ||| @ d     description to serialise
   ||| Returns the end position
-  setDesc : (start : Int) -> (d : Desc s n b) -> IO Int
+  setDesc : (start : Int) -> (d : Desc r s n) -> IO Int
   setDesc start None = (start + 1) <$ setBits8 buf start 0
   setDesc start Byte = (start + 1) <$ setBits8 buf start 1
   setDesc start (Prod d e)
@@ -175,22 +175,22 @@ parameters (buf : Buffer)
     constructor MkIDesc
     {size : Nat}
     {offsets : Nat}
-    runIDesc : Desc size offsets rightmost
+    runIDesc : Desc rightmost size offsets
 
   ||| Auxiliary definition to help idris figure out the types of
   ||| everything involved
-  IProd : IDesc False -> IDesc b -> IDesc b
+  IProd : IDesc False -> IDesc r -> IDesc r
   IProd (MkIDesc d) (MkIDesc e) = MkIDesc (Prod d e)
 
   ||| Get a description from a buffer
   ||| @ start position the description starts at in the buffer
   ||| Returns the end position & the description
-  getDesc : {b : Bool} -> Int -> IO (Int, IDesc b)
+  getDesc : {r : Bool} -> Int -> IO (Int, IDesc r)
   getDesc start = case !(getBits8 buf start) of
     0 => pure (start + 1, MkIDesc None)
     1 => pure (start + 1, MkIDesc Byte)
-    2 => do (afterLeft, d) <- assert_total (getDesc {b = False} (start + 1))
-            (end, e) <- assert_total (getDesc {b} afterLeft)
+    2 => do (afterLeft, d) <- assert_total (getDesc {r = False} (start + 1))
+            (end, e) <- assert_total (getDesc {r} afterLeft)
             pure (end, IProd d e)
     3 => pure (start + 1, MkIDesc Rec)
     _ => failWith "Invalid Description"
@@ -223,21 +223,21 @@ namespace Data
 
   ||| Meaning where subterms are interpreted using the parameter
   public export
-  Meaning : Desc s n b -> Type -> Type
+  Meaning : Desc r s n -> Type -> Type
   Meaning None x = ()
   Meaning Byte x = Bits8
   Meaning (Prod d e) x = (Meaning d x * Meaning e x)
   Meaning Rec x = x
 
   public export
-  Meaning' : Desc s n b -> Type -> Type -> Type
+  Meaning' : Desc r s n -> Type -> Type -> Type
   Meaning' None x r = r
   Meaning' Byte x r = Bits8 -> r
   Meaning' (Prod d e) x r = Meaning' d x (Meaning' e x r)
   Meaning' Rec x r = x -> r
 
   public export
-  curry : (d : Desc s n b) -> (Meaning d x -> r) -> Meaning' d x r
+  curry : (d : Desc r s n) -> (Meaning d x -> a) -> Meaning' d x a
   curry None k = k ()
   curry Byte k = k
   curry (Prod d e) k = curry d (curry e . curry k)

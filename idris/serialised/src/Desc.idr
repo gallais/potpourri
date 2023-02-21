@@ -17,7 +17,7 @@ namespace Data
     muToBuffer : Int -> Mu ds -> IO Int
     elemToBuffer :
       Int ->
-      {b : Bool} -> (d : Desc s n b) ->
+      {r : Bool} -> (d : Desc r s n) ->
       Meaning d (Mu ds) ->
       IO (Vect n Int, Int)
 
@@ -36,9 +36,9 @@ namespace Data
       = do (n1, afterLeft) <- elemToBuffer start d v
            (n2, afterRight) <- elemToBuffer afterLeft e w
            pure (n1 ++ n2, afterRight)
-    elemToBuffer start {b} Rec v
+    elemToBuffer start {r} Rec v
       = do end <- muToBuffer start v
-           pure $ (,end) $ if b then [] else [end - start]
+           pure $ (,end) $ if r then [] else [end - start]
 
   export
   writeToFile : {ds : Data nm} -> String -> Mu ds -> IO ()
@@ -52,8 +52,8 @@ namespace Data
 
 namespace Pointer
 
-  record Elem (d : Desc s n b) (cs : Data nm) where
-    constructor MkElem
+  record Meaning (d : Desc r s n) (cs : Data nm) where
+    constructor MkMeaning
     subterms : Vect n Int
     elemBuffer : Buffer
     elemPosition : Int
@@ -63,33 +63,35 @@ namespace Pointer
     muBuffer : Buffer
     muPosition : Int
 
-  Poke : (d : Desc s n b) -> (cs : Data nm) -> Type
+  Poke : (d : Desc r s n) -> (cs : Data nm) -> Type
   Poke None _ = ()
   Poke Byte cs = Bits8
-  Poke (Prod d e) cs = (Elem d cs, Elem e cs)
+  Poke (Prod d e) cs = (Pointer.Meaning d cs, Pointer.Meaning e cs)
   Poke Rec cs = Pointer.Mu cs
 
-  poke : {s : Nat} -> (d : Desc s n b) -> Elem d cs -> IO (Poke d cs)
+  poke : {s : Nat} -> (d : Desc r s n) ->
+         Pointer.Meaning d cs -> IO (Poke d cs)
   poke None el = pure ()
   poke Byte el = getBits8 (elemBuffer el) (elemPosition el)
   poke (Prod {sl} d e) el = do
     let (n1, n2) = splitAt _ (subterms el)
-    let left = MkElem n1 (elemBuffer el) (elemPosition el)
+    let left = MkMeaning n1 (elemBuffer el) (elemPosition el)
     let pos = elemPosition el + sum n1 + cast sl
-    let right = MkElem n2 (elemBuffer el) pos
+    let right = MkMeaning n2 (elemBuffer el) pos
     pure (left, right)
   poke Rec el = pure (MkMu (elemBuffer el) (elemPosition el))
 
-  Layer : (d : Desc s n b) -> (cs : Data nm) -> Type
+  Layer : (d : Desc r s n) -> (cs : Data nm) -> Type
   Layer None cs = ()
   Layer Byte cs = Bits8
   Layer (Prod d e) cs = (Layer d cs, Layer e cs)
   Layer Rec cs = Pointer.Mu cs
 
-  layer : {s : Nat} -> (d : Desc s n b) -> Elem d cs -> IO (Layer d cs)
+  layer : {s : Nat} -> (d : Desc r s n) ->
+          Pointer.Meaning d cs -> IO (Layer d cs)
   layer d el = poke d el >>= go d where
 
-    go : forall n, b. {s : Nat} -> (d : Desc s n b) -> Poke d cs -> IO (Layer d cs)
+    go : forall n, r. {s : Nat} -> (d : Desc r s n) -> Poke d cs -> IO (Layer d cs)
     go None p = pure p
     go Byte p = pure p
     go (Prod d e) (p, q) = [| (layer d p, layer e q) |]
@@ -98,7 +100,7 @@ namespace Pointer
   record Out (cs : Data nm) where
     constructor MkOut
     choice : Index cs
-    encoding : Elem (description choice) cs
+    encoding : Pointer.Meaning (description choice) cs
 
   out : {cs : _} -> Pointer.Mu cs -> IO (Out cs)
   out mu = do
@@ -111,17 +113,18 @@ namespace Pointer
 
     getOffsets : Buffer -> Int -> -- Buffer & position
                  (n : Nat) ->
-                 (Vect n Int -> Int -> Elem d cs) ->
-                 IO (Elem d cs)
+                 (Vect n Int -> Int -> Pointer.Meaning d cs) ->
+                 IO (Pointer.Meaning d cs)
     getOffsets buf pos 0 k = pure (k [] pos)
     getOffsets buf pos (S n) k = do
       off <- getInt buf pos
       getOffsets buf (8 + pos) n (k . (off ::))
 
-    getConstructor : (c : Constructor _) -> Pointer.Mu cs -> IO (Elem (description c) cs)
+    getConstructor : (c : Constructor _) ->
+      Pointer.Mu cs -> IO (Pointer.Meaning (description c) cs)
     getConstructor c mu
       = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets c)
-      $ \ subterms, pos => MkElem subterms (muBuffer mu) pos
+      $ \ subterms, pos => MkMeaning subterms (muBuffer mu) pos
 
 
 sum : Pointer.Mu Tree -> IO Nat
