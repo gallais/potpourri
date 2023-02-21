@@ -36,7 +36,7 @@ data Desc : (size : Nat) -> (offsets : Nat) -> (rightmost : Bool) -> Type where
 ||| @ nm is the type of name we use for the constructor
 public export
 record Constructor (nm : Type) where
-  constructor MkConstructor
+  constructor (::)
   name : nm
   {size : Nat}
   {offsets : Nat}
@@ -117,7 +117,7 @@ eqDesc _ _ = False
 
 export
 eqConstructor : Constructor a -> Constructor b -> Bool
-eqConstructor (MkConstructor _ d) (MkConstructor _ e) = eqDesc d e
+eqConstructor (_ :: d) (_ :: e) = eqDesc d e
 
 ||| Heterogeneous equality check for vectors of constructors
 eqConstructors : Vect m (Constructor a) -> Vect n (Constructor b) -> Bool
@@ -153,7 +153,7 @@ parameters (buf : Buffer)
   ||| Returns the end position
   setConstructors : (start : Int) -> (cs : Vect n (Constructor _)) -> IO Int
   setConstructors start [] = pure start
-  setConstructors start (MkConstructor _ d :: cs)
+  setConstructors start ((_ :: d) :: cs)
     = do afterC <- setDesc start d
          setConstructors afterC cs
 
@@ -203,7 +203,7 @@ parameters (buf : Buffer)
   getConstructors start (S n)
     = do (afterD, d) <- getDesc start
          cs <- getConstructors afterD n
-         pure (MkConstructor () (runIDesc d) :: cs)
+         pure ((() :: runIDesc d) :: cs)
 
   ||| Get a data description from a buffer
   ||| @ start position the data description starts at in the buffer
@@ -262,19 +262,19 @@ namespace Data
   ||| 2. give its meaning where subterms are entire subtrees
   public export
   data Mu : Data nm -> Type where
-    MkMu : Alg cs (assert_total (Mu cs))
+    (#) : Alg cs (assert_total (Mu cs))
 
   ||| Curried version of the constructor; more convenient to use
   ||| when writing examples
   public export
   mkMu : (cs : Data nm) -> (k : Index cs) ->
          Meaning' (description k) (Mu cs) (Mu cs)
-  mkMu cs k = curry (description k) (MkMu k)
+  mkMu cs k = curry (description k) (Data.(#) k)
 
   ||| Fixpoints are initial algebras
   public export
   fold : {cs : Data nm} -> (alg : Alg cs a) -> (t : Mu cs) -> a
-  fold alg (MkMu k t) = alg k (assert_total $ fmap (fold alg) t)
+  fold alg (k # t) = alg k (assert_total $ fmap (fold alg) t)
 
 ------------------------------------------------------------------------
 -- Examples
@@ -284,8 +284,8 @@ namespace Tree
   public export
   Tree : Data String
   Tree = MkData
-    [ MkConstructor "leaf" None
-    , MkConstructor "node" (Prod Rec (Prod Byte Rec))
+    [ "Leaf" :: None
+    , "Node" :: Prod Rec (Prod Byte Rec)
     ]
 
   public export
@@ -294,11 +294,11 @@ namespace Tree
 
   public export
   leaf : ATree
-  leaf = mkMu Tree "leaf"
+  leaf = mkMu Tree "Leaf"
 
   public export
   node : ATree -> Bits8 -> ATree -> ATree
-  node = mkMu Tree "node"
+  node = mkMu Tree "Node"
 
   public export
   example : ATree

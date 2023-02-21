@@ -21,7 +21,7 @@ namespace Data
       Meaning d (Mu ds) ->
       IO (Vect n Int, Int)
 
-    muToBuffer start (MkMu (MkIndex k) t) with (index k $ constructors ds)
+    muToBuffer start (MkIndex k # t) with (index k $ constructors ds)
       _ | cons = do -- [ Tag | ... offsets ... | t1 | t2 | ... ]
                     setBits8 buf start (cast $ cast {to = Nat} k)
                     let afterTag  = start + 1

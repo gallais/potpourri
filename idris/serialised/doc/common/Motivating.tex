@@ -10,6 +10,6 @@ sum t = case t of
   Node l b r =>
     let m = sum l
         n = sum r
-    in m + cast b + n
+    in (m + cast b + n)
 \end{code}
 %</motivation>

@@ -27,7 +27,7 @@ namespace Data
       Meaning d (Mu cs) ->
       IO (Vect n Int, Int)
 
-    setMu start (MkMu (MkIndex k) t) with (index k $ constructors cs)
+    setMu start (MkIndex k # t) with (index k $ constructors cs)
       _ | cons
         = do -- [ Tag | ... offsets ... | t1 | t2 | ... ]
              setBits8 buf start (cast $ cast {to = Nat} k)
@@ -128,9 +128,9 @@ namespace Pointer
       go Rec p = pure p
 
   data Out : (cs : Data nm) -> (t : Data.Mu cs) -> Type where
-    MkOut : (k : Index cs) ->
-            forall t. Elem (description k) cs t ->
-            Out cs (MkMu k t)
+    (#) : (k : Index cs) ->
+          forall t. Elem (description k) cs t ->
+          Out cs (k # t)
 
   out : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
   out {t} mu = do
@@ -139,7 +139,7 @@ namespace Pointer
       | _ => failWith "Invalid representation"
     let k = MkIndex k
     let 0 sub = unfoldAs k t
-    val <- MkOut k <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
+    val <- (k #) <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
     pure (rewrite sub.snd in val)
 
     where
@@ -148,8 +148,8 @@ namespace Pointer
     0 unfoldAs :
       (k : Index cs) -> (t : Data.Mu cs) ->
       (val : Meaning (description k) (Data.Mu cs)
-       ** t === MkMu k val)
-    unfoldAs k (MkMu l@_ val) with (decEq k l)
+       ** t === (k # val))
+    unfoldAs k (l@_ # val) with (decEq k l)
       _ | Yes Refl = (val ** Refl)
       _ | No _ = failWith "The IMPOSSIBLE has happened"
 
@@ -165,7 +165,7 @@ namespace Pointer
     getConstructor :
       (k : Index cs) ->
       forall t.
-      Pointer.Mu cs (MkMu k t) ->
+      Pointer.Mu cs (k # t) ->
       IO (Elem (description k) cs t)
     getConstructor (MkIndex k) mu
       = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index k $ constructors cs))
@@ -174,15 +174,15 @@ namespace Pointer
 ||| Raw sum
 rsum : Pointer.Mu Tree t -> IO Nat
 rsum ptr = case !(out ptr) of
-  MkOut 0 el => pure 0
-  MkOut 1 el => do
+  0 # el => pure 0
+  1 # el => do
     (l # b # r) <- layer el
     pure (!(rsum l) + cast b + !(rsum r))
 
 rightmost : Maybe Bits8 -> Pointer.Mu Tree t -> IO (Maybe Bits8)
 rightmost dflt t = case !(out t) of
-  MkOut 0 el => pure dflt
-  MkOut 1 el => do
+  0 # el => pure dflt
+  1 # el => do
     (_ # b # r) <- layer el
     rightmost (Just (getSingleton b)) r
 
@@ -206,8 +206,8 @@ namespace Pointer
   size : {0 t : Data.Mu Tree} -> Pointer.Mu Tree t ->
          IO (Singleton (Data.size t))
   size ptr = case !(out ptr) of
-    MkOut 0 el => pure (MkSingleton 0)
-    MkOut 1 el => do
+    0 # el => pure (MkSingleton 0)
+    1 # el => do
       (l # _ # r) <- layer el
       m <- size l
       n <- size r
@@ -217,8 +217,8 @@ namespace Pointer
         Pointer.Mu Tree t ->
         IO (Singleton (Data.sum t))
   sum ptr = case !(out ptr) of
-    MkOut 0 el => pure (MkSingleton 0)
-    MkOut 1 el => do
+    0 # el => pure (MkSingleton 0)
+    1 # el => do
       (l # b # r) <- layer el
       m <- sum l
       n <- sum r

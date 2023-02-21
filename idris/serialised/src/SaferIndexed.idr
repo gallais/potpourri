@@ -108,7 +108,7 @@ namespace Serialising
   setMu : {cs : Data nm} -> (k : Index cs) ->
           {0 t : Meaning (description k) (Data.Mu cs)} ->
           All (description k) (Serialising cs) t ->
-          Serialising cs (MkMu k t)
+          Serialising cs (k # t)
   setMu (MkIndex k) layer
     = MkSerialising $ \ buf, start =>
         goMu buf start k (index k $ constructors cs) layer
@@ -116,7 +116,7 @@ namespace Serialising
   export
   setMuK : (cs : Data nm) -> (k : Index cs) ->
            {0 t : Meaning (description k) (Data.Mu cs)} ->
-           AllK (description k) (Serialising cs) t (Serialising cs (MkMu k t))
+           AllK (description k) (Serialising cs) t (Serialising cs (k # t))
   setMuK cs (MkIndex k) with (index k $ constructors cs)
     _ | cons = SaferIndexed.Data.curry (description cons) $ \ layer =>
                MkSerialising $ \ buf, start => goMu buf start k cons layer
@@ -137,7 +137,7 @@ namespace Serialising
 namespace Buffer
 
   setMu : {cs : Data nm} -> (t : Data.Mu cs) -> Serialising cs t
-  setMu (MkMu k t)
+  setMu (k # t)
     = Serialising.setMu k
     $ all (description k) (assert_total Buffer.setMu) t
 
@@ -216,9 +216,9 @@ namespace Pointer
       go Rec p = pure p
 
   data Out : (cs : Data nm) -> (t : Data.Mu cs) -> Type where
-    MkOut : (k : Index cs) ->
-            forall t. Elem (description k) cs t ->
-            Out cs (MkMu k t)
+    (#) : (k : Index cs) ->
+          forall t. Elem (description k) cs t ->
+          Out cs (k # t)
 
   out : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
   out {t} mu = do
@@ -227,7 +227,7 @@ namespace Pointer
       | _ => failWith "Invalid representation"
     let k = MkIndex k
     let 0 sub = unfoldAs k t
-    val <- MkOut k <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
+    val <- (k #) <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
     pure (rewrite sub.snd in val)
 
     where
@@ -236,7 +236,7 @@ namespace Pointer
     0 unfoldAs :
       (k : Index cs) -> (t : Data.Mu cs) ->
       (val : Meaning (description k) (Data.Mu cs)
-       ** t === MkMu k val)
+       ** t === (k # val))
     {-
     unfoldAs k (MkMu l@_ val) with (decEq k l)
       _ | Yes Refl = (val ** Refl)
@@ -255,7 +255,7 @@ namespace Pointer
     getConstructor :
       (k : Index cs) ->
       forall t.
-      Pointer.Mu cs (MkMu k t) ->
+      Pointer.Mu cs (k # t) ->
       IO (Elem (description k) cs t)
     getConstructor (MkIndex k) mu
       = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index k $ constructors cs))
@@ -265,23 +265,23 @@ namespace Pointer
 
     public export
     data View : (cs : Data nm) -> (t : Data.Mu cs) -> Type where
-      MkMu : (k : Index cs) ->
-               forall t. Layer (description k) cs t ->
-               View cs (MkMu k t)
+      (#) : (k : Index cs) ->
+            forall t. Layer (description k) cs t ->
+            View cs (k # t)
 
     export
     view : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (View cs t)
-    view ptr = do MkOut k el <- out ptr
+    view ptr = do k # el <- out ptr
                   vs <- layer el
-                  pure (MkMu k vs)
+                  pure (k # vs)
 
 namespace Tree
 
   ||| Tree sum
   sum : Data.Mu Tree -> Nat
   sum t = case t of
-    MkMu "leaf" _ => 0
-    MkMu "node" (l # b # r) =>
+    "Leaf" # _ => 0
+    "Node" # l # b # r =>
       let m = sum l
           n = sum r
       in (m + cast b + n)
@@ -292,16 +292,16 @@ namespace Raw
   export
   sum : Pointer.Mu Tree _ -> IO Nat
   sum ptr = case !(view ptr) of
-    MkMu "leaf" _ => pure 0
-    MkMu "node" (l # b # r) =>
+    "Leaf" # _ => pure 0
+    "Node" # l # b # r =>
       do m <- sum l
          n <- sum r
          pure (m + cast b + n)
 
 rightmost : Maybe Bits8 -> Pointer.Mu Tree t -> IO (Maybe Bits8)
 rightmost dflt t = case !(out t) of
-  MkOut "leaf" el => pure dflt
-  MkOut "node" el => do
+  "Leaf" # el => pure dflt
+  "Node" # el => do
     (_ # b # r) <- layer el
     rightmost (Just (getSingleton b)) r
 
@@ -314,24 +314,24 @@ namespace Data
   public export
   size : Data.Mu Tree -> Nat
   size = fold $ \ k, v => case k of
-    "leaf" => 0
-    "node" => let (l # _ # r) = v in S (l + r)
+    "Leaf" => 0
+    "Node" => let (l # _ # r) = v in S (l + r)
 
   ||| The sum of the tree's node is given by casting the Bits8 nodes
   ||| to Nat and summing them up
   public export
   sum : Data.Mu Tree -> Nat
   sum = fold $ \ k, v => case k of
-    "leaf" => 0
-    "node" => let (l # b # r) = v in l + cast b + r
+    "Leaf" => 0
+    "Node" => let (l # b # r) = v in l + cast b + r
 
   ||| Map is obtained by applying a function transforming Bit8 values
   ||| to all of the Bits8 stored in the tree's nodes
   public export
   map : (Bits8 -> Bits8) -> Data.Mu Tree -> Data.Mu Tree
   map f = fold $ \ k, v => case k of
-    "leaf" => leaf
-    "node" => let (l # b # r) = v in node l (f b) r
+    "Leaf" => leaf
+    "Node" => let (l # b # r) = v in node l (f b) r
 
 -- Here we define the effectful functions processing a pointer
 -- IO allows us to inspect the content addressed by the pointer to take the tree apart
@@ -347,13 +347,13 @@ namespace Pointer
   size : (ptr : Pointer.Mu Tree t) ->
          IO (Singleton (Data.size t))
   size ptr = case !(out ptr) of
-    MkOut "leaf" t => pure [| Z |]
-    MkOut "node" t => do
+    "Leaf" # t => pure [| Z |]
+    "Node" # t => do
       l # br <- poke t
       m <- size !(poke l)
       _ # r <- poke br
       n <- size !(poke r)
-      pure (S <$> (plus <$> m <*> n))
+      pure [| S [| m + n |] |]
 
   ||| Correct by construction sum function.
   ||| @ t   is the phantom name of the tree represented by the buffer
@@ -364,8 +364,8 @@ namespace Pointer
   sum : (ptr : Pointer.Mu Tree t) ->
         IO (Singleton (Data.sum t))
   sum ptr = case !(view ptr) of
-    MkMu "leaf" t => pure (MkSingleton 0)
-    MkMu "node" (l # b # r) =>
+    "Leaf" # t => pure (MkSingleton 0)
+    "Node" # l # b # r =>
       do m <- sum l
          n <- sum r
          pure [| [| m + [| cast b |] |] + n |]
@@ -390,15 +390,15 @@ namespace Pointer
         (ptr : Pointer.Mu Tree t) ->
         Serialising Tree (Data.map f t)
   map f ptr = case !(view ptr) of
-    MkMu "leaf" () => leaf
-    MkMu "node" (l # b # r) => node (map f l) (f <$> b) (map f r)
+    "Leaf" # () => leaf
+    "Node" # l # b # r => node (map f l) (f <$> b) (map f r)
 
   ||| Simple printing function
   export
   display : Pointer.Mu Tree t -> IO String
   display ptr = case !(out ptr) of
-    MkOut "leaf" t => pure "leaf"
-    MkOut "node" t => do
+    "Leaf" # t => pure "Leaf"
+    "Node" # t => do
       (l # b # r) <- layer t
       l <- display l
       r <- display r
