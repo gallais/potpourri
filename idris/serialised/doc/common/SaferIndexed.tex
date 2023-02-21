@@ -148,16 +148,26 @@ namespace Buffer
 
 namespace Pointer
 
-  record Elem (d : Desc s n b) (cs : Data nm) (t : Meaning d (Data.Mu cs)) where
+\end{code}
+%<*elem>
+\begin{code}
+  record Elem (d : Desc s n b) (cs : Data nm)
+              (t : Data.Meaning d (Data.Mu cs)) where
     constructor MkElem
     subterms : Vect n Int
     elemBuffer : Buffer
     elemPosition : Int
-
+\end{code}
+%</elem>
+%<*pointermu>
+\begin{code}
   record Mu (cs : Data nm) (t : Data.Mu cs) where
     constructor MkMu
     muBuffer : Buffer
     muPosition : Int
+\end{code}
+%</pointermu>
+\begin{code}
 
   namespace Poke
 
