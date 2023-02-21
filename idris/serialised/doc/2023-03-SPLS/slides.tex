@@ -7,7 +7,6 @@
 \usetikzlibrary{shapes.geometric}
 
 \usepackage{listings}
-\usepackage{lstautogobble} % Provides autogobble, which is useful to remove indentation based on first line
 
 \lstset{ %
   language=C,
@@ -16,9 +15,7 @@
   stepnumber=1,
   numbersep=5pt,
   breaklines=true,
-  autogobble=true, % Removes indentation based on first line
 }
-
 
 \usepackage{idris2}
 \usepackage{catchfilebetweentags}
@@ -42,11 +39,21 @@
 \institute{University of St Andrews}
 \date{SPLS, March 8th 2023}
 
+\AtBeginSection[]
+{
+    \begin{frame}
+        \frametitle{Table of Contents}
+        \tableofcontents[currentsection]
+    \end{frame}
+}
+
 \begin{document}
 
 \begin{frame}
   \maketitle
 \end{frame}
+
+\section{Motivation}
 
 \newcommand{\mknode}[3]{\draw (#1,#2)  circle (.27cm) node[align=center] {\IdrisData{#3}};}
 \newcommand{\mkleaf}[2]{\draw[fill=black] (#1,#2) node[align=center] {} +(-.1cm,-.1cm) rectangle +(.1cm,.1cm);}
@@ -101,15 +108,15 @@ int sumAt (int buf[], int *ptr, int *res) {
 \end{frame}
 
 \begin{frame}{Seamless}
-  \noindent
-  \begin{minipage}{.7\textwidth}
-    \ExecuteMetaData[SaferIndexed.idr.tex]{tsum}
+
+  \vspace*{2em}
+
+  \begin{minipage}{.6\textwidth}
+    \hspace*{-1em}\ExecuteMetaData[SaferIndexed.idr.tex]{tsum}
   \end{minipage}\hfill
 
-  \vfill
-
-  \hfill\begin{minipage}{.7\textwidth}
-    \ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
+  \hfill\begin{minipage}{.6\textwidth}
+    \hspace*{-1em}\ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
   \end{minipage}
 \end{frame}
 
@@ -117,13 +124,52 @@ int sumAt (int buf[], int *ptr, int *res) {
 \begin{frame}{Correct}
   \ExecuteMetaData[Data/Singleton.idr.tex]{singleton}
   \vfill
-  \ExecuteMetaData[SaferIndexed.idr.tex]{csum}
+  \hspace{-1em}\ExecuteMetaData[SaferIndexed.idr.tex]{csum}
 \end{frame}
 
 
 \begin{frame}{Generic}
-  \ExecuteMetaData[SaferIndexed.idr.tex]{viewfun}
+  \hspace{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{viewfun}
 \end{frame}
 
+\section{The Universe}
+
+\begin{frame}{Descriptions}
+  \ExecuteMetaData[Serialised/Desc.idr.tex]{desctype}
+
+  \uncover<2->{\ExecuteMetaData[Serialised/Desc.idr.tex]{desc}}
+\end{frame}
+
+\begin{frame}{Meaning as Trees}
+  \hspace*{-1em}\ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
+
+  \ExecuteMetaData[Serialised/Desc.idr.tex]{constructor}
+\end{frame}
+
+\begin{frame}
+  \hspace*{-1em}\ExecuteMetaData[Serialised/Desc.idr.tex]{data}
+
+  \hspace*{-2em}\ExecuteMetaData[Serialised/Desc.idr.tex]{alg}
+
+  \hspace*{-2em}\ExecuteMetaData[Serialised/Desc.idr.tex]{mu}
+\end{frame}
+
+\begin{frame}{Example}
+
+\hspace*{-1em}\ExecuteMetaData[Serialised/Desc.idr.tex]{treeleaf}
+\hspace*{-1em}\ExecuteMetaData[Serialised/Desc.idr.tex]{treenode}
+\hspace*{-1em}\ExecuteMetaData[Serialised/Desc.idr.tex]{treedesc}
+\end{frame}
+
+\begin{frame}{Example (ct'd)}
+\hspace*{-1em}\ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
+\hspace*{-1em}\ExecuteMetaData[Serialised/Desc.idr.tex]{node}
+
+\hspace*{-1em}\ExecuteMetaData[Serialised/Desc.idr.tex]{example}
+\end{frame}
+
+\section{Programming with Buffers}
+
+\section{Future work}
 
 \end{document}

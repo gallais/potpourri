@@ -292,7 +292,7 @@ namespace Tree
 \begin{code}
   sum : Data.Mu Tree -> Nat
   sum t = case t of
-    "leaf" ::= _ => 0
+    "leaf" ::= _ => Z
     "node" ::= l # b # r =>
       let m = sum l
           n = sum r
@@ -309,7 +309,7 @@ namespace Raw
 \begin{code}
   sum : Pointer.Mu Tree _ -> IO Nat
   sum ptr = case !(view ptr) of
-    "leaf" ::= _ => pure 0
+    "leaf" ::= _ => pure Z
     "node" ::= l # b # r =>
       do m <- sum l
          n <- sum r
