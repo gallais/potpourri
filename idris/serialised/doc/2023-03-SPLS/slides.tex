@@ -21,8 +21,12 @@
 \usepackage{catchfilebetweentags}
 \input{robust-catch}
 
-\newenvironment{hexdump}{\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
+\newcommand{\hexadesc}[1]{\texttt{\IdrisType{#1}}}
 \newcommand{\hexadata}[1]{\texttt{\IdrisData{#1}}}
+\newcommand{\hexacons}[1]{\texttt{\IdrisFunction{#1}}}
+\newcommand{\hexaoffset}[1]{\texttt{{\color{lightgray}#1}}}
+
+\newenvironment{hexdump}{\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
 
 \title{
   \[
@@ -177,6 +181,18 @@ int sumAt (int buf[], int *ptr, int *res) {
 \end{frame}
 
 \section{Programming with Buffers}
+
+\begin{frame}{Serialisation Format}
+\hspace*{-1em}\ExecuteMetaData[Serialised/Desc.idr.tex]{example}
+
+\begin{hexdump}%
+87654321\hphantom{:} 00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF
+00000000: \hexaoffset{07 00 00 00 00 00 00 00} \hexadesc{02 00 02 03 02 01 03} \hexacons{01}
+00000010: \hexaoffset{17 00 00 00 00 00 00 00} \hexacons{01} \hexaoffset{0c 00 00 00 00 00 00}
+00000020: \hexaoffset{00} \hexacons{01} \hexaoffset{01 00 00 00 00 00 00 00} \hexacons{00} \hexadata{01} \hexacons{00} \hexadata{05} \hexacons{00} \hexadata{0a}
+00000030: \hexacons{01} \hexaoffset{01 00 00 00 00 00 00 00} \hexacons{00} \hexadata{14} \hexacons{00}
+\end{hexdump}
+\end{frame}
 
 \begin{frame}{Meaning as Pointers}
   \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{elem}
