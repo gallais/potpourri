@@ -94,7 +94,8 @@
 \begin{hexdump}
 01 01 01 00 \hexadata{01} 00 \hexadata{05} 00 \hexadata{0a} 01 00 \hexadata{14} 00
 \end{hexdump}
-
+\begin{overlayarea}{\linewidth}{6cm}
+\begin{onlyenv}<2->
 \begin{lstlisting}
 int sumAt (int buf[], int *ptr, int *res) {
   int tag = buf[*ptr]; (*ptr)++;
@@ -102,13 +103,15 @@ int sumAt (int buf[], int *ptr, int *res) {
     case 0:
       return 0;
     case 1:
-      int lsum = sumAt(buf, ptr, res);
+      sumAt(buf, ptr, res) < 0;
       int val  = buf[*ptr]; (*ptr)++;
       *res += val;
-      int rsum = sumAt(buf, ptr, res);
+      sumAt(buf, ptr, res) < 0;
       return 0;
-    default: return -1;}}
+    default: exit(-1); }}
 \end{lstlisting}
+\end{onlyenv}
+\end{overlayarea}
 \end{frame}
 
 \begin{frame}{Seamless}
