@@ -9,6 +9,10 @@ export
 failWith : String -> a
 failWith str = assert_total (idris_crash str)
 
+export
+etaUnit : (t : ()) -> t === ()
+etaUnit () = Refl
+
 public export
 record (*) (a, b : Type) where
   constructor (#)
