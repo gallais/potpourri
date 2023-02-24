@@ -100,13 +100,12 @@
 int sumAt (int buf[], int *ptr, int *res) {
   int tag = buf[*ptr]; (*ptr)++;
   switch (tag) {
-    case 0:
-      return 0;
+    case 0: return 0;
     case 1:
-      sumAt(buf, ptr, res) < 0;
-      int val  = buf[*ptr]; (*ptr)++;
+      sumAt(buf, ptr, res);
+      int val = buf[*ptr]; (*ptr)++;
       *res += val;
-      sumAt(buf, ptr, res) < 0;
+      sumAt(buf, ptr, res);
       return 0;
     default: exit(-1); }}
 \end{lstlisting}
@@ -201,6 +200,23 @@ int sumAt (int buf[], int *ptr, int *res) {
   \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{elem}
 
   \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{pointermu}
+\end{frame}
+
+\begin{frame}{Inspecting Buffers: Head Constructor}
+  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
+  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
+\end{frame}
+
+\begin{frame}{Inspecting Buffers: Extracting Head Data}
+  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{pokedata}
+\end{frame}
+\begin{frame}{Inspecting Buffers: Extracting Head Data (ct'd)}
+  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{pokefun}
+\end{frame}
+
+\begin{frame}{A More Convenient View}
+  \hspace*{-3em}\ExecuteMetaData[SaferIndexed.idr.tex]{viewdata}
+  \hspace*{-3em}\ExecuteMetaData[SaferIndexed.idr.tex]{viewfun}
 \end{frame}
 
 \section{Future work}

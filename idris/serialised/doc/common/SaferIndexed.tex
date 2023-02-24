@@ -171,24 +171,41 @@ namespace Pointer
 
   namespace Poke
 
-    public export
-    data Poke' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
 
     public export
-    Poke : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
+    data Poke' : (d : Desc r s n) -> (cs : Data nm) ->
+                 Data.Meaning d (Data.Mu cs) -> Type
+
+    public export
+\end{code}
+%<*pokedata>
+\begin{code}
+    Poke : (d : Desc r s n) -> (cs : Data nm) ->
+           Data.Meaning d (Data.Mu cs) -> Type
     Poke None _ t = ()
     Poke Byte cs t = Singleton t
     Poke d@(Prod _ _) cs t = Poke' d cs t
     Poke Rec cs t = Pointer.Mu cs t
 
-    data Poke' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
+    data Poke' : (d : Desc r s n) -> (cs : Data nm) ->
+                 Data.Meaning d (Data.Mu cs) -> Type where
       (#) : Pointer.Meaning d cs t ->
             Pointer.Meaning e cs u ->
             Poke' (Prod d e) cs (t # u)
+\end{code}
+%</pokedata>
+\begin{code}
 
     export
-    poke : {0 cs : Data nm} -> {s : Nat} -> {d : Desc r s n} ->
-           forall t. Pointer.Meaning d cs t -> IO (Poke d cs t)
+\end{code}
+%<*pokefun>
+\begin{code}
+    poke : {0 cs : Data nm} -> {d : Desc r s n} ->
+           forall t. Pointer.Meaning d cs t ->
+           IO (Poke d cs t)
+\end{code}
+%</pokefun>
+\begin{code}
     poke {d = None} el = pure ()
     poke {d = Byte} el = do
       bs <- getBits8 (elemBuffer el) (elemPosition el)
@@ -217,23 +234,36 @@ namespace Pointer
       (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t # u)
 
     export
-    layer : {0 cs : Data nm} -> {s : Nat} -> {d : Desc r s n} ->
+    layer : {0 cs : Data nm} -> {d : Desc r s n} ->
             forall t. Pointer.Meaning d cs t -> IO (Layer d cs t)
     layer el = poke el >>= go d where
 
-      go : forall n, r. {s : Nat} -> (d : Desc r s n) ->
+      go : forall r, s, n. (d : Desc r s n) ->
            forall t. Poke d cs t -> IO (Layer d cs t)
       go None p = pure ()
       go Byte p = pure p
       go (Prod d e) (p # q) = [| layer p # layer q |]
       go Rec p = pure p
 
+\end{code}
+%<*outdata>
+\begin{code}
   data Out : (cs : Data nm) -> (t : Data.Mu cs) -> Type where
     (#) : (k : Index cs) ->
           forall t. Pointer.Meaning (description k) cs t ->
           Out cs (k # t)
+\end{code}
+%</outdata>
+\begin{code}
 
-  out : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
+\end{code}
+%<*outfun>
+\begin{code}
+  out : {cs : Data nm} -> forall t. Pointer.Mu cs t ->
+        IO (Out cs t)
+\end{code}
+%</outfun>
+\begin{code}
   out {t} mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
     let Just k = natToFin (cast tag) (consNumber cs)
@@ -277,10 +307,16 @@ namespace Pointer
   namespace View
 
     public export
+\end{code}
+%<*viewdata>
+\begin{code}
     data View : (cs : Data nm) -> (t : Data.Mu cs) -> Type where
       (#) : (k : Index cs) ->
             forall t. Layer (description k) cs t ->
             View cs (k # t)
+\end{code}
+%</viewdata>
+\begin{code}
 
     export
 \end{code}

@@ -174,7 +174,7 @@ namespace Pointer
       (#) : Pointer.Meaning d cs t -> Pointer.Meaning e cs u -> Poke' (Prod d e) cs (t # u)
 
     export
-    poke : {0 cs : Data nm} -> {s : Nat} -> {d : Desc r s n} ->
+    poke : {0 cs : Data nm} -> {d : Desc r s n} ->
            forall t. Pointer.Meaning d cs t -> IO (Poke d cs t)
     poke {d = None} el = pure ()
     poke {d = Byte} el = do
@@ -204,11 +204,11 @@ namespace Pointer
       (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t # u)
 
     export
-    layer : {0 cs : Data nm} -> {s : Nat} -> {d : Desc r s n} ->
+    layer : {0 cs : Data nm} -> {d : Desc r s n} ->
             forall t. Pointer.Meaning d cs t -> IO (Layer d cs t)
     layer el = poke el >>= go d where
 
-      go : forall n, r. {s : Nat} -> (d : Desc r s n) ->
+      go : forall r, s, n. (d : Desc r s n) ->
            forall t. Poke d cs t -> IO (Layer d cs t)
       go None p = pure ()
       go Byte p = pure p
