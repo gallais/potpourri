@@ -76,22 +76,20 @@ namespace Serialising
              IO (Vect n Int, Int)
     goBase start AUnit val = pure ([], start)
     goBase start ABits8 val = ([], start + 1) <$ setBits8 buf start (getSingleton val)
-    goBase start AnInt8 val = ([], start + 1) <$ ?setInt8 -- buf start (getSingleton val)
+    goBase start AnInt8 val = ([], start + 1) <$ setInt8 buf start (getSingleton val)
     goBase start ABits16 val = ([], start + 2) <$ setBits16 buf start (getSingleton val)
-    goBase start AnInt16 val = ([], start + 2) <$ ?setInt16 -- buf start (cast $ getSingleton val)
+    goBase start AnInt16 val = ([], start + 2) <$ setInt16 buf start (cast val)
     goBase start ABits32 val = ([], start + 4) <$ setBits32 buf start (getSingleton val)
-    goBase start AnInt32 val = ([], start + 4) <$ setInt32 buf start (cast $ getSingleton val)
+    goBase start AnInt32 val = ([], start + 4) <$ setInt32 buf start (cast val)
     goBase start ABits64 val = ([], start + 8) <$ setBits64 buf start (getSingleton val)
-    goBase start AnInt64 val = ([], start + 8) <$ ?setInt64 -- buf start (getSingleton val)
+    goBase start AnInt64 val = ([], start + 8) <$ setInt64 buf start (getSingleton val)
     goBase start AnInteger val = ?setInteger
-    goBase start ANat val = ?a_10
+    goBase start ANat val = ?setNat
     goBase start AString val = do
       let str = getSingleton val
       let len = stringByteLength str
       setString buf start str
       pure ([len], start + len)
-
--- ([], start + 1) <$ setBits8 buf start (getSingleton layer)
 
     goMeaning : (start : Int) ->
                 {r : Bool} -> (d : Desc r s n) ->
@@ -183,25 +181,33 @@ namespace Pointer
     pokeBase AUnit el = pure (rewrite etaUnit t in MkSingleton ())
     pokeBase ABits8 el = do
       bs <- getBits8 (elemBuffer el) (elemPosition el)
-      pure (believe_me $ MkSingleton bs)
-    pokeBase AnInt8 el = ?Agteh
+      pure (unsafeMkSingleton bs)
+    pokeBase AnInt8 el = do
+      bs <- getInt8 (elemBuffer el) (elemPosition el)
+      pure (unsafeMkSingleton bs)
     pokeBase ABits16 el = do
       bs <- getBits16 (elemBuffer el) (elemPosition el)
-      pure (believe_me $ MkSingleton bs)
-    pokeBase AnInt16 el = ?Agh
+      pure (unsafeMkSingleton bs)
+    pokeBase AnInt16 el =  do
+      bs <- getInt16 (elemBuffer el) (elemPosition el)
+      pure (unsafeMkSingleton bs)
     pokeBase ABits32 el = do
       bs <- getBits32 (elemBuffer el) (elemPosition el)
-      pure (believe_me $ MkSingleton bs)
-    pokeBase AnInt32 el = ?Agzgz
+      pure (unsafeMkSingleton bs)
+    pokeBase AnInt32 el =  do
+      bs <- getInt32 (elemBuffer el) (elemPosition el)
+      pure (unsafeMkSingleton $ cast bs)
     pokeBase ABits64 el = do
       bs <- getBits64 (elemBuffer el) (elemPosition el)
-      pure (believe_me $ MkSingleton bs)
-    pokeBase AnInt64 el = ?Agg
-    pokeBase AnInteger el = ?Agrmhk
-    pokeBase ANat el = ?ezgljrg
+      pure (unsafeMkSingleton bs)
+    pokeBase AnInt64 el =  do
+      bs <- getInt64 (elemBuffer el) (elemPosition el)
+      pure (unsafeMkSingleton bs)
+    pokeBase AnInteger el = ?getInteger
+    pokeBase ANat el = ?getNat
     pokeBase AString el = do
       str <- getString (elemBuffer el) (elemPosition el) (head $ subterms el)
-      pure (believe_me $ MkSingleton str)
+      pure (unsafeMkSingleton str)
 
     public export
     data Poke' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
