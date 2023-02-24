@@ -1,3 +1,4 @@
+\begin{code}
 module Lib
 
 import Data.Buffer
@@ -10,10 +11,16 @@ failWith : String -> a
 failWith str = assert_total (idris_crash str)
 
 public export
+\end{code}
+%<*pair>
+\begin{code}
 record (*) (a, b : Type) where
   constructor (#)
   fst : a
   snd : b
+\end{code}
+%</pair>
+\begin{code}
 
 public export
 curry : ((a * b) -> r) -> a -> b -> r
@@ -31,3 +38,4 @@ parameters (buf : Buffer)
   setInts start (i :: is)
     = do setInt buf start i
          setInts (start + 8) is
+\end{code}

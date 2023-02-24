@@ -7,6 +7,7 @@ RAW_DEPENDENCIES=\
   SaferIndexed.idr.tex \
   Motivating.idr.tex \
   Data/Singleton.idr.tex \
+  Lib.idr.tex \
 
 DEPENDENCIES=common \
   $(patsubst %,build/latex/%,$(RAW_DEPENDENCIES))
