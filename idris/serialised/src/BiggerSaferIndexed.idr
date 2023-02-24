@@ -83,8 +83,12 @@ namespace Serialising
     goBase start AnInt32 val = ([], start + 4) <$ setInt32 buf start (cast val)
     goBase start ABits64 val = ([], start + 8) <$ setBits64 buf start (getSingleton val)
     goBase start AnInt64 val = ([], start + 8) <$ setInt64 buf start (getSingleton val)
-    goBase start AnInteger val = ?setInteger
-    goBase start ANat val = ?setNat
+    goBase start AnInteger val
+      = do end <- setInteger buf start (getSingleton val)
+           pure ([end - start], end)
+    goBase start ANat val
+      = do end <- setNat buf start (getSingleton val)
+           pure ([end - start], end)
     goBase start AString val = do
       let str = getSingleton val
       let len = stringByteLength str
@@ -200,11 +204,15 @@ namespace Pointer
     pokeBase ABits64 el = do
       bs <- getBits64 (elemBuffer el) (elemPosition el)
       pure (unsafeMkSingleton bs)
-    pokeBase AnInt64 el =  do
+    pokeBase AnInt64 el = do
       bs <- getInt64 (elemBuffer el) (elemPosition el)
       pure (unsafeMkSingleton bs)
-    pokeBase AnInteger el = ?getInteger
-    pokeBase ANat el = ?getNat
+    pokeBase AnInteger el = do
+      bs <- getInteger (elemBuffer el) (elemPosition el)
+      pure (unsafeMkSingleton bs)
+    pokeBase ANat el = do
+      bs <- getNat (elemBuffer el) (elemPosition el)
+      pure (unsafeMkSingleton bs)
     pokeBase AString el = do
       str <- getString (elemBuffer el) (elemPosition el) (head $ subterms el)
       pure (unsafeMkSingleton str)
@@ -332,26 +340,26 @@ namespace Tree
   ||| Tree concat
   msg : Data.Mu Tree -> String
   msg t = case t of
-    "Leaf" # str => str
+    "Leaf" # _ # str # _ => str
     "Node" # l # _ # r => msg l ++ msg r
 
 namespace Raw
 
   ||| Raw sum
   export
-  sum : Pointer.Mu Tree _ -> IO Nat
-  sum ptr = case !(view ptr) of
-    "Leaf" # _ => pure 0
+  sums : Pointer.Mu Tree _ -> IO (Integer, Nat, Nat)
+  sums ptr = case !(view ptr) of
+    "Leaf" # i # _ # n => pure (getSingleton i, 0, getSingleton n)
     "Node" # l # b # r =>
-      do m <- sum l
-         n <- sum r
-         pure (m + cast b + n)
+      do (i, p, m) <- sums l
+         (j, q, n) <- sums r
+         pure (i + j, p + cast b + q, m + n)
 
   ||| Raw msg
   export
   msg : Pointer.Mu Tree _ -> IO String
   msg ptr = case !(view ptr) of
-    "Leaf" # str => pure (getSingleton str)
+    "Leaf" # _ # str # _ => pure (getSingleton str)
     "Node" # l # _ # r =>
       do str1 <- msg l
          str2 <- msg r
@@ -359,7 +367,9 @@ namespace Raw
 
 rightmost : Pointer.Mu Tree t -> IO String
 rightmost t = case !(out t) of
-  "Leaf" # el => getSingleton <$> poke el
+  "Leaf" # el => do _ # el <- poke el
+                    str # _ <- poke el
+                    getSingleton <$> poke str
   "Node" # el => do
     (_ # b # r) <- layer el
     rightmost r
@@ -388,7 +398,7 @@ namespace Data
   public export
   msg : Data.Mu Tree -> String
   msg = fold $ \ k, v => case k of
-    "Leaf" => v
+    "Leaf" => let (_ # str # _) = v in str
     "Node" => let (l # _ # r) = v in l ++ r
 
   ||| Map is obtained by applying a function transforming Bit16 values
@@ -396,7 +406,7 @@ namespace Data
   public export
   map : (Bits16 -> Bits16) -> Data.Mu Tree -> Data.Mu Tree
   map f = fold $ \ k, v => case k of
-    "Leaf" => leaf v
+    "Leaf" => let (i # str # n) = v in leaf i str n
     "Node" => let (l # b # r) = v in node l (f b) r
 
 -- Here we define the effectful functions processing a pointer
@@ -445,14 +455,14 @@ namespace Pointer
   msg : (ptr : Pointer.Mu Tree t) ->
         IO (Singleton (Data.msg t))
   msg ptr = case !(view ptr) of
-    "Leaf" # str => pure str
+    "Leaf" # _ # str # _ => pure str
     "Node" # l # _ # r =>
       do str1 <- msg l
          str2 <- msg r
          pure [| str1 ++ str2 |]
 
   export
-  leaf : Singleton str -> Serialising Tree (Tree.leaf str)
+  leaf : Singleton i -> Singleton str -> Singleton n -> Serialising Tree (Tree.leaf i str n)
   leaf = setMuK Tree 0
 
   export
@@ -471,7 +481,7 @@ namespace Pointer
         (ptr : Pointer.Mu Tree t) ->
         Serialising Tree (Data.map f t)
   map f ptr = case !(view ptr) of
-    "Leaf" # str => leaf str
+    "Leaf" # i # str # n => leaf i str n
     "Node" # l # b # r => node (map f l) (f <$> b) (map f r)
 
   ||| Simple printing function
@@ -526,7 +536,7 @@ initFromFile cs fp
 testing : Pointer.Mu Tree t -> IO ()
 testing tree = do
   putStrLn "Tree: \{!(display tree)}"
-  putStrLn "RSum: \{show !(Raw.sum tree)}"
+  putStrLn "RSum: \{show !(Raw.sums tree)}"
   putStrLn "Sum: \{show !(Pointer.sum tree)}"
   putStrLn "RMsg: \{!(Raw.msg tree)}"
   putStrLn "Msg: \{getSingleton !(Pointer.msg tree)}"

@@ -231,16 +231,28 @@ int sumAt (int buf[], int *ptr, int *res) {
 Already here:
 \begin{itemize}
   \item A monad to \emph{build} serialised value
+  \item More realistic universe (more base types)
 \end{itemize}
 \bigskip
 To Do:
 \begin{itemize}
-  \item More realistic universe (more base types)
-  \item Polymorphic data types
-  \item Better error handling (out of bounds access on reads, buffer resizing on writes)
-  \item Better partial evaluation / code generation
-  \item Benchmarking
-  \item More tightly packed representations
+  \item Expressivity
+  \begin{itemize}
+    \item Polymorphic data types
+    \item Indexed families
+  \end{itemize}
+
+  \item Performance
+  \begin{itemize}
+    \item Benchmarking
+    \item Tune partial evaluation / code generation
+    \item More tightly packed representations
+  \end{itemize}
+
+  \item Robustness
+  \begin{itemize}
+    \item Proper error handling
+  \end{itemize}
 \end{itemize}
 \end{frame}
 

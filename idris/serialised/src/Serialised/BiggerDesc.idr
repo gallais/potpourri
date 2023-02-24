@@ -380,7 +380,7 @@ namespace Tree
   public export
   Tree : Data String
   Tree = MkData
-    [ "Leaf" :: Val AString
+    [ "Leaf" :: Prd (Val AnInteger) (Prd (Val AString) (Val ANat))
     , "Node" :: Prd Rec (Prd (Val ABits16) Rec)
     ]
 
@@ -389,7 +389,7 @@ namespace Tree
   ATree = Data.Mu Tree
 
   public export
-  leaf : String -> ATree
+  leaf : Integer -> String -> Nat -> ATree
   leaf = mkMu Tree "Leaf"
 
   public export
@@ -400,6 +400,8 @@ namespace Tree
   example : ATree
   example =
     (node
-      (node (node (leaf "h") 1 (leaf "e")) 5 (leaf "l"))
+      (node (node (leaf (-10) "h" 10) 1 (leaf (-6) "e" 6))
+            5
+            (leaf (-1) "l" 1))
       10
-      (node (leaf "l") 20 (leaf "o")))
+      (node (leaf (-2) "l" 2) 20 (leaf (-9) "o" 9)))
