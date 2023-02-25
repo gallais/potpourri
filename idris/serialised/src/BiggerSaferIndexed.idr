@@ -208,10 +208,10 @@ namespace Pointer
       bs <- getInt64 (elemBuffer el) (elemPosition el)
       pure (unsafeMkSingleton bs)
     pokeBase AnInteger el = do
-      bs <- getInteger (elemBuffer el) (elemPosition el)
+      (_, bs) <- getInteger (elemBuffer el) (elemPosition el)
       pure (unsafeMkSingleton bs)
     pokeBase ANat el = do
-      bs <- getNat (elemBuffer el) (elemPosition el)
+      (_, bs) <- getNat (elemBuffer el) (elemPosition el)
       pure (unsafeMkSingleton bs)
     pokeBase AString el = do
       str <- getString (elemBuffer el) (elemPosition el) (head $ subterms el)
@@ -487,13 +487,12 @@ namespace Pointer
   ||| Simple printing function
   export
   display : Pointer.Mu Tree t -> IO String
-  display ptr = case !(out ptr) of
-    "Leaf" # t => pure "Leaf"
-    "Node" # t => do
-      (l # b # r) <- layer t
+  display ptr = case !(view ptr) of
+    "Leaf" # i # str # n => pure "(leaf \{show i} \{show str} \{show n})"
+    "Node" # l # b # r => do
       l <- display l
       r <- display r
-      pure "(node \{l} \{show (getSingleton b)} \{r})"
+      pure "(node \{l} \{show b} \{r})"
 
 namespace Serialising
 

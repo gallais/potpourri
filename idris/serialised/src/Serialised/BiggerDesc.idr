@@ -404,4 +404,4 @@ namespace Tree
             5
             (leaf (-1) "l" 1))
       10
-      (node (leaf (-2) "l" 2) 20 (leaf (-9) "o" 9)))
+      (node (leaf (-2) "l" 2) 20 (leaf (-9) "o world!" 9)))
