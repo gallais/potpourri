@@ -14,7 +14,7 @@ public export
 \end{code}
 %<*pair>
 \begin{code}
-record (*) (a, b : Type) where
+record Tuple (a, b : Type) where
   constructor (#)
   fst : a
   snd : b
@@ -23,12 +23,12 @@ record (*) (a, b : Type) where
 \begin{code}
 
 public export
-curry : ((a * b) -> r) -> a -> b -> r
+curry : (Tuple a b -> r) -> a -> b -> r
 curry f x y = f (x # y)
 
 export
-etaPair : (p : (a * b)) -> p === (fst p # snd p)
-etaPair (t # u) = Refl
+etaTuple : (p : Tuple a b) -> p === (fst p # snd p)
+etaTuple (t # u) = Refl
 
 parameters (buf : Buffer)
 

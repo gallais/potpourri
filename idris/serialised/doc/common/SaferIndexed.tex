@@ -58,7 +58,7 @@ namespace Data
   curry (Prod d e) f
     = SaferIndexed.Data.curry d {a = AllK e p (snd t) a}
     $ \ v => SaferIndexed.Data.curry e
-    $ \ w => f (rewrite etaPair t in v # w)
+    $ \ w => f (rewrite etaTuple t in v # w)
   curry Rec f = f
 
 namespace Serialising
@@ -215,7 +215,7 @@ namespace Pointer
       let left = MkMeaning n1 (elemBuffer el) (elemPosition el)
       let pos = elemPosition el + sum n1 + cast sl
       let right = MkMeaning n2 (elemBuffer el) pos
-      pure (rewrite etaPair t in left # right)
+      pure (rewrite etaTuple t in left # right)
     poke {d = Rec} el = pure (MkMu (elemBuffer el) (elemPosition el))
 
   namespace Layer

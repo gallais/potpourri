@@ -121,7 +121,7 @@ Show (Desc r s n) where
   showPrec _ None = "()"
   showPrec _ Byte = "Bits8"
   showPrec p (Prod d e) =
-    showParens (p <= Open) $ showPrec Open d ++ " * " ++ showPrec App e
+    showParens (Open < p) $ "Tuple \{showPrec App d} \{showPrec App e}"
   showPrec _ Rec = "X"
 
 export
@@ -259,25 +259,11 @@ namespace Data
   Meaning : Desc r s n -> Type -> Type
   Meaning None x = ()
   Meaning Byte x = Bits8
-  Meaning (Prod d e) x = (Meaning d x * Meaning e x)
+  Meaning (Prod d e) x = Tuple (Meaning d x) (Meaning e x)
   Meaning Rec x = x
 \end{code}
 %</meaning>
 \begin{code}
-
-  public export
-  Meaning' : Desc r s n -> Type -> Type -> Type
-  Meaning' None x r = r
-  Meaning' Byte x r = Bits8 -> r
-  Meaning' (Prod d e) x r = Meaning' d x (Meaning' e x r)
-  Meaning' Rec x r = x -> r
-
-  public export
-  curry : (d : Desc r s n) -> (Meaning d x -> a) -> Meaning' d x a
-  curry None k = k ()
-  curry Byte k = k
-  curry (Prod d e) k = curry d (curry e . curry k)
-  curry Rec k = k
 
   public export
 \end{code}
@@ -317,13 +303,6 @@ namespace Data
 \end{code}
 %</mu>
 \begin{code}
-
-  ||| Curried version of the constructor; more convenient to use
-  ||| when writing examples
-  public export
-  mkMu : (cs : Data nm) -> (k : Index cs) ->
-         Meaning' (description k) (Mu cs) (Mu cs)
-  mkMu cs k = curry (description k) (Data.(#) k)
 
   ||| Fixpoints are initial algebras
   public export
@@ -376,7 +355,7 @@ namespace Tree
 %<*leaf>
 \begin{code}
   leaf : Mu Tree
-  leaf = mkMu Tree "Leaf"
+  leaf = "Leaf" # ()
 \end{code}
 %</leaf>
 \begin{code}
@@ -386,7 +365,7 @@ namespace Tree
 %<*node>
 \begin{code}
   node : Mu Tree -> Bits8 -> Mu Tree -> Mu Tree
-  node = mkMu Tree "Node"
+  node l b r = "Node" # l # b # r
 \end{code}
 %</node>
 \begin{code}

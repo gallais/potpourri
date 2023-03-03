@@ -22,7 +22,12 @@ and \IdrisData{Rec} is the identity functor.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
 
-
+This gives us the action of descriptions on types, let us now
+see their action on morphisms.
+%
+We once again proceed by induction on the description.
+%
+All cases but the one for \IdrisData{Rec} are structural.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{fmap}
 
@@ -53,6 +58,14 @@ is unfortunately unable to see that \IdrisFunction{Meaning} uses its second
 argument in a strictly positive manner
 and that this is therefore a legal definition.
 
+Now that we are able to build whole trees as fixpoints of the
+meaning of descriptions, we can define convenient aliases for
+the \IdrisFunction{Tree} constructors.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
+\ExecuteMetaData[Serialised/Desc.idr.tex]{node}
+
+
 \IdrisType{Mu} give us the initial fixpoint for these algebras i.e.
 we have a \IdrisFunction{fold} function. Here we only use \assertTotal
 for convenience but this could easily be bypassed by mutually defining
@@ -60,11 +73,6 @@ an inlined and specialised version of
 (\IdrisFunction{fmap} (\IdrisFunction{fold} \IdrisBound{alg})).
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{fold}
-
-We can define convenient aliases for the \IdrisFunction{Tree} constructors.
-
-\ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
-\ExecuteMetaData[Serialised/Desc.idr.tex]{node}
 
 This enables us to define our running example.
 
