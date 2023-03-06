@@ -1,7 +1,9 @@
-PAPER=slides
-
 RAW_DEPENDENCIES=\
   robust-catch.tex \
+  motivations.tex \
+  universe.tex \
+  buffers.tex \
+  next.tex \
   idris2.sty \
   Serialised/Desc.idr.tex \
   SaferIndexed.idr.tex \
@@ -12,7 +14,7 @@ RAW_DEPENDENCIES=\
 DEPENDENCIES=common \
   $(patsubst %,build/latex/%,$(RAW_DEPENDENCIES))
 
-all: slides.pdf
+all: spls.pdf
 
 common:
 	$(MAKE) -C ../common

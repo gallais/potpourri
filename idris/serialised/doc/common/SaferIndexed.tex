@@ -435,7 +435,7 @@ namespace Pointer
   sum : Pointer.Mu Tree t ->
         IO (Singleton (Data.sum t))
   sum ptr = case !(view ptr) of
-    "Leaf" # t => pure [| Z |]
+    "Leaf" # _ => pure [| Z |]
     "Node" # l # b # r =>
       do m <- sum l
          n <- sum r
