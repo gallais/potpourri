@@ -18,14 +18,13 @@
 
 module Desc where
 
+import Data.ByteString (ByteString, index, readFile)
 import qualified Data.ByteString as B
 
 import Data.Bifunctor
 import Data.Bits
 import Data.Kind
 import Data.Maybe
-import Data.Primitive.ByteArray
-import Data.Primitive.ByteArray.Unaligned
 import Data.Proxy
 import Data.String
 import Data.Word
@@ -169,13 +168,13 @@ example = node (node (node leaf 1 leaf) 5 leaf)
 
 data MuP (cs :: Data)
   = MkMuP
-  { muBuffer :: ByteArray
+  { muBuffer :: ByteString
   , muPointer :: Int
   }
 
 data MeaningP (d :: Desc b) (cs :: Data)
   = MkMeaningP
-  { meaningBuffer :: ByteArray
+  { meaningBuffer :: ByteString
   , meaningPointer :: Int
   , meaningOffsets :: Vect (Offsets d) Int
   }
@@ -201,7 +200,7 @@ instance IsDesc None where
   layer _ = ()
 
 instance IsDesc Byte where
-  poke (MkMeaningP buf ptr offs) = indexUnalignedByteArray buf ptr
+  poke (MkMeaningP buf ptr offs) = index buf ptr
   layer = poke
 
 instance
@@ -259,15 +258,15 @@ instance (IsData cs, IsConstructor c) => IsData (c : cs) where
   isIndex 0 = pure here
   isIndex n = there <$> isIndex (n-1)
 
-readByte :: ByteArray -> Int -> Word8
-readByte buf ptr = indexUnalignedByteArray buf ptr
+readByte :: ByteString -> Int -> Word8
+readByte buf ptr = index buf ptr
 
-readInt64 :: ByteArray -> Int -> Int{-64-}
+readInt64 :: ByteString -> Int -> Int{-64-}
 readInt64 buf ptr
   = foldr (\ w i -> fromIntegral w + (i `shiftL` 8)) 0
   $ map (readByte buf . (ptr +)) [0..7] where
 
-readOffsets :: KnownNat n => ByteArray -> Int -> Vect n Int
+readOffsets :: KnownNat n => ByteString -> Int -> Vect n Int
 readOffsets buf ptr = tabulate (\ i -> readInt64 buf (ptr + (i * 8)))
 
 view :: forall cs. IsData cs => MuP cs -> View cs
@@ -291,6 +290,5 @@ summing ptr = case view ptr of
 
 main :: IO ()
 main = do
-  -- Is there a way to directly load a bytearray?
-  ptr <- flip MkMuP 0 . fromList . toList <$> B.readFile "tmp"
+  ptr <- flip MkMuP 0 <$> B.readFile "tmp"
   putStrLn $ show (summing ptr)
