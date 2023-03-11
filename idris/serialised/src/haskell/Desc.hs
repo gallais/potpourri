@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
+
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PolyKinds #-}
@@ -75,6 +75,7 @@ split xs = unsafeSplit (natVal (Proxy :: Proxy m)) xs where
   unsafeSplit n (C hd tl)
     = let (ls, rs) = unsafeSplit (n-1) (unsafeCoerce tl) in
       unsafeCoerce (C hd ls, rs)
+  unsafeSplit _ _ = error "The IMPOSSIBLE has happened"
 
 tabulate :: forall m a. KnownNat m => (Int -> a) -> Vect m a
 tabulate = unsafeTabulate (natVal (Proxy :: Proxy m)) where
@@ -83,12 +84,36 @@ tabulate = unsafeTabulate (natVal (Proxy :: Proxy m)) where
   unsafeTabulate 0 f = unsafeCoerce N
   unsafeTabulate n f = unsafeCoerce (C (f 0) (unsafeTabulate (n-1) (f.(1+))))
 
-data Constructor
+data Constructor' nm
    = (:::)
-   { name :: Symbol
+   { name :: nm
    , description :: Desc True
    }
-type Data = [Constructor]
+type Data' nm = [Constructor' nm]
+
+instance Show (Desc b) where
+  show = go 0 where
+
+    parens :: Bool -> String -> String
+    parens True str = "(" ++ str ++ ")"
+    parens False str = str
+
+    go :: forall b. Int -> Desc b -> String
+    go _ None = "()"
+    go _ Byte = "Bits8"
+    go p (Prod d e) = parens (0 < p) $ go 0 d ++ " * " ++ go 1 e
+    go _ Rec = "X"
+
+showData :: Data' nm -> String
+showData [] = "⊥"
+showData (c : cs)
+  = concat
+  $  ("μX. " ++ show (description c))
+  : ((" + " ++) <$> map (\ c -> show (description c)) cs)
+
+
+type Constructor = Constructor' Symbol
+type Data = Data' Symbol
 
 type family Names (cs :: Data) :: [Symbol] where
   Names '[] = '[]
@@ -139,7 +164,7 @@ class HasIndex' cs nm (b :: Bool) where
 
 hasIndex :: forall nm cs proxy. HasIndex cs nm
          => AtIndex cs (Lookup cs (Index cs nm)) nm (Index cs nm)
-hasIndex = hasIndex' @cs @nm (Proxy :: Proxy ((EQ nm (Name (Head cs)))))
+hasIndex = hasIndex' @cs @nm (Proxy :: Proxy (EQ nm (Name (Head cs))))
 
 type family HasIndex (cs :: Data) (nm :: Symbol) :: Constraint where
   HasIndex cs nm = HasIndex' cs nm (EQ nm (Name (Head cs)))
@@ -259,24 +284,41 @@ instance (IsData cs, IsConstructor c) => IsData (c : cs) where
   isIndex n = there <$> isIndex (n-1)
 
 readByte :: ByteString -> Int -> Word8
-readByte buf ptr = index buf ptr
+readByte = index
 
 readInt64 :: ByteString -> Int -> Int{-64-}
 readInt64 buf ptr
-  = foldr (\ w i -> fromIntegral w + (i `shiftL` 8)) 0
-  $ map (readByte buf . (ptr +)) [0..7] where
+  = foldr ((\ w i -> fromIntegral w + (i `shiftL` 8)) . (readByte buf . (ptr +))) 0 [0..7] where
 
 readOffsets :: KnownNat n => ByteString -> Int -> Vect n Int
-readOffsets buf ptr = tabulate (\ i -> readInt64 buf (ptr + (i * 8)))
+readOffsets buf ptr = tabulate (\ i -> readInt64 buf (ptr + i * 8))
+
+readDesc :: ByteString -> Int -> (Int, Desc b)
+readDesc buf ptr = case index buf ptr of
+  0 -> (ptr + 1, None)
+  1 -> (ptr + 1, Byte)
+  2 -> let (endl, d) = readDesc buf (ptr + 1) in
+       let (endr, e) = readDesc buf endl in
+       (endr, Prod d e)
+  3 -> (ptr + 1, Rec)
+  _ -> error "Invalid Desc format"
+
+readData :: ByteString -> Int -> (Int, Data' ())
+readData buf ptr = let ptr' = ptr + 8 in go (ptr' + 1) (readByte buf ptr') where
+
+  go :: Int -> Word8 -> (Int, Data' ())
+  go ptr 0 = (ptr, [])
+  go ptr n = let (endhd, c) = readDesc buf ptr in
+             ((() ::: c) :) <$> go endhd (n-1)
 
 view :: forall cs. IsData cs => MuP cs -> View cs
 view (MkMuP buf ptr)
   = let cons = readByte buf ptr in
     case isIndex @cs (fromIntegral cons) of
-      Nothing -> error "Invalid representation"
+      Nothing -> error "Invalid Mu format"
       Just (MkAnIndex MkIsConstructorDict (nm :: AtIndex cs c nm n)) ->
         let offs = natVal @(Offsets (Description c)) Proxy in
-        let ptr' = ptr + 1 + (fromIntegral offs * 8) in
+        let ptr' = ptr + 1 + fromIntegral offs * 8 in
         MkView nm $
         layer @_ @(Description c) @cs $
         MkMeaningP buf ptr' (readOffsets buf (ptr + 1))
@@ -288,7 +330,17 @@ summing ptr = case view ptr of
   MkView Z () -> 0
   MkView (S Z) (l, (b, r)) -> summing l + fromIntegral b + summing r
 
+testing :: FilePath -> IO ()
+testing fp = do
+  buf <- B.readFile fp
+  let (ptr, d) = readData buf 0
+  putStrLn (replicate 72 '-')
+  putStrLn ("-- Testing " ++ fp)
+  putStrLn (showData d)
+  print (summing $ MkMuP buf ptr)
+
+
 main :: IO ()
 main = do
-  ptr <- flip MkMuP 0 <$> B.readFile "tmp"
-  putStrLn $ show (summing ptr)
+  testing "tmp"
+  testing "tmp2"
