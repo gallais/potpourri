@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PolyKinds #-}

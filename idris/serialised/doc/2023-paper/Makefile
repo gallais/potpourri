@@ -2,8 +2,11 @@
 
 PAPER=paper
 RAW_DEPENDENCIES=\
+  binary-tree.tex \
+  sum-at.tex \
   robust-catch.tex \
   idris2.sty \
+  Motivating.idr.tex \
   Serialised/Desc.idr.tex \
   SaferIndexed.idr.tex \
   paper.bib \
@@ -44,7 +47,7 @@ build/latex/%.bib: %.bib
 	mkdir -p build/latex
 	cp $^ build/latex/
 
-build/latex/robust-catch.tex: ../common/robust-catch.tex
+build/latex/%.tex: ../common/%.tex
 	mkdir -p build/latex
 	cp $^ build/latex
 

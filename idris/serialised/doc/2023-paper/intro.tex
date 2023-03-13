@@ -1,25 +1,132 @@
 \section{Introduction}
 
-\todo{include sum.c}
+In (typed) functional language we are used to manipulating
+structured data by pattern-matching on it.
+We include an illustrative example below.
 
+\begin{minipage}{.5\textwidth}
+\input{binary-tree}
+\end{minipage}\hfill
+\begin{minipage}{.45\textwidth}
+  \ExecuteMetaData[Motivating.idr.tex]{motivation}
+\end{minipage}
 
-QTT~\cite{DBLP:conf/birthday/McBride16, DBLP:conf/lics/Atkey18}
+On the left, an example of a binary tree storing bytes in its nodes and
+nothing at its leaves.
+%
+On the right, a small \idris{} snippet defining the corresponding
+inductive type and declaring a function summing up all of the
+nodes' content.
+%
+It proceeds by pattern-matching:
+%
+if the tree is a leaf then we immediately return 0,
+otherwise we start by summing up the left and right subtrees, cast the
+byte to a natural number and add everything up.
+%
+Simply by virtue of being accepted by the typechecker, we know that
+this function is covering (all the possible patterns have been handled)
+and total (all the recursive calls are performed on smaller trees).
+
+At runtime, the tree will quite probably be represented by
+constructors-as-structs and substructures-as-pointers:
+%
+each constructor is a struct with a tag indicating which
+constructor is represented and subsequent fields storing
+the constructors' arguments.
+%
+Each argument will be either a value (e.g. a byte) or a pointer
+to either a boxed value or a substructure.
+
+If we were to directly write a function processing a value in this
+encoding, proving that a dispatch over a tag is covering, and that
+the pointer-chasing is terminating relies on global invariants
+tying the encoding to the inductive type.
+
+Crucially, the functional language allows us to ignore all of these
+details and program at a higher level of abstraction where we can
+benefit from strong guarantees.
+
+Unfortunately not all data comes structured as inductive values
+abstracting over a constructors-as-structs and substructures-as-pointers
+runtime representation.
+%
+Data that is stored in a file or received over the network is typically
+represented in a contiguous format.
+%
+Using a naïve serialisation format (a left-to-right in-order traversal
+of the tree where leaves are represented by the byte 0, and nodes by
+the byte 1), the above example tree could be represented by the
+following list of bytes
+(each byte is represented by two hexadecimal character,
+we have additionally \IdrisData{highlighted} the bytes stored in the nodes):
+
+\begin{hexdump}
+01 01 01 00 \hexadata{01} 00 \hexadata{05} 00 \hexadata{0a} 01 00 \hexadata{14} 00
+\end{hexdump}
+
+The idiomatic way to process such data in a functional language
+is to first deserialise it as an inductive type and then call
+the \IdrisFunction{sum} function we defined above.
+%
+If we were using a lower-level language however, we could directly
+process the serialised data without the need to fully deserialise it.
+%
+A basic C implementation of such a sum function could look something
+like the following:
+
+\input{sum-at}
+
+This function takes a buffer, a pointer currently indicating the start of
+a tree, and an accumulator in which we add up all the values.
+%
+We start (line 2) by reading the byte the pointer is referencing and
+immediately move the pointer past it.
+%
+This is the tag indicating which constructor is at the root of the tree
+and so we inspect it (line 3).
+%
+If the tag is 0 (line 4), the tree is a leaf and so we return.
+%
+If the tag is 1 (line 5), then the tree starts with a node and the rest
+of the buffer contains the left subtree, the byte stored in the node,
+and then the right subtree.
+%
+We start by summing the left subtree (line 6),
+after which the pointer has been moved past its end and is now pointing
+at the byte stored in the node.
+We can therefore dereference the byte and move the pointer past it (line 7),
+increment the accumulator by the value thus obtained (line 8)
+and finally sum the right subtree (line 9).
+%
+At the end the accumulator contains the sum of the nodes' content.
+
+As we can readily see, this program
+directly performs pointer arithmetic,
+explicitly mentions buffer reads,
+and relies on undocumented global invariants
+such as the structure of the data stored in the buffer,
+or the fact the pointer is being moved along and points directly past
+the end of a subtree once \texttt{sumAt} has finished computing
+its sum.
+
+Our goal with this work is to completely hide away all of these
+dangerous aspects
+and offer the user the ability to program over serialised data
+just as seamlessly and correctly as
+if they were processing inductive values.
+%
+We will see that
+Quantitative Type Theory (QTT)~\cite{DBLP:conf/birthday/McBride16, DBLP:conf/lics/Atkey18}
 as implemented in \idris{}~\cite{DBLP:conf/ecoop/Brady21}
-
-
-
-
-Our goal with this work is to be able to seamlessly and correctly
-operate on algebraic data stored in a buffer in serialised format
-(i.e. a linear representation laid out in contiguous memory blocks),
-instead of trees
-(i.e. data represented by nodes-as-structs and subtrees-as-pointers).
+empowers us to do just that purely in library code.
 
 \subsection{Seamless Programming over Serialised Data}
 
 Forgetting about correctness for now, this can be summed up by the
 two following code snippets describing how we can compute the sum
-of the values stored in a tree of non-negative numbers.
+of the values stored in the type of tree we are using as a running
+example.
 
 \noindent
 \begin{minipage}{.4\textwidth}
@@ -35,18 +142,19 @@ used in these snippets
 \IdrisType{Pointer.Mu} in \cref{sec:pointers}).
 %
 For now, it is enough to understand that the function on the left hand
-side is taking a tree apart by pattern-matching and returning a natural
-number corresponding to the sum of the values stored in its nodes;
+side is analogous to the one presented at the start of this article: it
+is a pure function taking a tree apart by pattern-matching and returning
+a natural number corresponding to the sum of the values stored in its nodes;
 %
 and that the one on the right hand side is an \IdrisType{IO} process
 inspecting a buffer that contains such a tree stored in serialised format
 and computing the same sum.
 
 In both cases, if we have uncovered a leaf
-({\IdrisData{MkMu} \IdrisData{0}} \IdrisKeyword{\KatlaUnderscore{}})
+({\IdrisData{"Leaf"} \IdrisData{\#}} \IdrisKeyword{\KatlaUnderscore{}})
 then we return zero,
 and if we have uncovered a node
-({\IdrisData{MkMu} \IdrisData{1}} \IdrisKeyword{(}\IdrisBound{l} \IdrisData{\#} \IdrisBound{b}  \IdrisData{\#} \IdrisBound{r}\IdrisKeyword{)})
+({\IdrisData{"Node"} \IdrisData{\#}} \IdrisBound{l} \IdrisData{\#} \IdrisBound{b} \IdrisData{\#} \IdrisBound{r})
 with
 a left branch \IdrisBound{l},
 a stored byte \IdrisBound{b},
@@ -56,13 +164,21 @@ cast the byte to a natural number and add everything up.
 
 Crucially, the two functions look eerily similar, and the one operating on
 serialised data does not explicitly perform error-prone pointer arithmetic,
-or low-level buffer reads. This is the first way in which our approach shines.
+or low-level buffer reads.
+%
+This is the first way in which our approach shines.
 
+One major difference between the two functions comes from the fact that
+we can easily prove some of the pure function's property whereas we
+cannot prove anything about the \IdrisType{IO} process without first
+explicitly postulating the \IdrisType{IO} monad's properties.
+%
+Our second contribution tackles this issue.
 
 \subsection{Correct Programming over Serialised Data}
 
-Coming back to correctness, we will see that we can actually refine that
-second definition and obtain a correct-by-construction version of
+We will see that we can refine that second definition to obtain
+a correct-by-construction version of
 \IdrisFunction{sum}, with almost exactly the same code.
 
 \begin{center}
@@ -75,7 +191,7 @@ In the above snippet, we can see that the \IdrisType{Pointer.Mu} is indexed
 by a phantom parameter: a runtime irrelevant \IdrisBound{t} which has type
 (\IdrisType{Data.Mu} \IdrisFunction{Tree}).
 %
-And so the return type is able to mention the pure \IdrisFunction{sum}
+And so the return type is able to mention the pure \IdrisFunction{Data.sum}
 function that consumes inductively defined trees.
 %
 \IdrisType{Singleton} is, as its name suggests, a singleton type. That is
@@ -98,6 +214,8 @@ in the nodes we used in the examples above: we capture an entire universe of
 inductive types.
 
 This is our third contribution.
+
+\todo{Altenkirch \& McBride quote?}
 
 \subsection{Plan}
 

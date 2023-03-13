@@ -1,5 +1,7 @@
 RAW_DEPENDENCIES=\
   robust-catch.tex \
+  binary-tree.tex \
+  sum-at.tex \
   motivations.tex \
   universe.tex \
   buffers.tex \
@@ -27,7 +29,7 @@ build/latex/%.tex: %.tex
 	mkdir -p build/latex
 	cp $^ build/latex/
 
-build/latex/robust-catch.tex: ../common/robust-catch.tex
+build/latex/%.tex: ../common/%.tex
 	mkdir -p build/latex
 	cp $^ build/latex
 

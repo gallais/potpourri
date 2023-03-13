@@ -13,6 +13,17 @@
 \usepackage{todonotes}
 \setuptodonotes{inline}
 
+\usepackage{listings}
+
+\lstset{ %
+  language=C,
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=5pt,
+  breaklines=true,
+}
+
 %%%%%%%%%%%%% BLINDING
 
 \newtoggle{BLIND}
@@ -20,7 +31,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\title{A Universe for Serialised Data}
+\title{Seamless, Correct, Generic Programming over Serialised Data}
 \author{\iftoggle{BLIND}{ANONYMOUS}{Guillaume Allais}}
 
 \newcommand{\idris}{Idris 2}
@@ -61,6 +72,8 @@ data stored in the buffer.
 \input{conclusion}
 
 \input{acknowledgements}
+
+\newpage
 \bibliography{paper}
 
 \end{document}
