@@ -6,6 +6,7 @@ RAW_DEPENDENCIES=\
   sum-at.tex \
   robust-catch.tex \
   idris2.sty \
+  Lib.idr.tex \
   Motivating.idr.tex \
   Serialised/Desc.idr.tex \
   SaferIndexed.idr.tex \

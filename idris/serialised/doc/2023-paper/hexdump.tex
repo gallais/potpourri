@@ -77,7 +77,7 @@ This will allow us to, for instance, implement a function looking up the
 value stored in the rightmost node in the tree (if it exists) in time linear
 in the depth of the tree rather than exponential.
 %
-To this end each node needs to store an offset
+To this end each node needs to store an offset measuring the size of the left subtree.
 
 Before we can define the meaning of our descriptions as pointers
 into buffers, we need to decide on a serialised representation of

@@ -37,12 +37,12 @@ the constructors' arguments.
 %
 Each argument will be either a value (e.g. a byte) or a pointer
 to either a boxed value or a substructure.
-
+%
 If we were to directly write a function processing a value in this
 encoding, proving that a dispatch over a tag is covering, and that
 the pointer-chasing is terminating relies on global invariants
 tying the encoding to the inductive type.
-
+%
 Crucially, the functional language allows us to ignore all of these
 details and program at a higher level of abstraction where we can
 benefit from strong guarantees.
@@ -161,7 +161,7 @@ a stored byte \IdrisBound{b},
 and a right branch \IdrisBound{r},
 then we recursively compute the sums for the left and right subtrees,
 cast the byte to a natural number and add everything up.
-
+%
 Crucially, the two functions look eerily similar, and the one operating on
 serialised data does not explicitly perform error-prone pointer arithmetic,
 or low-level buffer reads.

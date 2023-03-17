@@ -94,11 +94,21 @@ description {cs} k = description (index (getIndex k) (constructors cs))
 
 ||| A little bit of magic
 public export
+isConstructor : Eq nm => nm -> (cs : Data nm) -> Maybe (Fin cs.consNumber)
+isConstructor x cs = findIndex ((x ==) . Constructor.name) (constructors cs)
+
+public export
+\end{code}
+%<*fromString>
+\begin{code}
 fromString : {cs : Data String} -> (str : String) ->
-             {auto 0 _ : IsJust (findIndex ((str ==) . Constructor.name) (constructors cs))} ->
+             {auto 0 _ : IsJust (isConstructor str cs)} ->
              Index cs
-fromString {cs} str with (findIndex ((str ==) . Constructor.name) (constructors cs))
-  _ | Just k = MkIndex k
+fromString {cs} str with (isConstructor str cs)
+ _ | Just k = MkIndex k
+\end{code}
+%</fromString>
+\begin{code}
 
 ||| Another kind of magic
 public export
@@ -350,6 +360,23 @@ namespace Tree
 %</treedesc>
 \begin{code}
 
+\end{code}
+%<*indexleaf>
+\begin{code}
+  indexLeaf : Index Tree
+  indexLeaf = "Leaf"
+\end{code}
+%</indexleaf>
+
+\end{code}
+%<*notindexcons>
+\begin{code}
+  failing
+    notIndexCons : Index Tree
+    notIndexCons = "Cons"
+\end{code}
+%</notindexcons>
+\begin{code}
   public export
 \end{code}
 %<*leaf>

@@ -1,48 +1,95 @@
 \section{Meaning as Trees}\label{sec:trees}
 
+This is a standard semantics of description akin to
+\todo{cite}
+and does not make any use of the invariants that \IdrisType{Desc}
+tracks.
+%
+In our work it will be used primarily to allow users to give
+a precise specification of the functions they actually want to
+write on values stored in buffers.
+
 \subsection{\IdrisType{Desc}s as Functors}
 
-We can define the meaning of descriptions as strictly positive
+We define the meaning of descriptions as strictly positive
 endofunctors on \IdrisType{Type} by induction on said descriptions.
 %
-\IdrisFunction{Meaning} gives us the action of the functors on objects
-while \IdrisFunction{fmap} gives us their action on morphisms.
-%
-Verifying that these definitions respect the functor laws is left as
-an exercise for the reader.
+\IdrisFunction{Meaning} gives us the action of the functors on objects.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
 
 Both \IdrisData{None} and \IdrisData{Byte} are interpreted by constant
 functors (respectively the one returning the unit type, and the one returning
-the type of bytes),
-%
-(\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e}) is interpreted as the
-pairing of the interpretation of \IdrisBound{d} and \IdrisBound{e} respectively,
-%
-and \IdrisData{Rec} is the identity functor.
+the type of bytes).
 
-\ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
+\IdrisData{Rec} is the identity functor.
+
+
+Finally (\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e})
+is interpreted as the pairing of the interpretation of
+\IdrisBound{d} and \IdrisBound{e} respectively.
+We use our own definition of pairing rather than the
+standard library's because it gives us better syntactic sugar:
+
+\ExecuteMetaData[Lib.idr.tex]{pair}
 
 This gives us the action of descriptions on types, let us now
 see their action on morphisms.
 %
 We once again proceed by induction on the description.
-%
-All cases but the one for \IdrisData{Rec} are structural.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{fmap}
 
+All cases but the one for \IdrisData{Rec} are structural.
+%
+Verifying that these definitions respect the functor laws is left as
+an exercise for the reader.
+
 \subsection{\IdrisType{Data} as Trees}
 
-We can define the type of algebras for the functor described by a
-\IdrisType{Data} description as follows
-%: for each choice of constructor
-%(\IdrisType{Fin} (\IdrisFunction{length} \IdrisBound{cs})),
-%we can collapse a layer
+Given a datatype description \IdrisBound{cs}, our first goal is
+to define what it means to pick a constructor.
+%
+The \IdrisType{Index} record is a thin layer around a finite
+natural number known to be smaller than the number of constructors
+this type provides.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{index}
+
+We use this type rather than \IdrisType{Fin} directly because it
+plays well with inference and allows us to provide users with
+syntactic sugar enabling them to use the constructors' names
+directly rather than confusing numeric indices.
+%
+The following function runs a decision procedure
+\IdrisFunction{isConstructor} at the type level
+in order to turn any raw string \IdrisBound{str}
+into the corresponding \IdrisType{Index}.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{fromString}
+
+If the name is not valid then idris will not be able to
+find the index and will return a compile time error as demonstrated
+below with a successful example on the left and a failing test
+on the right hand side (\IdrisKeyword{failing} blocks are only
+accepted in \idris{} if their body leads to an error).
+
+\begin{minipage}[t]{0.3\textwidth}
+  \ExecuteMetaData[Serialised/Desc.idr.tex]{indexleaf}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.5\textwidth}
+\ExecuteMetaData[Serialised/Desc.idr.tex]{notindexcons}
+\end{minipage}
+
+Once equipped with the ability to pick constructors, we can define
+the type of algebras for the functor described by a \IdrisType{Data}
+description as the definition of an algebra for every possible choice
+of constructor.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{alg}
 
-We can then define the fixpoints of functors as
-
+We can then define the fixpoints of functors as the following
+inductive type.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{mu}
 
@@ -58,7 +105,7 @@ is unfortunately unable to see that \IdrisFunction{Meaning} uses its second
 argument in a strictly positive manner
 and that this is therefore a legal definition.
 
-Now that we are able to build whole trees as fixpoints of the
+Now that we can build whole trees as fixpoints of the
 meaning of descriptions, we can define convenient aliases for
 the \IdrisFunction{Tree} constructors.
 
@@ -67,7 +114,7 @@ the \IdrisFunction{Tree} constructors.
 
 
 \IdrisType{Mu} give us the initial fixpoint for these algebras i.e.
-we have a \IdrisFunction{fold} function. Here we only use \assertTotal
+we have a \IdrisFunction{fold} function. Here we only use \assertTotal{}
 for convenience but this could easily be bypassed by mutually defining
 an inlined and specialised version of
 (\IdrisFunction{fmap} (\IdrisFunction{fold} \IdrisBound{alg})).
