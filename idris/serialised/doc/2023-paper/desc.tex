@@ -37,8 +37,9 @@ Each constructor can be used anywhere in a description so their return
 \IdrisBound{rightmost} index can be an arbitrary boolean.
 
 \IdrisData{None} is the description of values of type unit. The static
-size of these values is zero (no data is stored in a value of type unit)
-and they do not require an offset to be stored as we know their size.
+size of these values is zero as no data is stored in a value of type unit.
+Similarly, they do not require an offset to be stored as we statically
+know their size.
 
 \IdrisData{Byte} is the description of bytes.
 %
@@ -79,6 +80,12 @@ using unification and so users do not need
 to spell them out explicitly.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{constructor}
+
+Note that we used \IdrisData{(::)} as the name of the
+constructor for records of type \IdrisType{Constructor}.
+This allows us to define constructors by forming an
+expression reminiscent of Haskell's type declarations:
+\IdrisBound{name} \IdrisData{::} \IdrisBound{type}.
 
 Returning to our running example, this gives us the following encodings for
 leaves that do not store anything

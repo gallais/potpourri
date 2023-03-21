@@ -78,16 +78,3 @@ value stored in the rightmost node in the tree (if it exists) in time linear
 in the depth of the tree rather than exponential.
 %
 To this end each node needs to store an offset measuring the size of the left subtree.
-
-Before we can define the meaning of our descriptions as pointers
-into buffers, we need to decide on a serialised representation of
-our trees.
-
-
-
-offsets are 8 bytes each and record just enough information to
-allow us to jump past parts of the data that we do not require (e.g. finding
-the rightmost node can be done without deserialising any left branch),
-
-the type of the data being stored is encoded so that loading
-can be done in safe mode

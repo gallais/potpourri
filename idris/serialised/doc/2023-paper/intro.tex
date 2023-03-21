@@ -169,7 +169,8 @@ or low-level buffer reads.
 This is the first way in which our approach shines.
 
 One major difference between the two functions comes from the fact that
-we can easily prove some of the pure function's property whereas we
+we can easily prove some of the pure function's properties by structural
+an induction on the input tree whereas we
 cannot prove anything about the \IdrisType{IO} process without first
 explicitly postulating the \IdrisType{IO} monad's properties.
 %
@@ -228,7 +229,7 @@ manipulation of algebraic types in serialised format.
 
 \Cref{sec:desc} introduces the language of descriptions capturing the
 subset of inductively defined types that our work can handle.
-It differs slightly from usual presentation in that it ensures the
+It differs slightly from usual presentations in that it ensures the
 types can be serialised and tracks crucial invariants towards that goal.
 
 \Cref{sec:trees} gives a standard meaning to these data descriptions
