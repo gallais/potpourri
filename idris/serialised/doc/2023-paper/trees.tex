@@ -113,6 +113,13 @@ and that this is therefore a legal definition.
 Now that we can build whole trees as fixpoints of the
 meaning of descriptions, we can define convenient aliases for
 the \IdrisFunction{Tree} constructors.
+%
+Note that the leftmost \IdrisData{(\#)} use in each definition corresponds
+to the \IdrisType{Mu} constructror while later ones are \IdrisType{Tuple}
+constructors.
+%
+\idris{}'s type-directed disambiguation of constructors allows us to use
+this uniform notation for all of these pairing notions.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
 \ExecuteMetaData[Serialised/Desc.idr.tex]{node}
