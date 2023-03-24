@@ -106,11 +106,11 @@ namespace Serialising
            pure end
 
   export
-  setMu : {cs : Data nm} -> (k : Index cs) ->
-          {0 t : Meaning (description k) (Data.Mu cs)} ->
-          All (description k) (Serialising cs) t ->
-          Serialising cs (k # t)
-  setMu (MkIndex k) layer
+  (#) : {cs : Data nm} -> (k : Index cs) ->
+        {0 t : Meaning (description k) (Data.Mu cs)} ->
+        All (description k) (Serialising cs) t ->
+        Serialising cs (k # t)
+  MkIndex k # layer
     = MkSerialising $ \ buf, start =>
         goMu buf start k (index k $ constructors cs) layer
 
@@ -139,8 +139,7 @@ namespace Buffer
 
   setMu : {cs : Data nm} -> (t : Data.Mu cs) -> Serialising cs t
   setMu (k # t)
-    = Serialising.setMu k
-    $ all (description k) (assert_total Buffer.setMu) t
+    = k # (all (description k) (assert_total Buffer.setMu) t)
 
   export
   writeToFile : {cs : Data nm} -> String -> Mu cs -> IO ()
@@ -476,13 +475,18 @@ namespace Pointer
   ||| Serialising ensures that the value we compute is the same as if
   ||| we had directly processed `t`.
   export
+\end{code}
+%<*serialisedmap>
+\begin{code}
   map : (f : Bits8 -> Bits8) ->
         (ptr : Pointer.Mu Tree t) ->
         Serialising Tree (Data.map f t)
   map f ptr = case !(view ptr) of
-    "Leaf" # () => leaf
-    "Node" # l # b # r => node (map f l) (f <$> b) (map f r)
-
+    "Leaf" # () => "Leaf" # ()
+    "Node" # l # b # r => "Node" # map f l # [| f b |] # map f r
+\end{code}
+%</serialisedmap>
+\begin{code}
   ||| Simple printing function
   export
   display : Pointer.Mu Tree t -> IO String
