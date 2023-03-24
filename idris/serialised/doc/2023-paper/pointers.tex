@@ -1,5 +1,81 @@
 \section{Meaning as Pointers into a Buffer}\label{sec:pointers}
 
+Now that we know the serialisation format, we can give a meaning
+to constructor and data descriptions as pointers into a buffer.
+
+\subsection{Tracking Buffer Positions}
+
+We start with the definition of the counterpart to \IdrisType{Mu}
+for serialised values. A tree sitting in a buffer is represented
+by the pairing of the buffer and the offset at which the tree's
+root node is stored.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pointermu}
+
+For reasons that will become apparent in \todo{ref}
+when we start programming over serialised data in a correct-by-construction
+manner the record \IdrisType{Mu} is parameterised not only by the description
+of the data type stored but also by a runtime-irrelevant inductive value of
+that type.
+
+
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{elem}
+
+Once we have a type of pointers into values stored in the buffer
+we can start looking at what is actually stored.
+
+\subsection{Poking the Buffer}
+
+Our most basic operation consists in poking the buffer to unfold
+the description by exactly one step.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefun}
+
+The result type of this operation is defined by induction on the
+description.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokedata}
+
+
+The implementation of this operation is necessarily unsafe.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefunbody}
+
+By repeatedly poking the buffer, we can unfold the full layer.
+The result of this operation is once again definded by induction
+on the description. It is identical to the definition of
+\IdrisFunction{Poke} except for the \IdrisData{Prod} case:
+here, instead of being content with a pointer for each of the
+subdescriptions, we demand a full layer for them too.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{layerdata}
+
+This function can easily be implemented by repeatedly calling
+\IdrisFunction{poke}.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{layerfun}
+
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
+\ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
+
+
+
+
+We can combine \IdrisFunction{out} and \IdrisFunction{layer} to obtain
+the \IdrisFunction{view} function we used in our introductory examples
+in~\Cref{sec:seamless}.
+
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{viewdata}
+\ExecuteMetaData[SaferIndexed.idr.tex]{viewfun}
+
+
+
+
+
+
 These are views
 (in the sense of Wadler~\cite{DBLP:conf/popl/Wadler87},
 and McBride and McKinna~\cite{DBLP:journals/jfp/McBrideM04})

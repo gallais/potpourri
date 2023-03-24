@@ -205,6 +205,7 @@ namespace Pointer
            IO (Poke d cs t)
 \end{code}
 %</pokefun>
+%<*pokefunbody>
 \begin{code}
     poke {d = None} el = pure ()
     poke {d = Byte} el = do
@@ -217,23 +218,35 @@ namespace Pointer
       let right = MkMeaning n2 (elemBuffer el) pos
       pure (rewrite etaTuple t in left # right)
     poke {d = Rec} el = pure (MkMu (elemBuffer el) (elemPosition el))
-
+\end{code}
+%</pokefunbody>
+\begin{code}
   namespace Layer
-
     public export
     data Layer' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
 
     public export
-    Layer : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
-    Layer d@(Prod _ _) cs t = Layer' d cs t
+\end{code}
+%<*layerdata>
+\begin{code}
+    Layer : (d : Desc r s n) -> (cs : Data nm) ->
+            Data.Meaning d (Data.Mu cs) -> Type
     Layer None _ _ = ()
     Layer Byte _ t = Singleton t
+    Layer d@(Prod _ _) cs t = Layer' d cs t
     Layer Rec cs t = Pointer.Mu cs t
 
-    data Layer' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
+    data Layer' : (d : Desc r s n) -> (cs : Data nm) ->
+                  Data.Meaning d (Data.Mu cs) -> Type where
       (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t # u)
+\end{code}
+%</layerdata>
+\begin{code}
 
     export
+\end{code}
+%<*layerfun>
+\begin{code}
     layer : {0 cs : Data nm} -> {d : Desc r s n} ->
             forall t. Pointer.Meaning d cs t -> IO (Layer d cs t)
     layer el = poke el >>= go d where
@@ -244,6 +257,9 @@ namespace Pointer
       go Byte p = pure p
       go (Prod d e) (p # q) = [| layer p # layer q |]
       go Rec p = pure p
+\end{code}
+%</layerfun>
+\begin{code}
 
 \end{code}
 %<*outdata>
