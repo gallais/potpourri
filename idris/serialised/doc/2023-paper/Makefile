@@ -7,6 +7,7 @@ RAW_DEPENDENCIES=\
   robust-catch.tex \
   idris2.sty \
   Lib.idr.tex \
+  Data/Singleton.idr.tex \
   Motivating.idr.tex \
   Serialised/Desc.idr.tex \
   SaferIndexed.idr.tex \

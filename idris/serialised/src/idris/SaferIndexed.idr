@@ -282,7 +282,7 @@ namespace Pointer
            (forall t. Mu cs t -> IO (Singleton (f t))) ->
            forall t. Meaning d cs t ->
            IO (Singleton (Data.fmap d f t))
-    fmap d f act v = poke v >>= go d where
+    fmap d f act ptr = poke ptr >>= go d where
 
       go : (d : Desc{}) -> forall t. Poke d cs t -> IO (Singleton (Data.fmap d f t))
       go None {t} v = rewrite etaUnit t in pure (pure ())

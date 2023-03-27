@@ -177,7 +177,7 @@ namespace Pointer
 
     public export
 \end{code}
-%<*pokedata>
+%<*pokedatafun>
 \begin{code}
     Poke : (d : Desc r s n) -> (cs : Data nm) ->
            Data.Meaning d (Data.Mu cs) -> Type
@@ -185,14 +185,20 @@ namespace Pointer
     Poke Byte cs t = Singleton t
     Poke d@(Prod _ _) cs t = Poke' d cs t
     Poke Rec cs t = Pointer.Mu cs t
+\end{code}
+%</pokedatafun>
+\begin{code}
 
+\end{code}
+%<*pokedatadata>
+\begin{code}
     data Poke' : (d : Desc r s n) -> (cs : Data nm) ->
                  Data.Meaning d (Data.Mu cs) -> Type where
       (#) : Pointer.Meaning d cs t ->
             Pointer.Meaning e cs u ->
             Poke' (Prod d e) cs (t # u)
 \end{code}
-%</pokedata>
+%</pokedatadata>
 \begin{code}
 
     export
@@ -349,14 +355,18 @@ namespace Pointer
 
     export
 \end{code}
-%<*fmap>
+%<*fmaptype>
 \begin{code}
     fmap : (d : Desc{}) ->
-           (0 f : Mu cs -> b) ->
-           (forall t. Mu cs t -> IO (Singleton (f t))) ->
-           forall t. Meaning d cs t ->
+           (0 f : Data.Mu cs -> b) ->
+           (forall t. Pointer.Mu cs t -> IO (Singleton (f t))) ->
+           forall t. Pointer.Meaning d cs t ->
            IO (Singleton (Data.fmap d f t))
-    fmap d f act v = poke v >>= go d where
+\end{code}
+%</fmaptype>
+%<*fmapfun>
+\begin{code}
+    fmap d f act ptr = poke ptr >>= go d where
 
       go : (d : Desc{}) -> forall t. Poke d cs t ->
            IO (Singleton (Data.fmap d f t))
@@ -368,7 +378,7 @@ namespace Pointer
              pure [| fv # fw |]
       go Rec v = act v
 \end{code}
-%</fmap>
+%</fmapfun>
 \begin{code}
 
     export
