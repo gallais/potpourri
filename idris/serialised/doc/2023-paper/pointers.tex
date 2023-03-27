@@ -79,3 +79,19 @@ in~\Cref{sec:seamless}.
 These are views
 (in the sense of Wadler~\cite{DBLP:conf/popl/Wadler87},
 and McBride and McKinna~\cite{DBLP:journals/jfp/McBrideM04})
+
+
+\subsection{Generic Fold}
+
+The implementation of the generic \IdrisFunction{fold} over a tree stored
+in a buffer follows the same structure as the generic fold over inductive
+values.
+%
+We start by implementing the buffer-based counterpart to \IdrisFunction{fmap}.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{fmap}
+
+We can then combine \IdrisFunction{out} and \IdrisFunction{fmap} to compute
+the correct-by-construction fold.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{fold}

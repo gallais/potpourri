@@ -29,7 +29,7 @@ modules = Data.Singleton
 -- name of executable
 -- executable =
 -- opts =
-sourcedir = "src"
+sourcedir = "."
 -- builddir =
 -- outputdir =
 

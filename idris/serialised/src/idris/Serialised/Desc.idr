@@ -244,11 +244,19 @@ namespace Data
   curry Rec k = k
 
   public export
-  fmap : {d : Desc{}} -> (a -> b) -> Meaning d a -> Meaning d b
-  fmap {d = None} f v = v
-  fmap {d = Byte} f v = v
-  fmap {d = Prod d e} f (v # w) = (fmap f v # fmap f w)
-  fmap {d = Rec} f v = f v
+  fmap : (d : Desc{}) -> (a -> b) -> Meaning d a -> Meaning d b
+  fmap None f v = v
+  fmap Byte f v = v
+  fmap (Prod d e) f (v # w) = (fmap d f v # fmap e f w)
+  fmap Rec f v = f v
+
+  public export
+  traverse : Monad m => (d : Desc{}) ->
+             (a -> m b) -> Meaning d a -> m (Meaning d b)
+  traverse None f v = pure v
+  traverse Byte f v = pure v
+  traverse (Prod d e) f (v # w) = [| traverse d f v # traverse e f w |]
+  traverse Rec f v = f v
 
 ------------------------------------------------------------------------
 -- Meaning of data descriptions as fixpoints
@@ -274,7 +282,7 @@ namespace Data
   ||| Fixpoints are initial algebras
   public export
   fold : {cs : Data nm} -> (alg : Alg cs a) -> (t : Mu cs) -> a
-  fold alg (k # t) = alg k (assert_total $ fmap (fold alg) t)
+  fold alg (k # t) = alg k (assert_total $ fmap _ (fold alg) t)
 
 ------------------------------------------------------------------------
 -- Examples

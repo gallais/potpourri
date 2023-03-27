@@ -275,6 +275,51 @@ namespace Pointer
                   vs <- layer el
                   pure (k # vs)
 
+
+    export
+    fmap : (d : Desc{}) ->
+           (0 f : Mu cs -> b) ->
+           (forall t. Mu cs t -> IO (Singleton (f t))) ->
+           forall t. Meaning d cs t ->
+           IO (Singleton (Data.fmap d f t))
+    fmap d f act v = poke v >>= go d where
+
+      go : (d : Desc{}) -> forall t. Poke d cs t -> IO (Singleton (Data.fmap d f t))
+      go None {t} v = rewrite etaUnit t in pure (pure ())
+      go Byte v = pure v
+      go (Prod d e) (v # w)
+        = do v <- fmap d f act v
+             w <- fmap e f act w
+             pure [| v # w |]
+      go Rec v = act v
+
+    export
+    traverse : Monad m => (d : Desc{}) ->
+               (0 f : Mu cs -> m b) ->
+               (forall t. Mu cs t -> IO (Singleton (f t))) ->
+               forall t. Meaning d cs t ->
+               IO (Singleton (Data.traverse d f t))
+    traverse d f act v = poke v >>= go d where
+
+      go : (d : Desc{}) -> forall t. Poke d cs t -> IO (Singleton (Data.traverse d f t))
+      go None {t} v = rewrite etaUnit t in pure (pure (pure ()))
+      go Byte v = pure [| pure v |]
+      go (Prod d e) (v # w)
+        = do v <- traverse d f act v
+             w <- traverse e f act w
+             let v = [| pure (pure (#)) <*> v |]
+             pure [| v <*> w |]
+      go Rec v = act v
+
+    export
+    fold : {cs : Data nm} -> (alg : Alg cs a) ->
+           forall t. Mu cs t -> IO (Singleton (Data.fold alg t))
+    fold alg ptr
+      = do k # t <- out ptr
+           rec <- assert_total (fmap _ _ (fold alg) t)
+           pure (alg k <$> rec)
+
+
 namespace Tree
 
   ||| Tree sum

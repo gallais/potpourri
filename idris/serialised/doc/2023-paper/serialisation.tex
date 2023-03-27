@@ -1,3 +1,16 @@
 \section{Serialising Data}\label{sec:serialising}
 
+So far all of our example programs involved taking an inductive value
+apart and computing a numeric value.
+%
+But we may instead want to compute another value in serialised form.
+%
+In this section we are going to spell out how we can define high-level
+constructs allowing users to do just that in a correct-by-construction
+manner.
+
+
+
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialisedmap}
+
+\subsection{Generic Traverse}
