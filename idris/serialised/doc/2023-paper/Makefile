@@ -5,6 +5,7 @@ RAW_DEPENDENCIES=\
   binary-tree.tex \
   sum-at.tex \
   robust-catch.tex \
+  safefold.tex \
   idris2.sty \
   Lib.idr.tex \
   Data/Singleton.idr.tex \

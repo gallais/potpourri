@@ -279,9 +279,23 @@ namespace Data
          Meaning' (description k) (Mu cs) (Mu cs)
   mkMu cs k = curry (description k) (Data.(#) k)
 
+  namespace Safe
+
+    fold : {cs : Data nm} -> Alg cs a -> Mu cs -> a
+    fmapFold : {cs : Data nm} -> (d : Desc{}) ->
+                   Alg cs a -> Meaning d (Mu cs) -> Meaning d a
+
+    fold alg (k # t) = alg k (fmapFold _ alg t)
+
+    fmapFold None alg t = t
+    fmapFold Byte alg t = t
+    fmapFold (Prod d e) alg (s # t)
+      = (fmapFold d alg s # fmapFold e alg t)
+    fmapFold Rec alg t = fold alg t
+
   ||| Fixpoints are initial algebras
   public export
-  fold : {cs : Data nm} -> (alg : Alg cs a) -> (t : Mu cs) -> a
+  fold : {cs : Data nm} -> Alg cs a -> Mu cs -> a
   fold alg (k # t) = alg k (assert_total $ fmap _ (fold alg) t)
 
 ------------------------------------------------------------------------
