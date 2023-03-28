@@ -2,8 +2,8 @@
 \section{Programming with Buffers}
 
 \begin{frame}{Serialisation Format}
-\hspace*{-1em}\ExecuteMetaData[Serialised/Desc.idr.tex]{example}
-
+\ExecuteMetaData[Serialised/Desc.idr.tex]{example}
+\vfill
 \begin{hexdump}%
 87654321\hphantom{:} 00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF
 00000000: \hexaoffset{07 00 00 00 00 00 00 00} \hexadesc{02 00 02 03 02 01 03} \hexacons{01}
@@ -14,25 +14,25 @@
 \end{frame}
 
 \begin{frame}{Meaning as Pointers}
-  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{elem}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{elem}
 
-  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{pointermu}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{pointermu}
 \end{frame}
 
 \begin{frame}{Inspecting Buffers: Head Constructor}
-  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
-  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
 \end{frame}
 
 \begin{frame}{Inspecting Buffers: Extracting Head Data}
-  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{pokedatafun}
-  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{pokedatadata}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{pokedatafun}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{pokedatadata}
 \end{frame}
 \begin{frame}{Inspecting Buffers: Extracting Head Data (ct'd)}
-  \hspace*{-2em}\ExecuteMetaData[SaferIndexed.idr.tex]{pokefun}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{pokefun}
 \end{frame}
 
 \begin{frame}{A More Convenient View}
-  \hspace*{-3em}\ExecuteMetaData[SaferIndexed.idr.tex]{viewdata}
-  \hspace*{-3em}\ExecuteMetaData[SaferIndexed.idr.tex]{viewfun}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{viewdata}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{viewfun}
 \end{frame}
