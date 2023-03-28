@@ -147,12 +147,14 @@ namespace Buffer
 
 namespace Pointer
 
+  export
   record Meaning (d : Desc r s n) (cs : Data nm) (t : Data.Meaning d (Data.Mu cs)) where
     constructor MkMeaning
     subterms : Vect n Int
     elemBuffer : Buffer
     elemPosition : Int
 
+  export
   record Mu (cs : Data nm) (t : Data.Mu cs) where
     constructor MkMu
     muBuffer : Buffer
@@ -215,11 +217,13 @@ namespace Pointer
       go (Prod d e) (p # q) = [| layer p # layer q |]
       go Rec p = pure p
 
+  public export
   data Out : (cs : Data nm) -> (t : Data.Mu cs) -> Type where
     (#) : (k : Index cs) ->
           forall t. Pointer.Meaning (description k) cs t ->
           Out cs (k # t)
 
+  export
   out : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
   out {t} mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
@@ -275,7 +279,6 @@ namespace Pointer
                   vs <- layer el
                   pure (k # vs)
 
-
     export
     fmap : (d : Desc{}) ->
            (0 f : Mu cs -> b) ->
@@ -316,7 +319,7 @@ namespace Pointer
            forall t. Mu cs t -> IO (Singleton (Data.fold alg t))
     fold alg ptr
       = do k # t <- out ptr
-           rec <- assert_total (fmap _ _ (fold alg) t)
+           rec <- assert_total (fmap (description k) _ (fold alg) t)
            pure (alg k <$> rec)
 
 

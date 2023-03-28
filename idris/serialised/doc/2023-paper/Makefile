@@ -12,6 +12,7 @@ RAW_DEPENDENCIES=\
   Motivating.idr.tex \
   Serialised/Desc.idr.tex \
   SaferIndexed.idr.tex \
+  SafeFolds.idr.tex \
   paper.bib \
   intro.tex \
   desc.tex \

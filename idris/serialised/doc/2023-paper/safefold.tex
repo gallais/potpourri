@@ -1,8 +1,13 @@
-\section{\assertTotal{}-free \IdrisFunction{fold}}\label{sec:safefold}
+\section{Defining \IdrisFunction{fold} without using \assertTotal{}}\label{sec:safefold}
 
-We include below the alternative definition of \IdrisFunction{fold} which
-is seen as total by \idris{}. It is mutually defined with what is essentially
+We include below the alternative definitions of \IdrisFunction{fold}
+(respectively processing inductive data and data stored in a buffer)
+which are seen as total by \idris{}.
+%
+Each of them is mutually defined with what is essentially
 the supercompilation of
 (\IdrisKeyword{\textbackslash} \IdrisBound{d} \IdrisKeyword{=>} \IdrisFunction{fmap} \IdrisBound{d} (\IdrisFunction{fold} \IdrisBound{alg})).
 
-\ExecuteMetaData[Serialised/Desc.idr.tex]{safefold}
+\ExecuteMetaData[SafeFolds.idr.tex]{datafold}
+
+\ExecuteMetaData[SafeFolds.idr.tex]{pointerfold}
