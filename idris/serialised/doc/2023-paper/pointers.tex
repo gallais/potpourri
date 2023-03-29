@@ -18,12 +18,50 @@ manner the record \IdrisType{Mu} is parameterised not only by the description
 of the data type stored but also by a runtime-irrelevant inductive value of
 that type.
 
-
-
 \ExecuteMetaData[SaferIndexed.idr.tex]{elem}
 
 Once we have a type of pointers into values stored in the buffer
 we can start looking at what is actually stored.
+%
+But first let us have a look at the \IdrisType{Singleton} family
+which will help us connect the values we read or compute to their
+runtime-irrelevant type-level counterparts.
+
+\subsection{Interlude: the \IdrisType{Singleton} type}\label{sec:datasingleton}
+
+The \IdrisType{Singleton} family has a single constructor
+which takes an argument \IdrisBound{x} of type \IdrisBound{a},
+its return type is indexed precisely by this \IdrisBound{x}.
+
+\ExecuteMetaData[Data/Singleton.idr.tex]{singleton}
+
+More concretely this means that a value of type
+(\IdrisType{Singleton} $t$) has to be a runtime relevant
+copy of the term $t$.
+%
+Note that \idris{}'s optimisation of data types with a single
+non-recursive constructor means that at runtime the
+\IdrisType{Singleton} / \IdrisData{MkSingleton} wrappers
+will not be present anymore.
+
+
+We can define some convenient combinators to manipulate
+singletons.
+%
+We reuse the naming conventions typically used for applicative
+functors which will allow us to rely on \idris{}'s automatic
+desugaring of \emph{idiom brackets}~\cite{DBLP:journals/jfp/McbrideP08}
+into expressions using these combinators.
+
+\ExecuteMetaData[Data/Singleton.idr.tex]{pure}
+
+First \IdrisFunction{pure} is a simple alias for \IdrisData{MkSingleton},
+it turns a runtime-relevant value \IdrisBound{x} into a singleton for
+this value.
+
+
+\ExecuteMetaData[Data/Singleton.idr.tex]{fmap}
+\ExecuteMetaData[Data/Singleton.idr.tex]{ap}
 
 \subsection{Poking the Buffer}
 
@@ -63,11 +101,10 @@ we have a substructure. In this case we simply demand a pointer to it.
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokedatadata}
 
 
-\ExecuteMetaData[Data/Singleton.idr.tex]{singleton}
-
-
-
-The implementation of this operation is necessarily unsafe.
+The implementation of this operation is necessarily unsafe as we claim
+to be able to connect a type-level value to whatever it is that we read
+from the buffer. Hence the use of \believeMe{} in the \IdrisData{Byte}
+case.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunbody}
 
@@ -89,6 +126,8 @@ This function can easily be implemented by repeatedly calling
 \ExecuteMetaData[SaferIndexed.idr.tex]{layerfun}
 
 \subsection{Exposing the top constructor}
+
+
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
 \ExecuteMetaData[SaferIndexed.idr.tex]{outfun}

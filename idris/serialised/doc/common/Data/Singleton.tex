@@ -18,16 +18,34 @@ getSingleton : Singleton {a} x -> a
 getSingleton (MkSingleton x) = x
 
 public export
+\end{code}
+%<*pure>
+\begin{code}
 pure : (x : a) -> Singleton x
 pure = MkSingleton
+\end{code}
+%</pure>
+\begin{code}
 
 public export
+\end{code}
+%<*fmap>
+\begin{code}
 (<$>) : (f : a -> b) -> Singleton x -> Singleton (f x)
 f <$> MkSingleton x = MkSingleton (f x)
+\end{code}
+%</fmap>
+\begin{code}
 
 public export
+\end{code}
+%<*ap>
+\begin{code}
 (<*>) : Singleton f -> Singleton x -> Singleton (f x)
 MkSingleton f <*> MkSingleton x = MkSingleton (f x)
+\end{code}
+%</ap>
+\begin{code}
 
 export
 Show a => Show (Singleton {a} x) where
