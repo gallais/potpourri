@@ -71,6 +71,9 @@ The implementation of this operation is necessarily unsafe.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunbody}
 
+
+\subsection{Extracting one layer}
+
 By repeatedly poking the buffer, we can unfold the full layer.
 The result of this operation is once again definded by induction
 on the description. It is identical to the definition of
@@ -85,12 +88,13 @@ This function can easily be implemented by repeatedly calling
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{layerfun}
 
+\subsection{Exposing the top constructor}
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
 \ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
 
 
-
+\subsection{Offering a convenient \IdrisType{View}}
 
 We can combine \IdrisFunction{out} and \IdrisFunction{layer} to obtain
 the \IdrisFunction{view} function we used in our introductory examples
@@ -100,15 +104,22 @@ in~\Cref{sec:seamless}.
 \ExecuteMetaData[SaferIndexed.idr.tex]{viewdata}
 \ExecuteMetaData[SaferIndexed.idr.tex]{viewfun}
 
-
-
-
-
-
 These are views
 (in the sense of Wadler~\cite{DBLP:conf/popl/Wadler87},
 and McBride and McKinna~\cite{DBLP:journals/jfp/McBrideM04})
 
+
+It is worth noting that although a \IdrisFunction{view} may be
+convenient to consume, a performance-minded user may decide to
+directly use the \IdrisFunction{out} and \IdrisFunction{poke}
+combinators to avoid deserialising values that they do not need.
+%
+For instance, given a binary tree storing strings in its nodes and
+natural numbers at its leaves, if the user only wants to extract the
+rightmost natural number in the tree there is no need to deserialise
+all of the strings encountered on the way down.
+
+\todo{Add rightmost and rightmost' as case studies in an appendix?}
 
 \subsection{Generic Fold}
 
