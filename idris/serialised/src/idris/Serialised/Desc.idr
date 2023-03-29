@@ -315,3 +315,16 @@ namespace Tree
       (node (node leaf 1 leaf) 5 leaf)
       10
       (node leaf 20 leaf))
+
+  public export
+  bigexample : ATree
+  bigexample =
+    (node
+      (node (node leaf 1 leaf) 5 leaf)
+      10
+      (node leaf 20
+        (node
+          (node leaf 56 (node leaf 5 leaf))
+          17
+          (node leaf 23
+            (node leaf 78 leaf)))))
