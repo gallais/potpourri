@@ -36,9 +36,9 @@ data Desc : (rightmost : Bool) ->
 data Desc where
   None : Desc r 0 0
   Byte : Desc r 1 0
-  Prod : {sl, sr, m, n : Nat} ->
-         Desc False sl m -> Desc r sr n ->
-         Desc r (sl + sr) (m + n)
+  Prod : {sl, sr, ol, or : Nat} ->
+         Desc False sl ol -> Desc r sr or ->
+         Desc r (sl + sr) (ol + or)
   Rec : Desc r 0 (ifThenElse r 0 1)
 \end{code}
 %</desc>

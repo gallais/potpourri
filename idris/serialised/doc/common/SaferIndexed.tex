@@ -214,20 +214,33 @@ namespace Pointer
            IO (Poke d cs t)
 \end{code}
 %</pokefun>
-%<*pokefunbody>
+%<*pokefunNone>
 \begin{code}
     poke {d = None} el = pure ()
+\end{code}
+%</pokefunNone>
+%<*pokefunByte>
+\begin{code}
     poke {d = Byte} el = do
       bs <- getBits8 (elemBuffer el) (elemPosition el)
       pure (believe_me (MkSingleton bs))
-    poke {d = Prod {sl} d e} {t} el = do
-      let (n1, n2) = splitAt _ (subterms el)
-      let left = MkMeaning n1 (elemBuffer el) (elemPosition el)
-      let pos = elemPosition el + sum n1 + cast sl
-      let right = MkMeaning n2 (elemBuffer el) pos
+\end{code}
+%</pokefunByte>
+%<*pokefunProd>
+\begin{code}
+    poke {d = Prod {sl, ol} d e} {t} el = do
+      let (subl, subr) = splitAt ol (subterms el)
+      let left = MkMeaning subl (elemBuffer el) (elemPosition el)
+      let pos = elemPosition el + sum subl + cast sl
+      let right = MkMeaning subr (elemBuffer el) pos
       pure (rewrite etaTuple t in left # right)
+\end{code}
+%</pokefunProd>
+%<*pokefunRec>
+\begin{code}
     poke {d = Rec} el = pure (MkMu (elemBuffer el) (elemPosition el))
 \end{code}
+%</pokefunRec>
 %</pokefunbody>
 \begin{code}
   namespace Layer

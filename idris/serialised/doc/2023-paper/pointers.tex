@@ -12,7 +12,7 @@ root node is stored.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pointermu}
 
-For reasons that will become apparent in \todo{ref}
+For reasons that will become apparent in \Cref{sec:bufferfold}
 when we start programming over serialised data in a correct-by-construction
 manner the record \IdrisType{Mu} is parameterised not only by the description
 of the data type stored but also by a runtime-irrelevant inductive value of
@@ -36,7 +36,7 @@ the description by exactly one step.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefun}
 
-The result type of this operation is defined by induction on the
+The result type of this operation is defined by case-analysis on the
 description. In order to keep the notations user-friendly, we
 mutually define
 a recursive function \IdrisFunction{Poke} interpreting the straightforward type constructors
@@ -62,18 +62,58 @@ for records, it will me more ergonomic for users if we introduce
 Last but not least if the description is \IdrisData{Rec} this means
 we have a substructure. In this case we simply demand a pointer to it.
 
-
-
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokedatadata}
 
+The implementation of this operation proceeds by case analysis
+on the description.
+%
+As we are going to see shortly, it is necessarily somewhat unsafe
+as we claim to be able to connect a type-level value to whatever
+it is that we read from the buffer.
 
-The implementation of this operation is necessarily unsafe as we claim
-to be able to connect a type-level value to whatever it is that we read
-from the buffer. Hence the use of \believeMe{} in the \IdrisData{Byte}
-case.
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefunNone}
 
-\ExecuteMetaData[SaferIndexed.idr.tex]{pokefunbody}
+If the description is \IdrisData{None} we do not need to fetch any
+information from the buffer.
 
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefunByte}
+
+If the description is \IdrisData{Byte} then we read a byte at the
+determined position. The only way we can connect this value we just
+read to the type index is to use \idris{}'s unsafe primitive
+\believeMe{} to cast the value of type
+(\IdrisType{Singleton} \IdrisBound{bs})
+to the expected
+(\IdrisType{Singleton} \IdrisBound{t}).
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefunProd}
+
+If the description is the product of two sub-descriptions then we
+want to compute the \IdrisType{Pointer.Meaning} corresponding to
+each of them.
+%
+We start by splitting the vector of offsets to distribute them between
+the left and right subtrees.
+%
+We can readily build the pointer for the \IdrisBound{left} subdescription:
+it takes the left offsets, the buffer, and has the same starting position
+as the whole description of the product as they are stored one after the other.
+%
+We then compute the starting position of the right subtree: we need to
+move past the whole of the left subtree, that is to say past the space
+reserved by all of the left offsets (\IdrisFunction{sum} \IdrisBound{subl})
+but also past the content whose size is known statically (\IdrisBound{sl}).
+%
+We can finally use an eta-equality lemma to turn \IdrisBound{t} into
+(\IdrisFunction{fst} \IdrisBound{t} \IdrisData{\#} \IdrisFunction{snd} \IdrisBound{t})
+which lets use the \IdrisType{Poke'} constructor \IdrisData{(\#)} to return our
+pair of pointers.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefunRec}
+
+Lastly, when we reach a \IdrisData{Rec} description, we can discard the
+vector of offsets and return a \IdrisType{Pointer.Mu} with the same buffer
+and starting position as our input pointer.
 
 \subsection{Extracting one layer}
 
@@ -112,7 +152,7 @@ in~\Cref{sec:seamless}.
 These are views
 (in the sense of Wadler~\cite{DBLP:conf/popl/Wadler87},
 and McBride and McKinna~\cite{DBLP:journals/jfp/McBrideM04})
-
+\todo{explain}
 
 It is worth noting that although a \IdrisFunction{view} may be
 convenient to consume, a performance-minded user may decide to
@@ -126,7 +166,7 @@ all of the strings encountered on the way down.
 
 \todo{Add rightmost and rightmost' as case studies in an appendix?}
 
-\subsection{Generic Fold}
+\subsection{Generic Fold}\label{sec:bufferfold}
 
 The implementation of the generic \IdrisFunction{fold} over a tree stored
 in a buffer is going to have the same structure as the generic fold over
