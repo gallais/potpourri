@@ -219,7 +219,7 @@ namespace Pointer
     poke {d = None} el = pure ()
     poke {d = Byte} el = do
       bs <- getBits8 (elemBuffer el) (elemPosition el)
-      pure (believe_me $ MkSingleton bs)
+      pure (believe_me (MkSingleton bs))
     poke {d = Prod {sl} d e} {t} el = do
       let (n1, n2) = splitAt _ (subterms el)
       let left = MkMeaning n1 (elemBuffer el) (elemPosition el)
@@ -376,7 +376,7 @@ namespace Pointer
 
       go : (d : Desc{}) -> forall t. Poke d cs t ->
            IO (Singleton (Data.fmap d f t))
-      go None {t} v = rewrite etaUnit t in pure (pure ())
+      go None {t} v = pure byIrrelevance
       go Byte v = pure v
       go (Prod d e) (v # w)
         = do fv <- fmap d f act v
@@ -397,7 +397,7 @@ namespace Pointer
 
       go : (d : Desc{}) -> forall t. Poke d cs t ->
            IO (Singleton (Data.traverse d f t))
-      go None {t} v = rewrite etaUnit t in pure (pure (pure ()))
+      go None {t} v = pure (pure <$> byIrrelevance)
       go Byte v = pure [| pure v |]
       go (Prod d e) (v # w)
         = do v <- traverse d f act v

@@ -154,6 +154,10 @@ namespace Pointer
     elemBuffer : Buffer
     elemPosition : Int
 
+  public export
+  0 meant : Meaning d cs t -> Data.Meaning d (Data.Mu cs)
+  meant {t} _ = t
+
   export
   record Mu (cs : Data nm) (t : Data.Mu cs) where
     constructor MkMu
@@ -181,7 +185,7 @@ namespace Pointer
     poke {d = None} el = pure ()
     poke {d = Byte} el = do
       bs <- getBits8 (elemBuffer el) (elemPosition el)
-      pure (believe_me $ MkSingleton bs)
+      pure (unsafeMkSingleton bs)
     poke {d = Prod {sl} d e} {t} el = do
       let (n1, n2) = splitAt _ (subterms el)
       let left = MkMeaning n1 (elemBuffer el) (elemPosition el)
@@ -288,7 +292,7 @@ namespace Pointer
     fmap d f act ptr = poke ptr >>= go d where
 
       go : (d : Desc{}) -> forall t. Poke d cs t -> IO (Singleton (Data.fmap d f t))
-      go None {t} v = rewrite etaUnit t in pure (pure ())
+      go None {t} v = pure byIrrelevance
       go Byte v = pure v
       go (Prod d e) (v # w)
         = do v <- fmap d f act v
@@ -305,7 +309,7 @@ namespace Pointer
     traverse d f act v = poke v >>= go d where
 
       go : (d : Desc{}) -> forall t. Poke d cs t -> IO (Singleton (Data.traverse d f t))
-      go None {t} v = rewrite etaUnit t in pure (pure (pure ()))
+      go None {t} v = pure (pure <$> byIrrelevance)
       go Byte v = pure [| pure v |]
       go (Prod d e) (v # w)
         = do v <- traverse d f act v
@@ -322,6 +326,12 @@ namespace Pointer
            rec <- assert_total (fmap (description k) _ (fold alg) t)
            pure (alg k <$> rec)
 
+    export
+    deserialise : {cs : Data nm} -> forall t. Mu cs t -> IO (Singleton t)
+    deserialise ptr = do
+      k # ptr <- out ptr
+      t <- assert_total (fmap (description k) id deserialise ptr)
+      pure ((k #) <$> transport (fmapId (description k) id (\ _ => Refl) _) t)
 
 namespace Tree
 

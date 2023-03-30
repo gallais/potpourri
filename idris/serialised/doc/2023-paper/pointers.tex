@@ -27,41 +27,7 @@ But first let us have a look at the \IdrisType{Singleton} family
 which will help us connect the values we read or compute to their
 runtime-irrelevant type-level counterparts.
 
-\subsection{Interlude: the \IdrisType{Singleton} type}\label{sec:datasingleton}
-
-The \IdrisType{Singleton} family has a single constructor
-which takes an argument \IdrisBound{x} of type \IdrisBound{a},
-its return type is indexed precisely by this \IdrisBound{x}.
-
-\ExecuteMetaData[Data/Singleton.idr.tex]{singleton}
-
-More concretely this means that a value of type
-(\IdrisType{Singleton} $t$) has to be a runtime relevant
-copy of the term $t$.
-%
-Note that \idris{}'s optimisation of data types with a single
-non-recursive constructor means that at runtime the
-\IdrisType{Singleton} / \IdrisData{MkSingleton} wrappers
-will not be present anymore.
-
-
-We can define some convenient combinators to manipulate
-singletons.
-%
-We reuse the naming conventions typically used for applicative
-functors which will allow us to rely on \idris{}'s automatic
-desugaring of \emph{idiom brackets}~\cite{DBLP:journals/jfp/McbrideP08}
-into expressions using these combinators.
-
-\ExecuteMetaData[Data/Singleton.idr.tex]{pure}
-
-First \IdrisFunction{pure} is a simple alias for \IdrisData{MkSingleton},
-it turns a runtime-relevant value \IdrisBound{x} into a singleton for
-this value.
-
-
-\ExecuteMetaData[Data/Singleton.idr.tex]{fmap}
-\ExecuteMetaData[Data/Singleton.idr.tex]{ap}
+\input{singleton}
 
 \subsection{Poking the Buffer}
 

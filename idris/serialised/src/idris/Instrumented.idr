@@ -190,7 +190,7 @@ namespace Pointer
     poke {d = Byte} el = do
       bs <- getBits8 (elemBuffer el) (elemPosition el)
       n <- tick
-      pure (n, believe_me $ MkSingleton bs)
+      pure (n, unsafeMkSingleton bs)
     poke {d = Prod {sl} d e} {t} el = do
       let (n1, n2) = splitAt _ (subterms el)
       let left = MkMeaning n1 (elemBuffer el) (elemPosition el)

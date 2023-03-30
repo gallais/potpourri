@@ -250,6 +250,14 @@ namespace Data
   fmap (Prod d e) f (v # w) = (fmap d f v # fmap e f w)
   fmap Rec f v = f v
 
+  export
+  fmapId : (d : Desc{}) -> (f : a -> a) -> ((x : a) -> f x === x) ->
+           (t : Meaning d a) -> fmap d f t === t
+  fmapId None f eq t = Refl
+  fmapId Byte f eq t = Refl
+  fmapId (Prod d e) f eq (t # u) = cong2 (#) (fmapId d f eq t) (fmapId e f eq u)
+  fmapId Rec f eq t = eq t
+
   public export
   traverse : Monad m => (d : Desc{}) ->
              (a -> m b) -> Meaning d a -> m (Meaning d b)

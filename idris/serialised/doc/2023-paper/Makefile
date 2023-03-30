@@ -19,6 +19,7 @@ RAW_DEPENDENCIES=\
   trees.tex \
   hexdump.tex \
   pointers.tex \
+  singleton.tex \
   serialisation.tex \
   related-work.tex \
   conclusion.tex \
