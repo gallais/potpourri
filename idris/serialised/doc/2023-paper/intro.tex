@@ -243,7 +243,7 @@ inductive types.
 We will use this standard meaning in the specification layer of our work.
 
 \Cref{sec:hexdump} explores the serialisation format we have picked
-for these trees and the definition of a generic serialisation function.
+for these trees.
 
 \Cref{sec:pointers} defines IO primitives that operate on serialised
 trees stored in an underlying buffer.
@@ -252,7 +252,8 @@ They encapsulate all the unsafe low-level operations and offer a
 high-level interface that allows users to implement correct-by-construction
 procedures.
 
-\Cref{sec:serialising} defines a serialisation monad that allows us to
-implement correct-by-construction procedures writing values into a buffer.
+\Cref{sec:serialising} defines a set of serialisation combinators that
+allows users to implement correct-by-construction procedures writing
+values into a buffer.
 
 \todo{Add benchmarks?}
