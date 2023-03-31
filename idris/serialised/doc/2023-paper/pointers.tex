@@ -276,6 +276,7 @@ We poke the buffer to reveal the value the \IdrisType{Pointer.Meaning}
 named \IdrisBound{ptr} is pointing at and then dispatch over the description
 \IdrisBound{d} using the \IdrisFunction{go} auxiliary function.
 
+\todo{No we don't (anymore)}
 If the description is \IdrisData{None} we rewrite by the lemma
 \IdrisFunction{etaUnit} which proves that all the values of the unit type
 are equal to \IdrisData{()}. This then allows us to return \IdrisData{()}.
