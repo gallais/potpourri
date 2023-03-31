@@ -151,7 +151,12 @@ described by combining both components.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
 
-
+The type of the \IdrisFunction{out} is as expected: given a pointer
+to a tree \IdrisBound{t} of type \IdrisBound{cs} we can get a value
+of type (\IdrisType{Out} \IdrisBound{cs} \IdrisBound{t}).
+%
+That is to say, we can get a view allowing us to reveal what the
+index of the tree's head constructor is.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
 
@@ -171,8 +176,9 @@ $[0 \cdots \text{\IdrisFunction{consNumber} \IdrisBound{cs}}[$ using
 We then use the unsafe \IdrisPostulate{unfoldAs} primitive to step the
 type-level \IdrisBound{t} to something of the form
 (\IdrisBound{k} \IdrisData{\#} \IdrisBound{val}).
-It is marked as runtime irrelevant because it cannot possibly be
-implemented (\IdrisBound{t} is runtime irrelevant and so cannot be inspected)
+The declaration of \IdrisPostulate{unfoldAs} is marked as runtime
+irrelevant because it cannot possibly be implemented
+(\IdrisBound{t} is runtime irrelevant and so cannot be inspected)
 and so should its output should not be relied upon in runtime-relevant
 computations.
 
@@ -192,17 +198,18 @@ to build such a value.
 The implementation of \IdrisType{getOffsets} is straightforward: given
 a continuation that expect \IdrisBound{n} offsets as well as the
 position past the last of these offsets, we read the 8-bytes-long
-offsets one by one, making sure that we move the current position
-accordingly before every recursive call.
+offsets one by one and pass them to the continuation, making sure
+that we move the current position accordingly before every recursive call.
 
 \subsection{Offering a convenient \IdrisType{View}}
 
 We can combine \IdrisFunction{out} and \IdrisFunction{layer} to obtain
 the \IdrisFunction{view} function we used in our introductory examples
 in~\Cref{sec:seamless}.
-
-A (\IdrisType{View} $t$) value gives us access to the \IdrisType{Index}
-of $t$'s top constructor together with the corresponding
+%
+A (\IdrisType{View} \IdrisBound{cs} \IdrisBound{t}) value gives us
+access to the (\IdrisType{Index} \IdrisBound{cs}) of
+\IdrisBound{t}'s top constructor together with the corresponding
 \IdrisFunction{Layer} of deserialised values.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{viewdata}
@@ -221,7 +228,7 @@ pointer references.
 These are views
 (in the sense of Wadler~\cite{DBLP:conf/popl/Wadler87},
 and McBride and McKinna~\cite{DBLP:journals/jfp/McBrideM04})
-\todo{explain}
+\todo{explain and move earlier}
 
 It is worth noting that although a \IdrisFunction{view} may be
 convenient to consume, a performance-minded user may decide to
