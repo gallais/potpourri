@@ -223,7 +223,7 @@ namespace Pointer
 \begin{code}
     poke {d = Byte} el = do
       bs <- getBits8 (elemBuffer el) (elemPosition el)
-      pure (believe_me (MkSingleton bs))
+      pure (unsafeMkSingleton bs)
 \end{code}
 %</pokefunByte>
 %<*pokefunProd>
@@ -303,46 +303,52 @@ namespace Pointer
         IO (Out cs t)
 \end{code}
 %</outfun>
+%<*outfunbody>
 \begin{code}
   out {t} mu = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
-    let Just k = natToFin (cast tag) (consNumber cs)
+    let Just k = MkIndex <$> natToFin (cast tag) (consNumber cs)
       | _ => failWith "Invalid representation"
-    let k = MkIndex k
     let 0 sub = unfoldAs k t
     val <- (k #) <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
     pure (rewrite sub.snd in val)
+\end{code}
+%</outfunbody>
+\begin{code}
 
     where
 
-    -- postulated, utterly unsafe
-    0 unfoldAs :
-      (k : Index cs) -> (t : Data.Mu cs) ->
-      (val : Data.Meaning (description k) (Data.Mu cs)
-       ** t === (k # val))
-    {-
-    unfoldAs k (MkMu l@_ val) with (decEq k l)
-      _ | Yes Refl = (val ** Refl)
-      _ | No _ = failWith "The IMPOSSIBLE has happened"
-    -}
-
-    getOffsets : Buffer -> Int -> -- Buffer & position
-                 (n : Nat) ->
-                 forall t. (Vect n Int -> Int -> Pointer.Meaning d cs t) ->
-                 IO (Pointer.Meaning d cs t)
+\end{code}
+%<*getOffsets>
+\begin{code}
+    getOffsets : Buffer -> (pos : Int) ->
+      (n : Nat) ->
+      forall t. (Vect n Int -> Int -> Pointer.Meaning d cs t) ->
+      IO (Pointer.Meaning d cs t)
     getOffsets buf pos 0 k = pure (k [] pos)
     getOffsets buf pos (S n) k = do
       off <- getInt buf pos
       getOffsets buf (8 + pos) n (k . (off ::))
+\end{code}
+%</getOffsets>
+\begin{code}
 
-    getConstructor :
-      (k : Index cs) ->
-      forall t.
-      Pointer.Mu cs (k # t) ->
+
+\end{code}
+%<*getConstructor>
+\begin{code}
+    getConstructor : (k : Index cs) ->
+      forall t. Pointer.Mu cs (k # t) ->
       IO (Pointer.Meaning (description k) cs t)
     getConstructor (MkIndex k) mu
-      = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index k $ constructors cs))
+      = getOffsets
+        (muBuffer mu)
+        (1 + muPosition mu)
+        (offsets (index k $ constructors cs))
       $ \ subterms, pos => MkMeaning subterms (muBuffer mu) pos
+\end{code}
+%</getConstructor>
+\begin{code}
 
   namespace View
 
@@ -367,10 +373,14 @@ namespace Pointer
            IO (View cs t)
 \end{code}
 %</viewfun>
+%<*viewfunbody>
 \begin{code}
     view ptr = do k # el <- out ptr
                   vs <- layer el
                   pure (k # vs)
+\end{code}
+%</viewfunbody>
+\begin{code}
 
     export
 \end{code}

@@ -80,11 +80,12 @@ information from the buffer.
 
 If the description is \IdrisData{Byte} then we read a byte at the
 determined position. The only way we can connect this value we just
-read to the type index is to use \idris{}'s unsafe primitive
-\believeMe{} to cast the value of type
+read to the type index is to use the unsafe combinator
+\IdrisPostulate{unsafeMkSingleton} to manufacture a value of type
+(\IdrisType{Singleton} \IdrisBound{t}) instead of the value of type
 (\IdrisType{Singleton} \IdrisBound{bs})
-to the expected
-(\IdrisType{Singleton} \IdrisBound{t}).
+we would expect from wrapping \IdrisBound{bs} in the \IdrisData{MkSingleton} constructor.
+
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunProd}
 
@@ -106,7 +107,7 @@ but also past the content whose size is known statically (\IdrisBound{sl}).
 %
 We can finally use an eta-equality lemma to turn \IdrisBound{t} into
 (\IdrisFunction{fst} \IdrisBound{t} \IdrisData{\#} \IdrisFunction{snd} \IdrisBound{t})
-which lets use the \IdrisType{Poke'} constructor \IdrisData{(\#)} to return our
+which lets us use the \IdrisType{Poke'} constructor \IdrisData{(\#)} to return our
 pair of pointers.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunRec}
@@ -117,8 +118,8 @@ and starting position as our input pointer.
 
 \subsection{Extracting one layer}
 
-By repeatedly poking the buffer, we can unfold the full layer.
-The result of this operation is once again definded by induction
+By repeatedly poking the buffer, we can unfold a full layer.
+The result of this operation is defined by induction
 on the description. It is identical to the definition of
 \IdrisFunction{Poke} except for the \IdrisData{Prod} case:
 here, instead of being content with a pointer for each of the
@@ -126,18 +127,73 @@ subdescriptions, we demand a full layer for them too.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{layerdata}
 
-This function can easily be implemented by repeatedly calling
-\IdrisFunction{poke}.
+This function can easily be implemented by induction on the description
+and repeatedly calling \IdrisFunction{poke} to expose the values one by
+one.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{layerfun}
 
 \subsection{Exposing the top constructor}
 
+\todo{remind people of the serialisation format here}
 
+Now that we can deserialise an entire layer of \IdrisFunction{Meaning},
+the only thing we are missing to be able to generically manipulate trees
+is the ability to expose the top constructor of a tree stored at a
+\IdrisType{Pointer.Mu} position.
+%
+The \IdrisType{Out} family describes what it means to get your hands on
+the index of a tree's constructor: you obtain an \IdrisType{Index},
+and a \IdrisType{Pointer.Meaning} to the constructor's payload.
+%
+The return type ensures that the structure of the tree is adequately
+described by combining both components.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
+
+
+
 \ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
 
+The implementation is fairly straightforward except for another
+unsafe step meant to reconcile the information we read in the buffer
+with the runtime-irrelevant tree index.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{outfunbody}
+
+We start by reading the tag \IdrisBound{k}
+corresponding to the constructor choice:
+we obtain a byte by calling \IdrisFunction{getBits8}, cast it to a
+natural number and then make sure that it is in the range
+$[0 \cdots \text{\IdrisFunction{consNumber} \IdrisBound{cs}}[$ using
+\IdrisFunction{natToFin}.
+%
+We then use the unsafe \IdrisPostulate{unfoldAs} primitive to step the
+type-level \IdrisBound{t} to something of the form
+(\IdrisBound{k} \IdrisData{\#} \IdrisBound{val}).
+It is marked as runtime irrelevant because it cannot possibly be
+implemented (\IdrisBound{t} is runtime irrelevant and so cannot be inspected)
+and so should its output should not be relied upon in runtime-relevant
+computations.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{unfoldAs}
+
+Now that we know the head constructor we want to deserialise and that
+we have the ability to step the runtime irrelevant tree to match the
+actual content of the buffer, we can use \IdrisFunction{getConstructor}
+to build such a value.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{getConstructor}
+
+\todo{explain}
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{getOffsets}
+
+The implementation of \IdrisType{getOffsets} is straightforward: given
+a continuation that expect \IdrisBound{n} offsets as well as the
+position past the last of these offsets, we read the 8-bytes-long
+offsets one by one, making sure that we move the current position
+accordingly before every recursive call.
 
 \subsection{Offering a convenient \IdrisType{View}}
 
@@ -145,9 +201,22 @@ We can combine \IdrisFunction{out} and \IdrisFunction{layer} to obtain
 the \IdrisFunction{view} function we used in our introductory examples
 in~\Cref{sec:seamless}.
 
+A (\IdrisType{View} $t$) value gives us access to the \IdrisType{Index}
+of $t$'s top constructor together with the corresponding
+\IdrisFunction{Layer} of deserialised values.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{viewdata}
+
+The implementation of \IdrisFunction{view} is unsurprising: we use
+\IdrisFunction{out} to expose the top constructor index and a
+\IdrisType{Pointer.Meaning} to the constructor's payload.
+%
+We then user \IdrisFunction{layer} to extract the full
+\IdrisFunction{Layer} of deserialised values that the
+pointer references.
+
 \ExecuteMetaData[SaferIndexed.idr.tex]{viewfun}
+\ExecuteMetaData[SaferIndexed.idr.tex]{viewfunbody}
 
 These are views
 (in the sense of Wadler~\cite{DBLP:conf/popl/Wadler87},

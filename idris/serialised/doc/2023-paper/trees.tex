@@ -57,7 +57,19 @@ this type provides.
 \ExecuteMetaData[Serialised/Desc.idr.tex]{index}
 
 We use this type rather than \IdrisType{Fin} directly because it
-plays well with inference and allows us to provide users with
+plays well with inference.
+%
+In the following code snippet, implementing a function returning
+the description corresponding to a given index,
+we use this to our advantage:
+the \IdrisBound{cs} argument can be left implicit because it already
+shows up in the type of the \IdrisType{Index} and can thus be
+reconstructed by unfication.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{description}
+
+
+This type of indices also allows us to provide users with
 syntactic sugar enabling them to use the constructors' names
 directly rather than confusing numeric indices.
 %
@@ -70,7 +82,7 @@ into the corresponding \IdrisType{Index}.
 
 If the name is valid then the \IdrisFunction{isConstructor} will
 return a valid \IdrisType{Index} and \idris{} will be able to
-\IdrisKeyword{auto}matically filling-in the implicit proof.
+\IdrisKeyword{auto}matically fill-in the implicit proof.
 %
 If the name is not valid then idris will not be able to
 find the index and will raise a compile time error.

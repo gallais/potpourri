@@ -13,7 +13,7 @@ data Singleton : {0 a : Type} -> (x : a) -> Type where
 %</singleton>
 \begin{code}
 
-export
+export %unsafe
 unsafeMkSingleton : (y : a) -> Singleton {a} x
 unsafeMkSingleton y = believe_me (MkSingleton y)
 

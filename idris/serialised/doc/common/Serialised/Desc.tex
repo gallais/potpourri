@@ -87,10 +87,16 @@ record Index (cs : Data nm) where
 
 ||| A smart projection
 public export
+\end{code}
+%<*description>
+\begin{code}
 description : {cs : Data nm} -> (k : Index cs) ->
               let cons = index (getIndex k) (constructors cs) in
               Desc True (size cons) (offsets cons)
 description {cs} k = description (index (getIndex k) (constructors cs))
+\end{code}
+%</description>
+\begin{code}
 
 ||| A little bit of magic
 public export
@@ -326,6 +332,19 @@ namespace Data
     (#) : Alg cs (assert_total (Mu cs))
 \end{code}
 %</mu>
+\begin{code}
+
+  export
+\end{code}
+%<*unfoldAs>
+\begin{code}
+  %unsafe
+  0 unfoldAs :
+    (k : Index cs) -> (0 t : Data.Mu cs) ->
+    (val : Data.Meaning (description k) (Data.Mu cs)
+    ** t === (k # val))
+\end{code}
+%</unfoldAs>
 \begin{code}
 
   ||| Fixpoints are initial algebras
