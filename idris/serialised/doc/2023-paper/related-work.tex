@@ -1,6 +1,17 @@
 \section{Related Work}
 
-LoCal~\cite{DBLP:conf/pldi/VollmerKRS0N19}
+LoCal~\cite{DBLP:conf/pldi/VollmerKRS0N19} is the work that originally
+motivated the design of this library.
+%
+We have demonstrated that generic programming within a dependently typed
+language can yield the sort of benefits other language can only achieve
+by inventing entirely new intermediate languages and compilation schemes.
 
-
-\cite{DBLP:journals/pacmpl/KoparkarRVKN21}
+LoCal was improved upon with a re-thinking of the serialisation scheme
+making the approach compatible with parallel
+programming~\cite{DBLP:journals/pacmpl/KoparkarRVKN21}.
+This impressive improvement is a natural candidate for future work on our
+part: the authors demonstrate it is possible to reap the benefits of
+both programming over serialised data
+and dividing up the work over multiple processors
+with almost no additional cost in a purely sequential scenario \todo{double check}.
