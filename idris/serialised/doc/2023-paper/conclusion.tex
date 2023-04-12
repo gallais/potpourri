@@ -3,9 +3,15 @@
 \subsection{A More Robust Library}
 
 For sake of ease of presentation we have not dealt with issues necessiting
-buffer resizing. A real library would need to adopt a more robust approach
+buffer resizing: in \Cref{sec:serialising},
+we defined \IdrisFunction{execSerialising}
+by allocating a fixed size buffer and not worrying whether the whole content
+would fit.
+%
+A real library would need to adopt a more robust approach
 akin to the one used in the implementation of \idris{}'s own serialisation
-code.
+code: whenever we are about to write a byte to the buffer, we make sure there
+is either enough space left or we grow it.
 
 \subsection{A More Efficient Library}
 

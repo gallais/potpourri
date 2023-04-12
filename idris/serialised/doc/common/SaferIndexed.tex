@@ -598,8 +598,14 @@ namespace Pointer
 namespace Serialising
 
   export
+\end{code}
+%<*execSerialising>
+\begin{code}
   execSerialising : {cs : Data nm} -> {0 t : Data.Mu cs} ->
                     Serialising cs t -> IO (Pointer.Mu cs t)
+\end{code}
+%</execSerialising>
+\begin{code}
   execSerialising act = do
     Just buf <- newBuffer blockSize
       | Nothing => failWith "\{__LOC__} Couldn't allocate buffer"

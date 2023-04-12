@@ -15,3 +15,15 @@ manner.
 
 %% \subsection{Generic Traverse}
 %% \ExecuteMetaData[SaferIndexed.idr.tex]{traverse}
+
+
+\subsection{Executing a Serialisation Action}
+
+Now that we can \emph{describe} actions serialising a value to
+a buffer, we only need a function allowing to actually perform
+these actions.
+%
+This is provided by the \IdrisFunction{execSerialising} function
+declared below.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{execSerialising}
