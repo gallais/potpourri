@@ -7,6 +7,7 @@ RAW_DEPENDENCIES=\
   robust-catch.tex \
   safefold.tex \
   idris2.sty \
+  Snoc.idr.tex \
   Lib.idr.tex \
   Data/Singleton.idr.tex \
   Motivating.idr.tex \
@@ -19,7 +20,9 @@ RAW_DEPENDENCIES=\
   trees.tex \
   hexdump.tex \
   pointers.tex \
+  bufferfold.tex \
   singleton.tex \
+  views.tex \
   serialisation.tex \
   related-work.tex \
   conclusion.tex \

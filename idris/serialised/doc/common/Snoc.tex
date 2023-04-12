@@ -1,0 +1,26 @@
+\begin{code}
+
+module Snoc
+
+%default total
+
+\end{code}
+%<*Snoc>
+\begin{code}
+data Snoc : List a -> Type where
+  Lin : Snoc []
+  (:<) : (init : List a) -> (last : a) -> Snoc (init ++ [last])
+\end{code}
+%</Snoc>
+\begin{code}
+
+\end{code}
+%<*unsnoc>
+\begin{code}
+unsnoc : (xs : List a) -> Snoc xs
+unsnoc [] = Lin
+unsnoc (x :: xs@_) with (unsnoc xs)
+  _ | [<] = [] :< x
+  _ | init :< last = (x :: init) :< last
+\end{code}
+%</unsnoc>

@@ -1,0 +1,28 @@
+\subsubsection{Interlude: Views}
+
+A view
+in the sense of Wadler~\cite{DBLP:conf/popl/Wadler87},
+and subsequently refined by McBride and McKinna~\cite{DBLP:journals/jfp/McBrideM04}
+for a type $T$ is a type family $V$ indexed by $T$ together
+with a function which maps values $t$ of type $T$ to values of type
+$V\,t$.
+%
+By inspecting the $V\,t$ values we can learn something about the
+$t$ input.
+%
+The prototypical example is perhaps the `snoc` (`cons' backwards) view
+of right-nested lists as if they were left-nested.
+We present the \IdrisType{Snoc} family below.
+
+\ExecuteMetaData[Snoc.idr.tex]{Snoc}
+
+By matching on a value of type
+(\IdrisType{Snoc} \IdrisBound{xs}) we get to learn
+either that \IdrisBound{xs} is empty (\IdrisData{Lin}, nil backwards)
+or that it has an initial segment \IdrisBound{init} and a last element
+\IdrisBound{last} (\IdrisBound{init} \IdrisData{:<} \IdrisBound{last}).
+%
+The function \IdrisFunction{unsnoc} demonstrates that we can always
+\emph{view} a \IdrisType{List} in a \IdrisType{Snoc}-manner.
+
+\ExecuteMetaData[Snoc.idr.tex]{unsnoc}
