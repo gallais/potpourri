@@ -70,11 +70,92 @@ According to the header, we do have a \IdrisFunction{Tree} value stored in this 
 \subsection{Tree Serialisation}
 
 Our main focus in the definition of this format is that we should be able
-to process the right subtree of a node without having to look at the left
-subtree first.
+to process any of a node's subtrees without having to first traverse the
+subtrees that come before it.
 %
 This will allow us to, for instance, implement a function looking up the
-value stored in the rightmost node in the tree (if it exists) in time linear
-in the depth of the tree rather than exponential.
+value stored in the rightmost node in our running example type of binary
+trees in time linear in the depth of the tree rather than exponential.
 %
-To this end each node needs to store an offset measuring the size of the left subtree.
+To this end each node needs to store an offset measuring the size of the
+left subtree.
+
+If a given tag is associated to a description of type
+(\IdrisType{Desc} \IdrisData{True} \IdrisBound{s} \IdrisBound{o})
+then the representation of the associated node would look something
+like the following.
+
+\begin{center}
+\begin{bytefield}[bitwidth=.05\linewidth, bitheight=7mm]{4}
+  \bitbox{2}[bgcolor=Chartreuse4!40]{tag}
+  & \bitbox{4}[bgcolor=lightgray!30]{$o$ offsets}
+  & \bitbox[ltb]{2}{tree$_1$}
+  & \bitbox[tb]{1}{$\cdots$}
+  & \bitbox[tb]{2}[bgcolor=IndianRed1!40]{byte$_1$}
+  & \bitbox[tb]{1}{$\cdots$}
+  & \bitbox[tb]{2}{tree$_k$}
+  & \bitbox[tb]{1}{$\cdots$}
+  & \bitbox[tb]{2}[bgcolor=IndianRed1!40]{byte$_s$}
+  & \bitbox[tbr]{2}{tree$_{o+1}$} \\
+  \bitbox[l]{1}{\small$0$}
+  & \bitbox[]{1}{}
+  & \bitbox[l]{1}{\small$1$}
+  & \bitbox[]{3}{}
+  & \bitbox[l]{3}{\small$1+8*o$}
+  & \bitbox[]{6}{}
+  & \bitbox[l]{5}{\small$8*o+s+\Sigma_{i=1}^{o}o_i$}
+\end{bytefield}
+\end{center}
+
+On the first line we have a description of the data layout and on the
+second line we have the offset of various positions in the block with
+respect to the tag's address.
+
+For the data layout,
+we start with the tag
+then we have $o$ offsets,
+and finally we have a block contiguously storing an interleaving of
+subtrees and $s$ bytes
+depending on the description's shape.
+%
+In this example the rightmost value in the description is a subtree and
+so even though we have $o$ offsets, we actually have $o+1$ subtrees stored.
+
+The offsets of the tag with respect to its own address is $0$.
+The tag occupies one byte and so the offset of the block of offsets is $1$.
+Each offset occupies 8 bytes and so the payload is stored at offset $1+8*o$.
+Finally each value's offset can be computed by adding up the offset of the
+start of the payload block, the offsets corresponding to all of the subtrees
+that come before it, and the number of bytes stored before it;
+in the case of the last byte that gives $1+8*o + \Sigma_{i=1}^{o}o_i + s-1$
+hence the formula included in the diagram.
+
+Going back to our running example, this translates to the following
+respective data layouts and offsets for a leaf and a node.
+
+\begin{center}
+\begin{bytefield}[bitwidth=.05\linewidth, bitheight=7mm]{4}
+  \bitbox[]{2}{Leaf} \\
+  \bitbox{2}[bgcolor=Chartreuse4!40]{00} \\
+  \bitbox[l]{1}{\small$0$}
+\end{bytefield}\hfill
+\begin{bytefield}[bitwidth=.05\linewidth, bitheight=7mm]{4}
+  \bitbox[]{2}{Node} \\
+  \bitbox{2}[bgcolor=Chartreuse4!40]{01}
+  & \bitbox{4}[bgcolor=lightgray!30]{offset}
+  & \bitbox{4}{left subtree}
+  & \bitbox{2}[bgcolor=IndianRed1!40]{byte}
+  & \bitbox{4}{right subtree} \\
+  \bitbox[l]{1}{\small$0$}
+  & \bitbox[]{1}{}
+  & \bitbox[l]{1}{\small$1$}
+  & \bitbox[]{3}{}
+  & \bitbox[l]{1}{\small$9$}
+  & \bitbox[]{3}{}
+  & \bitbox[l]{2}{\small$9+o_1$\hfill}
+  & \bitbox[l]{2}{\small$10+o_1$}
+\end{bytefield}
+\end{center}
+
+Now we understand the format we want, we ought to be able to implement pointers
+and the functions manipulating them.
