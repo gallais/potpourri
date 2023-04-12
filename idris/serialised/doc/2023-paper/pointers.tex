@@ -23,7 +23,7 @@ that type.
 Now that we have pointers, we can use them to look at the content
 they are referring to.
 
-\subsection{Poking the Buffer}
+\subsection{Interlude: Views and Singletons}
 
 The precise indexing of pointers by a runtime-irrelevant copy of the value
 they are pointing to means that inspecting the buffer's content should
@@ -35,13 +35,18 @@ subsections are views.
 
 \input{views}
 
-
-
-But first let us have a look at the \IdrisType{Singleton} family
-which will help us connect the values we read or compute to their
+Here we defined \IdrisType{Snoc} as an inductive family but it can
+sometimes be convenient to define the family recursively instead.
+In which case the \IdrisType{Singleton} inductive family can
+help us connect runtime values to their
 runtime-irrelevant type-level counterparts.
 
 \input{singleton}
+
+We now are equipped with the appropriate notions and definitions to
+start looking at the buffer's content.
+
+\section{Poking the Buffer}
 
 Our most basic operation consists in poking the buffer to unfold
 the description by exactly one step.
