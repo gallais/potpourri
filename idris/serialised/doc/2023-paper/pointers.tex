@@ -152,18 +152,23 @@ one.
 
 \subsection{Exposing the top constructor}
 
-\todo{remind people of the serialisation format here}
-
 Now that we can deserialise an entire layer of \IdrisFunction{Meaning},
 the only thing we are missing to be able to generically manipulate trees
 is the ability to expose the top constructor of a tree stored at a
 \IdrisType{Pointer.Mu} position.
 %
-The \IdrisType{Out} family describes what it means to get your hands on
-the index of a tree's constructor: you obtain an \IdrisType{Index},
-and a \IdrisType{Pointer.Meaning} to the constructor's payload.
+Remembering the data layout detailed in \Cref{fig:data-layout}, this will
+amount to inspecting the tag used by the node and then deserialising the
+offsets stored immeditately after it.
+
+The \IdrisType{Out} family describes the typed point of view:
+to get your hands on the index of a tree's constructor means
+obtaining an \IdrisType{Index},
+and a \IdrisType{Pointer.Meaning} to the constructor's payload
+(remember that these high-level `pointers' store a vector of offsets).
 %
-The return type ensures that the structure of the tree is adequately
+The return type ensures that the structure of the runtime irrelevant
+tree is adequately
 described by combining both components.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
@@ -247,9 +252,7 @@ convenient to consume, a performance-minded user may decide to
 directly use the \IdrisFunction{out} and \IdrisFunction{poke}
 combinators to avoid deserialising values that they do not need.
 %
-For instance, given a binary tree storing strings in its nodes and
-natural numbers at its leaves, if the user only wants to extract the
-rightmost natural number in the tree there is no need to deserialise
-all of the strings encountered on the way down.
-
-\todo{Add rightmost and rightmost' as case studies in an appendix?}
+We present a case study in \Cref{appendix:rightmost} comparing the
+access patterns of two implementations of the function fetching the
+byte stored in a tree's rightmost node depending on whether we use
+\IdrisFunction{view} or the lower level \IdrisFunction{poke} combinator.

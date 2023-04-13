@@ -477,13 +477,42 @@ namespace Raw
 \end{code}
 %</rsum>
 \begin{code}
+namespace Lazy
+\end{code}
+%<*pokerightmost>
+\begin{code}
+  rightmost : Pointer.Mu Tree t -> IO (Maybe Bits8)
+  rightmost ptr = case !(out ptr) of
+    "Leaf" # _ => pure Nothing
+    "Node" # el => do
+      (_ # br) <- poke el
+      (b # r) <- poke br
+      mval <- rightmost !(poke r)
+      case mval of
+        Just _ => pure mval
+        Nothing => do
+          b <- poke b
+          pure (Just (getSingleton b))
+\end{code}
+%</pokerightmost>
 
-rightmost : Maybe Bits8 -> Pointer.Mu Tree t -> IO (Maybe Bits8)
-rightmost dflt t = case !(out t) of
-  "Leaf" # el => pure dflt
-  "Node" # el => do
-    (_ # b # r) <- layer el
-    rightmost (Just (getSingleton b)) r
+\begin{code}
+namespace Strict
+  export
+\end{code}
+%<*viewrightmost>
+\begin{code}
+  rightmost : Pointer.Mu Tree t -> IO (Maybe Bits8)
+  rightmost ptr = case !(view ptr) of
+    "Leaf" # _ => pure Nothing
+    "Node" # _ # b # r => do
+      mval <- rightmost r
+      case mval of
+        Just _ => pure mval
+        Nothing => pure (Just (getSingleton b))
+\end{code}
+%</viewrightmost>
+\begin{code}
 
 -- Here we define the functional specification of the functions we
 -- want to write over pointers. This will, via Singleton & Serialising,
@@ -644,7 +673,7 @@ testing tree = do
   putStrLn "Tree: \{!(display tree)}"
   putStrLn "RSum: \{show !(Raw.sum tree)}"
   putStrLn "Sum: \{show !(Pointer.sum tree)}"
-  putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"
+  putStrLn "Rightmost: \{show !(rightmost tree)}"
   putStrLn "Tree size: \{show !(size tree)}"
 
 main : IO ()

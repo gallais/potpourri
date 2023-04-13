@@ -1,0 +1,36 @@
+\section{Access Patterns: \IdrisFunction{view} vs. \IdrisFunction{poke}}\label{appendix:rightmost}
+
+In this example we implement \IdrisFunction{rightmost}, the function walking
+down the rightmost branch of our type of binary trees and returning the
+content of its rightmost node (if it exists).
+
+The first implementation is the most straightforward: use \IdrisFunction{view}
+to obtain the top constructor as well as and entire layer of deserialised values
+and pointers to substructures and inspect the constructor.
+%
+If we have a leaf then there is no byte to return.
+%
+If we have a node then call \IdrisFunction{rightmost} recursively and inspect the
+result: if we got \IdrisData{Nothing} back we are at the rightmost node and can
+return the current byte, otherwise simply propagate the result.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{viewrightmost}
+
+In the alternative implementation we use \IdrisFunction{out} to expose the top
+constructor and then, in the node case, call \IdrisFunction{poke} multiple times
+to get our hands on the pointer to the right subtree.
+%
+We inspect the result of recursively calling \IdrisFunction{rightmost} on this
+subtree and only deserialise the byte contained in the current node if the result
+we get back is \IdrisData{Nothing}.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokerightmost}
+
+This will give rise to two different access patterns: the first function will
+have deserialised all of the bytes stored in the nodes along the tree's
+rightmost path whereas the second will only have deserialised the rightmost byte.
+%
+Admittedly deserialising a byte is not extremely expensive but in a more realistic
+examples we could have for instance been storing arbitrarily large strings in
+these nodes. In that case it may be worth trading convenience for making sure we
+are not doing any unnecessary work.

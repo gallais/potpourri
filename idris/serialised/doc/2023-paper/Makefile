@@ -6,6 +6,7 @@ RAW_DEPENDENCIES=\
   sum-at.tex \
   robust-catch.tex \
   safefold.tex \
+  rightmost.tex \
   idris2.sty \
   Snoc.idr.tex \
   Lib.idr.tex \

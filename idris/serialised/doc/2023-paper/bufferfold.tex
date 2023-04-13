@@ -33,10 +33,9 @@ We poke the buffer to reveal the value the \IdrisType{Pointer.Meaning}
 named \IdrisBound{ptr} is pointing at and then dispatch over the description
 \IdrisBound{d} using the \IdrisFunction{go} auxiliary function.
 
-\todo{No we don't (anymore)}
-If the description is \IdrisData{None} we rewrite by the lemma
-\IdrisFunction{etaUnit} which proves that all the values of the unit type
-are equal to \IdrisData{()}. This then allows us to return \IdrisData{()}.
+If the description is \IdrisData{None} we use \IdrisFunction{byIrrelevance}
+which happily builds any (\IdrisType{Singleton} \IdrisBound{t}) provided
+that \IdrisBound{t}'s is proof irrelevant.
 
 If the description is \IdrisData{Byte}, the value is left untouched and so
 we can simply return it immediately.
@@ -69,4 +68,4 @@ and a specialised version of
 (\IdrisFunction{fmap} \IdrisKeyword{(}\IdrisFunction{fold} \IdrisBound{alg}\IdrisKeyword{)})
 at the cost of code duplication and obfuscation.
 %
-We once again include such a definition in \Cref{sec:safefold}.
+We once again include such a definition in \Cref{appendix:safefold}.
