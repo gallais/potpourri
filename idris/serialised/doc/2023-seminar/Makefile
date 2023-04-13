@@ -16,7 +16,7 @@ RAW_DEPENDENCIES=\
 DEPENDENCIES=common \
   $(patsubst %,build/latex/%,$(RAW_DEPENDENCIES))
 
-all: spls.pdf
+all: slides.pdf
 
 common:
 	$(MAKE) -C ../common
