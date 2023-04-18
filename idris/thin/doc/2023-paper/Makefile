@@ -37,12 +37,12 @@ DEPENDENCIES=\
 
 all: esop.pdf thin.pdf
 
-build/ttc/*/%.ttm build/ttc/*/%.ttc: %.tex
-	idris2 -p contrib -c $^
+common:
+	$(MAKE) -C ../common
 
-build/latex/%.idr.tex: %.tex build/ttc/*/%.ttm build/ttc/*/%.ttc
+build/latex/%.idr.tex: common
 	mkdir -p $(dir $@)
-	katla literate $*.tex build/ttc/*/$*.ttm > $@
+	cp ../common/$@ $@
 
 build/latex/%.tex: %.tex
 	mkdir -p build/latex
@@ -60,6 +60,10 @@ build/latex/%.bib: %.bib
 	mkdir -p build/latex
 	cp $^ build/latex/
 
+build/latex/idris2.sty: ../common/idris2.sty
+	mkdir -p build/latex
+	cp $^ build/latex
+
 build/latex/%.sty: %.sty
 	mkdir -p build/latex
 	cp $^ build/latex
@@ -72,6 +76,6 @@ build/latex/%.sty: %.sty
 	ln -sf build/latex/$*.pdf $*.pdf
 
 clean:
-	rm -r build/latex
-	rm -r build/ttc
+	rm -rf build/latex
 	rm -f *~
+	make clean -C ../common

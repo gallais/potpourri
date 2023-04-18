@@ -1,0 +1,100 @@
+\usepackage{etoolbox}
+\usepackage{inconsolata}
+\usepackage{fancyvrb}
+\usepackage[x11names]{xcolor}
+
+\newtoggle{firstlinestart}
+\newtoggle{linestart}
+\newcounter{currentcodespaces}
+\newcounter{codespaces}
+
+\newcommand{\KatlaNoSpace}{%
+    % This command should be called by each code command that is not \KatlaSpace
+    \togglefalse{linestart}%
+    \iftoggle{firstlinestart}{%
+        \togglefalse{firstlinestart}%
+        \setcounter{codespaces}{\thecurrentcodespaces}%
+    }{}%
+}
+
+\newcommand{\KatlaSpace}{%
+    \stepcounter{currentcodespaces}%
+    \ifboolexpe{
+        togl{firstlinestart} or (
+            togl{linestart} and test{ \ifnumless{ \value{currentcodespaces} }{ \value{codespaces} + 1 } }
+        )
+    }{%
+        % ignore spaces
+    }{%
+        \hphantom{ }%
+    }%
+}
+
+\newcommand{\KatlaNewline}{%
+    \KatlaNoSpace%
+    \\%
+    \setcounter{currentcodespaces}{0}%
+    \toggletrue{linestart}%
+}
+
+\newcommand{\Katla}                [2][]{\VerbatimInput[commandchars=\\\{\}#1]{#2}}
+\newcommand{\KatlaUnderscore}         {\KatlaNoSpace\string_}
+\newcommand{\KatlaDash}               {\KatlaNoSpace\string-}
+\newcommand{\KatlaTilde}              {\KatlaNoSpace\raisebox{-.35em}{\textasciitilde}}
+
+\newcommand{\IdrisHlightFont}         {\ttfamily}
+\newcommand{\IdrisHlightStyleData}    {}
+\newcommand{\IdrisHlightStyleType}    {}
+\newcommand{\IdrisHlightStyleBound}   {}
+\newcommand{\IdrisHlightStyleFunction}{}
+\newcommand{\IdrisHlightStyleKeyword} {\bfseries}
+\newcommand{\IdrisHlightStyleImplicit}{}
+\newcommand{\IdrisHlightStyleComment} {\itshape}
+\newcommand{\IdrisHlightStyleHole}    {\bfseries}
+\newcommand{\IdrisHlightStyleNamespace}{\itshape}
+\newcommand{\IdrisHlightStylePostulate}{\bfseries}
+\newcommand{\IdrisHlightStyleModule}   {\itshape}
+
+\newcommand{\IdrisHlightColourData}    {IndianRed1}
+\newcommand{\IdrisHlightColourType}    {DeepSkyBlue3}
+\newcommand{\IdrisHlightColourBound}   {DarkOrchid3}
+\newcommand{\IdrisHlightColourFunction}{Chartreuse4}
+\newcommand{\IdrisHlightColourKeyword} {black}
+\newcommand{\IdrisHlightColourImplicit}{DarkOrchid3}
+\newcommand{\IdrisHlightColourComment} {gray}
+\newcommand{\IdrisHlightColourHole}    {yellow}
+\newcommand{\IdrisHlightColourNamespace}{black}
+\newcommand{\IdrisHlightColourPostulate}{red}
+\newcommand{\IdrisHlightColourModule}   {black}
+
+\newcommand{\IdrisHole}[1]{{%
+    \colorbox{\IdrisHlightColourHole}{%
+      \IdrisHlightStyleHole\IdrisHlightFont%
+      #1}}}
+
+\newcommand{\RawIdrisHighlight}[3]{{\textcolor{#1}{\IdrisHlightFont#2{#3}}}}
+
+\newcommand{\IdrisData}[1]{\KatlaNoSpace\RawIdrisHighlight{\IdrisHlightColourData}{\IdrisHlightStyleData}{#1}}
+\newcommand{\IdrisType}[1]{\KatlaNoSpace\RawIdrisHighlight{\IdrisHlightColourType}{\IdrisHlightStyleType}{#1}}
+\newcommand{\IdrisBound}[1]{\KatlaNoSpace\RawIdrisHighlight{\IdrisHlightColourBound}{\IdrisHlightStyleBound}{#1}}
+\newcommand{\IdrisFunction}[1]{\KatlaNoSpace\RawIdrisHighlight{\IdrisHlightColourFunction}{\IdrisHlightStyleFunction}{#1}}
+\newcommand{\IdrisKeyword}[1]{\KatlaNoSpace\RawIdrisHighlight{\IdrisHlightColourKeyword}{\IdrisHlightStyleKeyword}{#1}}
+\newcommand{\IdrisImplicit}[1]{\KatlaNoSpace\RawIdrisHighlight{\IdrisHlightColourImplicit}{\IdrisHlightStyleImplicit}{#1}}
+\newcommand{\IdrisComment}[1]{\KatlaNoSpace\RawIdrisHighlight{\IdrisHlightColourComment}{\IdrisHlightStyleComment}{#1}}
+\newcommand{\IdrisNamespace}[1]{\KatlaNoSpace\RawIdrisHighlight{\IdrisHlightColourNamespace}{\IdrisHlightStyleNamespace}{#1}}
+\newcommand{\IdrisPostulate}[1]{\KatlaNoSpace\RawIdrisHighlight{\IdrisHlightColourPostulate}{\IdrisHlightStylePostulate}{#1}}
+\newcommand{\IdrisModule}[1]{\KatlaNoSpace\RawIdrisHighlight{\IdrisHlightColourModule}{\IdrisHlightStyleModule}{#1}}
+
+
+\newenvironment{code}{%
+    \vspace{1em}%
+    \noindent%
+    \begin{minipage}{\linewidth}%
+    \obeyspaces%
+    \ttfamily%
+    \setcounter{currentcodespaces}{0}
+    \toggletrue{firstlinestart}
+    \toggletrue{linestart}
+}{%
+    \end{minipage}%
+}
