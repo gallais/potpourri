@@ -64,7 +64,7 @@ Tejiščák~\cite{DBLP:journals/pacmpl/Tejiscak20}
 
 \begin{frame}{No Magic Solution}
 
-Quoting from the Coq reference manual~\cite{Coq:manual}:\bigskip
+Quoting from the Coq reference manual:\bigskip
 
 \begin{quote}
 Translating an inductive type to an arbitrary ML type
@@ -121,6 +121,8 @@ i.e. essentially \IdrisType{List} \IdrisType{Bool}
 \begin{frame}{Thinnings}
 
 \ExecuteMetaData[Thin.idr.tex]{thin}
+\vfill
+\uncover<2->{\ExecuteMetaData[Thin/Internal.idr.tex]{thinning}}
 
 \end{frame}
 
@@ -140,8 +142,34 @@ i.e. essentially \IdrisType{List} \IdrisType{Bool}
 
 \end{frame}
 
+\begin{frame}{View: ``un-applying'' the smart constructors}
+\ExecuteMetaData[Thin.idr.tex]{view}
 
-\section{Limitations}
+\ExecuteMetaData[Thin.idr.tex]{viewtotal}
+\end{frame}
+
+\begin{frame}{Using the view}
+\ExecuteMetaData[Thin.idr.tex]{kept}
+\end{frame}
+
+
+\section{Conclusion}
+
+\begin{frame}{Limitations}
+\begin{itemize}
+  \item Smart constructors \& view are only \emph{provably} inverses of each other
+  \item \IdrisType{Invariant} is proof irrelevant but it may not always be possible
+  \item Inverting proofs with a \IdrisKeyword{0} quantity is not the most ergonomic
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Future Work}
+\begin{itemize}
+  \item A generic bitvector library
+  \item Support to build such representations in a compositional manner
+  \item Support for imperative structures with destructive updates
+\end{itemize}
+\end{frame}
 
 
 

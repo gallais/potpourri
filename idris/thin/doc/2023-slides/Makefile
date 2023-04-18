@@ -3,6 +3,7 @@ RAW_DEPENDENCIES=\
   idris2.sty \
   thin.bib \
   Thin.idr.tex \
+  Thin/Internal.idr.tex \
   Thinnings.idr.tex \
   Lookup.idr.tex \
   ast.tex \
