@@ -1,6 +1,7 @@
 \PassOptionsToPackage{x11names}{xcolor}
 \documentclass{beamer}
 
+\bibliographystyle{alpha}
 \beamertemplatenavigationsymbolsempty
 
 \usepackage{tikz}
@@ -40,4 +41,111 @@
   \maketitle
 \end{frame}
 
+\section{State of the Art}
+
+\begin{frame}{Safe Lookup}
+\ExecuteMetaData[Lookup.idr.tex]{vect}
+
+\ExecuteMetaData[Lookup.idr.tex]{fin}
+
+\ExecuteMetaData[Lookup.idr.tex]{vectlookup}
+\end{frame}
+
+\begin{frame}{Compiling Safe Lookup}
+
+Brady, McBride, and McKinna~\cite{DBLP:conf/types/BradyMM03}
+
+\ExecuteMetaData[Lookup.idr.tex]{erasedvectlookup}
+
+Tejiščák~\cite{DBLP:journals/pacmpl/Tejiscak20}
+
+\ExecuteMetaData[Lookup.idr.tex]{finallookup}
+\end{frame}
+
+\begin{frame}{No Magic Solution}
+
+Quoting from the Coq reference manual~\cite{Coq:manual}:\bigskip
+
+\begin{quote}
+Translating an inductive type to an arbitrary ML type
+does \textbf{not} magically improve the asymptotic complexity of
+functions, even if the ML type is an efficient representation.
+For instance, when extracting \texttt{nat} to OCaml \texttt{int}, the
+function \texttt{Nat.mul} stays quadratic.
+\end{quote}
+\end{frame}
+
+\section{Motivation: Co-De Bruijn syntax}
+
+\begin{frame}{Named: $\lambda{}g.\lambda{}f.\lambda{}x.g\,x\,(f\,x)$}
+
+\ExecuteMetaData[ast.tex]{named}
+
+\vfill
+Hard: $\alpha$-equivalence
+\end{frame}
+
+\begin{frame}{De Bruijn: $\lambda{}g.\lambda{}f.\lambda{}x.g\,x\,(f\,x)$}
+
+\ExecuteMetaData[ast.tex]{debruijn}
+
+\vfill
+Hard: thickening
+\end{frame}
+
+\begin{frame}{Co-De Bruijn: $\lambda{}g.\lambda{}f.\lambda{}x.g\,x\,(f\,x)$}
+
+\ExecuteMetaData[ast.tex]{codebruijn}
+\end{frame}
+
+\section{Motivation: Thinning Representations}
+
+\begin{frame}{Safe: Inductive Family}
+\ExecuteMetaData[Thinnings.idr.tex]{compactfamily}
+
+\vfill
+
+Compiled to:
+
+\ExecuteMetaData[Thinnings.idr.tex]{bare}
+
+i.e. essentially \IdrisType{List} \IdrisType{Bool}
+\end{frame}
+
+\begin{frame}{Unsafe: Tuple}
+\ExecuteMetaData[Thinnings.idr.tex]{unsafe}
+\end{frame}
+
+\section{Solution}
+
+\begin{frame}{Thinnings}
+
+\ExecuteMetaData[Thin.idr.tex]{thin}
+
+\end{frame}
+
+\begin{frame}{Smart constructors}
+
+\ExecuteMetaData[Thin.idr.tex]{done}
+
+\end{frame}
+
+\begin{frame}{Smart constructors}
+\ExecuteMetaData[Thin.idr.tex]{compactkeep}
+
+\end{frame}
+
+\begin{frame}{Smart constructors}
+\ExecuteMetaData[Thin.idr.tex]{compactdrop}
+
+\end{frame}
+
+
+\section{Limitations}
+
+
+
+\begin{frame}{Bibliography}
+\bibliography{thin}
+\end{frame}
 \end{document}

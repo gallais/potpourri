@@ -64,6 +64,24 @@ namespace Smart
 %</done>
 \begin{code}
 
+ namespace Compact
+\end{code}
+%<*compactkeep>
+\begin{code}
+  keep : Th sx sy -> (0 x : a) -> Th (sx :< x) (sy :< x)
+  keep th x = MkTh
+   { bigEnd = S (th .bigEnd)
+   , encoding = cons True (th .encoding)
+   , invariant =
+      let 0 b = eqToSo $ testBit0Cons True (th .encoding) in
+      let 0 eq = consShiftR True (th .encoding) in
+      Keep (rewrite eq in th.invariant) x
+   }
+\end{code}
+%</compactkeep>
+\begin{code}
+
+
  export
 \end{code}
 %<*keep>
@@ -78,6 +96,23 @@ namespace Smart
   }
 \end{code}
 %</keep>
+\begin{code}
+ namespace Compact
+\end{code}
+%<*compactdrop>
+\begin{code}
+  drop : Th sx sy -> (0 x : a) -> Th sx (sy :< x)
+  drop th x = MkTh
+   { bigEnd = S (th .bigEnd)
+   , encoding = cons False (th .encoding)
+   , invariant =
+     let 0 prf = testBit0Cons False (th .encoding) in
+     let 0 nb = eqToSo $ cong not prf in
+     let 0 eq = consShiftR False (th .encoding) in
+     Drop (rewrite eq in th .invariant) x
+   }
+\end{code}
+%</compactdrop>
 \begin{code}
 
  export

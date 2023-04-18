@@ -1,6 +1,12 @@
 RAW_DEPENDENCIES=\
   robust-catch.tex \
   idris2.sty \
+  thin.bib \
+  Thin.idr.tex \
+  Thinnings.idr.tex \
+  Lookup.idr.tex \
+  ast.tex \
+
 
 DEPENDENCIES=common \
   $(patsubst %,build/latex/%,$(RAW_DEPENDENCIES))
@@ -10,11 +16,19 @@ all: slides.pdf
 common:
 	$(MAKE) -C ../common
 
+build/latex/ast.tex: ../common/ast.tex
+	mkdir -p build/latex
+	cp $^ build/latex/
+
 build/latex/%.idr.tex: common
 	mkdir -p $(dir $@)
 	cp ../common/$@ $@
 
 build/latex/%.tex: %.tex
+	mkdir -p build/latex
+	cp $^ build/latex/
+
+build/latex/%.bib: %.bib
 	mkdir -p build/latex
 	cp $^ build/latex/
 

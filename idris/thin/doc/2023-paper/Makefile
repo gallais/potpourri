@@ -44,6 +44,10 @@ build/latex/%.idr.tex: common
 	mkdir -p $(dir $@)
 	cp ../common/$@ $@
 
+build/latex/ast.tex: ../common/ast.tex
+	mkdir -p build/latex
+	cp $^ build/latex/
+
 build/latex/%.tex: %.tex
 	mkdir -p build/latex
 	cp $^ build/latex/

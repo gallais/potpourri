@@ -1,4 +1,17 @@
 \begin{code}
+namespace CompactFamily
+\end{code}
+%<*compactfamily>
+\begin{code}
+ data Thinning : (sx, sy : SnocList a) -> Type where
+   Done : Thinning [<] [<]
+   Keep : Thinning sx sy -> (0 x : a) ->
+          Thinning (sx :< x) (sy :< x)
+   Drop : Thinning sx sy -> (0 x : a) ->
+          Thinning sx (sy :< x)
+\end{code}
+%</compactfamily>
+\begin{code}
 namespace Family
 \end{code}
 %<*family>
@@ -18,3 +31,15 @@ namespace Bare
  data Thinning = Done | Keep Thinning | Drop Thinning
 \end{code}
 %</bare>
+
+
+\begin{code}
+namespace Unsafe
+\end{code}
+%<*unsafe>
+\begin{code}
+  record Thinning where
+    bitPattern : Integer
+    bigEnd : Int
+\end{code}
+%</unsafe>
