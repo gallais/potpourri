@@ -1,7 +1,5 @@
 .PRECIOUS: build/ttc/%.ttm build/ttc/%.ttc build/latex/%.idr.tex
 
-PAPER=paper
-
 TEX_FILES:=$(shell find . -name "*.tex" -type f | grep -v build | sed 's|\./||g' | sort)
 KATLA_OUTPUT:=$(patsubst %.tex,build/latex/%.idr.tex,$(TEX_FILES))
 

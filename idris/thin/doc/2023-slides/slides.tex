@@ -1,0 +1,43 @@
+\PassOptionsToPackage{x11names}{xcolor}
+\documentclass{beamer}
+
+\beamertemplatenavigationsymbolsempty
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric}
+
+\usepackage{listings}
+
+\lstset{ %
+  language=C,
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=5pt,
+  breaklines=true,
+}
+
+\usepackage{idris2}
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+
+\title{Builtin Types viewed as Inductive Families}
+\author{Guillaume Allais}
+\institute{University of Strathclyde \\ Glasgow, UK}
+\date{2023}
+
+\AtBeginSection[]
+{
+    \begin{frame}
+        \frametitle{Table of Contents}
+        \tableofcontents[currentsection]
+    \end{frame}
+}
+
+\begin{document}
+
+\begin{frame}
+  \maketitle
+\end{frame}
+
+\end{document}
