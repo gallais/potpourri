@@ -7,7 +7,7 @@ RAW_DEPENDENCIES=\
   Thinnings.idr.tex \
   Lookup.idr.tex \
   ast.tex \
-
+  strath_coat.png \
 
 DEPENDENCIES=common \
   $(patsubst %,build/latex/%,$(RAW_DEPENDENCIES))
@@ -26,6 +26,10 @@ build/latex/%.idr.tex: common
 	cp ../common/$@ $@
 
 build/latex/%.tex: %.tex
+	mkdir -p build/latex
+	cp $^ build/latex/
+
+build/latex/%.png: %.png
 	mkdir -p build/latex
 	cp $^ build/latex/
 

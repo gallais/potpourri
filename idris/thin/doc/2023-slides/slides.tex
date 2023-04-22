@@ -26,8 +26,19 @@
 \author{Guillaume Allais}
 \institute{University of Strathclyde \\ Glasgow, UK}
 \date{ESOP'23 \\ $24^{th}$ April 2023}
+\titlegraphic{
+  \includegraphics[width=0.15\textwidth]{strath_coat}
+}
+
+
+\addtobeamertemplate{frametitle}{}{%
+\begin{tikzpicture}[remember picture,overlay]
+\coordinate (logo) at ([xshift=-.75cm,yshift=-.75cm]current page.north east);
+\node [opacity=0.4] at (logo) {\includegraphics[width=.1\textwidth]{strath_coat}};
+\end{tikzpicture}}
 
 \begin{document}
+
 
 \begin{frame}
   \maketitle
@@ -190,14 +201,13 @@ Limitations:
 \end{itemize}
 \end{frame}
 
-\begin{frame}{Future Work}
-\begin{itemize}
-  \item A generic bitvector library
-  \item Building such representations in a compositional manner
-  \item Imperative structures with destructive updates
-\end{itemize}
-\end{frame}
-
+%% \begin{frame}{Future Work}
+%% \begin{itemize}
+%%   \item A generic bitvector library
+%%   \item Building such representations in a compositional manner
+%%   \item Imperative structures with destructive updates
+%% \end{itemize}
+%% \end{frame}
 
 
 \begin{frame}{Bibliography}
