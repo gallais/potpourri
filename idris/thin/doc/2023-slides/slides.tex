@@ -25,15 +25,7 @@
 \title{Builtin Types viewed as Inductive Families}
 \author{Guillaume Allais}
 \institute{University of Strathclyde \\ Glasgow, UK}
-\date{2023}
-
-\AtBeginSection[]
-{
-    \begin{frame}
-        \frametitle{Table of Contents}
-        \tableofcontents[currentsection]
-    \end{frame}
-}
+\date{ESOP'23 \\ $24^{th}$ April 2023}
 
 \begin{document}
 
@@ -41,7 +33,12 @@
   \maketitle
 \end{frame}
 
-\section{State of the Art}
+\begin{frame}
+  \frametitle{Table of Contents}
+  \tableofcontents
+\end{frame}
+
+\section{Compiling Inductive Families: State of the Art}
 
 \begin{frame}{Safe Lookup}
 \ExecuteMetaData[Lookup.idr.tex]{vect}
@@ -56,6 +53,8 @@
 Brady, McBride, and McKinna~\cite{DBLP:conf/types/BradyMM03}
 
 \ExecuteMetaData[Lookup.idr.tex]{erasedvectlookup}
+
+\vfill
 
 Tejiščák~\cite{DBLP:journals/pacmpl/Tejiscak20}
 
@@ -75,10 +74,18 @@ function \texttt{Nat.mul} stays quadratic.
 \end{quote}
 \end{frame}
 
+\AtBeginSection[]
+{
+    \begin{frame}
+        \frametitle{Table of Contents}
+        \tableofcontents[currentsection]
+    \end{frame}
+}
+
 \section{Motivation: Co-De Bruijn syntax}
 
 \begin{frame}{Named: $\lambda{}g.\lambda{}f.\lambda{}x.g\,x\,(f\,x)$}
-
+\vfill
 \ExecuteMetaData[ast.tex]{named}
 
 \vfill
@@ -93,7 +100,7 @@ Hard: $\alpha$-equivalence
 Hard: thickening
 \end{frame}
 
-\begin{frame}{Co-De Bruijn: $\lambda{}g.\lambda{}f.\lambda{}x.g\,x\,(f\,x)$}
+\begin{frame}{Co-De Bruijn~\cite{DBLP:journals/corr/abs-1807-04085}: $\lambda{}g.\lambda{}f.\lambda{}x.g\,x\,(f\,x)$}
 
 \ExecuteMetaData[ast.tex]{codebruijn}
 \end{frame}
@@ -114,9 +121,16 @@ i.e. essentially \IdrisType{List} \IdrisType{Bool}
 
 \begin{frame}{Unsafe: Tuple}
 \ExecuteMetaData[Thinnings.idr.tex]{unsafe}
+
+\vfill
+
+$$
+\text{\IdrisFunction{bitPattern}} = \cdots0000\underbrace{1001\cdots11}_{\text{\IdrisFunction{bigEnd} bits}}
+$$
+
 \end{frame}
 
-\section{Solution}
+\section{Solution: Quantitative Type Theory}
 
 \begin{frame}{Thinnings}
 
@@ -142,7 +156,7 @@ i.e. essentially \IdrisType{List} \IdrisType{Bool}
 
 \end{frame}
 
-\begin{frame}{View: ``un-applying'' the smart constructors}
+\begin{frame}{View~\cite{DBLP:conf/popl/Wadler87}: ``un-applying'' the smart constructors}
 \ExecuteMetaData[Thin.idr.tex]{view}
 
 \ExecuteMetaData[Thin.idr.tex]{viewtotal}
@@ -155,19 +169,32 @@ i.e. essentially \IdrisType{List} \IdrisType{Bool}
 
 \section{Conclusion}
 
-\begin{frame}{Limitations}
+\begin{frame}{Results \& Limitations}
+
+Results:
+
 \begin{itemize}
-  \item Smart constructors \& view are only \emph{provably} inverses of each other
+  \item Functional, proven correct, library
+  \item Generates good code
+  \item Choose your own abstraction level
+\end{itemize}
+
+\vfill
+
+Limitations:
+
+\begin{itemize}
+  \item Smart constructors \& view are only \emph{provably} inverses
   \item \IdrisType{Invariant} is proof irrelevant but it may not always be possible
-  \item Inverting proofs with a \IdrisKeyword{0} quantity is not the most ergonomic
+  \item Inverting proofs with a \IdrisKeyword{0} quantity is currently painful
 \end{itemize}
 \end{frame}
 
 \begin{frame}{Future Work}
 \begin{itemize}
   \item A generic bitvector library
-  \item Support to build such representations in a compositional manner
-  \item Support for imperative structures with destructive updates
+  \item Building such representations in a compositional manner
+  \item Imperative structures with destructive updates
 \end{itemize}
 \end{frame}
 
