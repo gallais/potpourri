@@ -151,8 +151,9 @@ namespace Pointer
   record Meaning (d : Desc r s n) (cs : Data nm) (t : Data.Meaning d (Data.Mu cs)) where
     constructor MkMeaning
     subterms : Vect n Int
-    elemBuffer : Buffer
-    elemPosition : Int
+    meaningBuffer : Buffer
+    meaningPosition : Int
+    meaningSize : Int
 
   public export
   0 meant : Meaning d cs t -> Data.Meaning d (Data.Mu cs)
@@ -163,6 +164,7 @@ namespace Pointer
     constructor MkMu
     muBuffer : Buffer
     muPosition : Int
+    muSize : Int
 
   namespace Poke
 
@@ -184,15 +186,16 @@ namespace Pointer
            forall t. Pointer.Meaning d cs t -> IO (Poke d cs t)
     poke {d = None} el = pure ()
     poke {d = Byte} el = do
-      bs <- getBits8 (elemBuffer el) (elemPosition el)
+      bs <- getBits8 (meaningBuffer el) (meaningPosition el)
       pure (unsafeMkSingleton bs)
     poke {d = Prod {sl} d e} {t} el = do
       let (n1, n2) = splitAt _ (subterms el)
-      let left = MkMeaning n1 (elemBuffer el) (elemPosition el)
-      let pos = elemPosition el + sum n1 + cast sl
-      let right = MkMeaning n2 (elemBuffer el) pos
+      let lsize = sum n1 + cast sl
+      let pos = meaningPosition el + lsize
+      let left = MkMeaning n1 (meaningBuffer el) (meaningPosition el) lsize
+      let right = MkMeaning n2 (meaningBuffer el) pos (meaningSize el)
       pure (rewrite etaPair t in left # right)
-    poke {d = Rec} el = pure (MkMu (elemBuffer el) (elemPosition el))
+    poke {d = Rec} el = pure (MkMu (meaningBuffer el) (meaningPosition el) (meaningSize el))
 
   namespace Layer
 
@@ -267,7 +270,7 @@ namespace Pointer
       IO (Pointer.Meaning (description k) cs t)
     getConstructor (MkIndex k) mu
       = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index k $ constructors cs))
-      $ \ subterms, pos => MkMeaning subterms (muBuffer mu) pos
+      $ \ subterms, pos => MkMeaning subterms (muBuffer mu) pos (muSize mu)
 
   namespace View
 
@@ -332,6 +335,15 @@ namespace Pointer
       k # ptr <- out ptr
       t <- assert_total (fmap (description k) id deserialise ptr)
       pure ((k #) <$> transport (fmapId (description k) id (\ _ => Refl) _) t)
+
+namespace Serialising
+
+  export
+  copy : Pointer.Mu cs t -> Serialising cs t
+  copy ptr = MkSerialising $ \ buf, pos =>
+    let size = muSize ptr in
+    pos + size <$ copyData {io = IO} (muBuffer ptr) (muPosition ptr) size buf pos
+
 
 namespace Tree
 
@@ -475,7 +487,7 @@ namespace Serialising
     setInt buf 0 (end - 8)
     -- Anyway, here's the actual data:
     size <- runSerialising act buf end
-    pure (MkMu buf end)
+    pure (MkMu buf end size)
 
 
 ||| initFromFile creates a pointer to a datastructure stored in a file
@@ -495,14 +507,19 @@ initFromFile cs fp
            , "but got:"
            , show cs'
            ]
-       pure (Evidence t (MkMu buf (skip + 8)))
+       let pos = skip + 8
+       pure (Evidence t (MkMu buf pos (!(rawSize buf) - pos)))
 
   where 0 t : Data.Mu cs -- postulated as an abstract value
+
+double : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (node t 0 t))
+double ptr = execSerialising $ node (copy ptr) [| _ |] (copy ptr)
 
 
 testing : Pointer.Mu Tree t -> IO ()
 testing tree = do
   putStrLn "Tree: \{!(display tree)}"
+  putStrLn "Doubled: \{!(display !(double tree))}"
   putStrLn "RSum: \{show !(Raw.sum tree)}"
   putStrLn "Sum: \{show !(Pointer.sum tree)}"
   putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"
