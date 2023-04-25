@@ -191,9 +191,9 @@ namespace Pointer
     poke {d = Prod {sl} d e} {t} el = do
       let (n1, n2) = splitAt _ (subterms el)
       let lsize = sum n1 + cast sl
-      let pos = meaningPosition el + lsize
       let left = MkMeaning n1 (meaningBuffer el) (meaningPosition el) lsize
-      let right = MkMeaning n2 (meaningBuffer el) pos (meaningSize el)
+      let pos = meaningPosition el + lsize
+      let right = MkMeaning n2 (meaningBuffer el) pos (meaningSize el - lsize)
       pure (rewrite etaPair t in left # right)
     poke {d = Rec} el = pure (MkMu (meaningBuffer el) (meaningPosition el) (meaningSize el))
 
@@ -269,8 +269,10 @@ namespace Pointer
       Pointer.Mu cs (k # t) ->
       IO (Pointer.Meaning (description k) cs t)
     getConstructor (MkIndex k) mu
-      = getOffsets (muBuffer mu) (1 + muPosition mu) (offsets (index k $ constructors cs))
-      $ \ subterms, pos => MkMeaning subterms (muBuffer mu) pos (muSize mu)
+      = let offs : Nat; offs = offsets (index k $ constructors cs) in
+        getOffsets (muBuffer mu) (1 + muPosition mu) offs
+      $ let size = muSize mu - 1 - cast (8 * offs) in
+        \ subterms, pos => MkMeaning subterms (muBuffer mu) pos size
 
   namespace View
 
@@ -482,12 +484,10 @@ namespace Serialising
   execSerialising act = do
     Just buf <- newBuffer blockSize
       | Nothing => failWith "\{__LOC__} Couldn't allocate buffer"
-    -- Do we care about storing the data description in this case?
-    end <- setData buf 8 cs
-    setInt buf 0 (end - 8)
-    -- Anyway, here's the actual data:
-    size <- runSerialising act buf end
-    pure (MkMu buf end size)
+    middle <- setData buf 8 cs
+    setInt buf 0 (middle - 8)
+    end <- runSerialising act buf middle
+    pure (MkMu buf middle (end - middle))
 
 
 ||| initFromFile creates a pointer to a datastructure stored in a file
@@ -512,14 +512,26 @@ initFromFile cs fp
 
   where 0 t : Data.Mu cs -- postulated as an abstract value
 
-double : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (node t 0 t))
-double ptr = execSerialising $ node (copy ptr) [| _ |] (copy ptr)
+namespace Data
+
+  public export
+  swap : Data.Mu Tree -> Data.Mu Tree
+  swap ("Leaf" # _) = "Leaf" # ()
+  swap ("Node" # l # b # r) = "Node" # r # b # l
+
+namespace Pointer
+
+  export
+  swap : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.swap t))
+  swap ptr = execSerialising $ case !(view ptr) of
+    "Leaf" # () => leaf
+    "Node" # l # b # r => node (copy r) b (copy l)
 
 
 testing : Pointer.Mu Tree t -> IO ()
 testing tree = do
   putStrLn "Tree: \{!(display tree)}"
-  putStrLn "Doubled: \{!(display !(double tree))}"
+  putStrLn "Swapped: \{!(display !(swap tree))}"
   putStrLn "RSum: \{show !(Raw.sum tree)}"
   putStrLn "Sum: \{show !(Pointer.sum tree)}"
   putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"
@@ -527,6 +539,11 @@ testing tree = do
 
 main : IO ()
 main = do
+  -- Empty Tree
+  testing !(execSerialising leaf)
+
+  putStrLn (replicate 72 '-')
+
   -- First Tree
   writeToFile "tmp" example
   Evidence _ tree <- initFromFile Tree "tmp"
