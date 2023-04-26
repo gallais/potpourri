@@ -16,19 +16,56 @@ manner.
 %% \subsection{Generic Traverse}
 %% \ExecuteMetaData[SaferIndexed.idr.tex]{traverse}
 
+\subsection{The Type of Serialisation Processes}
+
+A serialisation process for a tree \IdrisBound{t} that belongs to the
+datatype \IdrisBound{cs} is a function that takes a buffer
+and a starting offset and returns an \IdrisType{IO} process that
+serialises the term in the buffer at that offset and computes the
+offset of the first byte past the serialise tree.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{serialising}
+
+
 \subsection{Constructings subterms}
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{allquant}
 \ExecuteMetaData[SaferIndexed.idr.tex]{dataallquant}
+
+We can then use the \IdrisType{All} quantifier to state that given a
+valid serialisation process for all of a top node's subterms, we can
+successfully define a serialising process for said node.
+
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialisemu}
+
+The keen reader may refer to the accompanying code to see the implementation.
+Informally (cf. \Cref{sec:tree-serialisation} for the description of the format):
+first we write the tag corresponding to the choice of constructor,
+then we leave some space for the offsets,
+in the meantime we write all of the node's payloads and collect the offsets while doing so,
+and finally we fill in the space we had left blank with the offsets we have now collected.
 
 \subsection{Copying subterms}
 
-We introduce a \IdrisFunction{copy} combinator for terms that we simply want
-to keep the same. This is implemented using the \IdrisFunction{copyData}
-primitive for \IdrisType{Buffer}s.
+We introduce a \IdrisFunction{copy} combinator for terms that we want to
+serialise as-is.
+%
+Equipped with this combinator, we are able to easily write e.g.
+the \IdrisFunction{swap} function which takes a binary tree apart
+and swaps its left and right branches (if the tree is non-empty).
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{swap}
+
+
+This combinator is implemented using the \IdrisFunction{copyData} primitive
+for \IdrisType{Buffer}s which saves us from having to traverse the whole term
+simply to output it.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{copy}
+
+This is the one combinator that crucially relies on the fact that the size
+information we have been keeping in \IdrisType{Pointer.Mu} and
+\IdrisType{Pointer.Meaning} is accurate.
 
 \subsection{Executing a Serialisation Action}
 
@@ -47,3 +84,7 @@ stored in a buffer.
 %
 We can then either compute further with this tree (e.g. by calling
 \IdrisFunction{sum} on it), or write it to a file for safekeeping.
+
+\subsection{Evaluation Order}
+
+\todo{discuss bind and interleaving}

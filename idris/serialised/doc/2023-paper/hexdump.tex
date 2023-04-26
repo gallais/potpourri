@@ -67,7 +67,7 @@ and the second one is \hexadesc{02 03 02 01 03} i.e.
 %
 According to the header, we do have a \IdrisFunction{Tree} value stored in this file.
 
-\subsection{Tree Serialisation}
+\subsection{Tree Serialisation}\label{sec:tree-serialisation}
 
 Our main focus in the definition of this format is that we should be able
 to process any of a node's subtrees without having to first traverse the
@@ -120,11 +120,11 @@ subtrees and $s$ bytes
 depending on the description's shape.
 %
 In this example the rightmost value in the description is a subtree and
-so even though we have $o$ offsets, we actually have $o+1$ subtrees stored.
+so even though we have $o$ offsets, we actually have $(o+1)$ subtrees stored.
 
 The offsets of the tag with respect to its own address is $0$.
 The tag occupies one byte and so the offset of the block of offsets is $1$.
-Each offset occupies 8 bytes and so the payload is stored at offset $1+8*o$.
+Each offset occupies 8 bytes and so the payload is stored at offset $(1+8*o)$.
 Finally each value's offset can be computed by adding up the offset of the
 start of the payload block, the offsets corresponding to all of the subtrees
 that come before it, and the number of bytes stored before it;

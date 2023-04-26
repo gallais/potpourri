@@ -78,9 +78,15 @@ namespace Data
 namespace Serialising
 
   export
+\end{code}
+%<*serialising>
+\begin{code}
   record Serialising (cs : Data nm) (t : Data.Mu cs) where
     constructor MkSerialising
     runSerialising : Buffer -> Int -> IO Int
+\end{code}
+%</serialising>
+\begin{code}
 
   export
   (>>=) : IO a -> (a -> Serialising cs t) -> Serialising cs t
@@ -724,8 +730,8 @@ namespace Pointer
 \end{code}
 %<*swap>
 \begin{code}
-  swap : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.swap t))
-  swap ptr = execSerialising $ case !(view ptr) of
+  swap : Pointer.Mu Tree t -> Serialising Tree (Data.swap t)
+  swap ptr = case !(view ptr) of
     "Leaf" # () => leaf
     "Node" # l # b # r => node (copy r) b (copy l)
 \end{code}
