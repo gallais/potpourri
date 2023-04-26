@@ -294,6 +294,14 @@ namespace Data
 %</fmap>
 \begin{code}
 
+  export
+  fmapId : (d : Desc{}) -> (f : a -> a) -> ((x : a) -> f x === x) ->
+           (t : Meaning d a) -> fmap d f t === t
+  fmapId None f eq t = Refl
+  fmapId Byte f eq t = Refl
+  fmapId (Prod d e) f eq (t # u) = cong2 (#) (fmapId d f eq t) (fmapId e f eq u)
+  fmapId Rec f eq t = eq t
+
   public export
 \end{code}
 %<*traverse>

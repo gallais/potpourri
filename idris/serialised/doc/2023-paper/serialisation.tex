@@ -16,6 +16,19 @@ manner.
 %% \subsection{Generic Traverse}
 %% \ExecuteMetaData[SaferIndexed.idr.tex]{traverse}
 
+\subsection{Constructings subterms}
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{allquant}
+\ExecuteMetaData[SaferIndexed.idr.tex]{dataallquant}
+\ExecuteMetaData[SaferIndexed.idr.tex]{serialisemu}
+
+\subsection{Copying subterms}
+
+We introduce a \IdrisFunction{copy} combinator for terms that we simply want
+to keep the same. This is implemented using the \IdrisFunction{copyData}
+primitive for \IdrisType{Buffer}s.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{copy}
 
 \subsection{Executing a Serialisation Action}
 

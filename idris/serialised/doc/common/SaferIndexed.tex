@@ -25,15 +25,29 @@ namespace Data
   data All' : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type
 
   public export
+
+\end{code}
+%<*allquant>
+\begin{code}
   All : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type
   All None p t = ()
   All Byte p t = Singleton t
   All d@(Prod _ _) p t = All' d p t
   All Rec p t = p t
+\end{code}
+%</allquant>
+\begin{code}
 
   public export
+
+\end{code}
+%<*dataallquant>
+\begin{code}
   data All' : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type where
     (#) : All d p t -> All e p u -> All' (Prod d e) p (t # u)
+\end{code}
+%</dataallquant>
+\begin{code}
 
   export
   all : (d : Desc r s n) -> ((a : x) -> p a) ->
@@ -106,10 +120,16 @@ namespace Serialising
            pure end
 
   export
+\end{code}
+%<*serialisemu>
+\begin{code}
   (#) : {cs : Data nm} -> (k : Index cs) ->
         {0 t : Meaning (description k) (Data.Mu cs)} ->
         All (description k) (Serialising cs) t ->
         Serialising cs (k # t)
+\end{code}
+%</serialisemu>
+\begin{code}
   MkIndex k # layer
     = MkSerialising $ \ buf, start =>
         goMu buf start k (index k $ constructors cs) layer
@@ -157,6 +177,7 @@ namespace Pointer
     subterms : Vect n Int
     meaningBuffer : Buffer
     meaningPosition : Int
+    meaningSize : Int
 \end{code}
 %</elem>
 \begin{code}
@@ -168,6 +189,7 @@ namespace Pointer
     constructor MkMu
     muBuffer : Buffer
     muPosition : Int
+    muSize : Int
 \end{code}
 %</pointermu>
 \begin{code}
@@ -228,17 +250,18 @@ namespace Pointer
 %</pokefunByte>
 %<*pokefunProd>
 \begin{code}
-    poke {d = Prod {sl, ol} d e} {t} el = do
-      let (subl, subr) = splitAt ol (subterms el)
-      let left = MkMeaning subl (meaningBuffer el) (meaningPosition el)
-      let pos = meaningPosition el + sum subl + cast sl
-      let right = MkMeaning subr (meaningBuffer el) pos
+    poke {d = Prod {sl, ol} d e} {t} (MkMeaning sub buf pos size) = do
+      let (subl, subr) = splitAt ol sub
+      let sizel = sum subl + cast sl
+      let left = MkMeaning subl buf pos sizel
+      let posr = pos + sizel
+      let right = MkMeaning subr buf posr (size - sizel)
       pure (rewrite etaTuple t in left # right)
 \end{code}
 %</pokefunProd>
 %<*pokefunRec>
 \begin{code}
-    poke {d = Rec} el = pure (MkMu (meaningBuffer el) (meaningPosition el))
+    poke {d = Rec} (MkMeaning _ buf pos size) = pure (MkMu buf pos size)
 \end{code}
 %</pokefunRec>
 %</pokefunbody>
@@ -341,11 +364,10 @@ namespace Pointer
       forall t. Pointer.Mu cs (k # t) ->
       IO (Pointer.Meaning (description k) cs t)
     getConstructor (MkIndex k) mu
-      = getOffsets
-        (muBuffer mu)
-        (1 + muPosition mu)
-        (offsets (index k $ constructors cs))
-      $ \ subterms, pos => MkMeaning subterms (muBuffer mu) pos
+      = let offs : Nat; offs = offsets (index k $ constructors cs) in
+        getOffsets (muBuffer mu) (1 + muPosition mu) offs
+      $ let size = muSize mu - 1 - cast (8 * offs) in
+        \ subterms, pos => MkMeaning subterms (muBuffer mu) pos size
 \end{code}
 %</getConstructor>
 \begin{code}
@@ -442,6 +464,28 @@ namespace Pointer
            pure (alg k <$> rec)
 \end{code}
 %</fold>
+\begin{code}
+
+    export
+    deserialise : {cs : Data nm} -> forall t. Mu cs t -> IO (Singleton t)
+    deserialise ptr = do
+      k # ptr <- out ptr
+      t <- assert_total (fmap (description k) id deserialise ptr)
+      pure ((k #) <$> transport (fmapId (description k) id (\ _ => Refl) _) t)
+
+namespace Serialising
+
+  export
+\end{code}
+%<*copy>
+\begin{code}
+  copy : Pointer.Mu cs t -> Serialising cs t
+  copy ptr = MkSerialising $ \ buf, pos => do
+    let size = muSize ptr
+    copyData (muBuffer ptr) (muPosition ptr) size buf pos
+    pure (pos + size)
+\end{code}
+%</copy>
 \begin{code}
 
 namespace Tree
@@ -638,12 +682,10 @@ namespace Serialising
   execSerialising act = do
     Just buf <- newBuffer blockSize
       | Nothing => failWith "\{__LOC__} Couldn't allocate buffer"
-    -- Do we care about storing the data description in this case?
-    end <- setData buf 8 cs
-    setInt buf 0 (end - 8)
-    -- Anyway, here's the actual data:
-    size <- runSerialising act buf end
-    pure (MkMu buf end)
+    middle <- setData buf 8 cs
+    setInt buf 0 (middle - 8)
+    end <- runSerialising act buf middle
+    pure (MkMu buf middle (end - middle))
 
 
 ||| initFromFile creates a pointer to a datastructure stored in a file
@@ -663,10 +705,32 @@ initFromFile cs fp
            , "but got:"
            , show cs'
            ]
-       pure (Evidence t (MkMu buf (skip + 8)))
+       let pos = skip + 8
+       pure (Evidence t (MkMu buf pos (!(rawSize buf) - pos)))
 
   where 0 t : Data.Mu cs -- postulated as an abstract value
 
+
+namespace Data
+
+  public export
+  swap : Data.Mu Tree -> Data.Mu Tree
+  swap ("Leaf" # _) = "Leaf" # ()
+  swap ("Node" # l # b # r) = "Node" # r # b # l
+
+namespace Pointer
+
+  export
+\end{code}
+%<*swap>
+\begin{code}
+  swap : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.swap t))
+  swap ptr = execSerialising $ case !(view ptr) of
+    "Leaf" # () => leaf
+    "Node" # l # b # r => node (copy r) b (copy l)
+\end{code}
+%</swap>
+\begin{code}
 
 testing : Pointer.Mu Tree t -> IO ()
 testing tree = do
