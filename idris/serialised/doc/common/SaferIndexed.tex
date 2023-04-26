@@ -155,8 +155,8 @@ namespace Pointer
                  (t : Data.Meaning d (Data.Mu cs)) where
     constructor MkMeaning
     subterms : Vect n Int
-    elemBuffer : Buffer
-    elemPosition : Int
+    meaningBuffer : Buffer
+    meaningPosition : Int
 \end{code}
 %</elem>
 \begin{code}
@@ -222,7 +222,7 @@ namespace Pointer
 %<*pokefunByte>
 \begin{code}
     poke {d = Byte} el = do
-      bs <- getBits8 (elemBuffer el) (elemPosition el)
+      bs <- getBits8 (meaningBuffer el) (meaningPosition el)
       pure (unsafeMkSingleton bs)
 \end{code}
 %</pokefunByte>
@@ -230,15 +230,15 @@ namespace Pointer
 \begin{code}
     poke {d = Prod {sl, ol} d e} {t} el = do
       let (subl, subr) = splitAt ol (subterms el)
-      let left = MkMeaning subl (elemBuffer el) (elemPosition el)
-      let pos = elemPosition el + sum subl + cast sl
-      let right = MkMeaning subr (elemBuffer el) pos
+      let left = MkMeaning subl (meaningBuffer el) (meaningPosition el)
+      let pos = meaningPosition el + sum subl + cast sl
+      let right = MkMeaning subr (meaningBuffer el) pos
       pure (rewrite etaTuple t in left # right)
 \end{code}
 %</pokefunProd>
 %<*pokefunRec>
 \begin{code}
-    poke {d = Rec} el = pure (MkMu (elemBuffer el) (elemPosition el))
+    poke {d = Rec} el = pure (MkMu (meaningBuffer el) (meaningPosition el))
 \end{code}
 %</pokefunRec>
 %</pokefunbody>
