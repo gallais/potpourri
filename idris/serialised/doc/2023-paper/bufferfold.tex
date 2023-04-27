@@ -35,7 +35,7 @@ named \IdrisBound{ptr} is pointing at and then dispatch over the description
 
 If the description is \IdrisData{None} we use \IdrisFunction{byIrrelevance}
 which happily builds any (\IdrisType{Singleton} \IdrisBound{t}) provided
-that \IdrisBound{t}'s is proof irrelevant.
+that \IdrisBound{t}'s type is proof irrelevant.
 
 If the description is \IdrisData{Byte}, the value is left untouched and so
 we can simply return it immediately.
