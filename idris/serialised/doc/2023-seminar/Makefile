@@ -5,6 +5,7 @@ RAW_DEPENDENCIES=\
   motivations.tex \
   universe.tex \
   buffers.tex \
+  serialising.tex \
   next.tex \
   idris2.sty \
   Serialised/Desc.idr.tex \

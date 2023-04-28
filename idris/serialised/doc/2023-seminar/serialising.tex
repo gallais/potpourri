@@ -1,0 +1,23 @@
+\section{Correct by Construction Serialisers}
+
+\begin{frame}{Motivation}
+  \small\ExecuteMetaData[SaferIndexed.idr.tex]{serialisedmap}
+\end{frame}
+
+\begin{frame}{The \IdrisType{Serialising} Type}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{serialising}
+  \vfill
+  \ExecuteMetaData[SaferIndexed.idr.tex]{execSerialising}
+\end{frame}
+
+\begin{frame}{Serialising a Node}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{serialisemu}
+  \vfill
+  where \IdrisFunction{All} is the predicate lifting over a functor
+\end{frame}
+
+\begin{frame}{Copying a Tree}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{swap}
+  \vfill
+  \ExecuteMetaData[SaferIndexed.idr.tex]{copy}
+\end{frame}
