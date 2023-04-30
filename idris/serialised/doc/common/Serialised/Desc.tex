@@ -285,7 +285,7 @@ namespace Data
 \end{code}
 %<*fmap>
 \begin{code}
-  fmap : (d : Desc{}) -> (a -> b) -> Meaning d a -> Meaning d b
+  fmap : (d : Desc r s o) -> (a -> b) -> Meaning d a -> Meaning d b
   fmap None f v = v
   fmap Byte f v = v
   fmap (Prod d e) f (v # w) = (fmap d f v # fmap e f w)
@@ -295,7 +295,7 @@ namespace Data
 \begin{code}
 
   export
-  fmapId : (d : Desc{}) -> (f : a -> a) -> ((x : a) -> f x === x) ->
+  fmapId : (d : Desc r s o) -> (f : a -> a) -> ((x : a) -> f x === x) ->
            (t : Meaning d a) -> fmap d f t === t
   fmapId None f eq t = Refl
   fmapId Byte f eq t = Refl
@@ -306,7 +306,7 @@ namespace Data
 \end{code}
 %<*traverse>
 \begin{code}
-  traverse : Monad m => (d : Desc{}) ->
+  traverse : Monad m => (d : Desc r s o) ->
              (a -> m b) -> Meaning d a -> m (Meaning d b)
   traverse None f v = pure v
   traverse Byte f v = pure v

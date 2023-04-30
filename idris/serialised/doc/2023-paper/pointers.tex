@@ -7,21 +7,32 @@ to constructor and data descriptions as pointers into a buffer.
 
 We start with the definition of the counterpart to \IdrisType{Mu}
 for serialised values. A tree sitting in a buffer is represented
-by the pairing of the buffer and the offset at which the tree's
-root node is stored.
+by a record packing the buffer, the position at which the tree's
+root node is stored, and the size of the tree.
+%
+Note that according to our serialisation format the size is not stored
+in the file but using the size of the buffer, the stored offsets,
+and the size of the static data we will always
+be able to compute a value corresponding to it.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pointermu}
 
 For reasons that will become apparent in \Cref{sec:bufferfold}
 when we start programming over serialised data in a correct-by-construction
 manner the record \IdrisType{Mu} is parameterised not only by the description
-of the data type stored but also by a runtime-irrelevant inductive value of
+of the type of the data stored but also by a runtime-irrelevant inductive value of
 that type.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{elem}
 
+The counterpart to a \IdrisFunction{Meaning} stores additional information.
+For a description of type (\IdrisType{Desc} \IdrisBound{r} \IdrisBound{s} \IdrisBound{o})
+on top of the buffer, the position at which the root of the meaning resides,
+and the size of the layer we additionally have a vector of \IdrisBound{o} offsets.
+
 Now that we have pointers, we can use them to look at the content
-they are referring to.
+they are referring to. But first we need to introduce some basic tools
+to be able to talk precisely about this stored content.
 
 \subsection{Interlude: Views and Singletons}
 
@@ -91,7 +102,7 @@ it is that we read from the buffer.
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunNone}
 
 If the description is \IdrisData{None} we do not need to fetch any
-information from the buffer.
+information from the buffer and can immediately return \IdrisData{()}.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunByte}
 
@@ -167,9 +178,11 @@ obtaining an \IdrisType{Index},
 and a \IdrisType{Pointer.Meaning} to the constructor's payload
 (remember that these high-level `pointers' store a vector of offsets).
 %
-The return type ensures that the structure of the runtime irrelevant
-tree is adequately
-described by combining both components.
+The family's index (\IdrisBound{k} \IdrisData{\#} \IdrisBound{t})
+ensures that the structure of the runtime irrelevant
+tree is adequately described by
+the index (\IdrisBound{k}) and
+the \IdrisFunction{Data.Meaning} (\IdrisBound{t}) the \IdrisType{Pointer.Meaning} is for.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
 
@@ -198,13 +211,18 @@ $[0 \cdots \text{\IdrisFunction{consNumber} \IdrisBound{cs}}[$ using
 We then use the unsafe \IdrisPostulate{unfoldAs} primitive to step the
 type-level \IdrisBound{t} to something of the form
 (\IdrisBound{k} \IdrisData{\#} \IdrisBound{val}).
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{unfoldAs}
+
 The declaration of \IdrisPostulate{unfoldAs} is marked as runtime
 irrelevant because it cannot possibly be implemented
 (\IdrisBound{t} is runtime irrelevant and so cannot be inspected)
-and so should its output should not be relied upon in runtime-relevant
+and so its output should not be relied upon in runtime-relevant
 computations.
-
-\ExecuteMetaData[Serialised/Desc.idr.tex]{unfoldAs}
+%
+Its type states that there exists a \IdrisFunction{Meaning} called
+\IdrisBound{val} such that \IdrisBound{t} is equal to
+(\IdrisBound{k} \IdrisData{\#} \IdrisBound{val})
 
 Now that we know the head constructor we want to deserialise and that
 we have the ability to step the runtime irrelevant tree to match the
@@ -213,7 +231,15 @@ to build such a value.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{getConstructor}
 
-\todo{explain}
+To get a constructor, we start by getting the vector of offsets stored
+immediately after the tag. We then compute the size of the remaining
+\IdrisFunction{Meaning} description: it is the size of the overall tree,
+minus $1$ (for the index) and $8$ times the number of offsets (because
+each offset is stored as an 8 bytes number).
+%
+We can then use the record constructor \IdrisData{MkMeaning} to pack
+together the vector of offsets, the buffer, the position past the offsets
+and the size we just computed.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{getOffsets}
 
