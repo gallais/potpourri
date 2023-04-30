@@ -27,6 +27,7 @@ RAW_DEPENDENCIES=\
   views.tex \
   serialisation.tex \
   related-work.tex \
+  limitations.tex \
   conclusion.tex \
   acknowledgements.tex
 

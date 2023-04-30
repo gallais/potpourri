@@ -1,0 +1,86 @@
+
+\subsection{Limitations and Future Work}
+
+\subsubsection{A More Robust Library}
+
+For sake of ease of presentation we have not dealt with issues necessiting
+buffer resizing: in \Cref{sec:serialising},
+we defined \IdrisFunction{execSerialising}
+by allocating a fixed size buffer and not worrying whether the whole content
+would fit.
+%
+A real library would need to adopt a more robust approach
+akin to the one used in the implementation of \idris{}'s own serialisation
+code: whenever we are about to write a byte to the buffer, we make sure there
+is either enough space left or we grow it.
+
+\subsubsection{A More Efficient Library}
+
+Partial evaluation and program specialisation to remove the interpretation
+overhead incurred by working generically.
+\todo{Look into 2LTT}
+
+Our serialisation format currently does not support sharing.
+\todo{expand}
+
+
+We currently do not support in-place updates to the data stored in a buffer.
+This could however be beneficial for functions like \IdrisFunction{map}.
+%
+We see two possible approaches here. The first one leverages \idris{}'s
+linear quantity annotation to provide users with serialised value that
+can be safely updated in place: as they are used to take values apart,
+pointers become unavailable and so the underlying data in the buffer can
+be modified.
+%
+Another approach is to build separation logic into our correct-by-construction
+combinators and thus ensure that the system keeps track of the modifications
+being made.
+\todo{Iris}
+
+
+
+Our current approach allows us to define a correct-by-construction
+\IdrisFunction{sum} operating directly on serialised data but it
+does not eliminate the call stack used in the naïve functional
+implementation.
+%
+Converting a fold to a tail recursive function in a generic manner
+is a well studied problem and the existing
+solutions~\cite{DBLP:conf/popl/McBride08,DBLP:conf/icfp/CortinasS18}
+should be fairly straightforward to port to our setting.
+
+\subsubsection{A More Expressive Universe of Descriptions}
+
+We have used a minimal universe to demonstrate our approach but a practical
+application would require the ability to store more than just raw bytes.
+An easy extension is to add support for all of the numeric types of
+known size that \idris{} offers
+(\IdrisType{Bits\{8,16,32,64\}}, \IdrisType{Int\{8,16,32,64\}})
+as well as a unbounded data such as \IdrisType{Nat}, or \IdrisType{String}
+as long as an extra offset is provided for each value.
+
+A natural next candidate is a universe allowing the definition of parametrised
+types: we should be able to implement functions over arbitrary
+(\IdrisType{List} \IdrisBound{a}) values stored in a buffer,
+provided that we know that \IdrisBound{a} is serialisable.
+
+Next, we will want to consider a universe of indexed data: we can currently
+model lists or trees but we cannot model vectors, or correct-by-construction
+red-black trees.\todo{correct RB trees: cite (Weirich?)}
+
+Last but not least we may want to have a universe of descriptions closed
+under least fixpoints~\cite{DBLP:phd/ethos/Morris07}
+in order to represent rose trees for instance.
+
+\subsubsection{A More Expressive Library}
+
+Using McBride's generalisation of one hole contexts~\cite{DBLP:conf/popl/McBride08}
+we ought to be able to give a more precise type to the combinator
+\IdrisFunction{(\#)} used to build serialisation process.
+%
+When defining the serialisation of a given subtree, we ought to have access to
+pointers to the result of serialising any subtree to the left of it. In particular
+this would make building complete binary trees a lot faster by allowing us to rely
+on \IdrisFunction{copyData} for duplicating branches rather than running the computation
+twice.
