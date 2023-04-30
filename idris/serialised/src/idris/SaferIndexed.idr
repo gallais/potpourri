@@ -121,29 +121,13 @@ namespace Serialising
     _ | cons = SaferIndexed.Data.curry (description cons) $ \ layer =>
                MkSerialising $ \ buf, start => goMu buf start k cons layer
 
-  export
-  serialiseToFile : {cs : Data nm} -> String -> {0 t : Mu cs} ->
-                    Serialising cs t -> IO ()
-  serialiseToFile fp t = do
-    Just buf <- newBuffer blockSize
-      | Nothing => failWith "\{__LOC__} Couldn't allocate buffer"
-    end <- setData buf 8 cs
-    setInt buf 0 (end - 8)
-    size <- runSerialising t buf end
-    Right () <- writeBufferToFile fp buf size
-      | Left (err, _) => failWith (show err)
-    pure ()
-
 namespace Buffer
 
+  export
   setMu : {cs : Data nm} -> (t : Data.Mu cs) -> Serialising cs t
   setMu (k # t)
     = Serialising.setMu k
     $ all (description k) (assert_total Buffer.setMu) t
-
-  export
-  writeToFile : {cs : Data nm} -> String -> Mu cs -> IO ()
-  writeToFile fp t = serialiseToFile fp (setMu t)
 
 namespace Pointer
 
@@ -490,6 +474,35 @@ namespace Serialising
     pure (MkMu buf middle (end - middle))
 
 
+namespace Pointer
+
+  export
+  writeToFile : {cs : Data nm} -> String ->
+                forall t. Pointer.Mu cs t -> IO ()
+  writeToFile fp (MkMu buf pos size) = do
+    desc <- getInt buf 0
+    buf <- if pos == 8 + desc then pure buf else do
+      Just newbuf <- newBuffer blockSize
+        | Nothing => failWith "\{__LOC__} Couldn't allocate buffer"
+      copyData buf 0 (8 + desc) newbuf 0
+      copyData buf (8 + desc) size newbuf (8 + desc)
+      pure buf
+    Right () <- writeBufferToFile fp buf (8 + desc + size)
+      | Left (err, _) => failWith (show err)
+    pure ()
+
+namespace Serialising
+
+  export
+  writeToFile : {cs : Data nm} -> String -> forall t. Serialising cs t -> IO ()
+  writeToFile fp val = writeToFile fp !(execSerialising val)
+
+namespace Data
+
+  export
+  writeToFile : {cs : Data nm} -> String -> Mu cs -> IO ()
+  writeToFile fp t = writeToFile fp (setMu t)
+
 ||| initFromFile creates a pointer to a datastructure stored in a file
 ||| @ cs   is the datatype you want to use to decode the buffer's content
 ||| @ safe signals whether to check the file's header matches the declared datatype
@@ -519,6 +532,11 @@ namespace Data
   swap ("Leaf" # _) = "Leaf" # ()
   swap ("Node" # l # b # r) = "Node" # r # b # l
 
+  public export
+  right : Data.Mu Tree -> Data.Mu Tree
+  right ("Node" # _ # _ # r) = r
+  right t = t
+
 namespace Pointer
 
   export
@@ -526,6 +544,12 @@ namespace Pointer
   swap ptr = execSerialising $ case !(view ptr) of
     "Leaf" # () => leaf
     "Node" # l # b # r => node (copy r) b (copy l)
+
+  export
+  right : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.right t))
+  right ptr = case !(view ptr) of
+    "Leaf" # _ => pure ptr
+    "Node" # l # b # r => pure r
 
 
 testing : Pointer.Mu Tree t -> IO ()
@@ -552,7 +576,7 @@ main = do
   putStrLn (replicate 72 '-')
 
   -- Second Tree: mapping over the first one
-  serialiseToFile "tmp2" (map (1+) tree)
+  writeToFile "tmp2" (map (1+) tree)
   Evidence _ tree2 <- initFromFile Tree "tmp2"
   testing tree2
 
@@ -561,3 +585,16 @@ main = do
   -- Third Tree: don't go via a file
   tree3 <- execSerialising (map (2+) tree2)
   testing tree3
+
+  putStrLn (replicate 72 '-')
+
+  -- Fourth Tree: focus on a subtree
+  tree4 <- right tree3
+  testing tree4
+
+  putStrLn (replicate 72 '-')
+
+  -- Round-trip subtree via a file
+  writeToFile "tmp3" (map (\ b => b - 20) tree4)
+  Evidence _ tree5 <- initFromFile Tree "tmp3"
+  testing tree5
