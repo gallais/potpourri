@@ -33,3 +33,31 @@ and the size of the layer we additionally have a vector of \IdrisBound{o} offset
 Now that we have pointers, we can use them to look at the content
 they are referring to. But first we need to introduce some basic tools
 to be able to talk precisely about this stored content.
+
+\subsection{Writing a Tree to a File}
+
+Once we have a pointer to a tree in a buffer, we can easily write it to a
+file be it for safekeeping or sending.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{writeToFile}
+
+We first start by reading the size of the header stored in the buffer.
+%
+This allows us to compute both the start of the data block as well as the
+size of the buffer that will contain the header followed by the tree we want
+to write to a file.
+
+
+We then check whether the position of the pointer is exactly the beginning
+of the data block.
+
+If it is then the buffer can be written to a file as is.
+
+Otherwise we need to prepare a new buffer containing the header followed
+by just the tree we are interested in rather the whole content of the input
+buffer.
+%
+We allocate a new buffer of the right size, copy the header,
+and finally copy the tree.
+
+We can then write the full buffer to a file and happily succeed.
