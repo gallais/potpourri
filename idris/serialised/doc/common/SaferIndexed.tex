@@ -163,13 +163,10 @@ namespace Serialising
 
 namespace Buffer
 
+  export
   setMu : {cs : Data nm} -> (t : Data.Mu cs) -> Serialising cs t
   setMu (k # t)
     = k # (all (description k) (assert_total Buffer.setMu) t)
-
-  export
-  writeToFile : {cs : Data nm} -> String -> Mu cs -> IO ()
-  writeToFile fp t = serialiseToFile fp (setMu t)
 
 namespace Pointer
 
@@ -694,7 +691,6 @@ namespace Serialising
     end <- runSerialising act buf middle
     pure (MkMu buf middle (end - middle))
 
-
 ||| initFromFile creates a pointer to a datastructure stored in a file
 ||| @ cs   is the datatype you want to use to decode the buffer's content
 ||| @ safe signals whether to check the file's header matches the declared datatype
@@ -717,6 +713,41 @@ initFromFile cs fp
 
   where 0 t : Data.Mu cs -- postulated as an abstract value
 
+
+namespace Pointer
+
+  export
+\end{code}
+%<*writeToFile>
+\begin{code}
+  writeToFile : {cs : Data nm} -> String ->
+                forall t. Pointer.Mu cs t -> IO ()
+  writeToFile fp (MkMu buf pos size) = do
+    desc <- getInt buf 0
+    buf <- if pos == 8 + desc then pure buf else do
+      Just newbuf <- newBuffer blockSize
+        | Nothing => failWith "\{__LOC__} Couldn't allocate buffer"
+      copyData buf 0 (8 + desc) newbuf 0
+      copyData buf (8 + desc) size newbuf (8 + desc)
+      pure buf
+    Right () <- writeBufferToFile fp buf (8 + desc + size)
+      | Left (err, _) => failWith (show err)
+    pure ()
+\end{code}
+%</writeToFile>
+\begin{code}
+
+namespace Serialising
+
+  export
+  writeToFile : {cs : Data nm} -> String -> forall t. Serialising cs t -> IO ()
+  writeToFile fp val = writeToFile fp !(execSerialising val)
+
+namespace Data
+
+  export
+  writeToFile : {cs : Data nm} -> String -> Mu cs -> IO ()
+  writeToFile fp t = writeToFile fp (setMu t)
 
 namespace Data
 

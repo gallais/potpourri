@@ -1,0 +1,226 @@
+
+\section{Poking the Buffer}
+
+Our most basic operation consists in poking the buffer to unfold
+the description by exactly one step.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefun}
+
+The result type of this operation is defined by case-analysis on the
+description. In order to keep the notations user-friendly, we
+mutually define
+a recursive function \IdrisFunction{Poke} interpreting the straightforward type constructors
+and an inductive family \IdrisType{Poke'} with interesting return indices.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokedatafun}
+
+Poking a buffer containing \IdrisData{None} will return a value of
+the unit type as no information whatsoever is stored there.
+
+If we access a \IdrisData{Byte} then we expect that inspecting the
+buffer will yield a runtime-relevant copy of the type-level byte we
+have for reference. Hence the use of \IdrisType{Singleton}.
+
+If we access a \IdrisData{Prod} of two descriptions then the type-level term
+better be a pair and we better be able to obtain a \IdrisType{Pointer.Meaning}
+to each of the sub-meanings.
+%
+Because \idris{} does not currently support definitional eta equality
+for records, it will me more ergonomic for users if we introduce
+\IdrisType{Poke'} rather than yielding a \IdrisType{Tuple} of values.
+
+Last but not least if the description is \IdrisData{Rec} this means
+we have a substructure. In this case we simply demand a pointer to it.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokedatadata}
+
+The implementation of this operation proceeds by case analysis
+on the description.
+%
+As we are going to see shortly, it is necessarily somewhat unsafe
+as we claim to be able to connect a type-level value to whatever
+it is that we read from the buffer.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefunNone}
+
+If the description is \IdrisData{None} we do not need to fetch any
+information from the buffer and can immediately return \IdrisData{()}.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefunByte}
+
+If the description is \IdrisData{Byte} then we read a byte at the
+determined position. The only way we can connect this value we just
+read to the type index is to use the unsafe combinator
+\IdrisPostulate{unsafeMkSingleton} to manufacture a value of type
+(\IdrisType{Singleton} \IdrisBound{t}) instead of the value of type
+(\IdrisType{Singleton} \IdrisBound{bs})
+we would expect from wrapping \IdrisBound{bs} in the \IdrisData{MkSingleton} constructor.
+
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefunProd}
+
+If the description is the product of two sub-descriptions then we
+want to compute the \IdrisType{Pointer.Meaning} corresponding to
+each of them.
+%
+We start by splitting the vector of offsets to distribute them between
+the left and right subtrees.
+%
+We can readily build the pointer for the \IdrisBound{left} subdescription:
+it takes the left offsets, the buffer, and has the same starting position
+as the whole description of the product as they are stored one after the other.
+%
+We then compute the starting position of the right subtree: we need to
+move past the whole of the left subtree, that is to say past the space
+reserved by all of the left offsets (\IdrisFunction{sum} \IdrisBound{subl})
+but also past the content whose size is known statically (\IdrisBound{sl}).
+%
+We can finally use an eta-equality lemma to turn \IdrisBound{t} into
+(\IdrisFunction{fst} \IdrisBound{t} \IdrisData{\#} \IdrisFunction{snd} \IdrisBound{t})
+which lets us use the \IdrisType{Poke'} constructor \IdrisData{(\#)} to return our
+pair of pointers.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pokefunRec}
+
+Lastly, when we reach a \IdrisData{Rec} description, we can discard the
+vector of offsets and return a \IdrisType{Pointer.Mu} with the same buffer
+and starting position as our input pointer.
+
+\subsection{Extracting one layer}
+
+By repeatedly poking the buffer, we can unfold a full layer.
+The result of this operation is defined by induction
+on the description. It is identical to the definition of
+\IdrisFunction{Poke} except for the \IdrisData{Prod} case:
+here, instead of being content with a pointer for each of the
+subdescriptions, we demand a full layer for them too.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{layerdata}
+
+This function can easily be implemented by induction on the description
+and repeatedly calling \IdrisFunction{poke} to expose the values one by
+one.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{layerfun}
+
+\subsection{Exposing the top constructor}
+
+Now that we can deserialise an entire layer of \IdrisFunction{Meaning},
+the only thing we are missing to be able to generically manipulate trees
+is the ability to expose the top constructor of a tree stored at a
+\IdrisType{Pointer.Mu} position.
+%
+Remembering the data layout detailed in \Cref{fig:data-layout}, this will
+amount to inspecting the tag used by the node and then deserialising the
+offsets stored immeditately after it.
+
+The \IdrisType{Out} family describes the typed point of view:
+to get your hands on the index of a tree's constructor means
+obtaining an \IdrisType{Index},
+and a \IdrisType{Pointer.Meaning} to the constructor's payload
+(remember that these high-level `pointers' store a vector of offsets).
+%
+The family's index (\IdrisBound{k} \IdrisData{\#} \IdrisBound{t})
+ensures that the structure of the runtime irrelevant
+tree is adequately described by
+the index (\IdrisBound{k}) and
+the \IdrisFunction{Data.Meaning} (\IdrisBound{t}) the \IdrisType{Pointer.Meaning} is for.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
+
+The type of the \IdrisFunction{out} is as expected: given a pointer
+to a tree \IdrisBound{t} of type \IdrisBound{cs} we can get a value
+of type (\IdrisType{Out} \IdrisBound{cs} \IdrisBound{t}).
+%
+That is to say, we can get a view allowing us to reveal what the
+index of the tree's head constructor is.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
+
+The implementation is fairly straightforward except for another
+unsafe step meant to reconcile the information we read in the buffer
+with the runtime-irrelevant tree index.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{outfunbody}
+
+We start by reading the tag \IdrisBound{k}
+corresponding to the constructor choice:
+we obtain a byte by calling \IdrisFunction{getBits8}, cast it to a
+natural number and then make sure that it is in the range
+$[0 \cdots \text{\IdrisFunction{consNumber} \IdrisBound{cs}}[$ using
+\IdrisFunction{natToFin}.
+%
+We then use the unsafe \IdrisPostulate{unfoldAs} primitive to step the
+type-level \IdrisBound{t} to something of the form
+(\IdrisBound{k} \IdrisData{\#} \IdrisBound{val}).
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{unfoldAs}
+
+The declaration of \IdrisPostulate{unfoldAs} is marked as runtime
+irrelevant because it cannot possibly be implemented
+(\IdrisBound{t} is runtime irrelevant and so cannot be inspected)
+and so its output should not be relied upon in runtime-relevant
+computations.
+%
+Its type states that there exists a \IdrisFunction{Meaning} called
+\IdrisBound{val} such that \IdrisBound{t} is equal to
+(\IdrisBound{k} \IdrisData{\#} \IdrisBound{val})
+
+Now that we know the head constructor we want to deserialise and that
+we have the ability to step the runtime irrelevant tree to match the
+actual content of the buffer, we can use \IdrisFunction{getConstructor}
+to build such a value.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{getConstructor}
+
+To get a constructor, we start by getting the vector of offsets stored
+immediately after the tag. We then compute the size of the remaining
+\IdrisFunction{Meaning} description: it is the size of the overall tree,
+minus $1$ (for the index) and $8$ times the number of offsets (because
+each offset is stored as an 8 bytes number).
+%
+We can then use the record constructor \IdrisData{MkMeaning} to pack
+together the vector of offsets, the buffer, the position past the offsets
+and the size we just computed.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{getOffsets}
+
+The implementation of \IdrisType{getOffsets} is straightforward: given
+a continuation that expect \IdrisBound{n} offsets as well as the
+position past the last of these offsets, we read the 8-bytes-long
+offsets one by one and pass them to the continuation, making sure
+that we move the current position accordingly before every recursive call.
+
+\subsection{Offering a convenient \IdrisType{View}}
+
+We can combine \IdrisFunction{out} and \IdrisFunction{layer} to obtain
+the \IdrisFunction{view} function we used in our introductory examples
+in~\Cref{sec:seamless}.
+%
+A (\IdrisType{View} \IdrisBound{cs} \IdrisBound{t}) value gives us
+access to the (\IdrisType{Index} \IdrisBound{cs}) of
+\IdrisBound{t}'s top constructor together with the corresponding
+\IdrisFunction{Layer} of deserialised values and pointers to subtrees.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{viewdata}
+
+The implementation of \IdrisFunction{view} is unsurprising: we use
+\IdrisFunction{out} to expose the top constructor index and a
+\IdrisType{Pointer.Meaning} to the constructor's payload.
+%
+We then user \IdrisFunction{layer} to extract the full
+\IdrisFunction{Layer} of deserialised values that the
+pointer references.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{viewfun}
+\ExecuteMetaData[SaferIndexed.idr.tex]{viewfunbody}
+
+It is worth noting that although a \IdrisFunction{view} may be
+convenient to consume, a performance-minded user may decide to
+directly use the \IdrisFunction{out} and \IdrisFunction{poke}
+combinators to avoid deserialising values that they do not need.
+%
+We present a case study in \Cref{appendix:rightmost} comparing the
+access patterns of two implementations of the function fetching the
+byte stored in a tree's rightmost node depending on whether we use
+\IdrisFunction{view} or the lower level \IdrisFunction{poke} combinator.

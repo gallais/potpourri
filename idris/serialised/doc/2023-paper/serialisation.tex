@@ -24,14 +24,18 @@ offset of the first byte past the serialised tree.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialising}
 
+We do not expect users to define such processes by hand and will instead
+provide them with high-level, invariant-respecting combinators to safely
+construct them.
 
-\subsection{Constructings subterms}
+
+\subsection{Building Serialisation Processes}
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{allquant}
 \ExecuteMetaData[SaferIndexed.idr.tex]{dataallquant}
 
 We can then use the \IdrisType{All} quantifier to state that given a
-valid serialisation process for all of a top node's subterms, we can
+valid serialisation process for all of a top node's subtrees, we can
 successfully define a serialising process for said node.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialisemu}
@@ -43,9 +47,9 @@ then we leave some space for the offsets,
 in the meantime we write all of the node's payloads and collect the offsets while doing so,
 and finally we fill in the space we had left blank with the offsets we have now collected.
 
-\subsection{Copying subterms}
+\subsection{Copying Entire Trees}
 
-We introduce a \IdrisFunction{copy} combinator for terms that we want to
+We introduce a \IdrisFunction{copy} combinator for trees that we want to
 serialise as-is.
 %
 Equipped with this combinator, we are able to easily write e.g.

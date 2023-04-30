@@ -1,4 +1,15 @@
-\subsubsection{Views}
+
+\section{Interlude: Views and Singletons}
+
+The precise indexing of pointers by a runtime-irrelevant copy of the value
+they are pointing to means that inspecting the buffer's content should
+not only return runtime information but also refine the index to reflect
+that information at the type-level.
+%
+As a consequence, the functions we are going to define in the following
+subsections are views.
+
+\subsection{Views}
 
 A view
 in the sense of Wadler~\cite{DBLP:conf/popl/Wadler87},
@@ -26,3 +37,14 @@ The function \IdrisFunction{unsnoc} demonstrates that we can always
 \emph{view} a \IdrisType{List} in a \IdrisType{Snoc}-manner.
 
 \ExecuteMetaData[Snoc.idr.tex]{unsnoc}
+
+Here we defined \IdrisType{Snoc} as an inductive family but it can
+sometimes be convenient to define the family recursively instead.
+In which case the \IdrisType{Singleton} inductive family can
+help us connect runtime values to their
+runtime-irrelevant type-level counterparts.
+
+\input{singleton}
+
+We now are equipped with the appropriate notions and definitions to
+start looking at the buffer's content.

@@ -21,6 +21,7 @@ RAW_DEPENDENCIES=\
   trees.tex \
   hexdump.tex \
   pointers.tex \
+  poking.tex \
   bufferfold.tex \
   singleton.tex \
   views.tex \
