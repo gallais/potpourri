@@ -481,13 +481,15 @@ namespace Pointer
                 forall t. Pointer.Mu cs t -> IO ()
   writeToFile fp (MkMu buf pos size) = do
     desc <- getInt buf 0
-    buf <- if pos == 8 + desc then pure buf else do
-      Just newbuf <- newBuffer blockSize
+    let start = 8 + desc
+    let bufSize = 8 + desc + size
+    buf <- if pos == start then pure buf else do
+      Just newbuf <- newBuffer bufSize
         | Nothing => failWith "\{__LOC__} Couldn't allocate buffer"
-      copyData buf 0 (8 + desc) newbuf 0
-      copyData buf (8 + desc) size newbuf (8 + desc)
+      copyData buf 0 start newbuf 0
+      copyData buf start size newbuf start
       pure buf
-    Right () <- writeBufferToFile fp buf (8 + desc + size)
+    Right () <- writeBufferToFile fp buf bufSize
       | Left (err, _) => failWith (show err)
     pure ()
 
