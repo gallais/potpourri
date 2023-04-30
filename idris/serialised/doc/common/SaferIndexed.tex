@@ -43,7 +43,8 @@ namespace Data
 \end{code}
 %<*dataallquant>
 \begin{code}
-  data All' : (d : Desc r s o) -> (p : x -> Type) -> Meaning d x -> Type where
+  data All' : (d : Desc r s o) -> (p : x -> Type) ->
+              Meaning d x -> Type where
     (#) : All d p t -> All e p u -> All' (Prod d e) p (t # u)
 \end{code}
 %</dataallquant>
@@ -89,10 +90,16 @@ namespace Serialising
 \begin{code}
 
   export
+\end{code}
+%<*serialisingbind>
+\begin{code}
   (>>=) : IO a -> (a -> Serialising cs t) -> Serialising cs t
   io >>= f = MkSerialising $ \buf, start =>
                do x <- io
                   runSerialising (f x) buf start
+\end{code}
+%</serialisingbind>
+\begin{code}
 
   parameters (buf : Buffer)
 

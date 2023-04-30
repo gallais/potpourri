@@ -28,15 +28,14 @@ We do not expect users to define such processes by hand and will instead
 provide them with high-level, invariant-respecting combinators to safely
 construct them.
 
-
 \subsection{Building Serialisation Processes}
 
-\ExecuteMetaData[SaferIndexed.idr.tex]{allquant}
-\ExecuteMetaData[SaferIndexed.idr.tex]{dataallquant}
-
-We can then use the \IdrisType{All} quantifier to state that given a
-valid serialisation process for all of a top node's subtrees, we can
-successfully define a serialising process for said node.
+Our main combinator is \IdrisFunction{(\#)}: by providing
+a node's constructor index
+and a way to serialise all of the node's subtrees,
+we obtain a serialisation process for said node.
+%
+We give a detailed explanation of \IdrisFunction{All} below.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialisemu}
 
@@ -44,8 +43,38 @@ The keen reader may refer to the accompanying code to see the implementation.
 Informally (cf. \Cref{sec:tree-serialisation} for the description of the format):
 first we write the tag corresponding to the choice of constructor,
 then we leave some space for the offsets,
-in the meantime we write all of the node's payloads and collect the offsets while doing so,
-and finally we fill in the space we had left blank with the offsets we have now collected.
+in the meantime we write all of the node's payloads and collect the offsets
+associated to each subtree while doing so,
+and finally we fill in the space we had left blank with the offsets
+we have thus collected.
+
+The \IdrisFunction{All} quantifier performs the pointwise of a predicate over
+the functor described by a \IdrisType{Desc}. It is defined by induction over
+the description.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{allquant}
+
+If the description is \IdrisData{None} then there is nothing to apply
+the predicate to and so we return the unit type.
+
+If the description is \IdrisData{Byte} we only demand that we have a runtime
+copy of the byte so that we may write it inside a buffer. This is done using
+the \IdrisType{Singleton} family discussed in \Cref{sec:datasingleton}.
+
+If the description is a the \IdrisData{Prod} of two subdescriptions, we once
+again use an auxiliary family purely for ergonomics. It is defined mutually
+with \IdrisFunction{All} and does the expected structural operation.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{dataallquant}
+
+Finally, if the description is \IdrisData{Rec} then we demand that the
+predicate holds.
+
+
+It should now be clear that
+(\IdrisFunction{All} \IdrisKeyword{(}\IdrisFunction{description} \IdrisBound{k}\IdrisKeyword{)}
+(\IdrisType{Serialising} \IdrisBound{cs}\IdrisKeyword{)}) indeed corresponded
+to having already defined a serialisation process for each subtree.
 
 \subsection{Copying Entire Trees}
 
@@ -97,7 +126,16 @@ The careful reader may have noticed that we can and do run arbitrary \IdrisType{
 operations when building a value of type \IdrisType{Serialising}
 (cf. the \IdrisFunction{map} example in \Cref{fig:serialised-map}).
 
-\todo{discuss bind and interleaving}
+This is due to the fact that \idris{} elaborates \IdrisKeyword{do}-blocks using
+whichever appropriate bind operator is in scope. In particular, we have defined
+the following one to use when building a serialisation process:
 
-This allows us to interleave reading from the original buffer and
-writing into the target one.
+\ExecuteMetaData[SaferIndexed.idr.tex]{serialisingbind}
+
+By using this bind we can temporarily pause writing to the buffer to make
+arbitrary \IdrisType{IO} requests to the outside world.
+%
+In particular, this allows us to interleave reading from the original buffer
+and writing into the target one thus having a much better memory footprint than
+if we were first using the \IdrisType{IO} monad to build in one go the whole
+serialisation process for a given tree and then executing it.
