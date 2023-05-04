@@ -51,13 +51,13 @@ to write to a file.
 We then check whether the position of the pointer is exactly the beginning
 of the data block.
 
-If it is then the buffer can be written to a file as is.
+If it is then we are pointing to the whole tree and the current buffer can
+be written to a file as is.
 
-Otherwise we need to prepare a new buffer containing the header followed
-by just the tree we are interested in rather the whole content of the input
-buffer.
+Otherwise we are pointing to a subtree and need to separate it from its
+surrounding context first.
 %
-We allocate a new buffer of the right size, copy the header,
-and finally copy the tree.
+To do so we allocate a new buffer of the right size and copy the raw bytes
+corresponding to the header first, and the tree of interest second.
 
-We can then write the full buffer to a file and happily succeed.
+We can then write the buffer we have picked to a file and happily succeed.
