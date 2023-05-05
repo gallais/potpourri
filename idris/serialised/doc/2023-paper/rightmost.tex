@@ -31,6 +31,6 @@ have deserialised all of the bytes stored in the nodes along the tree's
 rightmost path whereas the second will only have deserialised the rightmost byte.
 %
 Admittedly deserialising a byte is not extremely expensive but in a more realistic
-examples we could have for instance been storing arbitrarily large strings in
+examples we could have for instance been storing arbitrarily large values in
 these nodes. In that case it may be worth trading convenience for making sure we
 are not doing any unnecessary work.

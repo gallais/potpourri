@@ -20,9 +20,14 @@ Partial evaluation and program specialisation to remove the interpretation
 overhead incurred by working generically.
 \todo{Look into 2LTT}
 
-Our serialisation format currently does not support sharing.
-\todo{expand}
-
+Our serialisation format has been designed to avoid pointer-chasing and
+ensure entire subtrees can be easily copied as-is.
+Correspondingly it currently does not support sharing.
+%
+This could however be a crucial feature for trees with a lot of duplicated
+nodes and we would like to allow users to, using the same interface,
+easily pick between different serialisation formats so that the library
+ends up using the one that suits their application best.
 
 We currently do not support in-place updates to the data stored in a buffer.
 This could however be beneficial for functions like \IdrisFunction{map}.
@@ -48,7 +53,7 @@ implementation.
 Converting a fold to a tail recursive function in a generic manner
 is a well studied problem and the existing
 solutions~\cite{DBLP:conf/popl/McBride08,DBLP:conf/icfp/CortinasS18}
-should be fairly straightforward to port to our setting.
+should be fairly straightforward, if time-consuming, to port to our setting.
 
 \subsubsection{A More Expressive Universe of Descriptions}
 
@@ -65,9 +70,11 @@ types: we should be able to implement functions over arbitrary
 (\IdrisType{List} \IdrisBound{a}) values stored in a buffer,
 provided that we know that \IdrisBound{a} is serialisable.
 
-Next, we will want to consider a universe of indexed data: we can currently
-model lists or trees but we cannot model vectors, or correct-by-construction
-red-black trees.\todo{correct RB trees: cite (Weirich?)}
+Next, we will want to consider a universe of indexed data:
+we can currently natively model algebraic datatypes such as lists or trees,
+we can use the host language to compute the description of vectors by induction on their length,
+but we cannot model arbitrary type families~\cite{DBLP:journals/fac/Dybjer94}
+e.g. correct-by-construction red-black trees. \todo{correct RB trees: cite (Weirich?)}
 
 Last but not least we may want to have a universe of descriptions closed
 under least fixpoints~\cite{DBLP:phd/ethos/Morris07}

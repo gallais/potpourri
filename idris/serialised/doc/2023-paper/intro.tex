@@ -16,7 +16,7 @@ nothing at its leaves.
 %
 On the right, a small \idris{} snippet defining the corresponding
 inductive type and declaring a function summing up all of the
-nodes' content.
+nodes' contents.
 %
 It proceeds by pattern-matching:
 %
@@ -32,7 +32,7 @@ At runtime, the tree will quite probably be represented by
 constructors-as-structs and substructures-as-pointers:
 %
 each constructor is a struct with a tag indicating which
-constructor is represented and subsequent fields storing
+constructor is represented and subsequent fields store
 the constructors' arguments.
 %
 Each argument will be either a value (e.g. a byte) or a pointer
@@ -59,7 +59,8 @@ of the tree where leaves are represented by the byte 0, and nodes by
 the byte 1), the above example tree could be represented by the
 following list of bytes
 (each byte is represented by two hexadecimal character,
-we have additionally \IdrisData{highlighted} the bytes stored in the nodes):
+we have additionally \IdrisData{highlighted} the bytes
+corresponding to values stored in the nodes):
 
 \begin{hexdump}
 01 01 01 00 \hexadata{01} 00 \hexadata{05} 00 \hexadata{0a} 01 00 \hexadata{14} 00
@@ -195,7 +196,8 @@ by a phantom parameter: a runtime irrelevant \IdrisBound{t} which has type
 And so the return type is able to mention the pure \IdrisFunction{Data.sum}
 function that consumes inductively defined trees.
 %
-\IdrisType{Singleton} is, as its name suggests, a singleton type. That is
+\IdrisType{Singleton} is, as its name suggests, a singleton type
+(cf. \Cref{sec:view}). That is
 to say that the natural number we compute is now proven to be equal to the
 one computed by the pure \IdrisFunction{sum} function.
 %
@@ -243,9 +245,19 @@ inductive types.
 We will use this standard meaning in the specification layer of our work.
 
 \Cref{sec:hexdump} explores the serialisation format we have picked
-for these trees.
+for these trees: a depth-first, left-to-right infix traversal of the
+trees, with additional information stored to allow for the random access
+of any subtree.
 
-\Cref{sec:pointers} defines IO primitives that operate on serialised
+\Cref{sec:pointers} defines the type of pointers to trees stored in a
+buffer and shows how we can use such pointers to write the corresponding
+tree to a file.
+
+\Cref{sec:view} introduces the terminology of \emph{views} and
+\emph{singleton} types that is crucial to the art of programming
+in a correct-by-construction manner.
+
+\Cref{sec:poking} defines IO primitives that operate on serialised
 trees stored in an underlying buffer.
 %
 They encapsulate all the unsafe low-level operations and offer a
