@@ -126,7 +126,8 @@ introduced in \Cref{sec:writetofile}.
 
 The careful reader may have noticed that we can and do run arbitrary \IdrisType{IO}
 operations when building a value of type \IdrisType{Serialising}
-(cf. the \IdrisFunction{map} example in \Cref{fig:serialised-map}).
+(cf. the \IdrisFunction{map} example in \Cref{fig:serialised-map} where we perform
+a call to \IdrisFunction{view} to inspect the input's shape).
 
 This is due to the fact that \idris{} elaborates \IdrisKeyword{do}-blocks using
 whichever appropriate bind operator is in scope. In particular, we have defined
