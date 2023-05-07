@@ -572,6 +572,12 @@ namespace Pointer
     "Node" # l # b # r => node (copy r) b (copy l)
 
   export
+  deepSwap : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.swap t))
+  deepSwap ptr = execSerialising $ case !(view ptr) of
+    "Leaf" # () => leaf
+    "Node" # l # b # r => node (deepCopy r) b (deepCopy l)
+
+  export
   right : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.right t))
   right ptr = case !(view ptr) of
     "Leaf" # _ => pure ptr

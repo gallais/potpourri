@@ -8,6 +8,26 @@ import System.Clock
 import Data.String
 import Data.Maybe
 
+measure : IO () -> IO (Clock Duration)
+measure act = do
+  start <- clockTime Process
+  startgc <- clockTime GCReal
+  () <- act
+  end <- clockTime Process
+  endgc <- clockTime GCReal
+  let dfltClock = MkClock 0 0
+  let gctime = fromMaybe dfltClock (timeDifference <$> endgc <*> startgc)
+  let time = timeDifference (timeDifference end start) gctime
+  let stime = showTime 2 9
+  putStrLn "GC Time \{stime gctime}"
+  putStrLn "Time \{stime time}"
+  pure time
+
+header : String -> IO ()
+header msg = do
+  putStrLn (replicate 72 '-')
+  putStrLn msg
+
 test : Show a =>
        (name : String) ->
        (f : ATree -> a) ->
@@ -15,44 +35,22 @@ test : Show a =>
        (n : Nat) -> IO (Clock Duration, Clock Duration)
 test name f act n = do
   putStrLn "\n\n"
-  putStrLn (replicate 72 '-')
-  putStrLn "Size \{show n}"
+  header "Size \{show n}"
   let t = full n
   putStrLn "Data tree \{name}: \{show $ f t}"
   st <- execSerialising (serialise t)
   putStrLn "Pointer tree \{name}: \{show !(act st)}"
-  let stime = showTime 2 9
 
-  let dfltClock = MkClock 0 0
+  header "Timing pointer-based operation"
+  time1 <- measure (do
+    s <- act st
+    putStrLn "\{name}: \{show s}")
 
-  putStrLn (replicate 72 '-')
-  putStrLn "Timing pointer-based operation"
-  start1 <- clockTime Process
-  startgc1 <- clockTime GCReal
-  s <- act st
-  putStrLn "\{name}: \{show s}"
-  end1 <- clockTime Process
-  endgc1 <- clockTime GCReal
-  let gctime1 = fromMaybe dfltClock (timeDifference <$> endgc1 <*> startgc1)
-  let time1 = timeDifference (timeDifference end1 start1) gctime1
-  putStrLn "GC Time \{stime gctime1}"
-  putStrLn "Time \{stime time1}"
-
-
-  putStrLn (replicate 72 '-')
-  putStrLn "Timing deserialisation-based operation"
-  start2 <- clockTime Process
-  startgc2 <- clockTime GCReal
-  t <- deserialise st
-  let s = f (getSingleton t)
-  putStrLn "\{name}: \{show s}"
-  end2 <- clockTime Process
-  endgc2 <- clockTime GCReal
-  let gctime2 = fromMaybe dfltClock (timeDifference <$> endgc1 <*> startgc1)
-  let time2 = timeDifference (timeDifference end2 start2) gctime2
-  putStrLn "GC Time \{stime gctime2}"
-  putStrLn "Time \{stime time2}"
-
+  header "Timing deserialisation-based operation"
+  time2 <- measure (do
+    t <- deserialise st
+    let s = f (getSingleton t)
+    putStrLn "\{name}: \{show s}")
 
   pure (time1, time2)
 
@@ -60,3 +58,10 @@ main : IO ()
 main = do
 --   traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]
   traverse_ (test "Rightmost" Data.rightmost Pointer.rightmost) [15..20]
+
+  putStrLn "\n\n"
+  header "Swap variants: using copy vs. deepCopy"
+  let t = full 20
+  t <- execSerialising (serialise t)
+  () <$ measure (() <$ swap t)
+  () <$ measure (() <$ deepSwap t)
