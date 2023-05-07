@@ -334,6 +334,7 @@ namespace Serialising
 namespace Tree
 
   ||| Tree sum
+  export
   sum : Data.Mu Tree -> Nat
   sum t = case t of
     "Leaf" # _ => 0
@@ -558,6 +559,7 @@ testing : Pointer.Mu Tree t -> IO ()
 testing tree = do
   putStrLn "Tree: \{!(display tree)}"
   putStrLn "Swapped: \{!(display !(swap tree))}"
+  putStrLn "DSum: \{show (Tree.sum (getSingleton !(deserialise tree)))}"
   putStrLn "RSum: \{show !(Raw.sum tree)}"
   putStrLn "Sum: \{show !(Pointer.sum tree)}"
   putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"

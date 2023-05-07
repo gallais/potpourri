@@ -419,7 +419,7 @@ namespace Pointer
 \end{code}
 %<*fmaptype>
 \begin{code}
-    fmap : (d : Desc{}) ->
+    fmap : (d : Desc r s o) ->
            (0 f : Data.Mu cs -> b) ->
            (forall t. Pointer.Mu cs t -> IO (Singleton (f t))) ->
            forall t. Pointer.Meaning d cs t ->

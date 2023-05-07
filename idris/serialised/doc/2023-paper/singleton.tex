@@ -42,8 +42,9 @@ can get a runtime copy of (\IdrisBound{f} \IdrisBound{t}).
 
 \ExecuteMetaData[Data/Singleton.idr.tex]{ap}
 
-Finally, we can apply a runtime copy of a function to a runtime copy of
-an argument to get a runtime copy of the result.
+Finally, we can apply a runtime copy of a function \IdrisBound{f}
+to a runtime copy of an argument \IdrisBound{t}
+to get a runtime copy of the result (\IdrisBound{f} \IdrisBound{t}).
 
 As we mentioned earlier, \idris{} automatically desugars idiom brackets
 using these combinators. That is to say that

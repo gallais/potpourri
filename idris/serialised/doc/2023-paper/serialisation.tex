@@ -5,14 +5,26 @@ apart and computing a return value in the host language.
 %
 But we may instead want to compute another value in serialised form.
 %
-In this section we are going to spell out how we can define high-level
-constructs allowing users to do just that in a correct-by-construction
-manner.
+We include below one such example: a \IdrisFunction{map} function which
+takes a function \IdrisBound{f} acting on bytes
+and applies it to all of the ones stored
+in the nodes of our type of \IdrisFunction{Tree}s.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialisedmap}\label{fig:serialised-map}
 
+It calls the \IdrisFunction{view} we just defined to observe whether
+the tree is a leaf or a node.
+If it's a leaf, it returns a leaf.
+If it's a node, it returns a node where the map has been recursively applied
+to the left and right subtrees while the function \IdrisBound{f} has been applied
+to the byte \IdrisBound{b}.
+
 %% \subsection{Generic Traverse}
 %% \ExecuteMetaData[SaferIndexed.idr.tex]{traverse}
+
+In this section we are going to spell out how we can define high-level
+constructs allowing users to write these correct-by-construction
+serialisers.
 
 \subsection{The Type of Serialisation Processes}
 
@@ -35,7 +47,7 @@ a node's constructor index
 and a way to serialise all of the node's subtrees,
 we obtain a serialisation process for said node.
 %
-We give a detailed explanation of \IdrisFunction{All} below.
+We will give a detailed explanation of \IdrisFunction{All} below.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialisemu}
 
@@ -48,7 +60,7 @@ associated to each subtree while doing so,
 and finally we fill in the space we had left blank with the offsets
 we have thus collected.
 
-The \IdrisFunction{All} quantifier performs the pointwise of a predicate over
+The \IdrisFunction{All} quantifier performs the pointwise lifting of a predicate over
 the functor described by a \IdrisType{Desc}. It is defined by induction over
 the description.
 
@@ -75,6 +87,10 @@ It should now be clear that
 (\IdrisFunction{All} \IdrisKeyword{(}\IdrisFunction{description} \IdrisBound{k}\IdrisKeyword{)}
 (\IdrisType{Serialising} \IdrisBound{cs}\IdrisKeyword{)}) indeed corresponded
 to having already defined a serialisation process for each subtree.
+
+This very general combinator should be enough to define all the
+serialisers we may ever want. We nonetheless include other combinators
+purely for performance reasons.
 
 \subsection{Copying Entire Trees}
 
@@ -105,7 +121,7 @@ and that the size information we have been keeping in \IdrisType{Pointer.Mu} and
 \subsection{Executing a Serialisation Action}
 
 Now that we can describe actions serialising a value to a buffer,
-the only basic building block we are missing is a function actually
+the last basic building block we are still missing is a function actually
 performning such actions.
 %
 This is provided by the \IdrisFunction{execSerialising} function

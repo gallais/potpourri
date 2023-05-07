@@ -75,7 +75,9 @@ move past the whole of the left subtree, that is to say past the space
 reserved by all of the left offsets (\IdrisFunction{sum} \IdrisBound{subl})
 but also past the content whose size is known statically (\IdrisBound{sl}).
 %
-We can finally use an eta-equality lemma to turn \IdrisBound{t} into
+We can finally use the lemma \IdrisFunction{etaTuple} saying that a tuple
+is equal to the pairing of its respective projections
+in order to turn \IdrisBound{t} into
 (\IdrisFunction{fst} \IdrisBound{t} \IdrisData{\#} \IdrisFunction{snd} \IdrisBound{t})
 which lets us use the \IdrisType{Poke'} constructor \IdrisData{(\#)} to return our
 pair of pointers.
@@ -128,7 +130,7 @@ the \IdrisFunction{Data.Meaning} (\IdrisBound{t}) the \IdrisType{Pointer.Meaning
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
 
-The type of the \IdrisFunction{out} is as expected: given a pointer
+The type of the \IdrisFunction{out} function is as expected: given a pointer
 to a tree \IdrisBound{t} of type \IdrisBound{cs} we can get a value
 of type (\IdrisType{Out} \IdrisBound{cs} \IdrisBound{t}).
 %

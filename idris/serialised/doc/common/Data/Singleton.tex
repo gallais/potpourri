@@ -58,8 +58,8 @@ public export
 \end{code}
 %<*fmap>
 \begin{code}
-(<$>) : (f : a -> b) -> Singleton x -> Singleton (f x)
-f <$> MkSingleton x = MkSingleton (f x)
+(<$>) : (f : a -> b) -> Singleton t -> Singleton (f t)
+f <$> MkSingleton t = MkSingleton (f t)
 \end{code}
 %</fmap>
 \begin{code}
@@ -68,8 +68,8 @@ public export
 \end{code}
 %<*ap>
 \begin{code}
-(<*>) : Singleton f -> Singleton x -> Singleton (f x)
-MkSingleton f <*> MkSingleton x = MkSingleton (f x)
+(<*>) : Singleton f -> Singleton t -> Singleton (f t)
+MkSingleton f <*> MkSingleton t = MkSingleton (f t)
 \end{code}
 %</ap>
 \begin{code}
