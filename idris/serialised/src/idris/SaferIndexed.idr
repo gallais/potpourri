@@ -369,12 +369,21 @@ namespace Raw
          n <- sum r
          pure (m + cast b + n)
 
-rightmost : Maybe Bits8 -> Pointer.Mu Tree t -> IO (Maybe Bits8)
-rightmost dflt t = case !(out t) of
-  "Leaf" # el => pure dflt
-  "Node" # el => do
-    (_ # b # r) <- layer el
-    rightmost (Just (getSingleton b)) r
+namespace Data
+
+  public export
+  rightmost : ATree -> Maybe Bits8
+  rightmost t = case t of
+    "Leaf" # _ => Nothing
+    "Node" # l # b # r => Just (fromMaybe b (rightmost r))
+
+namespace Pointer
+
+  export
+  rightmost : Pointer.Mu Tree t -> IO (Singleton (rightmost t))
+  rightmost t = case !(view t) of
+    "Leaf" # el => pure [| Nothing |]
+    "Node" # _ # b # r => map ((Just <$>) . (fromMaybe . delay <$> b <*>)) (rightmost r)
 
 -- Here we define the functional specification of the functions we
 -- want to write over pointers. This will, via Singleton & Serialising,
@@ -576,7 +585,7 @@ testing tree = do
   putStrLn "DSum: \{show (Tree.sum (getSingleton !(deserialise tree)))}"
   putStrLn "RSum: \{show !(Raw.sum tree)}"
   putStrLn "Sum: \{show !(Pointer.sum tree)}"
-  putStrLn "Rightmost: \{show !(rightmost Nothing tree)}"
+  putStrLn "Rightmost: \{show !(rightmost tree)}"
   putStrLn "Tree size: \{show !(size tree)}"
 
 main : IO ()
