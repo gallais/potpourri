@@ -1,5 +1,7 @@
 module Serialised.Desc
 
+import Control.Monad.State
+
 import Data.Buffer
 import Data.Fin
 import Data.String
@@ -315,6 +317,20 @@ namespace Tree
   public export
   node : ATree -> Bits8 -> ATree -> ATree
   node = mkMu Tree "Node"
+
+  export
+  full : (n : Nat) -> ATree
+  full = evalState 0 . go where
+
+    tick : State Nat Bits8
+    tick = do
+      n <- get
+      put (S n)
+      pure (cast n)
+
+    go : (n : Nat) -> State Nat ATree
+    go 0 = pure leaf
+    go (S k) = node <$> go k <*> tick <*> go k
 
   public export
   example : ATree

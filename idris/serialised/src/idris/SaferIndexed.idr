@@ -17,7 +17,7 @@ import Serialised.Desc
 %default total
 
 blockSize : Int
-blockSize = 1000
+blockSize = 66666000
 
 namespace Data
 
@@ -105,11 +105,11 @@ namespace Serialising
            pure end
 
   export
-  setMu : {cs : Data nm} -> (k : Index cs) ->
-          {0 t : Meaning (description k) (Data.Mu cs)} ->
-          All (description k) (Serialising cs) t ->
-          Serialising cs (k # t)
-  setMu (MkIndex k) layer
+  (#) : {cs : Data nm} -> (k : Index cs) ->
+        {0 t : Meaning (description k) (Data.Mu cs)} ->
+        All (description k) (Serialising cs) t ->
+        Serialising cs (k # t)
+  MkIndex k # layer
     = MkSerialising $ \ buf, start =>
         goMu buf start k (index k $ constructors cs) layer
 
@@ -124,10 +124,8 @@ namespace Serialising
 namespace Buffer
 
   export
-  setMu : {cs : Data nm} -> (t : Data.Mu cs) -> Serialising cs t
-  setMu (k # t)
-    = Serialising.setMu k
-    $ all (description k) (assert_total Buffer.setMu) t
+  serialise : {cs : Data nm} -> (t : Data.Mu cs) -> Serialising cs t
+  serialise (k # t) = k # all (description k) (assert_total serialise) t
 
 namespace Pointer
 
@@ -330,6 +328,22 @@ namespace Serialising
     let size = muSize ptr in
     pos + size <$ copyData {io = IO} (muBuffer ptr) (muPosition ptr) size buf pos
 
+  export
+  deepCopy : {cs : Data nm} -> forall t. Pointer.Mu cs t -> Serialising cs t
+  deepCopy ptr = do
+    k # ptr <- out ptr
+    k # !(go ? ptr)
+
+   where
+
+     go : (d : Desc r s o) -> forall t.
+          Pointer.Meaning d cs t -> IO (All d (Serialising cs) t)
+     go None ptr = pure ()
+     go Byte ptr = poke ptr
+     go (Prod d e) ptr = do
+       ptrl # ptrr <- poke ptr
+       [| go d ptrl # go e ptrr |]
+     go Rec ptr = pure (deepCopy !(poke ptr))
 
 namespace Tree
 
@@ -504,7 +518,7 @@ namespace Data
 
   export
   writeToFile : {cs : Data nm} -> String -> Mu cs -> IO ()
-  writeToFile fp t = writeToFile fp (setMu t)
+  writeToFile fp t = writeToFile fp (serialise t)
 
 ||| initFromFile creates a pointer to a datastructure stored in a file
 ||| @ cs   is the datatype you want to use to decode the buffer's content
