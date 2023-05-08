@@ -36,9 +36,12 @@ offset of the first byte past the serialised tree.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialising}
 
-We do not expect users to define such processes by hand and will instead
-provide them with high-level, invariant-respecting combinators to safely
-construct them.
+We do not expect users to define such processes by hand and in fact
+prevent them from doing so by not exporting the \IdrisData{MkSerialising}
+constructor.
+%
+Instead, we provide high-level, invariant-respecting combinators to safely
+construct such serialisation processes.
 
 \subsection{Building Serialisation Processes}
 
