@@ -171,9 +171,15 @@ namespace Serialising
 namespace Buffer
 
   export
-  setMu : {cs : Data nm} -> (t : Data.Mu cs) -> Serialising cs t
-  setMu (k # t)
-    = k # (all (description k) (assert_total Buffer.setMu) t)
+\end{code}
+%<*serialise>
+\begin{code}
+  serialise : {cs : Data nm} -> (t : Data.Mu cs) -> Serialising cs t
+\end{code}
+%</serialise>
+\begin{code}
+  serialise (k # t)
+    = k # (all (description k) (assert_total Buffer.serialise) t)
 
 namespace Pointer
 
@@ -478,7 +484,13 @@ namespace Pointer
 \begin{code}
 
     export
+\end{code}
+%<*deserialise>
+\begin{code}
     deserialise : {cs : Data nm} -> forall t. Mu cs t -> IO (Singleton t)
+\end{code}
+%</deserialise>
+\begin{code}
     deserialise ptr = do
       k # ptr <- out ptr
       t <- assert_total (fmap (description k) id deserialise ptr)
@@ -759,8 +771,8 @@ namespace Serialising
 namespace Data
 
   export
-  writeToFile : {cs : Data nm} -> String -> Mu cs -> IO ()
-  writeToFile fp t = writeToFile fp (setMu t)
+  writeToFile : {cs : Data nm} -> String -> Data.Mu cs -> IO ()
+  writeToFile fp t = writeToFile fp (serialise t)
 
 namespace Data
 

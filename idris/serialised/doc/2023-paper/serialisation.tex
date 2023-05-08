@@ -82,20 +82,25 @@ with \IdrisFunction{All} and does the expected structural operation.
 Finally, if the description is \IdrisData{Rec} then we demand that the
 predicate holds.
 
-
 It should now be clear that
 (\IdrisFunction{All} \IdrisKeyword{(}\IdrisFunction{description} \IdrisBound{k}\IdrisKeyword{)}
 (\IdrisType{Serialising} \IdrisBound{cs}\IdrisKeyword{)}) indeed corresponded
 to having already defined a serialisation process for each subtree.
 
 This very general combinator should be enough to define all the
-serialisers we may ever want. We nonetheless include other combinators
-purely for performance reasons.
+serialisers we may ever want.
+%
+By repeatedly calling \IdrisFunction{view} and \IdrisFunction{(\#)}, we can
+for instance define the correct-by-construction generic serialisation function.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{serialise}
+
+We nonetheless include other combinators purely for performance reasons.
 
 \subsection{Copying Entire Trees}
 
 We introduce a \IdrisFunction{copy} combinator for trees that we want to
-serialise as-is.
+serialise as-is and have a pointer for.
 %
 Equipped with this combinator, we are able to easily write e.g.
 the \IdrisFunction{swap} function which takes a binary tree apart
@@ -103,13 +108,20 @@ and swaps its left and right branches (if the tree is non-empty).
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{swap}
 
-
-This combinator is implemented using the \IdrisFunction{copyData} primitive
-for \IdrisType{Buffer}s which saves us from having to traverse the whole term
-simply to output it.
+We could implement this combinator at a high level either by composing
+\IdrisFunction{deserialise} and \IdrisFunction{serialise},
+or by interleaving calls to \IdrisFunction{view} and \IdrisFunction{(\#)}.
 %
-It will instead grab a slice of the source buffer corresponding to the term
-and copy the raw bytes directly into the target buffer.
+This would however lead to a slow copying function that needs to
+traverse the entire tree in order to simply copy it.
+
+Instead, we implement \IdrisFunction{copy} by using the
+\IdrisFunction{copyData} primitive for \IdrisType{Buffer}s
+present in \idris{}'s standard library.
+%
+This primitive allows us to grab a slice of the source buffer
+corresponding to the tree
+and to copy the raw bytes directly into the target buffer.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{copy}
 

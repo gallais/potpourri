@@ -226,3 +226,17 @@ We present a case study in \Cref{appendix:rightmost} comparing the
 access patterns of two implementations of the function fetching the
 byte stored in a tree's rightmost node depending on whether we use
 \IdrisFunction{view} or the lower level \IdrisFunction{poke} combinator.
+
+By repeatedly calling \IdrisFunction{view}, we can define the
+correct-by-construction generic deserialisation function that
+turns a pointer to a tree into a runtime value equal to this tree.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{deserialise}
+
+We can measure the benefits of our approach by comparing the runtime
+of a function directly operating on buffers to its pure counterpart
+composed with a deserialisation step.
+%
+For functions like \IdrisFunction{rightmost} that only explore a
+very small part of the full tree, the gains are spectacular.
+\todo{extract some numbers \& reference the section here}
