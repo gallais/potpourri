@@ -4,22 +4,19 @@ import Data.Singleton
 import Serialised.Desc
 import SaferIndexed
 
+import System.GC
 import System.Clock
 import Data.String
 import Data.Maybe
 
 measure : IO () -> IO (Clock Duration)
 measure act = do
+  gc
   start <- clockTime Process
-  startgc <- clockTime GCReal
   () <- act
   end <- clockTime Process
-  endgc <- clockTime GCReal
-  let dfltClock = MkClock 0 0
-  let gctime = fromMaybe dfltClock (timeDifference <$> endgc <*> startgc)
-  let time = timeDifference (timeDifference end start) gctime
+  let time = timeDifference end start
   let stime = showTime 2 9
-  putStrLn "GC Time \{stime gctime}"
   putStrLn "Time \{stime time}"
   pure time
 
@@ -56,8 +53,8 @@ test name f act n = do
 
 main : IO ()
 main = do
---   traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]
---  traverse_ (test "Rightmost" Data.rightmost Pointer.rightmost) [15..20]
+  traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]
+  traverse_ (test "Rightmost" Data.rightmost Pointer.rightmost) [15..20]
 
   putStrLn "\n\n"
   header "Copy variants: using copy vs. deepCopy vs. roundtripCopy"

@@ -22,6 +22,8 @@ modules = Data.Singleton
         , Lib
         , Serialised.Desc
         , SaferIndexed
+        , System.GC
+        , Timing
 
 -- main file (i.e. file to load at REPL)
 -- main =
