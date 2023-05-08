@@ -345,6 +345,12 @@ namespace Serialising
        [| go d ptrl # go e ptrr |]
      go Rec ptr = pure (deepCopy !(poke ptr))
 
+  export
+  roundtripCopy : {cs : Data nm} -> forall t. Pointer.Mu cs t -> Serialising cs t
+  roundtripCopy ptr = do
+    MkSingleton t <- deserialise ptr
+    serialise t
+
 namespace Tree
 
   ||| Tree sum

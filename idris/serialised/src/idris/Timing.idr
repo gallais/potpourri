@@ -57,11 +57,14 @@ test name f act n = do
 main : IO ()
 main = do
 --   traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]
-  traverse_ (test "Rightmost" Data.rightmost Pointer.rightmost) [15..20]
+--  traverse_ (test "Rightmost" Data.rightmost Pointer.rightmost) [15..20]
 
   putStrLn "\n\n"
-  header "Swap variants: using copy vs. deepCopy"
-  let t = full 20
-  t <- execSerialising (serialise t)
-  () <$ measure (() <$ swap t)
-  () <$ measure (() <$ deepSwap t)
+  header "Copy variants: using copy vs. deepCopy vs. roundtripCopy"
+  for_ [10..20] $ \ n => do
+    header "Size \{show n}"
+    let t = full n
+    t <- execSerialising (serialise t)
+    () <$ measure (() <$ execSerialising (copy t))
+    () <$ measure (() <$ execSerialising (deepCopy t))
+    () <$ measure (() <$ execSerialising (roundtripCopy t))
