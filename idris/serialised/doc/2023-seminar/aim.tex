@@ -1,0 +1,67 @@
+\PassOptionsToPackage{x11names}{xcolor}
+\documentclass{beamer}
+
+\beamertemplatenavigationsymbolsempty
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric}
+
+\usepackage{listings}
+
+\lstset{ %
+  language=C,
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=5pt,
+  breaklines=true,
+}
+
+\usepackage{idris2}
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+
+\newcommand{\hexadesc}[1]{\texttt{\IdrisType{#1}}}
+\newcommand{\hexadata}[1]{\texttt{\IdrisData{#1}}}
+\newcommand{\hexacons}[1]{\texttt{\IdrisFunction{#1}}}
+\newcommand{\hexaoffset}[1]{\texttt{{\color{lightgray}#1}}}
+
+\newenvironment{hexdump}{\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
+
+\title{
+  \[
+  \left.
+    \begin{tabular}{l}
+      Seamless \\
+      Correct \\
+      Generic
+    \end{tabular}
+  \right\}
+  \text{Programming over Serialised Data}
+  \]}
+\author{Guillaume Allais}
+\institute{University of Strathclyde \\ Glasgow, UK}
+\date{Agda Implementors' Meeting \\ Delft, May 2023}
+
+\AtBeginSection[]
+{
+    \begin{frame}
+        \frametitle{Table of Contents}
+        \tableofcontents[currentsection]
+    \end{frame}
+}
+
+\begin{document}
+
+\begin{frame}
+  \maketitle
+\end{frame}
+
+
+\input{motivations}
+\input{universe}
+\input{buffers}
+\input{serialising}
+\input{next}
+
+\end{document}

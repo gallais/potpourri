@@ -17,7 +17,7 @@ RAW_DEPENDENCIES=\
 DEPENDENCIES=common \
   $(patsubst %,build/latex/%,$(RAW_DEPENDENCIES))
 
-all: slides.pdf
+all: aim.pdf
 
 common:
 	$(MAKE) -C ../common
