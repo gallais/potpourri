@@ -1,13 +1,23 @@
 \section{Meaning as Trees}\label{sec:trees}
 
-This is a standard semantics of description akin to
-\todo{cite}
-and does not make any use of the invariants that \IdrisType{Desc}
-tracks.
+We now see descriptions as functors and, correspondingly,
+datatypes as the initial objects of the associated functor-algebras.
 %
-In our work it will be used primarily to allow users to give
-a precise specification of the functions they actually want to
+This is a standard construction derived from Malcom's
+work~\cite{DBLP:journals/scp/Malcolm90},
+itself building on Hagino's categorically-inspired
+definition of a lambda calculus
+with a generic notion of datatypes~\cite{DBLP:conf/ctcs/Hagino87}.
+%
+Correspondingly, this standard semantics does not make any use
+of the invariants that our \IdrisType{Desc} tracks.
+
+In our work these trees will be used primarily to allow users to
+give a precise specification of the functions they actually want to
 write on values stored in buffers.
+%
+We expect these trees to be mostly used at the \IdrisKeyword{0}
+modality i.e. to be erased during compilation.
 
 \subsection{\IdrisType{Desc}s as Functors}
 
