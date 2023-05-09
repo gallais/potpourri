@@ -93,7 +93,8 @@ public export
 description : {cs : Data nm} -> (k : Index cs) ->
               let cons = index (getIndex k) (constructors cs) in
               Desc True (size cons) (offsets cons)
-description {cs} k = description (index (getIndex k) (constructors cs))
+description {cs} k
+  = description (index (getIndex k) (constructors cs))
 \end{code}
 %</description>
 \begin{code}

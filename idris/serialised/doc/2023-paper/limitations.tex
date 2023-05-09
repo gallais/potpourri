@@ -21,7 +21,7 @@ overhead incurred by working generically.
 \todo{Look into 2LTT}
 
 Our serialisation format has been designed to avoid pointer-chasing and
-ensure entire subtrees can be easily copied as-is.
+thus ensures entire subtrees can be easily copied by using the raw bytes.
 Correspondingly it currently does not support sharing.
 %
 This could however be a crucial feature for trees with a lot of duplicated
@@ -74,7 +74,7 @@ Next, we will want to consider a universe of indexed data:
 we can currently natively model algebraic datatypes such as lists or trees,
 we can use the host language to compute the description of vectors by induction on their length,
 but we cannot model arbitrary type families~\cite{DBLP:journals/fac/Dybjer94}
-e.g. correct-by-construction red-black trees. \todo{correct RB trees: cite (Weirich?)}
+e.g. correct-by-construction red-black trees.
 
 Last but not least we may want to have a universe of descriptions closed
 under least fixpoints~\cite{DBLP:phd/ethos/Morris07}

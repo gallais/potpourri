@@ -8,15 +8,13 @@ work~\cite{DBLP:journals/scp/Malcolm90},
 itself building on Hagino's categorically-inspired
 definition of a lambda calculus
 with a generic notion of datatypes~\cite{DBLP:conf/ctcs/Hagino87}.
-%
-Correspondingly, this standard semantics does not make any use
-of the invariants that our \IdrisType{Desc} tracks.
 
 In our work these trees will be used primarily to allow users to
-give a precise specification of the functions they actually want to
-write on values stored in buffers.
+give a precise specification of the IO procedures they actually want
+to write in order to process values stored in buffers.
 %
-We expect these trees to be mostly used at the \IdrisKeyword{0}
+We expect these inductive trees and the associated generic programs
+consuming them to be mostly used at the \IdrisKeyword{0}
 modality i.e. to be erased during compilation.
 
 \subsection{\IdrisType{Desc}s as Functors}
