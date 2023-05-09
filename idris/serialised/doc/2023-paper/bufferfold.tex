@@ -52,12 +52,14 @@ the correct-by-construction \IdrisFunction{fold}: provided an algebra for
 a datatype \IdrisBound{cs} and a pointer to a tree of type \IdrisBound{cs}
 stored in a buffer, we return an \IdrisType{IO} process computing the fold.
 
-\ExecuteMetaData[SaferIndexed.idr.tex]{fold}
+\ExecuteMetaData[SaferIndexed.idr.tex]{foldtype}
 
 We first use \IdrisFunction{out} to reveal the constructor choice in the
 tree's top node, we then recursively apply (\IdrisFunction{fold} \IdrisBound{alg})
 to all the substructures by calling \IdrisFunction{fmap}, and we conclude by
 applying the algebra to this result.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{foldfun}
 
 We once again (cf. \Cref{sec:genericfoldinductive}) had to
 use \assertTotal{} because it is not obvious to

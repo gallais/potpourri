@@ -471,16 +471,22 @@ namespace Pointer
     export
 
 \end{code}
-%<*fold>
+%<*foldtype>
 \begin{code}
     fold : {cs : Data nm} -> (alg : Alg cs a) ->
-           forall t. Mu cs t -> IO (Singleton (Data.fold alg t))
+           forall t. Pointer.Mu cs t ->
+           IO (Singleton (Data.fold alg t))
+\end{code}
+%</foldtype>
+
+%<*foldfun>
+\begin{code}
     fold alg ptr
       = do k # t <- out ptr
            rec <- assert_total (fmap _ _ (fold alg) t)
            pure (alg k <$> rec)
 \end{code}
-%</fold>
+%</foldfun>
 \begin{code}
 
     export
