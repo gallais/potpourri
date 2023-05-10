@@ -21,10 +21,10 @@ import Lib
 ||| It is indexed by 1 'input' parameter and 2 'ouput' indices:
 |||  @rightmost telling us whether we are in the rightmost subterm
 |||             in which case `Rec` won't need to record an additional offset
-|||  @size      the statically known part of the size (in number of bytes)
+|||  @static    the statically known part of the size (in number of bytes)
 |||  @offsets   the dynamically known part of the size (in number of subtrees)
 public export
-data Desc : (rightmost : Bool) -> (size : Nat) -> (offsets : Nat) -> Type where
+data Desc : (rightmost : Bool) -> (static : Nat) -> (offsets : Nat) -> Type where
   None : Desc r 0 0
   Byte : Desc r 1 0
   Prod : {sl, sr, m, n : Nat} -> -- does not matter: Descs are meant to go away with staging
@@ -40,9 +40,9 @@ public export
 record Constructor (nm : Type) where
   constructor (::)
   name : nm
-  {size : Nat}
+  {static : Nat}
   {offsets : Nat}
-  description : Desc True size offsets
+  description : Desc True static offsets
 
 ||| A data description is a sum over a list of constructor types
 public export
@@ -61,7 +61,7 @@ record Index (cs : Data nm) where
 public export
 description : {cs : Data nm} -> (k : Index cs) ->
               let cons = index (getIndex k) (constructors cs) in
-              Desc True (size cons) (offsets cons)
+              Desc True (static cons) (offsets cons)
 description {cs} k = description (index (getIndex k) (constructors cs))
 
 ||| A little bit of magic
@@ -89,7 +89,7 @@ DecEq (Index cs) where
 -- Show instances
 
 export
-Show (Desc r s n) where
+Show (Desc r s o) where
   showPrec _ None = "()"
   showPrec _ Byte = "Bits8"
   showPrec p (Prod d e) =
@@ -110,7 +110,7 @@ Show (Data nm) where
 -- Eq instances
 
 ||| Heterogeneous equality check for descriptions
-eqDesc : Desc r s n -> Desc r' s' n' -> Bool
+eqDesc : Desc r s o -> Desc r' s' n' -> Bool
 eqDesc None None = True
 eqDesc Byte Byte = True
 eqDesc (Prod d e) (Prod s t) = eqDesc d s && eqDesc e t
@@ -140,7 +140,7 @@ parameters (buf : Buffer)
   ||| @ start position in the buffer to set the description at
   ||| @ d     description to serialise
   ||| Returns the end position
-  setDesc : (start : Int) -> (d : Desc r s n) -> IO Int
+  setDesc : (start : Int) -> (d : Desc r s o) -> IO Int
   setDesc start None = (start + 1) <$ setBits8 buf start 0
   setDesc start Byte = (start + 1) <$ setBits8 buf start 1
   setDesc start (Prod d e)
@@ -175,9 +175,9 @@ parameters (buf : Buffer)
   ||| @ rightmost is known statically but the others indices are not
   record IDesc (rightmost : Bool) where
     constructor MkIDesc
-    {size : Nat}
+    {static : Nat}
     {offsets : Nat}
-    runIDesc : Desc rightmost size offsets
+    runIDesc : Desc rightmost static offsets
 
   ||| Auxiliary definition to help idris figure out the types of
   ||| everything involved
@@ -225,21 +225,21 @@ namespace Data
 
   ||| Meaning where subterms are interpreted using the parameter
   public export
-  Meaning : Desc r s n -> Type -> Type
+  Meaning : Desc r s o -> Type -> Type
   Meaning None x = ()
   Meaning Byte x = Bits8
   Meaning (Prod d e) x = (Meaning d x * Meaning e x)
   Meaning Rec x = x
 
   public export
-  Meaning' : Desc r s n -> Type -> Type -> Type
+  Meaning' : Desc r s o -> Type -> Type -> Type
   Meaning' None x r = r
   Meaning' Byte x r = Bits8 -> r
   Meaning' (Prod d e) x r = Meaning' d x (Meaning' e x r)
   Meaning' Rec x r = x -> r
 
   public export
-  curry : (d : Desc r s n) -> (Meaning d x -> a) -> Meaning' d x a
+  curry : (d : Desc r s o) -> (Meaning d x -> a) -> Meaning' d x a
   curry None k = k ()
   curry Byte k = k
   curry (Prod d e) k = curry d (curry e . curry k)

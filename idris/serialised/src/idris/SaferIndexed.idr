@@ -21,21 +21,21 @@ blockSize = 66666000
 
 namespace Data
 
-  data All' : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type
+  data All' : (d : Desc r s o) -> (p : x -> Type) -> Meaning d x -> Type
 
   public export
-  All : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type
+  All : (d : Desc r s o) -> (p : x -> Type) -> Meaning d x -> Type
   All None p t = ()
   All Byte p t = Singleton t
   All d@(Prod _ _) p t = All' d p t
   All Rec p t = p t
 
   public export
-  data All' : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type where
+  data All' : (d : Desc r s o) -> (p : x -> Type) -> Meaning d x -> Type where
     (#) : All d p t -> All e p u -> All' (Prod d e) p (t # u)
 
   export
-  all : (d : Desc r s n) -> ((a : x) -> p a) ->
+  all : (d : Desc r s o) -> ((a : x) -> p a) ->
         (t : Meaning d x) -> All d p t
   all None f t = t
   all Byte f t = MkSingleton t
@@ -43,14 +43,14 @@ namespace Data
   all Rec f t = f t
 
   public export
-  AllK : (d : Desc r s n) -> (p : x -> Type) -> Meaning d x -> Type -> Type
+  AllK : (d : Desc r s o) -> (p : x -> Type) -> Meaning d x -> Type -> Type
   AllK None p t r = r
   AllK Byte p t r = Singleton t -> r
   AllK (Prod d e) p t r = AllK d p (fst t) (AllK e p (snd t) r)
   AllK Rec p t r = p t -> r
 
   export
-  curry : {0 p : x -> Type} -> (d : Desc r s n) ->
+  curry : {0 p : x -> Type} -> (d : Desc r s o) ->
           {0 t : Meaning d x} -> (All d p t -> a) -> AllK d p t a
   curry None f = f ()
   curry Byte f = f
@@ -76,7 +76,7 @@ namespace Serialising
   parameters (buf : Buffer)
 
     goMeaning : Int ->
-                {r : Bool} -> (d : Desc r s n) ->
+                {r : Bool} -> (d : Desc r s o) ->
                 {0 t : Meaning d (Data.Mu cs)} ->
                 All d (Serialising cs) t ->
                 IO (Vect n Int, Int)
@@ -130,16 +130,12 @@ namespace Buffer
 namespace Pointer
 
   export
-  record Meaning (d : Desc r s n) (cs : Data nm) (t : Data.Meaning d (Data.Mu cs)) where
+  record Meaning (d : Desc r s o) (cs : Data nm) (t : Data.Meaning d (Data.Mu cs)) where
     constructor MkMeaning
-    subterms : Vect n Int
+    subterms : Vect o Int
     meaningBuffer : Buffer
     meaningPosition : Int
     meaningSize : Int
-
-  public export
-  0 meant : Meaning d cs t -> Data.Meaning d (Data.Mu cs)
-  meant {t} _ = t
 
   export
   record Mu (cs : Data nm) (t : Data.Mu cs) where
@@ -151,20 +147,20 @@ namespace Pointer
   namespace Poke
 
     public export
-    data Poke' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
+    data Poke' : (d : Desc r s o) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
 
     public export
-    Poke : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
+    Poke : (d : Desc r s o) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
     Poke None _ t = ()
     Poke Byte cs t = Singleton t
     Poke d@(Prod _ _) cs t = Poke' d cs t
     Poke Rec cs t = Pointer.Mu cs t
 
-    data Poke' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
+    data Poke' : (d : Desc r s o) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
       (#) : Pointer.Meaning d cs t -> Pointer.Meaning e cs u -> Poke' (Prod d e) cs (t # u)
 
     export
-    poke : {0 cs : Data nm} -> {d : Desc r s n} ->
+    poke : {0 cs : Data nm} -> {d : Desc r s o} ->
            forall t. Pointer.Meaning d cs t -> IO (Poke d cs t)
     poke {d = None} el = pure ()
     poke {d = Byte} el = do
@@ -182,24 +178,24 @@ namespace Pointer
   namespace Layer
 
     public export
-    data Layer' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
+    data Layer' : (d : Desc r s o) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
 
     public export
-    Layer : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
+    Layer : (d : Desc r s o) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type
     Layer d@(Prod _ _) cs t = Layer' d cs t
     Layer None _ _ = ()
     Layer Byte _ t = Singleton t
     Layer Rec cs t = Pointer.Mu cs t
 
-    data Layer' : (d : Desc r s n) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
+    data Layer' : (d : Desc r s o) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
       (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t # u)
 
     export
-    layer : {0 cs : Data nm} -> {d : Desc r s n} ->
+    layer : {0 cs : Data nm} -> {d : Desc r s o} ->
             forall t. Pointer.Meaning d cs t -> IO (Layer d cs t)
     layer el = poke el >>= go d where
 
-      go : forall r, s, n. (d : Desc r s n) ->
+      go : forall r, s, n. (d : Desc r s o) ->
            forall t. Poke d cs t -> IO (Layer d cs t)
       go None p = pure ()
       go Byte p = pure p
@@ -323,17 +319,17 @@ namespace Pointer
 namespace SerialisingInContext
 
   public export
-  AllInContext : (d : Desc r s n) -> (p, q : x -> Type) -> Meaning d x -> Type
+  AllInContext : (d : Desc r s o) -> (p, q : x -> Type) -> Meaning d x -> Type
 
   public export
-  data AllInContext' : (d : Desc r s n) -> (p, q : x -> Type) -> Meaning d x -> Type
+  data AllInContext' : (d : Desc r s o) -> (p, q : x -> Type) -> Meaning d x -> Type
 
   AllInContext None p q t = ()
   AllInContext Byte p q t = Singleton t
   AllInContext d@(Prod _ _) p q t = AllInContext' d p q t
   AllInContext Rec p q t = p t
 
-  data AllInContext' : (d : Desc r s n) -> (p, q : x -> Type) -> Meaning d x -> Type where
+  data AllInContext' : (d : Desc r s o) -> (p, q : x -> Type) -> Meaning d x -> Type where
     (#) : AllInContext d p q s ->
           (All d q s -> AllInContext e p q t) ->
           AllInContext' (Prod d e) p q (s # t)
@@ -342,7 +338,7 @@ namespace SerialisingInContext
   parameters (buf : Buffer)
 
     goMeaning : Int ->
-                {r : Bool} -> (d : Desc r s n) ->
+                {r : Bool} -> (d : Desc r s o) ->
                 {0 t : Meaning d (Data.Mu cs)} ->
                 AllInContext d (Serialising cs) (Pointer.Mu cs) t ->
                 IO (Vect n Int, Int, All d (Pointer.Mu cs) t)

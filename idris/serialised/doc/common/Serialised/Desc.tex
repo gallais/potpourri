@@ -20,14 +20,14 @@ import Lib
 ||| It is indexed by 1 'input' parameter and 2 'ouput' indices:
 |||  @rightmost telling us whether we are in the rightmost subterm
 |||             in which case `Rec` won't need to record an additional offset
-|||  @size      the statically known part of the size (in number of bytes)
+|||  @static    the statically known part of the size (in number of bytes)
 |||  @offsets   the dynamically known part of the size (in number of subtrees)
 public export
 \end{code}
 %<*desctype>
 \begin{code}
 data Desc : (rightmost : Bool) ->
-            (size : Nat) -> (offsets : Nat) ->
+            (static : Nat) -> (offsets : Nat) ->
             Type
 \end{code}
 %</desctype>
@@ -53,9 +53,9 @@ public export
 record Constructor (nm : Type) where
   constructor (::)
   name : nm
-  {size : Nat}
+  {static : Nat}
   {offsets : Nat}
-  description : Desc True size offsets
+  description : Desc True static offsets
 \end{code}
 %</constructor>
 \begin{code}
@@ -92,7 +92,7 @@ public export
 \begin{code}
 description : {cs : Data nm} -> (k : Index cs) ->
               let cons = index (getIndex k) (constructors cs) in
-              Desc True (size cons) (offsets cons)
+              Desc True (static cons) (offsets cons)
 description {cs} k
   = description (index (getIndex k) (constructors cs))
 \end{code}
@@ -220,9 +220,9 @@ parameters (buf : Buffer)
   ||| @ rightmost is known statically but the others indices are not
   record IDesc (rightmost : Bool) where
     constructor MkIDesc
-    {size : Nat}
+    {static : Nat}
     {offsets : Nat}
-    runIDesc : Desc rightmost size offsets
+    runIDesc : Desc rightmost static offsets
 
   ||| Auxiliary definition to help idris figure out the types of
   ||| everything involved
