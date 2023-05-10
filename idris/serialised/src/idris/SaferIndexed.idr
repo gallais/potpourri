@@ -320,6 +320,67 @@ namespace Pointer
       t <- assert_total (fmap (description k) id deserialise ptr)
       pure ((k #) <$> transport (fmapId (description k) id (\ _ => Refl) _) t)
 
+namespace SerialisingInContext
+
+  public export
+  AllInContext : (d : Desc r s n) -> (p, q : x -> Type) -> Meaning d x -> Type
+
+  public export
+  data AllInContext' : (d : Desc r s n) -> (p, q : x -> Type) -> Meaning d x -> Type
+
+  AllInContext None p q t = ()
+  AllInContext Byte p q t = Singleton t
+  AllInContext d@(Prod _ _) p q t = AllInContext' d p q t
+  AllInContext Rec p q t = p t
+
+  data AllInContext' : (d : Desc r s n) -> (p, q : x -> Type) -> Meaning d x -> Type where
+    (#) : AllInContext d p q s ->
+          (All d q s -> AllInContext e p q t) ->
+          AllInContext' (Prod d e) p q (s # t)
+
+
+  parameters (buf : Buffer)
+
+    goMeaning : Int ->
+                {r : Bool} -> (d : Desc r s n) ->
+                {0 t : Meaning d (Data.Mu cs)} ->
+                AllInContext d (Serialising cs) (Pointer.Mu cs) t ->
+                IO (Vect n Int, Int, All d (Pointer.Mu cs) t)
+    goMeaning start None layer = pure ([], start, ())
+    goMeaning start Byte layer = ([], start + 1, layer) <$ setBits8 buf start (getSingleton layer)
+    goMeaning start (Prod d e) (v # w)
+      = do (n1, afterLeft, ps) <- goMeaning start d v
+           (n2, afterRight, qs) <- goMeaning afterLeft e (w ps)
+           pure (n1 ++ n2, afterRight, ps # qs)
+    goMeaning start Rec layer
+      = do end <- runSerialising layer buf start
+           let size = end - start
+           pure $ (if r then [] else [size], end, MkMu buf start size)
+
+    goMu : Int ->
+           (k : Fin (consNumber cs)) -> (c : Constructor _) ->
+           {0 t : Meaning (description c) (Data.Mu cs)} ->
+           AllInContext (description c) (Serialising cs) (Pointer.Mu cs) t ->
+           IO Int
+    goMu start k cons layer
+      = do -- [ Tag | ... offsets ... | ... meaning ... ]
+           setBits8 buf start (cast $ cast {to = Nat} k)
+           let afterTag  = start + 1
+           let afterOffs = afterTag + 8 * cast (offsets cons)
+           (is, end, ps) <- goMeaning afterOffs (description cons) layer
+           setInts buf afterTag is
+           pure end
+
+  infixr 5 ##
+  export
+  (##) : {cs : Data nm} -> (k : Index cs) ->
+         {0 t : Meaning (description k) (Data.Mu cs)} ->
+         AllInContext (description k) (Serialising cs) (Pointer.Mu cs) t ->
+         Serialising cs (k # t)
+  MkIndex k ## layer
+    = MkSerialising $ \ buf, start =>
+        SerialisingInContext.goMu buf start k (index k $ constructors cs) layer
+
 namespace Serialising
 
   export
@@ -395,6 +456,12 @@ namespace Pointer
 -- want to write over pointers. This will, via Singleton & Serialising,
 -- allow us to write correct by construction effectful functions
 namespace Data
+
+  ||| Tree with nodes carrying their level
+  public export
+  levels : (n : Nat) -> Data.Mu Tree
+  levels 0 = leaf
+  levels (S n) = node (levels n) (cast n) (levels n)
 
   ||| The size of the tree is given by the number of nodes
   public export
@@ -478,6 +545,17 @@ namespace Pointer
   map f ptr = case !(view ptr) of
     "Leaf" # () => leaf
     "Node" # l # b # r => node (map f l) (f <$> b) (map f r)
+
+  export
+  levels : (n : Nat) -> Serialising Tree (levels n)
+  levels 0 = leaf
+  levels (S n) = "Node" ## levels n # \ ih => pure (cast n) # \ _ => copy ih
+
+  export
+  deepLevels : (n : Nat) -> Serialising Tree (levels n)
+  deepLevels 0 = leaf
+  deepLevels (S n) = node (deepLevels n) (pure (cast n)) (deepLevels n)
+
 
   ||| Simple printing function
   export

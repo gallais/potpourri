@@ -65,3 +65,10 @@ main = do
     () <$ measure (() <$ execSerialising (copy t))
     () <$ measure (() <$ execSerialising (deepCopy t))
     () <$ measure (() <$ execSerialising (roundtripCopy t))
+
+  putStrLn "\n\n"
+  header "Levels variants: using levels vs. deepLevels"
+  for_ [10..20] $ \ n => do
+    header "Size \{show n}"
+    () <$ measure (() <$ execSerialising (levels n))
+    () <$ measure (() <$ execSerialising (deepLevels n))
