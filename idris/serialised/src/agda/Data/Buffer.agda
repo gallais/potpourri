@@ -1,5 +1,3 @@
-{-# OPTIONS --guardedness #-}
-
 module Data.Buffer where
 
 open import Data.Nat.Base using (ℕ; _+_; _*_; _^_)
@@ -8,7 +6,6 @@ import Data.Fin.Base as Fin
 import Data.Vec.Base as Vec
 open import Data.Word8 as Word8 using (Word8)
 open import Data.Word.Base as Word64 using (Word64)
-open import IO.Base using (IO; lift)
 
 open import Function.Base using (const; _$_)
 
@@ -22,8 +19,8 @@ open import Data.Buffer.Primitive as Prim
 ------------------------------------------------------------------------------
 -- Operations
 
-readFile : String → IO Buffer
-readFile fp = lift (Prim.readFile fp)
+length : Buffer → ℕ
+length = Prim.length
 
 getWord8 : Buffer → ℕ → Word8
 getWord8 = Prim.index

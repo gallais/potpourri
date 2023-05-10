@@ -1,5 +1,3 @@
-{-# OPTIONS --guardedness #-}
-
 module Data.Serialisable.Desc where
 
 open import Agda.Builtin.FromNat using (fromNat)
@@ -60,7 +58,7 @@ module Constructor where
   _≡ᵇ_ : {nm nm′ : Set} → Constructor nm → Constructor nm′ → Bool
   (_ ∶ d) ≡ᵇ (_ ∶ d′) = d Desc.≡ᵇ d′
 
-open Constructor hiding (module Constructor) using (Constructor; _∶_)
+open Constructor public hiding (module Constructor) using (Constructor; _∶_)
 
 module Data where
 
@@ -71,10 +69,15 @@ module Data where
       constructors : Vec (Constructor nm) consNumber
   open Data public
 
-  _≡ᵇ_ : ∀ {n nm nm′} → Vec (Constructor nm) n → Vec (Constructor nm′) n → Bool
-  cs ≡ᵇ cs′ = Vec.foldr (const Bool) _∧_ true (Vec.zipWith Constructor._≡ᵇ_ cs cs′)
+  _≡ᵇ_ : ∀ {nm nm′} → Data nm → Data nm′ → Bool
+  d ≡ᵇ d′ = go (constructors d) (constructors d′) where
 
-open Data hiding (module Data) using (Data; mkData; consNumber; constructors)
+    go : ∀ {nm nm′ n n′} → Vec (Constructor nm) n → Vec (Constructor nm′) n′ → Bool
+    go [] [] = true
+    go (c ∷ cs) (c′ ∷ cs′) = c Constructor.≡ᵇ c′ ∧ go cs cs′
+    go _ _ = false
+
+open Data public hiding (module Data) using (Data; mkData; consNumber; constructors)
 
 record Index {nm : Set} (cs : Data nm) : Set where
   constructor mkIndex
@@ -156,66 +159,3 @@ module _ (buf : Buffer) where
          let middle = 1 + start
          (end , cs) ← getConstructors middle n
          pure (end , mkData cs)
-
-------------------------------------------------------------------------
--- Meaning as trees
-
-⟦_⟧ : ∀ {r s o} → Desc r s o → Set → Set
-⟦ none ⟧ X = ⊤
-⟦ byte ⟧ X = Word8
-⟦ prod d e ⟧ X = ⟦ d ⟧ X × ⟦ e ⟧ X
-⟦ rec ⟧ X = X
-
-fmap : ∀ {r s o} (d : Desc r s o) {X Y} → (X → Y) → ⟦ d ⟧ X → ⟦ d ⟧ Y
-fmap none f = id
-fmap byte f = id
-fmap (prod d e) f = Prod.map (fmap d f) (fmap e f)
-fmap rec f = f
-
-Alg : ∀ {nm} → Data nm → Set → Set
-Alg cs X = (k : Index cs) → ⟦ description k ⟧ X → X
-
-data μ {nm} (cs : Data nm) : Set where
-  mkμ : Alg cs (μ cs)
-
-{-# TERMINATING #-}
-fold : ∀ {nm cs a} → Alg cs a → μ {nm} cs → a
-fold φ (mkμ k t) = φ k (fmap _ (fold φ) t)
-
-------------------------------------------------------------------------
--- Examples
-
-module Tree where
-
-  Leaf Node : Constructor String
-
-  Leaf = "leaf" ∶ none
-  Node = "node" ∶ prod rec (prod byte rec)
-
-  Tree : Data String
-  Tree = mkData (Leaf ∷ Node ∷ [])
-
-  leaf : μ Tree
-  leaf = mkμ "leaf" _
-
-  node : μ Tree → Word8 → μ Tree → μ Tree
-  node l b r = mkμ "node" (l , b , r)
-
-  example : μ Tree
-  example =
-    (node
-      (node (node leaf 1 leaf) 5 leaf)
-      10
-      (node leaf 20 leaf))
-
-  bigexample : μ Tree
-  bigexample =
-    (node
-      (node (node leaf 1 leaf) 5 leaf)
-      10
-      (node leaf 20
-        (node
-          (node leaf 56 (node leaf 5 leaf))
-          17
-          (node leaf 23
-            (node leaf 78 leaf)))))
