@@ -23,7 +23,7 @@ have for reference. Hence the use of \IdrisType{Singleton}.
 
 If we access a \IdrisData{Prod} of two descriptions then the type-level term
 better be a pair and we better be able to obtain a \IdrisType{Pointer.Meaning}
-to each of the sub-meanings.
+for each of the sub-meanings.
 %
 Because \idris{} does not currently support definitional eta equality
 for records, it will me more ergonomic for users if we introduce
@@ -40,6 +40,8 @@ on the description.
 As we are going to see shortly, it is necessarily somewhat unsafe
 as we claim to be able to connect a type-level value to whatever
 it is that we read from the buffer.
+%
+Let us go through each case one-by-one.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunNone}
 
@@ -65,16 +67,21 @@ each of them.
 %
 We start by splitting the vector of offsets to distribute them between
 the left and right subtrees.
-%
+
 We can readily build the pointer for the \IdrisBound{left} subdescription:
 it takes the left offsets, the buffer, and has the same starting position
 as the whole description of the product as they are stored one after the other.
+Its size is the sum of the space reserverd by all of the left offsets
+(\IdrisFunction{sum} \IdrisBound{subl}) as well as the static size occupied
+by the rest of the content  (\IdrisBound{sl}).
+
+We then compute the starting position of the right subdescription: we need to
+move past the whole of the left subdescription, that is to say that the starting
+position is the sum of the starting position for the whole product and \IdrisBound{sizel}.
 %
-We then compute the starting position of the right subtree: we need to
-move past the whole of the left subtree, that is to say past the space
-reserved by all of the left offsets (\IdrisFunction{sum} \IdrisBound{subl})
-but also past the content whose size is known statically (\IdrisBound{sl}).
-%
+The size of the right subdescription is then easily computed by subtracting
+\IdrisBound{sizel} from the overall \IdrisBound{size} of the paired subdescriptions.
+
 We can finally use the lemma \IdrisFunction{etaTuple} saying that a tuple
 is equal to the pairing of its respective projections
 in order to turn \IdrisBound{t} into
@@ -85,8 +92,8 @@ pair of pointers.
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunRec}
 
 Lastly, when we reach a \IdrisData{Rec} description, we can discard the
-vector of offsets and return a \IdrisType{Pointer.Mu} with the same buffer
-and starting position as our input pointer.
+vector of offsets and return a \IdrisType{Pointer.Mu} with the same buffer,
+starting position and size as our input pointer.
 
 \subsection{Extracting one layer}
 

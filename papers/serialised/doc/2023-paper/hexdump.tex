@@ -44,7 +44,7 @@ The header consists of an offset allowing us to jump past it in case we do
 not care to inspect it, followed by a representation of the \IdrisType{Data}.
 %
 It is encoded by a byte giving us the number of constructors, followed by
-these constructors serialised one after the other.
+these constructors' respective descriptions serialised one after the other.
 
 \IdrisData{None} is represented by \hexadesc{00},
 \IdrisData{Byte} is represented by \hexadesc{01},
@@ -65,7 +65,7 @@ and the second one is \hexadesc{02 03 02 01 03} i.e.
 \IdrisKeyword{(}\IdrisData{Prod} \IdrisData{Byte} \IdrisData{Rec}\IdrisKeyword{))}
 (that is to say \IdrisFunction{Node}).
 %
-According to the header, we do have a \IdrisFunction{Tree} value stored in this file.
+According to the header, this file does contain a \IdrisFunction{Tree}.
 
 \subsection{Tree Serialisation}\label{sec:tree-serialisation}
 
@@ -78,11 +78,11 @@ value stored in the rightmost node in our running example type of binary
 trees in time linear in the depth of the tree rather than exponential.
 %
 To this end each node needs to store an offset measuring the size of the
-left subtree.
+subtrees that are to the left of any relevant information.
 
 If a given tag is associated to a description of type
 (\IdrisType{Desc} \IdrisData{True} \IdrisBound{s} \IdrisBound{o})
-then the representation of the associated node would look something
+then the representation of the associated node will look something
 like the following.
 
 \label{fig:data-layout}
@@ -158,5 +158,5 @@ respective data layouts and offsets for a leaf and a node.
 \end{bytefield}
 \end{center}
 
-Now we understand the format we want, we ought to be able to implement pointers
+Now that we understand the format we want, we ought to be able to implement pointers
 and the functions manipulating them.

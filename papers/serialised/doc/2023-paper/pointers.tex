@@ -28,36 +28,41 @@ that type.
 The counterpart to a \IdrisFunction{Meaning} stores additional information.
 For a description of type (\IdrisType{Desc} \IdrisBound{r} \IdrisBound{s} \IdrisBound{o})
 on top of the buffer, the position at which the root of the meaning resides,
-and the size of the layer we additionally have a vector of \IdrisBound{o} offsets.
-
-Now that we have pointers, we can use them to look at the content
-they are referring to. But first we need to introduce some basic tools
-to be able to talk precisely about this stored content.
+and the size of the layer we additionally have a vector of \IdrisBound{o} offsets
+that allow to efficiently access any value we want.
 
 \subsection{Writing a Tree to a File}\label{sec:writetofile}
 
 Once we have a pointer to a tree in a buffer, we can easily write it to a
-file be it for safekeeping or sending.
+file be it for safekeeping or sending over the network.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{writeToFile}
 
 We first start by reading the size of the header stored in the buffer.
 %
-This allows us to compute both the start of the data block as well as the
-size of the buffer that will contain the header followed by the tree we want
-to write to a file.
-
-
+This allows us to compute both the \IdrisBound{start} of the data block
+as well as the size of the buffer (\IdrisBound{bufSize}) that will
+contain the header followed by the tree we want to write to a file.
+%
 We then check whether the position of the pointer is exactly the beginning
 of the data block.
-
+%
 If it is then we are pointing to the whole tree and the current buffer can
 be written to a file as is.
-
+%
 Otherwise we are pointing to a subtree and need to separate it from its
 surrounding context first.
 %
-To do so we allocate a new buffer of the right size and copy the raw bytes
+To do so we allocate a new buffer of the right size and use the
+standard library's \IdrisFunction{copyData} primitive to copy the raw bytes
 corresponding to the header first, and the tree of interest second.
-
+%
 We can then write the buffer we have picked to a file and happily succeed.
+
+
+
+Now that we have pointers and can save the tree they are standing for,
+we are only missing the ability to look at the content they are pointing to.
+%
+But first we need to introduce some basic tools
+to be able to talk precisely about this stored content.

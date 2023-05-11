@@ -58,7 +58,7 @@ an exercise for the reader.
 Given a datatype description \IdrisBound{cs}, our first goal is
 to define what it means to pick a constructor.
 %
-The \IdrisType{Index} record is a thin layer around a finite
+The \IdrisType{Index} record is a thin wrapper around a finite
 natural number known to be smaller than the number of constructors
 this type provides.
 
@@ -75,7 +75,6 @@ shows up in the type of the \IdrisType{Index} and can thus be
 reconstructed by unfication.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{description}
-
 
 This type of indices also allows us to provide users with
 syntactic sugar enabling them to use the constructors' names
@@ -113,8 +112,8 @@ the functor corresponding to the meaning of the  constructor's description.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{alg}
 
-We can then define the fixpoint of data descriptions as the following
-inductive type.
+We can then define the fixpoint of data descriptions as the initial
+algebra, defined as the following inductive type.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{mu}
 
@@ -154,7 +153,8 @@ This enables us to define our running example:
 giving any other algebra over a type \IdrisBound{a}, from a term of
 type (\IdrisType{Mu} \IdrisBound{cs}), we can compute an \IdrisBound{a}.
 %
-We define the generic \IdrisFunction{fold} function as follows:
+We define the generic \IdrisFunction{fold} function over inductive values
+as follows:
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{fold}
 
@@ -166,7 +166,7 @@ Here we only use \assertTotal{} because \idris{} does not see that
 \IdrisFunction{fmap} only applies its argument to strict subterms.
 This limitation could easily be bypassed by mutually defining
 an inlined and specialised version of
-(\IdrisFunction{fmap} (\IdrisFunction{fold} \IdrisBound{alg})).
+(\IdrisFunction{fmap} \IdrisKeyword{\KatlaUnderscore} (\IdrisFunction{fold} \IdrisBound{alg})).
 as we demonstrate in \Cref{appendix:safefold}.
 %
 In an ideal type theory these supercompilation steps, whose sole
