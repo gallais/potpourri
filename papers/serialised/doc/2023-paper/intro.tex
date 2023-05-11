@@ -31,11 +31,11 @@ and total (all the recursive calls are performed on smaller trees).
 At runtime, the tree will quite probably be represented by
 constructors-as-structs and substructures-as-pointers:
 %
-each constructor is a struct with a tag indicating which
-constructor is represented and subsequent fields store
+each constructor will be a struct with a tag indicating which
+constructor is represented and subsequent fields will store
 the constructors' arguments.
 %
-Each argument will be either a value (e.g. a byte) or a pointer
+Each argument will either be a value (e.g. a byte) or a pointer
 to either a boxed value or a substructure.
 %
 If we were to directly write a function processing a value in this
@@ -100,7 +100,11 @@ We can therefore dereference the byte and move the pointer past it (line 7),
 increment the accumulator by the value thus obtained (line 8)
 and finally sum the right subtree (line 9).
 %
-At the end the accumulator contains the sum of the nodes' content.
+If the tag is anything other than 0 or 1 (line 11) then the buffer does not
+contain a valid tree and so we immediately exit with an error code.
+%
+At the end of a successful run the accumulator contains the sum of the nodes' content.
+
 
 As we can readily see, this program
 directly performs pointer arithmetic,
@@ -217,12 +221,19 @@ demonstrated~\cite{DBLP:conf/ifip2-1/AltenkirchM02}:
 it is not necessary to write a new compiler each time a useful
 universe presents itself.''
 
-All of our results are obtained by generic programming, meaning that
-we are not limited to the type of binary trees with bytes stored
-in the nodes we used in the examples above: we capture an entire
-universe of inductive types.
+In this paper we carve out a universe of inductive types that can be
+uniformly serialised and obtain all of our results by generic programming.
+%
+In practice this means that we are not limited to the type of binary trees
+with bytes stored in the nodes we used in the examples above.
+%
+We include below the type signature of a generic and correct-by-construction
+definition of \IdrisFunction{fold} operating on data stored in a buffer
+(we will explain how it is defined in \Cref{sec:bufferfold}).
 
-This is our third contribution.
+\ExecuteMetaData[SaferIndexed.idr.tex]{foldtype}
+
+This data-genericity is our third contribution.
 
 \subsection{Plan}
 
