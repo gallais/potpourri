@@ -17,12 +17,12 @@ open import Data.Vec.Base as Vec using (Vec; _∷_; [])
 open import Data.Word8 as Word8 using (Word8)
 open import Data.Word as Word64 using (Word64)
 
-open import IO
+open import IO using (IO) hiding (module IO)
 open import Data.Buffer.IO
 open import System.Exit
 
 open import Data.Singleton using (Singleton; unsafeMkSingleton; getSingleton)
-open import Data.Serialisable.Desc hiding (_>>=_)
+open import Data.Serialisable.Desc hiding (pure; _>>=_)
 open import Data.Serialisable.Data as Data hiding (module Tree)
 
 open import Function.Base using (case_of_; _∘_; _$′_)
@@ -164,7 +164,8 @@ abstract
 
   initFromFile : {{safe : WithDefault true}} {nm : Set} (cs : Data nm) → String → IO (∃ (μ cs ∋_))
   initFromFile {{safe}} cs fp
-    = do buf ← readFile fp
+    = let open IO; open Deserialising in do
+         buf ← readFile fp
          let skip = getWord64 buf 0
          when (value safe) $′ do
            pure (_ , cs′) ← pure (getData buf 8)
@@ -181,22 +182,35 @@ abstract
 
     where postulate @0 t : μ cs -- postulated as an abstract value
 
+deserialise : {cs : Data nm} → ∀ {@0 t} → μ cs ∋ t → Singleton t
+deserialise {cs = cs} ptr with view ptr
+... | k , v = (k ,_) <$> go _ v where
+
+  open Data.Singleton
+
+  go : (d : Desc r s o) → ∀ {@0 t} → Layer d cs t → Singleton t
+  go none v = ⦇ _ ⦈
+  go byte v = v
+  go (prod d e) (l , r) = ⦇ go d l , go e r ⦈
+  go rec v = deserialise v
+
 module Tree where
 
-  open Data.Tree
+  open Data.Tree using (Tree)
   open Data.Tree.P
+  open Data.Singleton
 
-  sum : ∀ {@0 t} → μ Tree ∋ t → ℕ
+  sum : ∀ {@0 t} → μ Tree ∋ t → Singleton (Data.Tree.sum t)
   sum t with view t
-  ... | leaf , _ = 0
+  ... | leaf , _ = ⦇ 0 ⦈
   ... | node , l , b , r
     = let m = sum l
           n = sum r
-      in m + Word8.toℕ (getSingleton b) + n
+      in ⦇ ⦇ m + ⦇ Word8.toℕ b ⦈ ⦈ + n ⦈
 
   open import Data.Maybe.Base using (Maybe; nothing; just; _<∣>_)
 
-  right : ∀ {@0 t} → μ Tree ∋ t → Maybe Word8
+  right : ∀ {@0 t} → μ Tree ∋ t → Singleton (Data.Tree.right t)
   right t with view t
-  ... | leaf , _ = nothing
-  ... | node , l , b , r = right r <∣> just (getSingleton b)
+  ... | leaf , _ = ⦇ nothing ⦈
+  ... | node , l , b , r = ⦇ right r <∣> ⦇ just b ⦈ ⦈

@@ -3,13 +3,19 @@ module Data.Serialisable.Data where
 open import Agda.Builtin.FromNat using (fromNat)
 open import Agda.Builtin.FromString using (fromString)
 
+open import Data.List.Base using (List; _∷_; []; _++_)
+open import Data.List.NonEmpty using (List⁺; _∷_; toList)
+open import Data.Maybe.Base using (Maybe; nothing; just; _<∣>_)
+open import Data.Nat.Base using (ℕ; suc; _+_)
+import Data.Nat.Show as ℕ
 open import Data.Product as Prod using (_×_; _,_)
-open import Data.String.Base using (String)
+open import Data.String.Base as String using (String; unlines; unwords)
+open import Data.String.Literals; instance StringIsString = isString
 open import Data.Unit.Base using (⊤)
 open import Data.Vec.Base using (_∷_; [])
 open import Data.Word8 as Word8 using (Word8)
 
-open import Function.Base using (id)
+open import Function.Base using (id; _$′_)
 
 open import Data.Serialisable.Desc
 
@@ -56,6 +62,26 @@ module Tree where
     pattern leaf = mkIndex zero
     pattern node = mkIndex (suc zero)
 
+  showi : String → μ Tree → String
+  showi pad t = unlines (let (hd ∷ tl) = go 0 pad t [] in (pad String.++ hd) ∷ tl) where
+
+    open P
+
+    go : ℕ → String → μ Tree → List String → List⁺ String
+    go closings pad (leaf , _) = ("leaf" String.++ String.replicate closings ')') ∷_
+    go closings pad (node , (leaf , _) , b , (leaf , _))
+      = let byte = ℕ.show (Word8.toℕ b) in
+        (unwords ("(node" ∷ "leaf" ∷ byte ∷ "leaf" ∷ []) String.++ String.replicate (suc closings) ')') ∷_
+    go closings pad (node , l , b , r) acc
+      = let pad = "      " String.++ pad in
+        let hd₁ ∷ tl₁ = go (suc closings) pad r acc in
+        let byte = pad String.++ ℕ.show (Word8.toℕ b) in
+        let hd₂ ∷ tl₂ = go 0 pad l $′ byte ∷ (pad String.++ hd₁) ∷ tl₁ in
+        ("(node " String.++ hd₂) ∷ tl₂
+
+  show : μ Tree → String
+  show = showi ""
+
   leaf : μ Tree
   leaf = "leaf" , _
 
@@ -80,3 +106,17 @@ module Tree where
           17
           (node leaf 23
             (node leaf 78 leaf)))))
+
+  open P
+
+  sum : μ Tree → ℕ
+  sum (leaf , _) = 0
+  sum (node , l , b , r)
+    = let m = sum l
+          n = sum r
+      in m + Word8.toℕ b + n
+
+  right : μ Tree → Maybe Word8
+  right (leaf , _) = nothing
+  right (node , l , b , r)
+    = right r <∣> just b
