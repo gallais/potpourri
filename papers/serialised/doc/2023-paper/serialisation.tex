@@ -93,8 +93,8 @@ to having already defined a serialisation process for each subtree.
 This very general combinator should be enough to define all the
 serialisers we may ever want.
 %
-By repeatedly calling \IdrisFunction{view} and \IdrisFunction{(\#)}, we can
-for instance define the correct-by-construction generic serialisation function.
+By repeatedly pattern-matching on the input tree and using \IdrisFunction{(\#)},
+we can for instance define the correct-by-construction generic serialisation function.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialise}
 
@@ -111,11 +111,12 @@ and swaps its left and right branches (if the tree is non-empty).
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{swap}
 
-We could implement this combinator at a high level either by composing
+We could define this \IdrisFunction{copy} combinator at a high level
+either by composing
 \IdrisFunction{deserialise} and \IdrisFunction{serialise},
 or by interleaving calls to \IdrisFunction{view} and \IdrisFunction{(\#)}.
 %
-This would however lead to a slow copying function that needs to
+This would however lead to a slow implementation that needs to
 traverse the entire tree in order to simply copy it.
 
 Instead, we implement \IdrisFunction{copy} by using the
