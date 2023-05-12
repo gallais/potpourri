@@ -1,0 +1,8 @@
+name: templating-0.0
+include: src
+
+depend:
+  standard-library,
+  agdarsec
+
+flags: --guardedness
