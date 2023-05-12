@@ -3,9 +3,11 @@
 
 \subsubsection{Data-Generic Programming}
 
-There is a long tradition of data-generic programming in type theory by
-the careful reification of a precise universe of discours as an inductive
-family, and the definition of generic programs by induction over this family.
+There is a long tradition of data-generic
+programming~\cite{DBLP:conf/ssdgp/Gibbons06} and we will mostly focus here
+on the approach based on the careful reification of a precise universe of
+discourse as an inductive family in a host type theory,
+and the definition of generic programs by induction over this family.
 
 One early such instance is Pfeifer and Rue{\ss}'
 `polytypic proof construction'~\cite{DBLP:conf/tphol/PfeiferR99}
@@ -14,9 +16,15 @@ meant to replace unsafe meta-programs deriving recursors
 
 \todo{See refs. in n-ary polymorphic functions}
 
+In his PhD thesis, Morris~\cite{DBLP:phd/ethos/Morris07} declares various
+universes for strictly positive types and families and defines by generic
+programming
+further types (the type of one-hole contexts),
+modalities (the universal and existential predicate lifting over the functors he considers),
+and functions (map, boolean equality).
 
-\cite{DBLP:phd/ethos/Morris07}
-\cite{DBLP:conf/icfp/LohM11}
+
+\todo{\cite{DBLP:conf/icfp/LohM11}}
 
 \subsubsection{Working on Serialised Data}
 
