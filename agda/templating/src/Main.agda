@@ -32,6 +32,7 @@ macro
 test : String
 test = getTemplate "patates.tmp"
 
+open import TMustache.Types
 open import TMustache.Scoped
 
 {-
@@ -40,6 +41,16 @@ values = "vers" ≔ (("jour" ≔ "lundi" ∷ [])
                 ∷ ("jour" ≔ "mardi" ∷ [])
                 ∷ ("jour" ≔ "mercredi" ∷ [])
                 ∷ [])
+  ∷ []
+-}
+
+{-
+values : ⟦ _ ⟧s
+values
+  = "vers" ≔ (("jour" ≔ "lundi" ∷ "aussi" ≔ "false" ∷ [])
+           ∷ ("jour" ≔ "mardi" ∷ "aussi" ≔ "false" ∷ [])
+           ∷ ("jour" ≔ "mercredi" ∷ "aussi" ≔ "true" ∷ [])
+           ∷ [])
   ∷ []
 -}
 

@@ -8,72 +8,25 @@ open import Data.Product as Prod using (∃; _×_; -,_; _,_; proj₁; proj₂)
 open import Data.List.Base as List using (List; []; _∷_)
 open import Data.List.Relation.Unary.All using (All; []; _∷_)
 open import Data.List.Relation.Unary.Any using (here; there)
-open import Data.Maybe.Base as Maybe using (Maybe; nothing; just; maybe′; maybe)
-import Data.Maybe.Effectful as Maybe
+open import Data.Sum.Base as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
+import Data.Sum.Effectful.Left as Sum
 open import Agda.Builtin.String using () renaming (primStringEquality to _≡ᵇ_)
 open import Data.String.Base as String using (String; _++_)
 
 open import Effect.Monad
 
+open import Function.Strict
 open import Function.Base using (_$_; id; _on_; _∘_; const)
 
 open import Relation.Nullary using (yes; no)
 open import Relation.Unary using (Pred)
 
-------------------------------------------------------------------------
--- Records and types
-
-Record : Set → Set
-Record A = List (String × A)
-
-data Type : Set where
-  `String : Type
-  `Bool   : Type
-  `List   : Record Type → Type
-
-Scope = Record Type
-
-data ⟦_⟧ : Type → Set
-data ⟦_⟧f : (String × Type) → Set
-data ⟦_⟧s : List (String × Type) → Set
-
-data ⟦_⟧ where
-  AString : String → ⟦ `String ⟧
-  false   : ⟦ `Bool ⟧
-  true    : ⟦ `Bool ⟧
-  []      : ∀ {tys} → ⟦ `List tys ⟧
-  _∷_     : ∀ {tys} → ⟦ tys ⟧s → ⟦ `List tys ⟧ → ⟦ `List tys ⟧
-
-data ⟦_⟧f where
-  _≔_ : (str : String) {ty : Type} → ⟦ ty ⟧ → ⟦ str , ty ⟧f
-
-data ⟦_⟧s where
-  [] : ⟦ [] ⟧s
-  _∷_ : ∀ {fld tys} → ⟦ fld ⟧f → ⟦ tys ⟧s → ⟦ fld ∷ tys ⟧s
-
-
-toBool : ⟦ `Bool ⟧ → Bool
-toBool true = true
-toBool false = false
-
-toList : ∀ {tys} → ⟦ `List tys ⟧ → List ⟦ tys ⟧s
-toList [] = []
-toList (v ∷ vs) = v ∷ toList vs
-
-open import Agda.Builtin.FromString public
-import Data.String.Literals
-open import Data.Unit.Base
-
-instance
-  StringIsString = Data.String.Literals.isString
-  MeaningIsString : IsString ⟦ `String ⟧
-  MeaningIsString .IsString.Constraint str = ⊤
-  MeaningIsString .IsString.fromString str = AString str
-
+open import TMustache.Types
 open import TMustache.Raw as Raw using ()
 open Raw.Block
 
-open RawMonad (Maybe.monad {f = 0ℓ})
+open RawMonad (Sum.monad ErrorMsg 0ℓ)
+
 
 ------------------------------------------------------------------------
 -- Contexts and de Bruijn indices
@@ -82,11 +35,11 @@ open import Relation.Binary.PropositionalEquality.Core using (refl)
 open import Relation.Binary.PropositionalEquality.TrustMe using (trustMe)
 open import Data.List.Membership.Propositional using (_∈_)
 
-lookup : (str : String) (Γ : Scope) → Maybe (∃ λ ty → (str , ty) ∈ Γ)
-lookup str [] = nothing
+lookup : (str : String) (Γ : Scope) → ErrorMsg ⊎ (∃ λ ty → (str , ty) ∈ Γ)
+lookup str [] = inj₁ (ScopeError (outOfScope str))
 lookup str ((str′ , ty) ∷ Γ)
-  = if str ≡ᵇ str′ then just (ty , here trustMe)
-    else Maybe.map (Prod.map₂ there) (lookup str Γ)
+  = if str ≡ᵇ str′ then inj₂ (ty , here trustMe)
+    else Sum.map₂ (Prod.map₂ there) (lookup str Γ)
 
 ------------------------------------------------------------------------
 -- Mustache blocks
@@ -101,37 +54,37 @@ data Block (Γ : Scope) : Set where
 
 Mustache Γ = List (Block Γ)
 
-checkBlock : {Γ : Scope} → Raw.Block → Maybe (Block Γ)
-checkMustache : {Γ : Scope} → Raw.Mustache → Maybe (Mustache Γ)
+checkBlock : {Γ : Scope} → Raw.Block → ErrorMsg ⊎ Block Γ
+checkMustache : {Γ : Scope} → Raw.Mustache → ErrorMsg ⊎ Mustache Γ
 
 checkBlock (tag str)
   = do `String , var ← lookup str _
-         where _ → nothing
+         where (ty , _) → inj₁ (TypeError str ∶ expected `String got ty)
        pure (tag var)
 checkBlock (if str then rmst)
   = do `Bool , var ← lookup str _
-         where _ → nothing
+         where (ty , _) → inj₁ (TypeError str ∶ expected `Bool got ty)
        mst ← checkMustache rmst
        pure (if var then mst)
 checkBlock (forEach str rmst)
   = do `List Δ , var ← lookup str _
-         where _ → nothing
+         where (ty , _) → inj₁ (TypeError str ∶ expected `List got ty)
        mst ← checkMustache rmst
        pure (forEach var mst)
-checkBlock (literal str) = just (literal str)
+checkBlock (literal str) = inj₂ (literal str)
 
 checkMustache [] = pure []
 checkMustache (rblk ∷ rmst) = ⦇ checkBlock rblk ∷ checkMustache rmst ⦈
 
-data Error : Set where
-  error : Error
+data Error (msg : ErrorMsg) : Set where
+  error : Error msg
 
-OrError : {A : Set} → Maybe A → Set
-OrError {A} = maybe′ (const A) Error
+OrError : {A : Set} → ErrorMsg ⊎ A → Set
+OrError {A} = [ Error $!_ , const A ]′
 
-orError : {A : Set} → (ma : Maybe A) → OrError ma
-orError nothing = error
-orError (just a) = a
+orError : {A : Set} → (ma : ErrorMsg ⊎ A) → OrError ma
+orError (inj₁ err) rewrite force-≡ err Error = error
+orError (inj₂ val) = val
 
 instVar : ∀ {str ty Γ} → (str , ty) ∈ Γ → ⟦ Γ ⟧s → ⟦ ty ⟧
 instVar (here refl) (_ ≔ v ∷ _) = v
@@ -143,14 +96,14 @@ instBlock : ∀ {Γ} → Block Γ → ⟦ Γ ⟧s → String
 instMustache [] ρ = ""
 instMustache (blk ∷ mst) ρ = instBlock blk ρ ++ instMustache mst ρ
 
-instBlock (tag var) ρ with AString str ← instVar var ρ = str
+instBlock (tag var) ρ = toString (instVar var ρ)
 instBlock (if var then mst) ρ
   = if (toBool (instVar var ρ)) then instMustache mst ρ else ""
 instBlock (forEach var mst) ρ
   = String.concat (List.map (instMustache mst) (toList (instVar var ρ)))
 instBlock (literal str) ρ = str
 
-instantiate : ∀ {Γ} → String → ⟦ Γ ⟧s → Maybe String
+instantiate : ∀ {Γ} → String → ⟦ Γ ⟧s → ErrorMsg ⊎ String
 instantiate {Γ} str ρ
   = do rmst ← Raw.mustache str
        mst ← checkMustache rmst

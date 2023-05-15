@@ -1,5 +1,3 @@
-{-# OPTIONS --with-K #-}
-
 module TMustache.Raw where
 
 open import Level using (0ℓ)
@@ -7,7 +5,7 @@ open import Data.Bool.Base using (Bool; true; false; not; T)
 open import Data.Product using (_×_; _,_; proj₁)
 open import Data.List.Base using (List; _∷_; [])
 open import Data.List.NonEmpty as List⁺ using (_∷_)
-open import Data.Maybe.Base using (Maybe; nothing; just)
+open import Data.Sum.Base as Sum using (_⊎_)
 open import Data.Nat.Base using (ℕ)
 open import Agda.Builtin.String using () renaming (primStringEquality to _≡ᵇ_)
 open import Data.String.Base as String using (String; _++_)
@@ -16,6 +14,8 @@ open import Data.Unit.Base using (⊤)
 
 open import Function.Base using (id; _on_; _$_; _∘′_; case_of_)
 import Induction.Nat.Strong as □
+
+open import TMustache.Types using (ErrorMsg; ParseError)
 
 Mustache : Set
 
@@ -61,5 +61,5 @@ block = fix (Parser Block) $ λ ih →
   ∷ (literal ∘′ String.concat ∘′ List⁺.toList <$> list⁺ string)
   ∷ []
 
-mustache : String → Maybe Mustache
-mustache str = isInj₂ (runParser (Mustache.default block) str)
+mustache : String → ErrorMsg ⊎ Mustache
+mustache str = Sum.map₁ ParseError (runParser (Mustache.default block) str)
