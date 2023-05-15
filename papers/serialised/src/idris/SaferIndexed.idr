@@ -79,7 +79,7 @@ namespace Serialising
                 {r : Bool} -> (d : Desc r s o) ->
                 {0 t : Meaning d (Data.Mu cs)} ->
                 All d (Serialising cs) t ->
-                IO (Vect n Int, Int)
+                IO (Vect o Int, Int)
     goMeaning start None layer = pure ([], start)
     goMeaning start Byte layer = ([], start + 1) <$ setBits8 buf start (getSingleton layer)
     goMeaning start (Prod d e) (v # w)
@@ -195,7 +195,7 @@ namespace Pointer
             forall t. Pointer.Meaning d cs t -> IO (Layer d cs t)
     layer el = poke el >>= go d where
 
-      go : forall r, s, n. (d : Desc r s o) ->
+      go : forall r, s, o. (d : Desc r s o) ->
            forall t. Poke d cs t -> IO (Layer d cs t)
       go None p = pure ()
       go Byte p = pure p
@@ -341,7 +341,7 @@ namespace SerialisingInContext
                 {r : Bool} -> (d : Desc r s o) ->
                 {0 t : Meaning d (Data.Mu cs)} ->
                 AllInContext d (Serialising cs) (Pointer.Mu cs) t ->
-                IO (Vect n Int, Int, All d (Pointer.Mu cs) t)
+                IO (Vect o Int, Int, All d (Pointer.Mu cs) t)
     goMeaning start None layer = pure ([], start, ())
     goMeaning start Byte layer = ([], start + 1, layer) <$ setBits8 buf start (getSingleton layer)
     goMeaning start (Prod d e) (v # w)
