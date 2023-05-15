@@ -3,20 +3,19 @@
 module TMustache.Scoped where
 
 open import Level using (0ℓ)
-open import Data.Bool.Base using (Bool; true; false; not; T; if_then_else_)
-open import Data.Bool.Properties using (T?)
+open import Data.Bool.Base using (Bool; true; false; if_then_else_)
 open import Data.Product as Prod using (∃; _×_; -,_; _,_; proj₁; proj₂)
 open import Data.List.Base as List using (List; []; _∷_)
 open import Data.List.Relation.Unary.All using (All; []; _∷_)
 open import Data.List.Relation.Unary.Any using (here; there)
-open import Data.Maybe.Base as Maybe using (Maybe; nothing; just)
+open import Data.Maybe.Base as Maybe using (Maybe; nothing; just; maybe′; maybe)
 import Data.Maybe.Effectful as Maybe
 open import Agda.Builtin.String using () renaming (primStringEquality to _≡ᵇ_)
 open import Data.String.Base as String using (String; _++_)
 
 open import Effect.Monad
 
-open import Function.Base using (_$_; id; _on_; _∘_; case_of_)
+open import Function.Base using (_$_; id; _on_; _∘_; const)
 
 open import Relation.Nullary using (yes; no)
 open import Relation.Unary using (Pred)
@@ -34,21 +33,42 @@ data Type : Set where
 
 Scope = Record Type
 
-⟦_⟧ty : Type → Set
-⟦_⟧sc : Scope → Set
+data ⟦_⟧ : Type → Set
+data ⟦_⟧f : (String × Type) → Set
+data ⟦_⟧s : List (String × Type) → Set
 
-data List⟦_⟧sc (tys : Record Type) : Set where
-  [] : List⟦ tys ⟧sc
-  _∷_ : ⟦ tys ⟧sc → List⟦ tys ⟧sc → List⟦ tys ⟧sc
+data ⟦_⟧ where
+  AString : String → ⟦ `String ⟧
+  false   : ⟦ `Bool ⟧
+  true    : ⟦ `Bool ⟧
+  []      : ∀ {tys} → ⟦ `List tys ⟧
+  _∷_     : ∀ {tys} → ⟦ tys ⟧s → ⟦ `List tys ⟧ → ⟦ `List tys ⟧
 
-⟦ `String   ⟧ty = String
-⟦ `Bool     ⟧ty = Bool
-⟦ `List tys ⟧ty = List⟦ tys ⟧sc
+data ⟦_⟧f where
+  _≔_ : (str : String) {ty : Type} → ⟦ ty ⟧ → ⟦ str , ty ⟧f
 
-data ⟦_⟧ : (String × Type) → Set where
-  _≔_ : (str : String) {ty : Type} → ⟦ ty ⟧ty → ⟦ str , ty ⟧
+data ⟦_⟧s where
+  [] : ⟦ [] ⟧s
+  _∷_ : ∀ {fld tys} → ⟦ fld ⟧f → ⟦ tys ⟧s → ⟦ fld ∷ tys ⟧s
 
-⟦ Γ ⟧sc = All ⟦_⟧ Γ
+
+toBool : ⟦ `Bool ⟧ → Bool
+toBool true = true
+toBool false = false
+
+toList : ∀ {tys} → ⟦ `List tys ⟧ → List ⟦ tys ⟧s
+toList [] = []
+toList (v ∷ vs) = v ∷ toList vs
+
+open import Agda.Builtin.FromString public
+import Data.String.Literals
+open import Data.Unit.Base
+
+instance
+  StringIsString = Data.String.Literals.isString
+  MeaningIsString : IsString ⟦ `String ⟧
+  MeaningIsString .IsString.Constraint str = ⊤
+  MeaningIsString .IsString.fromString str = AString str
 
 open import TMustache.Raw as Raw using ()
 open Raw.Block
@@ -103,25 +123,38 @@ checkBlock (literal str) = just (literal str)
 checkMustache [] = pure []
 checkMustache (rblk ∷ rmst) = ⦇ checkBlock rblk ∷ checkMustache rmst ⦈
 
-scope : {Γ : Scope} (str : String) → Maybe (Mustache Γ)
-scope str
-  = do rmst ← Raw.mustache str
-       checkMustache rmst
+data Error : Set where
+  error : Error
 
-instVar : ∀ {str ty Γ} → (str , ty) ∈ Γ → ⟦ Γ ⟧sc → ⟦ ty ⟧ty
-instVar (here refl) ((_ ≔ v) ∷ _) = v
-instVar (there var) (_ ∷ ρ) = instVar var ρ
+OrError : {A : Set} → Maybe A → Set
+OrError {A} = maybe′ (const A) Error
 
-instMustache : ∀ {Γ} → Mustache Γ → ⟦ Γ ⟧sc → String
-instBlock : ∀ {Γ} → Block Γ → ⟦ Γ ⟧sc → String
+orError : {A : Set} → (ma : Maybe A) → OrError ma
+orError nothing = error
+orError (just a) = a
+
+instVar : ∀ {str ty Γ} → (str , ty) ∈ Γ → ⟦ Γ ⟧s → ⟦ ty ⟧
+instVar (here refl) (_ ≔ v ∷ _) = v
+instVar (there var) (_ ≔ _ ∷ ρ) = instVar var ρ
+
+instMustache : ∀ {Γ} → Mustache Γ → ⟦ Γ ⟧s → String
+instBlock : ∀ {Γ} → Block Γ → ⟦ Γ ⟧s → String
 
 instMustache [] ρ = ""
 instMustache (blk ∷ mst) ρ = instBlock blk ρ ++ instMustache mst ρ
 
-instBlock (tag var) ρ = instVar var ρ
+instBlock (tag var) ρ with AString str ← instVar var ρ = str
 instBlock (if var then mst) ρ
-  = if instVar var ρ then instMustache mst ρ else ""
+  = if (toBool (instVar var ρ)) then instMustache mst ρ else ""
 instBlock (forEach var mst) ρ
-  = let ρs = instVar var ρ in
-    {!!} -- String.concat (List.map (instMustache mst) ρs)
+  = String.concat (List.map (instMustache mst) (toList (instVar var ρ)))
 instBlock (literal str) ρ = str
+
+instantiate : ∀ {Γ} → String → ⟦ Γ ⟧s → Maybe String
+instantiate {Γ} str ρ
+  = do rmst ← Raw.mustache str
+       mst ← checkMustache rmst
+       pure (instMustache mst ρ)
+
+asTemplate : ∀ {Γ} (str : String) (ρ : ⟦ Γ ⟧s) → OrError (instantiate str ρ)
+asTemplate str ρ = orError (instantiate str ρ)
