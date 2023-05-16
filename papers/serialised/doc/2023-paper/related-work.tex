@@ -26,6 +26,18 @@ and functions (map, boolean equality).
 
 \todo{\cite{DBLP:conf/icfp/LohM11}}
 
+\subsubsection{Efficient Runtime Representation of Inductive Values}
+
+Although not dealing explicitly with programming over serialised data,
+Monnier's work~\cite{DBLP:conf/icfp/Monnier19} with its focus on performance and
+in particular on the layout of inductive values at runtime,
+partially motivated our endeavour.
+%
+Provided that we find a way to get the specialisation and partial evaluation
+of the generically defined views, we ought to be able to achieve --purely in
+user code-- Monnier's vision of n-ary tuples with constant time access to each
+component.
+
 \subsubsection{Working on Serialised Data}
 
 LoCal~\cite{DBLP:conf/pldi/VollmerKRS0N19} is the work that originally
