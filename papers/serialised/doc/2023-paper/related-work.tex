@@ -35,8 +35,8 @@ partially motivated our endeavour.
 %
 Provided that we find a way to get the specialisation and partial evaluation
 of the generically defined views, we ought to be able to achieve --purely in
-user code-- Monnier's vision of n-ary tuples with constant time access to each
-component.
+user code-- Monnier's vision of a representation where n-ary tuples have
+constant-time access to each of their component.
 
 \subsubsection{Working on Serialised Data}
 
@@ -58,6 +58,20 @@ with almost no additional cost in a purely sequential scenario \todo{double chec
 
 \subsubsection{Serialisation Formats}
 
-\todo{Look into \cite{DBLP:conf/popl/MandelbaumFWFG07}}
+The PADS project~\cite{DBLP:conf/popl/MandelbaumFWFG07}  aims to let
+quickly, correctly, and compositionally describe existing formats they
+have no control over.
+%
+As they reminds us, ad-hoc serialisation formats abound be it in
+networking, logging, billing, or as output of measurement equipments
+e.g. gene sequencing or molecular biology.
+%
+Our current is not offering this kind of versatility as we have
+decided to focus on a specific serialisation format with strong
+guarantees about the efficient access of subtrees.
+%
+But our approach to defining correct-by-construction components could
+be leveraged in that setting too and bring users strong guarantees about
+the traversals they write.
 
 \todo{protobuf}
