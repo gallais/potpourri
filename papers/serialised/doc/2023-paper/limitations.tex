@@ -79,10 +79,18 @@ known size that \idris{} offers
 as well as a unbounded data such as \IdrisType{Nat}, or \IdrisType{String}
 as long as an extra offset is provided for each value.
 
+%% The storage of values smaller than a byte naturally raises the question
+%% of bit packing (why store eight booleans as eight bytes when they could fit in
+%% a single one?) and the values smaller than a word correspondingly but also word alignment.
+
 A natural next candidate is a universe allowing the definition of parametrised
 types~\cite{DBLP:conf/icfp/LohM11}: we should be able to implement functions over arbitrary
 (\IdrisType{List} \IdrisBound{a}) values stored in a buffer,
 provided that we know that \IdrisBound{a} is serialisable.
+%
+This was already an explicit need in ASN.1~\cite{MANUAL:book/larmouth1999},
+reflecting the fact that protocols often leave `holes' where the content of
+the protocol's higher layer is to be inserted.
 
 Next, we will want to consider a universe of indexed data:
 we can currently natively model algebraic datatypes such as lists or trees,
