@@ -1,5 +1,10 @@
-
 \subsection{Limitations and Future Work}
+
+Although our design is already proven to be functional by two implementations
+in \idris{} and \agda{} respectively, we can always do better.
+%
+In this section we are going to see what benefits future work could bring
+across the whole project.
 
 \subsubsection{A More Robust Library}
 
@@ -55,9 +60,8 @@ be modified.
 Another approach is to build separation logic into our correct-by-construction
 combinators and thus ensure that the system keeps track of the modifications
 being made.
+
 \todo{Iris}
-
-
 
 Our current approach allows us to define a correct-by-construction
 \IdrisFunction{sum} operating directly on serialised data but it
