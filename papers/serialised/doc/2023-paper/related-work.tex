@@ -74,13 +74,13 @@ But our approach to defining correct-by-construction components could
 be leveraged in that setting too and bring users strong guarantees about
 the traversals they write.
 
-ASN.1~\cite{MANUAL:book/larmouth1999} provides users the ability to define
+ASN.1~\cite{MANUAL:book/larmouth1999} gives users the ability to define
 a high-level specification of the exchange format (the `abstract syntax')
 to be used in communications without the need to concern themselves with
 the actual encoding as bit patterns (the `transfer syntax').
 %
-The parsing and encoding implementations are derived entirely automatically
-from the specification just like in our system.
+This separation between specification and implementation means that parsing
+and encoding can be defined once and for all by generic programming.
 %
 The main difference is once again our ability to program in a
 correct-by-construction over the values thus represented.
