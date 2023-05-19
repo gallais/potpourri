@@ -1,0 +1,19 @@
+\begin{bytefield}[bitwidth=6mm, bitheight=7mm]{4}
+  \bitbox{2}[bgcolor=Chartreuse4!40]{tag}
+  & \bitbox{4}[bgcolor=lightgray!30]{$o$ offsets}
+  & \bitbox[ltb]{2}{tree$_1$}
+  & \bitbox[tb]{1}{$\cdots$}
+  & \bitbox[tb]{2}[bgcolor=IndianRed1!40]{byte$_1$}
+  & \bitbox[tb]{1}{$\cdots$}
+  & \bitbox[tb]{2}{tree$_k$}
+  & \bitbox[tb]{1}{$\cdots$}
+  & \bitbox[tb]{2}[bgcolor=IndianRed1!40]{byte$_s$}
+  & \bitbox[tbr]{2}{tree$_{o+1}$} \\
+  \bitbox[l]{1}{\small$0$}
+  & \bitbox[]{1}{}
+  & \bitbox[l]{1}{\small$1$}
+  & \bitbox[]{3}{}
+  & \bitbox[l]{3}{\small$1+8*o$}
+  & \bitbox[]{6}{}
+  & \bitbox[l]{5}{\small$8*o+s+\Sigma_{i=1}^{o}o_i$}
+\end{bytefield}

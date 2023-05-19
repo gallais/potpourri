@@ -19,13 +19,7 @@ a \hexadesc{type} description of the stored data,
 some \hexacons{nodes} of the tree
 and the \hexadata{data} stored in the nodes.
 
-\begin{hexdump}
-87654321\hphantom{:} 00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF
-00000000: \hexaoffset{07 00 00 00 00 00 00 00} \hexadesc{02 00 02 03 02 01 03} \hexacons{01}
-00000010: \hexaoffset{17 00 00 00 00 00 00 00} \hexacons{01} \hexaoffset{0c 00 00 00 00 00 00}
-00000020: \hexaoffset{00} \hexacons{01} \hexaoffset{01 00 00 00 00 00 00 00} \hexacons{00} \hexadata{01} \hexacons{00} \hexadata{05} \hexacons{00} \hexadata{0a}
-00000030: \hexacons{01} \hexaoffset{01 00 00 00 00 00 00 00} \hexacons{00} \hexadata{14} \hexacons{00}
-\end{hexdump}
+\input{data-hexdump}
 
 More spefically, this block is the encoding of the \IdrisFunction{example}
 given in the previous section and,
@@ -87,25 +81,7 @@ like the following.
 
 \label{fig:data-layout}
 \begin{center}
-\begin{bytefield}[bitwidth=.05\linewidth, bitheight=7mm]{4}
-  \bitbox{2}[bgcolor=Chartreuse4!40]{tag}
-  & \bitbox{4}[bgcolor=lightgray!30]{$o$ offsets}
-  & \bitbox[ltb]{2}{tree$_1$}
-  & \bitbox[tb]{1}{$\cdots$}
-  & \bitbox[tb]{2}[bgcolor=IndianRed1!40]{byte$_1$}
-  & \bitbox[tb]{1}{$\cdots$}
-  & \bitbox[tb]{2}{tree$_k$}
-  & \bitbox[tb]{1}{$\cdots$}
-  & \bitbox[tb]{2}[bgcolor=IndianRed1!40]{byte$_s$}
-  & \bitbox[tbr]{2}{tree$_{o+1}$} \\
-  \bitbox[l]{1}{\small$0$}
-  & \bitbox[]{1}{}
-  & \bitbox[l]{1}{\small$1$}
-  & \bitbox[]{3}{}
-  & \bitbox[l]{3}{\small$1+8*o$}
-  & \bitbox[]{6}{}
-  & \bitbox[l]{5}{\small$8*o+s+\Sigma_{i=1}^{o}o_i$}
-\end{bytefield}
+\input{data-layout}
 \end{center}
 
 On the first line we have a description of the data layout and on the
@@ -135,27 +111,7 @@ Going back to our running example, this translates to the following
 respective data layouts and offsets for a leaf and a node.
 
 \begin{center}
-\begin{bytefield}[bitwidth=.05\linewidth, bitheight=7mm]{4}
-  \bitbox[]{2}{Leaf} \\
-  \bitbox{2}[bgcolor=Chartreuse4!40]{00} \\
-  \bitbox[l]{1}{\small$0$}
-\end{bytefield}\hfill
-\begin{bytefield}[bitwidth=.05\linewidth, bitheight=7mm]{4}
-  \bitbox[]{2}{Node} \\
-  \bitbox{2}[bgcolor=Chartreuse4!40]{01}
-  & \bitbox{4}[bgcolor=lightgray!30]{offset}
-  & \bitbox{4}{left subtree}
-  & \bitbox{2}[bgcolor=IndianRed1!40]{byte}
-  & \bitbox{4}{right subtree} \\
-  \bitbox[l]{1}{\small$0$}
-  & \bitbox[]{1}{}
-  & \bitbox[l]{1}{\small$1$}
-  & \bitbox[]{3}{}
-  & \bitbox[l]{1}{\small$9$}
-  & \bitbox[]{3}{}
-  & \bitbox[l]{2}{\small$9+o_1$\hfill}
-  & \bitbox[l]{2}{\small$10+o_1$}
-\end{bytefield}
+  \input{data-layout-nodes}
 \end{center}
 
 Now that we understand the format we want, we ought to be able to implement pointers

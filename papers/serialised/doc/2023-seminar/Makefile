@@ -2,6 +2,9 @@ RAW_DEPENDENCIES=\
   robust-catch.tex \
   binary-tree.tex \
   sum-at.tex \
+  data-layout.tex \
+  data-layout-nodes.tex \
+  data-hexdump.tex \
   motivations.tex \
   universe.tex \
   buffers.tex \
@@ -17,7 +20,7 @@ RAW_DEPENDENCIES=\
 DEPENDENCIES=common \
   $(patsubst %,build/latex/%,$(RAW_DEPENDENCIES))
 
-all: aim.pdf
+all: nantes.pdf
 
 common:
 	$(MAKE) -C ../common

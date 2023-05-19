@@ -1,0 +1,21 @@
+\begin{bytefield}[bitwidth=6mm, bitheight=7mm]{4}
+  \bitbox[]{2}{Leaf} \\
+  \bitbox{2}[bgcolor=Chartreuse4!40]{00} \\
+  \bitbox[l]{1}{\small$0$}
+\end{bytefield}\hfill
+\begin{bytefield}[bitwidth=.05\linewidth, bitheight=7mm]{4}
+  \bitbox[]{2}{Node} \\
+  \bitbox{2}[bgcolor=Chartreuse4!40]{01}
+  & \bitbox{4}[bgcolor=lightgray!30]{offset}
+  & \bitbox{4}{left subtree}
+  & \bitbox{2}[bgcolor=IndianRed1!40]{byte}
+  & \bitbox{4}{right subtree} \\
+  \bitbox[l]{1}{\small$0$}
+  & \bitbox[]{1}{}
+  & \bitbox[l]{1}{\small$1$}
+  & \bitbox[]{3}{}
+  & \bitbox[l]{1}{\small$9$}
+  & \bitbox[]{3}{}
+  & \bitbox[l]{2}{\small$9+o_1$\hfill}
+  & \bitbox[l]{2}{\small$10+o_1$}
+\end{bytefield}

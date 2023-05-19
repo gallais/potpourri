@@ -4,6 +4,9 @@ PAPER=paper
 RAW_DEPENDENCIES=\
   binary-tree.tex \
   sum-at.tex \
+  data-layout.tex \
+  data-layout-nodes.tex \
+  data-hexdump.tex \
   robust-catch.tex \
   safefold.tex \
   rightmost.tex \
