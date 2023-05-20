@@ -20,8 +20,8 @@ code: whenever we are about to write a byte to the buffer, we make sure there
 is either enough space left or we grow it.
 
 
-The data types descriptions e work on currently need to be defined as values
-in the host language.
+In our library, the data types descriptions currently need to be defined
+as values in the host language.
 %
 This opens up the opportunity for bugs if, say, we write a server in
 \idris{} and a client in \agda{} and accidentally use two slightly
