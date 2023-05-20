@@ -181,6 +181,17 @@ namespace Buffer
   serialise (k # t)
     = k # (all (description k) (assert_total Buffer.serialise) t)
 
+  namespace Compact
+\end{code}
+%<*compactserialise>
+\begin{code}
+    serialise : {cs : Data nm} ->
+                (t : Data.Mu cs) -> Serialising cs t
+\end{code}
+%</compactserialise>
+\begin{code}
+    serialise = Buffer.serialise
+
 namespace Pointer
 
   export
@@ -488,7 +499,6 @@ namespace Pointer
 \end{code}
 %</foldfun>
 \begin{code}
-
     export
 \end{code}
 %<*deserialise>
@@ -501,6 +511,17 @@ namespace Pointer
       k # ptr <- out ptr
       t <- assert_total (fmap (description k) id deserialise ptr)
       pure ((k #) <$> transport (fmapId (description k) id (\ _ => Refl) _) t)
+
+    namespace Compact
+\end{code}
+%<*compactdeserialise>
+\begin{code}
+      deserialise : {cs : Data nm} ->
+                    forall t. Mu cs t -> IO (Singleton t)
+\end{code}
+%</compactdeserialise>
+\begin{code}
+      deserialise = View.deserialise
 
 namespace Serialising
 
