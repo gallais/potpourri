@@ -4,6 +4,8 @@ PAPER=paper
 RAW_DEPENDENCIES=\
   sum.csv \
   rightmost.csv \
+  swap.csv \
+  copy.csv \
   plot.tex \
   timing.tex \
   binary-tree.tex \

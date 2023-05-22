@@ -38,11 +38,23 @@ Show CSVEntry where
   show (MkCSVEntry si ser deser)
     = "\{show si},\{show $ toNano ser},\{show $ toNano deser}"
 
-csvEntry :
+deepVSshallow :
+  {cs : Data nm} ->
+  {0 f : ATree -> Data.Mu cs} ->
+  (deep : forall t. Pointer.Mu _ t -> Serialising cs (f t)) ->
+  (shallow : forall t. Pointer.Mu _ t -> Serialising cs (f t)) ->
+  Nat -> IO CSVEntry
+deepVSshallow deep shallow n = do
+  t <- execSerialising (serialise $ full n)
+  MkCSVEntry n <$> measure (ignore $ execSerialising $ deep t)
+               <*> measure (ignore $ execSerialising $ shallow t)
+
+
+dataVSpointer :
   (f : ATree -> a) ->
   (act : forall t. Pointer.Mu Tree t -> IO (Singleton (f t))) ->
   (n : Nat) -> IO CSVEntry
-csvEntry f act n = do
+dataVSpointer f act n = do
 
   let t = full n
   st <- execSerialising (serialise t)
@@ -61,11 +73,10 @@ csvEntry f act n = do
 
 csv : (name : String) ->
       (range : List Nat) ->
-      (f : ATree -> a) ->
-      (act : forall t. Pointer.Mu Tree t -> IO (Singleton (f t))) ->
+      (test : (n : Nat) -> IO CSVEntry) ->
       IO ()
-csv name range f act = do
-   entries <- for range $ csvEntry f act
+csv name range test = do
+   entries <- for range $ test
    Right () <- writeFile "\{name}.csv" $ unlines
                 ("size,serialised,deserialised"
                  :: map show entries)
@@ -102,8 +113,10 @@ test name f act n = do
 main : IO ()
 main = do
   let range = [5..20]
-  csv "sum"       range Data.sum Pointer.sum
-  csv "rightmost" range Data.rightmost Pointer.rightmost
+  csv "sum"       range (dataVSpointer Data.sum Pointer.sum)
+  csv "rightmost" range (dataVSpointer Data.rightmost Pointer.rightmost)
+  csv "copy"      range (deepVSshallow deepCopy copy)
+  csv "swap"      range (deepVSshallow deepSwap Pointer.swap)
 
 {-
   traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]

@@ -6,7 +6,7 @@ public export
 data Singleton : {0 a : Type} -> (x : a) -> Type where
   MkSingleton : (x : a) -> Singleton x
 
-export
+%unsafe export
 unsafeMkSingleton : (y : a) -> Singleton {a} x
 unsafeMkSingleton y = believe_me (MkSingleton y)
 

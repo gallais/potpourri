@@ -646,14 +646,14 @@ namespace Data
 namespace Pointer
 
   export
-  swap : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.swap t))
-  swap ptr = execSerialising $ case !(view ptr) of
+  swap : Pointer.Mu Tree t -> Serialising Tree (Data.swap t)
+  swap ptr = case !(view ptr) of
     "Leaf" # () => leaf
     "Node" # l # b # r => node (copy r) b (copy l)
 
   export
-  deepSwap : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.swap t))
-  deepSwap ptr = execSerialising $ case !(view ptr) of
+  deepSwap : Pointer.Mu Tree t -> Serialising Tree (Data.swap t)
+  deepSwap ptr = case !(view ptr) of
     "Leaf" # () => leaf
     "Node" # l # b # r => node (deepCopy r) b (deepCopy l)
 
@@ -667,7 +667,7 @@ namespace Pointer
 testing : Pointer.Mu Tree t -> IO ()
 testing tree = do
   putStrLn "Tree: \{!(display tree)}"
-  putStrLn "Swapped: \{!(display !(swap tree))}"
+  putStrLn "Swapped: \{!(display !(execSerialising (Pointer.swap tree)))}"
   putStrLn "DSum: \{show (Tree.sum (getSingleton !(deserialise tree)))}"
   putStrLn "RSum: \{show !(Raw.sum tree)}"
   putStrLn "Sum: \{show !(Pointer.sum tree)}"
