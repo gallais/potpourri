@@ -9,6 +9,9 @@ import System.Clock
 import Data.String
 import Data.Maybe
 
+import System
+import System.File
+
 measure : IO () -> IO (Clock Duration)
 measure act = do
   gc
@@ -24,6 +27,51 @@ header : String -> IO ()
 header msg = do
   putStrLn (replicate 72 '-')
   putStrLn msg
+
+record CSVEntry where
+  constructor MkCSVEntry
+  entrySize : Nat
+  entrySerialised : Clock Duration
+  entryDeserialised : Clock Duration
+
+Show CSVEntry where
+  show (MkCSVEntry si ser deser)
+    = "\{show si},\{show $ toNano ser},\{show $ toNano deser}"
+
+csvEntry :
+  (f : ATree -> a) ->
+  (act : forall t. Pointer.Mu Tree t -> IO (Singleton (f t))) ->
+  (n : Nat) -> IO CSVEntry
+csvEntry f act n = do
+
+  let t = full n
+  st <- execSerialising (serialise t)
+
+  time1 <- measure (ignore $ act st)
+
+  time2 <- measure (ignore $ do
+    t <- deserialise st
+    pure (f (getSingleton t)))
+
+  pure $ MkCSVEntry
+    { entrySize = n
+    , entrySerialised = time1
+    , entryDeserialised = time2
+    }
+
+csv : (name : String) ->
+      (range : List Nat) ->
+      (f : ATree -> a) ->
+      (act : forall t. Pointer.Mu Tree t -> IO (Singleton (f t))) ->
+      IO ()
+csv name range f act = do
+   entries <- for range $ csvEntry f act
+   Right () <- writeFile "\{name}.csv" $ unlines
+                ("size,serialised,deserialised"
+                 :: map show entries)
+     | Left err => die (show err)
+   pure ()
+
 
 test : Show a =>
        (name : String) ->
@@ -53,6 +101,11 @@ test name f act n = do
 
 main : IO ()
 main = do
+  let range = [5..20]
+  csv "sum"       range Data.sum Pointer.sum
+  csv "rightmost" range Data.rightmost Pointer.rightmost
+
+{-
   traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]
   traverse_ (test "Rightmost" Data.rightmost Pointer.rightmost) [15..20]
 
@@ -72,3 +125,4 @@ main = do
     header "Size \{show n}"
     () <$ measure (() <$ execSerialising (levels n))
     () <$ measure (() <$ execSerialising (deepLevels n))
+-}

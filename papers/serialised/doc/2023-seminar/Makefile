@@ -9,6 +9,10 @@ RAW_DEPENDENCIES=\
   universe.tex \
   buffers.tex \
   serialising.tex \
+  plot.tex \
+  timing.tex \
+  sum.csv \
+  rightmost.csv \
   next.tex \
   idris2.sty \
   Serialised/Desc.idr.tex \
@@ -30,6 +34,10 @@ build/latex/%.idr.tex: common
 	cp ../common/$@ $@
 
 build/latex/%.tex: %.tex
+	mkdir -p build/latex
+	cp $^ build/latex/
+
+build/latex/%.csv: ../common/%.csv
 	mkdir -p build/latex
 	cp $^ build/latex/
 

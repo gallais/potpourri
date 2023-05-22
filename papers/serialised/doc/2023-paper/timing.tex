@@ -1,0 +1,29 @@
+
+\input{plot}
+
+\section{Benchmarks}
+
+For all of these tests we generate a full tree of a given depth and compare
+the time it takes to run the composition of deserialising the tree and applying the pure function
+to the time it takes to run its pointer-based counterpart.
+%
+We manually run chezscheme's garbage collector before each time measurement.
+%
+All of our plots use a logarithmic y axis because the runtime of the
+deserialisation-based function is necessarily exponential in the depth
+of the full tree.
+
+
+
+The \IdrisFunction{sum} function explores the entirety of the tree and as such the difference
+between the deserialisation-based and the pointer-based functions is minimal.
+\todo{Measure memory footprint?}
+
+\graphOf{sum}
+
+
+The \IdrisFunction{rightmost} function only explores the rightmost branch of
+the tree and we correspondingly see an exponential speedup for the pointer-based
+function which is able to efficiently skip past every left subtree.
+
+\graphOf{rightmost}

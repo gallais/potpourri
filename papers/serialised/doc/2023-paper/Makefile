@@ -2,6 +2,10 @@
 
 PAPER=paper
 RAW_DEPENDENCIES=\
+  sum.csv \
+  rightmost.csv \
+  plot.tex \
+  timing.tex \
   binary-tree.tex \
   sum-at.tex \
   data-layout.tex \
@@ -47,6 +51,10 @@ build/latex/%.idr.tex: common
 	cp ../common/$@ $@
 
 build/latex/%.tex: %.tex
+	mkdir -p build/latex
+	cp $^ build/latex/
+
+build/latex/%.csv: ../common/%.csv
 	mkdir -p build/latex
 	cp $^ build/latex/
 
