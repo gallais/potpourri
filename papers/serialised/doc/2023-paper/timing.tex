@@ -19,15 +19,15 @@ The \IdrisFunction{sum} function explores the entirety of the tree and as such t
 between the deserialisation-based and the pointer-based functions is minimal.
 \todo{Measure memory footprint?}
 
-\graphOf{sum}
+\graphOf{pointer}{data}{sum}
 
 
 The \IdrisFunction{rightmost} function only explores the rightmost branch of
 the tree and we correspondingly see an exponential speedup for the pointer-based
 function which is able to efficiently skip past every left subtree.
 
-\graphOf{rightmost}
+\graphOf{pointer}{data}{rightmost}
 
-\graphOf{copy}
+\graphOf{deep}{primitive}{copy}
 
-\graphOf{swap}
+\graphOf{deep}{primitive}{swap}

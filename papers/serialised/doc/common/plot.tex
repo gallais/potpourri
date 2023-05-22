@@ -1,7 +1,7 @@
-\newcommand{\graphOf}[1]{\begin{tikzpicture}
+\newcommand{\graphOf}[3]{\begin{tikzpicture}
   \begin{axis}
     [ xlabel = depth
-    , ylabel = #1 (ns)
+    , ylabel = #3 (ns)
     , ymode = log
     , legend pos = north west
     ]
@@ -10,13 +10,13 @@
       , x = size
       , y = serialised
       , col sep = comma
-      ] {#1.csv};
+      ] {#3.csv};
     \addplot table
       [ grid = major
       , x = size
       , y = deserialised
       , col sep = comma
-      ] {#1.csv};
-  \legend{pointer, data}
+      ] {#3.csv};
+  \legend{#1, #2}
   \end{axis}
 \end{tikzpicture}}

@@ -503,7 +503,8 @@ namespace Pointer
 \end{code}
 %<*deserialise>
 \begin{code}
-    deserialise : {cs : Data nm} -> forall t. Mu cs t -> IO (Singleton t)
+    deserialise : {cs : Data nm} -> forall t.
+                  Pointer.Mu cs t -> IO (Singleton t)
 \end{code}
 %</deserialise>
 \begin{code}
