@@ -61,6 +61,11 @@ This could however be a crucial feature for trees with a lot of duplicated
 nodes and we would like to allow users to, using the same interface,
 easily pick between different serialisation formats so that the library
 ends up using the one that suits their application best.
+%
+To this end, we could take inspiration from Yallop's
+definition of preprocessors generating serialisers~\cite{DBLP:conf/ml/Yallop07}.
+It maintains an object map containing the already serialised nodes and uses it
+to maximally detect sharing and maintain it both when serialising and deserialising.
 
 We currently do not support in-place updates to the data stored in a buffer.
 This could however be beneficial for functions like \IdrisFunction{map}.
