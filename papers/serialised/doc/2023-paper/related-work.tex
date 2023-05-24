@@ -96,5 +96,14 @@ The main difference is once again our ability to program in a
 correct-by-construction over the values thus represented.
 
 
+Yallop's automatic derivation of serialisers using an OCaml
+preprocessor~\cite{DBLP:conf/ml/Yallop07} highlights the importance
+of empowering domain experts to take advantage of the specifics of
+the problem they are solving to minimise the size of the encoded data.
+%
+By detecting sharing using a custom equality function respecting
+$\alpha$-equivalence instead of the default one, he was able to
+serialise large lambda terms using only
+a quarter of the bytes OCaml's standard library marshaller.
 
 \todo{protobuf}
