@@ -1,5 +1,6 @@
 module Timing
 
+import Data.List
 import Data.Singleton
 import Serialised.Desc
 import SaferIndexed
@@ -36,7 +37,20 @@ record CSVEntry where
 
 Show CSVEntry where
   show (MkCSVEntry si ser deser)
-    = "\{show si},\{show $ toNano ser},\{show $ toNano deser}"
+    = joinBy "," $ ("\{show si}" ::)
+    $ map (show . toNano)
+    [ ser, deser ]
+
+mkCSVEntry : Nat -> IO a -> IO b -> IO CSVEntry
+mkCSVEntry n act1 act2 = do
+  let range = the Nat 20
+  times1 <- for [1..range] $ const $ toNano <$> measure (ignore act1)
+  times2 <- for [1..range] $ const $ toNano <$> measure (ignore act2)
+  pure $ MkCSVEntry
+    { entrySize = n
+    , entrySerialised = fromNano (sum times1 `div` cast range)
+    , entryDeserialised = fromNano (sum times2 `div` cast range)
+    }
 
 deepVSshallow :
   {cs : Data nm} ->
@@ -46,8 +60,7 @@ deepVSshallow :
   Nat -> IO CSVEntry
 deepVSshallow deep shallow n = do
   t <- execSerialising (serialise $ full n)
-  MkCSVEntry n <$> measure (ignore $ execSerialising $ deep t)
-               <*> measure (ignore $ execSerialising $ shallow t)
+  mkCSVEntry n (execSerialising $ deep t) (execSerialising $ shallow t)
 
 
 dataVSpointer :
@@ -59,17 +72,9 @@ dataVSpointer f act n = do
   let t = full n
   st <- execSerialising (serialise t)
 
-  time1 <- measure (ignore $ act st)
-
-  time2 <- measure (ignore $ do
+  mkCSVEntry n (act st) $ do
     t <- deserialise st
-    pure (f (getSingleton t)))
-
-  pure $ MkCSVEntry
-    { entrySize = n
-    , entrySerialised = time1
-    , entryDeserialised = time2
-    }
+    pure (f (getSingleton t))
 
 csv : (name : String) ->
       (range : List Nat) ->
