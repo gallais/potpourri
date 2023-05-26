@@ -129,10 +129,10 @@ and to copy the raw bytes directly into the target buffer.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{copy}
 
-This is the one combinator that crucially relies on the fact that our format
-only uses offsets and not absolute addresses
-and that the size information we have been keeping in \IdrisType{Pointer.Mu} and
-\IdrisType{Pointer.Meaning} is accurate.
+This is the one combinator that crucially relies
+on our format only using offsets and not absolute addresses
+and on the accuracy of the size information we have been keeping
+in \IdrisType{Pointer.Mu} and \IdrisType{Pointer.Meaning}.
 
 \subsection{Executing a Serialisation Action}
 
@@ -161,7 +161,7 @@ operations when building a value of type \IdrisType{Serialising}
 (cf. the \IdrisFunction{map} example in \Cref{fig:serialised-map} where we perform
 a call to \IdrisFunction{view} to inspect the input's shape).
 
-This is due to the fact that \idris{} elaborates \IdrisKeyword{do}-blocks using
+This is possible thanks to \idris{} elaborating \IdrisKeyword{do}-blocks using
 whichever appropriate bind operator is in scope. In particular, we have defined
 the following one to use when building a serialisation process:
 
