@@ -60,7 +60,7 @@ deepVSshallow :
   Nat -> IO CSVEntry
 deepVSshallow deep shallow n = do
   t <- execSerialising (serialise $ full n)
-  mkCSVEntry n (execSerialising $ deep t) (execSerialising $ shallow t)
+  mkCSVEntry n (execSerialising $ shallow t) (execSerialising $ deep t)
 
 
 dataVSpointer :
@@ -121,7 +121,7 @@ main = do
   csv "sum"       range (dataVSpointer Data.sum Pointer.sum)
   csv "rightmost" range (dataVSpointer Data.rightmost Pointer.rightmost)
   csv "copy"      range (deepVSshallow deepCopy copy)
-  csv "swap"      range (deepVSshallow deepSwap Pointer.swap)
+--  csv "swap"      range (deepVSshallow deepSwap Pointer.swap)
 
 {-
   traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]
