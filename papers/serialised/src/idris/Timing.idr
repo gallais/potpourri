@@ -15,6 +15,7 @@ import System.File
 
 measure : IO () -> IO (Clock Duration)
 measure act = do
+  -- garbage collect what's not your responsibility
   gc
   start <- clockTime Process
   () <- act

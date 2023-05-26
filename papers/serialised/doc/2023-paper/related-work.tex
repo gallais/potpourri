@@ -2,9 +2,8 @@
 
 This work sits at the intersection of many domains:
 data-generic programming,
-the efficient runtime representation of functional data
-programming
-over serialised values,
+the efficient runtime representation of functional data,
+programming over serialised values,
 and the design of serialisation formats.
 %
 Correspondingly, a lot of related work is worth discussing.
@@ -64,7 +63,7 @@ This impressive improvement is a natural candidate for future work on our
 part: the authors demonstrate it is possible to reap the benefits of
 both programming over serialised data
 and dividing up the work over multiple processors
-with almost no additional cost in a purely sequential scenario \todo{double check}.
+with almost no additional cost in the case of a purely sequential execution.
 
 \subsubsection{Serialisation Formats}
 
@@ -90,10 +89,12 @@ to be used in communications without the need to concern themselves with
 the actual encoding as bit patterns (the `transfer syntax').
 %
 This separation between specification and implementation means that parsing
-and encoding can be defined once and for all by generic programming.
+and encoding can be defined once and for all by generic programming
+(here, a compiler turning specifications into code in the user's host
+language of choice).
 %
 The main difference is once again our ability to program in a
-correct-by-construction over the values thus represented.
+correct-by-construction manner over the values thus represented.
 
 
 Yallop's automatic derivation of serialisers using an OCaml
