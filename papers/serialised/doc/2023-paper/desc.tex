@@ -75,7 +75,7 @@ Last but not least, \IdrisData{Rec} is a position for a subtree.
 We cannot know its size in bytes statically and so we decide to store
 an offset unless we are in the rightmost branch of the overall description.
 %
-Indeed, in the righmost branch of a constructor we have no reason to
+Indeed, in the rightmost branch of a constructor we have no reason to
 skip over the subterm to access other parts of the stored data. And so we
 do not bother recording an offset for it.
 
