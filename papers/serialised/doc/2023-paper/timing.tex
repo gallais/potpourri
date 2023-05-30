@@ -1,7 +1,7 @@
 
 \input{plot}
 
-\section{Benchmarks}
+\section{Benchmarks}\label{sec:timing}
 
 For all of these tests we generate a full tree of a given depth and
 compare the time it takes to run the composition of deserialising
@@ -22,17 +22,23 @@ and as such the difference between the deserialisation-based and the
 pointer-based functions is minimal.
 \todo{Measure memory footprint?}
 
+\medskip
 \graphOf{pointer}{data}{sum}
+\medskip
 
 The \IdrisFunction{rightmost} function only explores the rightmost
 branch of the tree and we correspondingly see an exponential speedup
 for the pointer-based function which is able to efficiently skip past
 every left subtree.
 
+\medskip
 \graphOf{pointer}{data}{rightmost}
+\medskip
 
 The deep \IdrisFunction{copy} is unsurprisingly also exponential in
 the depth of the tree being copied whereas the version based on the
 \IdrisFunction{copyData} primitive for buffers is vastly faster.
 
+\medskip
 \graphOf{primitive}{deep}{copy}
+\medskip

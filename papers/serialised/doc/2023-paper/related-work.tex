@@ -23,7 +23,7 @@ One early such instance is Pfeifer and Rue{\ss}'
 meant to replace unsafe meta-programs deriving recursors
 (be they built-in support, or user-written tactics).
 
-\todo{See refs. in n-ary polymorphic functions}
+%\todo{See refs. in n-ary polymorphic functions}
 
 In his PhD thesis, Morris~\cite{DBLP:phd/ethos/Morris07} declares various
 universes for strictly positive types and families and defines by generic
@@ -32,8 +32,16 @@ further types (the type of one-hole contexts),
 modalities (the universal and existential predicate lifting over the functors he considers),
 and functions (map, boolean equality).
 
+L{\"{o}}h and Magalh{\~{a}}es~\cite{DBLP:conf/icfp/LohM11} define a more
+expressive universe over indexed functors that is closed under composition
+and fixpoints.
+%
+They also detail how to define additional generic construction such as a
+proof of decidable equality, various recursion schemes, and zippers.
+%
+This work, quite similar to our own in its presentation, offers a natural
+candidate universe for us to use to extend our library.
 
-\todo{\cite{DBLP:conf/icfp/LohM11}}
 
 \subsubsection{Efficient Runtime Representation of Inductive Values}
 

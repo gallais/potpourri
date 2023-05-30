@@ -58,7 +58,7 @@ The keen reader may refer to the accompanying code to see the implementation.
 Informally (cf. \Cref{sec:tree-serialisation} for the description of the format):
 first we write the tag corresponding to the choice of constructor,
 then we leave some space for the offsets,
-in the meantime we write all of the node's payloads and collect the offsets
+in the meantime we write all of the constructor's arguments and collect the offsets
 associated to each subtree while doing so,
 and finally we fill in the space we had left blank with the offsets
 we have thus collected.
@@ -133,6 +133,9 @@ This is the one combinator that crucially relies
 on our format only using offsets and not absolute addresses
 and on the accuracy of the size information we have been keeping
 in \IdrisType{Pointer.Mu} and \IdrisType{Pointer.Meaning}.
+%
+As we can see in \Cref{sec:timing}, this is spectacularly faster than
+a deep copying process traversing the tree.
 
 \subsection{Executing a Serialisation Action}
 

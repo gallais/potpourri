@@ -1,6 +1,12 @@
 
 \section{Poking the Buffer}\label{sec:poking}
 
+We can now describe the combinators allowing our users to inspect the
+content of a buffer. We will start from the most basic of building blocks
+and ultimately combine them to implement a generic correct-by-construction
+version of \IdrisFunction{fold} operating over trees stored in a buffer
+(cf. \Cref{sec:bufferfold}).
+
 Our most basic operation consists in poking the buffer to unfold
 the description by exactly one step.
 
@@ -28,6 +34,8 @@ for each of the sub-meanings.
 Because \idris{} does not currently support definitional eta equality
 for records, it will me more ergonomic for users if we introduce
 \IdrisType{Poke'} rather than yielding a \IdrisType{Tuple} of values.
+By matching on \IdrisType{Poke'} at the value level, they will see the
+pair at the type level also reduced to a constructor-headed tuple.
 
 Last but not least if the description is \IdrisData{Rec} this means
 we have a substructure. In this case we simply demand a pointer to it.
@@ -245,5 +253,7 @@ of a function directly operating on buffers to its pure counterpart
 composed with a deserialisation step.
 %
 For functions like \IdrisFunction{rightmost} that only explore a
-very small part of the full tree, the gains are spectacular.
-\todo{extract some numbers \& reference the section here}
+very small part of the full tree, the gains are spectacular: the
+process operating on buffers is exponentially faster than its
+counterpart which needs to deserialise the entire tree first
+(cf. \Cref{sec:timing}).
