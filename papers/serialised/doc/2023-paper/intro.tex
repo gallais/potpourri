@@ -53,18 +53,31 @@ runtime representation.
 %
 Data that is stored in a file or received over the network is typically
 represented in a contiguous format.
-%
-Using a naïve serialisation format (a left-to-right in-order traversal
-of the tree where leaves are represented by the byte 0, and nodes by
-the byte 1), the above example tree could be represented by the
-following list of bytes
-(each byte is represented by two hexadecimal character,
-we have additionally \IdrisData{highlighted} the bytes
-corresponding to values stored in the nodes):
 
-\begin{hexdump}
-01 01 01 00 \hexadata{01} 00 \hexadata{05} 00 \hexadata{0a} 01 00 \hexadata{14} 00
-\end{hexdump}
+We include below a textual representation of the above tree using
+\texttt{node} and \texttt{leaf} constructors and highlighting the
+data in red.
+
+\medskip
+  \texttt{(node (node (node leaf \IdrisData{1} leaf) \IdrisData{5} leaf) \IdrisData{10} (node leaf \IdrisData{20} leaf))}
+\medskip
+
+This looks almost exactly like the list of bytes we get when using a
+naïve serialisation format based on a left-to-right in-order traversal
+of this tree.
+%
+In the encoding we include below,
+leaves are represented by the byte \texttt{00},
+and nodes by the byte \texttt{01}
+(each byte is represented by two hexadecimal character,
+we have additionally once again \IdrisData{highlighted} the bytes
+corresponding to data stored in the nodes):
+
+\medskip
+\texttt{01 $\overbrace{\texttt{01 $\underbrace{\texttt{01 00 \IdrisData{01} 00}}_{\texttt{(node leaf \IdrisData{1} leaf)}}$
+    \IdrisData{05} 00}}^{\texttt{(node (node leaf \IdrisData{1} leaf) \IdrisData{5} leaf)}}$
+    \IdrisData{0a} 01 00 \IdrisData{14} 00}
+\medskip
 
 The idiomatic way to process such data in a functional language
 is to first deserialise it as an inductive type and then call
