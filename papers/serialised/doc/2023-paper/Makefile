@@ -1,6 +1,5 @@
 .PHONY: all common
 
-PAPER=paper
 RAW_DEPENDENCIES=\
   sum.csv \
   rightmost.csv \

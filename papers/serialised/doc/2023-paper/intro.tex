@@ -133,27 +133,30 @@ two following code snippets describing how we can compute the sum
 of the values stored in the type of tree we are using as a running
 example.
 
-\noindent
-\begin{minipage}{.4\textwidth}
-  \ExecuteMetaData[SaferIndexed.idr.tex]{tsum}
-\end{minipage}
-\hfill\begin{minipage}{.55\textwidth}
-  \ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
-\end{minipage}
+%\noindent
+%\begin{minipage}{.4\textwidth}
+%  \ExecuteMetaData[SaferIndexed.idr.tex]{tsum}
+%\end{minipage}
+%\hfill\begin{minipage}{.55\textwidth}
+%  \ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
+%\end{minipage}
+
+
+\begin{center}
+  \begin{minipage}{.5\textwidth}
+    \ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
+  \end{minipage}
+\end{center}
 
 We reserve for later our detailed explanations of the representations
-used in these snippets
-(\IdrisType{Data.Mu} in \Cref{sec:trees} and
-\IdrisType{Pointer.Mu} in \Cref{sec:pointers}).
+used in this snippets
+(\IdrisType{Pointer.Mu} in \Cref{sec:pointers},
+\IdrisFunction{view} in \Cref{sec:dataview}).
 %
-For now, it is enough to understand that the function on the left hand
-side is analogous to the one presented at the start of this article: it
-is a pure function taking a tree apart by pattern-matching and returning
-a natural number corresponding to the sum of the values stored in its nodes;
-%
-and that the one on the right hand side is an \IdrisType{IO} process
-inspecting a buffer that contains such a tree stored in serialised format
-and computing the same sum.
+For now, it is enough to understand that the function
+is an \IdrisType{IO} process
+inspecting a buffer that contains a tree stored in serialised format
+and computing the sum as the pure function seen in the previous section.
 
 In both cases, if we have uncovered a leaf
 ({\IdrisData{"Leaf"} \IdrisData{\#}} \IdrisKeyword{\KatlaUnderscore{}})
