@@ -35,11 +35,16 @@ that the data is stored in a depth-first, left-to-right traversal of the tree.
 \subsection{Header}
 
 The header consists of an offset allowing us to jump past it in case we do
-not care to inspect it, followed by a representation of the \IdrisType{Data}.
+not care to inspect it, followed by a representation of the \IdrisType{Data}
+description.
 %
-It is encoded by a byte giving us the number of constructors, followed by
-these constructors' respective descriptions serialised one after the other.
+This allows users to check that the data stored in a buffer has the structure
+they expect it to have.
 
+The encoding of a data description starts with a byte giving us the number
+of constructors, followed by these constructors' respective descriptions
+serialised one after the other.
+%
 \IdrisData{None} is represented by \hexadesc{00},
 \IdrisData{Byte} is represented by \hexadesc{01},
 (\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e}) is represented by
@@ -53,11 +58,12 @@ In our example, the header was as follows:
 \end{hexdump}
 \noindent and the data description is indeed 7 bytes long. It starts with \hexadesc{02}
 meaning that the type has two constructors.
-The first one is \hexadesc{00} i.e. \IdrisData{None} (that is to say \IdrisFunction{Leaf}),
+The first one is \hexadesc{00} i.e. \IdrisData{None}
+(this is the encoding of the type of \IdrisFunction{Leaf}),
 and the second one is \hexadesc{02 03 02 01 03} i.e.
 \IdrisKeyword{(}\IdrisData{Prod} \IdrisData{Rec}
 \IdrisKeyword{(}\IdrisData{Prod} \IdrisData{Byte} \IdrisData{Rec}\IdrisKeyword{))}
-(that is to say \IdrisFunction{Node}).
+(that is to say the encoding of the type of \IdrisFunction{Node}).
 %
 According to the header, this file does contain a \IdrisFunction{Tree}.
 
@@ -100,7 +106,7 @@ so even though we have $o$ offsets, we actually have $(o+1)$ subtrees stored.
 
 The offsets of the tag with respect to its own address is $0$.
 The tag occupies one byte and so the offset of the block of offsets is $1$.
-Each offset occupies 8 bytes and so the payload is stored at offset $(1+8*o)$.
+Each offset occupies 8 bytes and so the constructor's arguments are stored at offset $(1+8*o)$.
 Finally each value's offset can be computed by adding up the offset of the
 start of the payload block, the offsets corresponding to all of the subtrees
 that come before it, and the number of bytes stored before it;
