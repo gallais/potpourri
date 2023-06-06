@@ -68,20 +68,6 @@ definition of preprocessors generating serialisers~\cite{DBLP:conf/ml/Yallop07}.
 It maintains an object map containing the already serialised nodes and uses it
 to maximally detect sharing and maintain it both when serialising and deserialising.
 
-We currently do not support in-place updates to the data stored in a buffer.
-This could however be beneficial for functions like \IdrisFunction{map}.
-%
-We see two possible approaches here. The first one leverages \idris{}'s
-linear quantity annotation to provide users with serialised value that
-can be safely updated in place: as they are used to take values apart,
-pointers become unavailable and so the underlying data in the buffer can
-be modified.
-%
-Another approach is to build separation logic into our correct-by-construction
-combinators and thus ensure that the system keeps track of the modifications
-being made.
-
-%\todo{Iris}
 
 Our current approach allows us to define a correct-by-construction
 \IdrisFunction{sum} operating directly on serialised data but it
@@ -142,3 +128,14 @@ pointers to the result of serialising any subtree to the left of it. In particul
 this would make building complete binary trees a lot faster by allowing us to rely
 on \IdrisFunction{copyData} for duplicating branches rather than running the computation
 twice.
+
+Last, but not least we currently do not support in-place updates to
+the data stored in a buffer.
+This could however be beneficial for functions like \IdrisFunction{map}.
+%
+It remains to be seen whether we can somehow leverage \idris{}'s
+linear quantity annotation to provide users with serialised value that
+can be safely updated in place.
+%
+This would turn our ongoing metaphor involving Hoare triples, heap pointers,
+and separation logic into a bona fide shallow embeddding.

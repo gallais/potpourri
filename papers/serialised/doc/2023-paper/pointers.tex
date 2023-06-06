@@ -3,10 +3,33 @@
 Now that we know the serialisation format, we can give a meaning
 to constructor and data descriptions as pointers into a buffer.
 
+For reasons that will become apparent in \Cref{sec:bufferfold}
+when we start programming over serialised data in a correct-by-construction
+manner, our types of `pointers' will be parameterised not only
+by the description of the type of the data stored but also by a
+runtime-irrelevant inductive value of that type.
+%
+For now, it is enough to think of these indices as a lightweight
+version of the `points to' assertions used in separation
+logic~\cite{DBLP:conf/lics/Reynolds02}
+when reasoning about imperative programs.
+
+
+In \Cref{sec:poking}, we will in fact write \Pointer{\ell}{d}{t}
+for the assumption that we own a pointer $\ell$ for a value $t$
+corresponding to the description $d$.
+%
+In case we do not care about the description at hand, we
+will simply write $\ell \mapsto t$.
+
 \subsection{Tracking Buffer Positions}
 
 We start with the definition of the counterpart to \IdrisType{Mu}
-for serialised values. A tree sitting in a buffer is represented
+for serialised values.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pointermu}
+
+A tree sitting in a buffer is represented
 by a record packing the buffer, the position at which the tree's
 root node is stored, and the size of the tree.
 %
@@ -15,21 +38,14 @@ in the file but using the size of the buffer, the stored offsets,
 and the size of the static data we will always
 be able to compute a value corresponding to it.
 
-\ExecuteMetaData[SaferIndexed.idr.tex]{pointermu}
-
-For reasons that will become apparent in \Cref{sec:bufferfold}
-when we start programming over serialised data in a correct-by-construction
-manner the record \IdrisType{Mu} is parameterised not only by the description
-of the type of the data stored but also by a runtime-irrelevant inductive value of
-that type.
-
 \ExecuteMetaData[SaferIndexed.idr.tex]{elem}
 
 The counterpart to a \IdrisFunction{Meaning} stores additional information.
+%
 For a description of type (\IdrisType{Desc} \IdrisBound{r} \IdrisBound{s} \IdrisBound{o})
 on top of the buffer, the position at which the root of the meaning resides,
 and the size of the layer we additionally have a vector of \IdrisBound{o} offsets
-that allow to efficiently access any value we want.
+that allow us to efficiently access any value we want.
 
 \subsection{Writing a Tree to a File}\label{sec:writetofile}
 
