@@ -12,48 +12,16 @@ and ultimately use these to implement a generic correct-by-construction
 version of \IdrisFunction{fold} operating over trees stored in a buffer
 (cf. \Cref{sec:bufferfold}).
 
-Coming back to our analogy to the `points to' assertions used in
-separation logic~\cite{DBLP:conf/lics/Reynolds02} when verifying
-imperative programs,
-the basic building blocks correspond to the axiomatisation of
-the behaviour of the underlying language constructs (hence their
-necessarily unsafe implementation in this shallow embedding)
-while the high-level combinators are derived reasoning principles
-allowing us to implemement more complex programs.
+Readers may be uneasy about the unsafe implementations of the basic
+building blocks but we argue that it is a necessary evil by drawing
+an extended analogy to separation logic in \Cref{appendix:hoare}.
 
 \subsection{Poking the Buffer}
 
 Our most basic operation consists in poking the buffer to unfold
 the description by exactly one step.
-
-Thinking in terms of Hoare triples, if we have a pointer
-$\ell$ to a term $t$ known to be a single byte then
-(\IdrisFunction{poke} $\ell$)
-will return a byte $bs$ and allow us to observe that $t$ is
-equal to that byte.
-
-\[
-\Hoare
-    {\Pointer{\ell}{\text{\IdrisData{Byte}}}{t}}
-    {\text{\IdrisFunction{poke}}\,\ell}
-    {\mathit{bs}.\, t = \mathit{bs} \ast \ell \mapsto t}
-\]
-
-Similarly, if the pointer $\ell$ is for a pair then
-(\IdrisFunction{poke} $\ell$) will
-reveal that the term $t$ can be taken apart into the pairing
-of two terms $t_1$ and $t_2$ and
-return a pointer for each of these components.
-
-\[
-\Hoare
-    {\Pointer{\ell}{\text{\IdrisData{Prod}}\, d_1 d_2}{t}}
-    {\text{\IdrisFunction{poke}}\,\ell}
-    {(\ell_1, \ell_2).\, \exists t_1.\, \exists t_2.\, t = (t_1, t_2)
-        \ast \ell \mapsto t \ast \Pointer{\ell_1}{d_1}{t_1} \ast \Pointer{\ell_2}{d_2}{t_2}}
-\]
-
-The exact type of the function is as follows: provided a pointer for
+%
+The type of the function is as follows: provided a pointer for
 a meaning \IdrisBound{t}, we return an \IdrisType{IO} process computing
 the one step unfolding of the meaning.
 
@@ -173,16 +141,7 @@ Now that we can deserialise an entire layer of \IdrisFunction{Meaning},
 the only thing we are missing to be able to generically manipulate trees
 is the ability to expose the top constructor of a tree stored at a
 \IdrisType{Pointer.Mu} position.
-
-\[
-\Hoare
-    {\Pointer{\ell}{\text{\IdrisType{$\mu$}}\, d}{t}}
-    {\text{\IdrisFunction{out}}\, \ell}
-    {(k, \ell_1).\, \exists t_1.\, t = (k \,\text{\IdrisData{\#}}\, t_1)
-        \ast \ell \mapsto t \ast \Pointer{\ell_1}{d}{t_1}}
-\]
-
-
+%
 Remembering the data layout detailed in \Cref{fig:data-layout}, this will
 amount to inspecting the tag used by the node and then deserialising the
 offsets stored immeditately after it.

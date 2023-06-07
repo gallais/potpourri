@@ -1,0 +1,61 @@
+\section{Analogy to Separation Logic}\label{appendix:hoare}
+
+We can think of the erased indices  as a lightweight
+version of the `points to' assertions used in separation
+logic~\cite{DBLP:conf/lics/Reynolds02}
+when reasoning about imperative programs.
+
+
+In \Cref{sec:poking}, we will in fact write \Pointer{\ell}{d}{t}
+for the assumption that we own a pointer $\ell$ for a value $t$
+corresponding to the description $d$.
+%
+In case we do not care about the description at hand, we
+will simply write $\ell \mapsto t$.
+
+
+Coming back to our analogy to the `points to' assertions used in
+separation logic~\cite{DBLP:conf/lics/Reynolds02} when verifying
+imperative programs,
+the basic building blocks correspond to the axiomatisation of
+the behaviour of the underlying language constructs (hence their
+necessarily unsafe implementation in this shallow embedding)
+while the high-level combinators are derived reasoning principles
+allowing us to implemement more complex programs.
+
+
+Thinking in terms of Hoare triples, if we have a pointer
+$\ell$ to a term $t$ known to be a single byte then
+(\IdrisFunction{poke} $\ell$)
+will return a byte $bs$ and allow us to observe that $t$ is
+equal to that byte.
+
+\[
+\Hoare
+    {\Pointer{\ell}{\text{\IdrisData{Byte}}}{t}}
+    {\text{\IdrisFunction{poke}}\,\ell}
+    {\mathit{bs}.\, t = \mathit{bs} \ast \ell \mapsto t}
+\]
+
+Similarly, if the pointer $\ell$ is for a pair then
+(\IdrisFunction{poke} $\ell$) will
+reveal that the term $t$ can be taken apart into the pairing
+of two terms $t_1$ and $t_2$ and
+return a pointer for each of these components.
+
+\[
+\Hoare
+    {\Pointer{\ell}{\text{\IdrisData{Prod}}\, d_1 d_2}{t}}
+    {\text{\IdrisFunction{poke}}\,\ell}
+    {(\ell_1, \ell_2).\, \exists t_1.\, \exists t_2.\, t = (t_1, t_2)
+        \ast \ell \mapsto t \ast \Pointer{\ell_1}{d_1}{t_1} \ast \Pointer{\ell_2}{d_2}{t_2}}
+\]
+
+\[
+\Hoare
+    {\Pointer{\ell}{\text{\IdrisType{$\mu$}}\, d}{t}}
+    {\text{\IdrisFunction{out}}\, \ell}
+    {(k, \ell_1).\, \exists t_1.\, t = (k \,\text{\IdrisData{\#}}\, t_1)
+        \ast \ell \mapsto t \ast \Pointer{\ell_1}{d}{t_1}}
+\]
+

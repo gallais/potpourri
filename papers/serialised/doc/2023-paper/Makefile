@@ -14,6 +14,7 @@ RAW_DEPENDENCIES=\
   robust-catch.tex \
   safefold.tex \
   rightmost.tex \
+  hoare.tex \
   idris2.sty \
   Snoc.idr.tex \
   Lib.idr.tex \
