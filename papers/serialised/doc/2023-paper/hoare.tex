@@ -76,25 +76,27 @@ necessarily unsafe implementation in this shallow embedding)
 while the high-level combinators are derived reasoning principles
 allowing us to implemement more complex programs.
 
+\subsubsection{Axioms for \IdrisFunction{poke}}
+
 
 Thinking in terms of Hoare triples, if we have a pointer
 $\ell$ to a term $t$ known to be a single byte then
 (\IdrisFunction{poke} $\ell$)
 will return a byte $bs$ and allow us to observe that $t$ is
 equal to that byte.
-
+\[
 \Hoare
     {\Pointer{\ell}{\Meaning{\text{\IdrisData{Byte}}}{cs}}{t}}
     {\text{\IdrisFunction{poke}}\,\ell}
     {\mathit{bs}}
     {t = \mathit{bs} \ast \ell \mapsto t}
+\]
 
 Similarly, if the pointer $\ell$ is for a pair then
 (\IdrisFunction{poke} $\ell$) will
 reveal that the term $t$ can be taken apart into the pairing
 of two terms $t_1$ and $t_2$ and
 return a pointer for each of these components.
-
 \begin{gather*}
 \Hoare
     {\Pointer{\ell}{\Meaning{\text{\IdrisData{Prod}}\, d_1 d_2}{cs}}{t}}
@@ -104,11 +106,52 @@ return a pointer for each of these components.
         \ast \ell \mapsto t \ast \Pointer{\ell_1}{\Meaning{d_1}{cs}}{t_1} \ast \Pointer{\ell_2}{\Meaning{d_2}{cs}}{t_2}}
 \end{gather*}
 
-
+Last but not least, poking a pointer with the \IdrisData{Rec}
+description will return another pointer for the same value but
+at a different type.
 \[
 \Hoare
     {\Pointer{\ell}{\Meaning{\text{\IdrisData{Rec}}}{cs}}{t}}
     {\text{\IdrisFunction{poke}}\,\ell}
     {\ell_1}
     {\Pointer{\ell_1}{\Mu{cs}}{t} \ast \Pointer{\ell}{}{t}}
+\]
+
+\subsubsection{Example of a Derived Rule for \IdrisFunction{layer}}
+
+Given that \IdrisFunction{layer} is defined in terms of \IdrisFunction{poke},
+we do not need to postulate any axioms to characterise it and can insteads
+prove lemmas.
+
+Using the description of a node in our running example of binary trees,
+\IdrisFunction{layer}'s behaviour would be characterised by the following
+statement.
+\begin{gather*}
+\Hoare
+    {\Pointer{\ell}{\Meaning{\text{\IdrisData{Prod} \IdrisData{Rec} (\IdrisData{Prod} \IdrisData{Byte} \IdrisData{Rec})}}{cs}}{t}}
+    {\\\text{\IdrisFunction{layer}}\,\ell\\}
+    {(\ell_1, bs, \ell_2)}
+    {\exists t_1.\, \exists t_2.\,
+      t = (t_1 \,\text{\IdrisData{\#}}\,  bs \,\text{\IdrisData{\#}}\, t_2)
+      \ast \Pointer{\ell_1}{\Mu{cs}}{t_1}
+      \ast \Pointer{\ell_2}{\Mu{cs}}{t_2}
+      \ast \Pointer{\ell}{}{t}}
+\end{gather*}
+Provided a pointer to such a layer, calling \IdrisFunction{layer} would
+return a triple of
+a pointer $\ell_1$ for the left subtree,
+the byte $\mathit{bs}$,
+and a pointer $\ell_2$ for the right subtree.
+
+\subsubsection{Axiom for \IdrisFunction{out}}
+
+Things are a lot simpler for \IdrisFunction{out} as the return type
+is not defined by induction on the description.
+\[
+\Hoare
+    {\Pointer{\ell}{\Mu{cs}}{t}}
+    {\text{\IdrisFunction{out}}\,\ell}
+    {(k, \ell_1)}
+    {\exists t_1.\, t = (k \,\text{\IdrisData{\#}}\, t_1)
+      \ast \Pointer{\ell}{}{t} \ast \Pointer{\ell_1}{\Meaning{cs_k}{cs}}{t_1}}
 \]
