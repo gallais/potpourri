@@ -2,6 +2,7 @@
 
 \bibliographystyle{alpha}
 
+\usepackage{stmaryrd}
 \usepackage{mathtools}
 \usepackage{amsmath}
 \usepackage{etoolbox}
@@ -48,9 +49,6 @@
 \newcommand{\hexadata}[1]{\texttt{\IdrisData{#1}}}
 \newcommand{\hexacons}[1]{\texttt{\IdrisFunction{#1}}}
 \newcommand{\hexaoffset}[1]{\texttt{{\color{lightgray}#1}}}
-
-\newcommand{\Pointer}[3]{\ensuremath{#1 \xmapsto{#2} #3}}
-\newcommand{\Hoare}[3]{\ensuremath{\lbrace #1 \rbrace~ #2 ~\lbrace #3 \rbrace}}
 
 \newenvironment{hexdump}{\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
 

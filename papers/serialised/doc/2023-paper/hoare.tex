@@ -1,22 +1,75 @@
 \section{Analogy to Separation Logic}\label{appendix:hoare}
 
-We can think of the erased indices  as a lightweight
-version of the `points to' assertions used in separation
-logic~\cite{DBLP:conf/lics/Reynolds02}
-when reasoning about imperative programs.
+This is in no way an exhaustive introduction to separation logic.
 
+\newcommand{\Pointer}[3]{\ensuremath{#1 \xmapsto{#2} #3}}
+\newcommand{\Hoare}[4]{\ensuremath{\lbrace~ #1 ~\rbrace~ #2 ~\lbrace~ #3.\, #4 ~\rbrace}}
+\newcommand{\Meaning}[2]{\ensuremath{\llbracket \,#1\, \rrbracket\, (\Mu{#2})}}
+\newcommand{\Mu}[1]{\ensuremath{\mu \, \mathit{#1}}}
 
-In \Cref{sec:poking}, we will in fact write \Pointer{\ell}{d}{t}
-for the assumption that we own a pointer $\ell$ for a value $t$
-corresponding to the description $d$.
+\subsection{Interlude: Separation Logic}
+
+A Hoare triple~\cite{DBLP:journals/cacm/Hoare69} of the form
+\[ \Hoare{P}{e}{v}{Q} \]
+states that under the precondition
+$P$, and binding the result of evaluating the expression $e$ as $v$,
+we can prove that $Q$ holds.
 %
-In case we do not care about the description at hand, we
+One of the basic predicates of separation logic~\cite{DBLP:conf/lics/Reynolds02}
+is a `points to' assertion (\Pointer{\ell}{}{t}) stating that
+the label $\ell$ points to a memory location containing $t$.
+
+A separation logic proof system then typically consists in defining
+a language and providing axioms characterising the behaviour of
+each language construct.
+%
+The simplest example involving memory is perhaps a language
+with pointers to bytes and a single \texttt{deref} construct
+dereferencing a pointer.
+%
+We can then give the following axiom
+\[ \Hoare{\Pointer{\ell}{}{\mathit{bs}}}{\texttt{deref}\,\ell}{v}{\mathit{bs} = v \ast \Pointer{\ell}{}{\mathit{bs}}} \]
+to characterise \texttt{deref} by stating that the value
+it returns is precisely the one the pointer is referencing,
+and that the pointer is still valid and still referencing
+the same value after it has been dereferenced.
+
+The axioms can be combined to prove statements about more
+complex programs such as the following silly one for instance.
+Here we state that if we dereference the pointer a first time,
+discard the result and then dereference it once more then we
+end up in the same situation as if we had dereferenced it only once.
+\[ \Hoare{\Pointer{\ell}{}{\mathit{bs}}}{\texttt{deref}\,\ell;\, \texttt{deref}\,\ell}{v}{\mathit{bs} = v \ast \Pointer{\ell}{}{\mathit{bs}}} \]
+
+Note that in all of these rules $\mathit{bs}$ is only present
+in the specification layer. \texttt{deref} itself cannot possibly
+return $\mathit{bs}$ directly, it needs to actually perform an
+effectful operation that will read the memory cell's content.
+
+\subsection{Characterising Our Library}
+
+We are going to explain that we can see our library as a small
+embedded Domain Specific
+Language~\cite{DBLP:journals/csur/Hudak96}
+that has \IdrisFunction{poke} and \IdrisFunction{out} as
+sole language constructs.
+%
+Our main departure from separation logic is that we want to
+program in a correct-by-construction fashion and so the types
+of \IdrisFunction{poke} and \IdrisFunction{out} have to be
+just as informative as the axioms we would postulate
+in separation logic.
+
+We will write \Pointer{\ell}{\Meaning{d}{cs}}{t} for the assumption
+that we own a pointer $\ell$ of type
+(\IdrisType{Pointer.Meaning} \IdrisBound{d} \IdrisBound{cs} \IdrisBound{t}),
+and \Pointer{\ell}{\Mu{cs}}{t} for the assumption that we own
+a pointer $\ell$ of type (\IdrisType{Pointer.Mu} \IdrisBound{cs} \IdrisBound{t}).
+%
+In case we do not care about the type of the pointer at hand
+(e.g. because it can be easily inferred from the context), we
 will simply write $\ell \mapsto t$.
 
-
-Coming back to our analogy to the `points to' assertions used in
-separation logic~\cite{DBLP:conf/lics/Reynolds02} when verifying
-imperative programs,
 the basic building blocks correspond to the axiomatisation of
 the behaviour of the underlying language constructs (hence their
 necessarily unsafe implementation in this shallow embedding)
@@ -30,12 +83,11 @@ $\ell$ to a term $t$ known to be a single byte then
 will return a byte $bs$ and allow us to observe that $t$ is
 equal to that byte.
 
-\[
 \Hoare
-    {\Pointer{\ell}{\text{\IdrisData{Byte}}}{t}}
+    {\Pointer{\ell}{\Meaning{\text{\IdrisData{Byte}}}{cs}}{t}}
     {\text{\IdrisFunction{poke}}\,\ell}
-    {\mathit{bs}.\, t = \mathit{bs} \ast \ell \mapsto t}
-\]
+    {\mathit{bs}}
+    {t = \mathit{bs} \ast \ell \mapsto t}
 
 Similarly, if the pointer $\ell$ is for a pair then
 (\IdrisFunction{poke} $\ell$) will
@@ -43,19 +95,20 @@ reveal that the term $t$ can be taken apart into the pairing
 of two terms $t_1$ and $t_2$ and
 return a pointer for each of these components.
 
+\begin{gather*}
+\Hoare
+    {\Pointer{\ell}{\Meaning{\text{\IdrisData{Prod}}\, d_1 d_2}{cs}}{t}}
+    {\\\text{\IdrisFunction{poke}}\,\ell\\}
+    {(\ell_1, \ell_2)}
+    {\exists t_1.\, \exists t_2.\, t = (t_1, t_2)
+        \ast \ell \mapsto t \ast \Pointer{\ell_1}{\Meaning{d_1}{cs}}{t_1} \ast \Pointer{\ell_2}{\Meaning{d_2}{cs}}{t_2}}
+\end{gather*}
+
+
 \[
 \Hoare
-    {\Pointer{\ell}{\text{\IdrisData{Prod}}\, d_1 d_2}{t}}
+    {\Pointer{\ell}{\Meaning{\text{\IdrisData{Rec}}}{cs}}{t}}
     {\text{\IdrisFunction{poke}}\,\ell}
-    {(\ell_1, \ell_2).\, \exists t_1.\, \exists t_2.\, t = (t_1, t_2)
-        \ast \ell \mapsto t \ast \Pointer{\ell_1}{d_1}{t_1} \ast \Pointer{\ell_2}{d_2}{t_2}}
+    {\ell_1}
+    {\Pointer{\ell_1}{\Mu{cs}}{t} \ast \Pointer{\ell}{}{t}}
 \]
-
-\[
-\Hoare
-    {\Pointer{\ell}{\text{\IdrisType{$\mu$}}\, d}{t}}
-    {\text{\IdrisFunction{out}}\, \ell}
-    {(k, \ell_1).\, \exists t_1.\, t = (k \,\text{\IdrisData{\#}}\, t_1)
-        \ast \ell \mapsto t \ast \Pointer{\ell_1}{d}{t_1}}
-\]
-
