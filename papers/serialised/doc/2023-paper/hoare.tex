@@ -91,7 +91,6 @@ equal to that byte.
     {\mathit{bs}}
     {t = \mathit{bs} \ast \ell \mapsto t}
 \]
-
 Similarly, if the pointer $\ell$ is for a pair then
 (\IdrisFunction{poke} $\ell$) will
 reveal that the term $t$ can be taken apart into the pairing
@@ -101,11 +100,10 @@ return a pointer for each of these components.
 \Hoare
     {\Pointer{\ell}{\Meaning{\text{\IdrisData{Prod}}\, d_1 d_2}{cs}}{t}}
     {\\\text{\IdrisFunction{poke}}\,\ell\\}
-    {(\ell_1, \ell_2)}
-    {\exists t_1.\, \exists t_2.\, t = (t_1, t_2)
+    {(\ell_1,\, \ell_2)}
+    {\exists t_1.\, \exists t_2.\, t = (t_1 \,\text{\IdrisData{\#}}\, t_2)
         \ast \ell \mapsto t \ast \Pointer{\ell_1}{\Meaning{d_1}{cs}}{t_1} \ast \Pointer{\ell_2}{\Meaning{d_2}{cs}}{t_2}}
 \end{gather*}
-
 Last but not least, poking a pointer with the \IdrisData{Rec}
 description will return another pointer for the same value but
 at a different type.
@@ -121,37 +119,47 @@ at a different type.
 
 Given that \IdrisFunction{layer} is defined in terms of \IdrisFunction{poke},
 we do not need to postulate any axioms to characterise it and can insteads
-prove lemmas.
-
-Using the description of a node in our running example of binary trees,
+prove lemmas. We will skip the proofs here but give an example of a derived
+rule.
+%
+Using the description (\IdrisData{Prod} \IdrisData{Rec} (\IdrisData{Prod} \IdrisData{Byte} \IdrisData{Rec}))
+of the arguments to a node in our running example of binary trees,
 \IdrisFunction{layer}'s behaviour would be characterised by the following
 statement.
 \begin{gather*}
 \Hoare
     {\Pointer{\ell}{\Meaning{\text{\IdrisData{Prod} \IdrisData{Rec} (\IdrisData{Prod} \IdrisData{Byte} \IdrisData{Rec})}}{cs}}{t}}
     {\\\text{\IdrisFunction{layer}}\,\ell\\}
-    {(\ell_1, bs, \ell_2)}
+    {(\ell_1,\, bs,\, \ell_2)}
     {\exists t_1.\, \exists t_2.\,
-      t = (t_1 \,\text{\IdrisData{\#}}\,  bs \,\text{\IdrisData{\#}}\, t_2)
+      t = (t_1 \,\text{\IdrisData{\#}}\, bs \,\text{\IdrisData{\#}}\, t_2)
       \ast \Pointer{\ell_1}{\Mu{cs}}{t_1}
       \ast \Pointer{\ell_2}{\Mu{cs}}{t_2}
       \ast \Pointer{\ell}{}{t}}
 \end{gather*}
-Provided a pointer to such a layer, calling \IdrisFunction{layer} would
+It states that provided a pointer to such a meaning,
+calling \IdrisFunction{layer} would
 return a triple of
 a pointer $\ell_1$ for the left subtree,
-the byte $\mathit{bs}$,
+the byte $\mathit{bs}$ stored in the node,
 and a pointer $\ell_2$ for the right subtree.
 
 \subsubsection{Axiom for \IdrisFunction{out}}
 
-Things are a lot simpler for \IdrisFunction{out} as the return type
+The only other construct for our small DSL is the function \IdrisFunction{out}.
+Things are a lot simpler here as the return type
 is not defined by induction on the description.
+As a consequence we only need the following axiom.
 \[
 \Hoare
     {\Pointer{\ell}{\Mu{cs}}{t}}
     {\text{\IdrisFunction{out}}\,\ell}
-    {(k, \ell_1)}
+    {(k,\, \ell_1)}
     {\exists t_1.\, t = (k \,\text{\IdrisData{\#}}\, t_1)
       \ast \Pointer{\ell}{}{t} \ast \Pointer{\ell_1}{\Meaning{cs_k}{cs}}{t_1}}
 \]
+It states that under the condition that $\ell$ points to $t$,
+(\IdrisFunction{out} $\ell$) returns a pair of an index
+and a pointer to the meaning of the description associated to that index by $cs$,
+and allows us to learn that $t$ is constructed using that index
+and that meaning.
