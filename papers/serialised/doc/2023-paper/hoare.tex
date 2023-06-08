@@ -50,7 +50,7 @@ effectful operation that will read the memory cell's content.
 
 We are going to explain that we can see our library as a small
 embedded Domain Specific
-Language~\cite{DBLP:journals/csur/Hudak96}
+Language (eDSL)~\cite{DBLP:journals/csur/Hudak96}
 that has \IdrisFunction{poke} and \IdrisFunction{out} as
 sole language constructs.
 %
@@ -59,8 +59,13 @@ program in a correct-by-construction fashion and so the types
 of \IdrisFunction{poke} and \IdrisFunction{out} have to be
 just as informative as the axioms we would postulate
 in separation logic.
+%
+This dual status of the basic building blocks being both
+executable programs \emph{and} an axiomatic specification
+of their respective behaviour is precisely why their
+implementations in \idris{} necessarily uses unsafe features.
 
-We will write \Pointer{\ell}{\Meaning{d}{cs}}{t} for the assumption
+We are going to write \Pointer{\ell}{\Meaning{d}{cs}}{t} for the assumption
 that we own a pointer $\ell$ of type
 (\IdrisType{Pointer.Meaning} \IdrisBound{d} \IdrisBound{cs} \IdrisBound{t}),
 and \Pointer{\ell}{\Mu{cs}}{t} for the assumption that we own
@@ -68,16 +73,10 @@ a pointer $\ell$ of type (\IdrisType{Pointer.Mu} \IdrisBound{cs} \IdrisBound{t})
 %
 In case we do not care about the type of the pointer at hand
 (e.g. because it can be easily inferred from the context), we
-will simply write $\ell \mapsto t$.
+will simply write \Pointer{\ell}{}{t}.
 
-the basic building blocks correspond to the axiomatisation of
-the behaviour of the underlying language constructs (hence their
-necessarily unsafe implementation in this shallow embedding)
-while the high-level combinators are derived reasoning principles
-allowing us to implemement more complex programs.
 
 \subsubsection{Axioms for \IdrisFunction{poke}}
-
 
 Thinking in terms of Hoare triples, if we have a pointer
 $\ell$ to a term $t$ known to be a single byte then
@@ -118,9 +117,10 @@ at a different type.
 \subsubsection{Example of a Derived Rule for \IdrisFunction{layer}}
 
 Given that \IdrisFunction{layer} is defined in terms of \IdrisFunction{poke},
-we do not need to postulate any axioms to characterise it and can insteads
-prove lemmas. We will skip the proofs here but give an example of a derived
-rule.
+we do not need to postulate any axioms to characterise it and can instead
+prove lemmas.
+%
+We will skip the proofs here but give an example of a derived rule.
 %
 Using the description (\IdrisData{Prod} \IdrisData{Rec} (\IdrisData{Prod} \IdrisData{Byte} \IdrisData{Rec}))
 of the arguments to a node in our running example of binary trees,

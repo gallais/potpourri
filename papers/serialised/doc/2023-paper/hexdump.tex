@@ -29,17 +29,24 @@ and a \IdrisFunction{node} is represented by \hexacons{01}
 %
 the careful reader can check
 (modulo ignoring the type description and offsets for now)
-that the data is stored in a depth-first, left-to-right traversal of the tree.
+that the data is stored in a depth-first, left-to-right traversal of the tree
+(i.e. we get exactly the bit pattern we saw in the naïve encoding
+presented in \Cref{sec:intro}).
 
 
 \subsection{Header}
 
 The header consists of an offset allowing us to jump past it in case we do
-not care to inspect it, followed by a representation of the \IdrisType{Data}
-description.
+not care to inspect it, followed by a binary representation of the
+\IdrisType{Data} description of the value stored in the buffer.
 %
-This allows users to check that the data stored in a buffer has the structure
-they expect it to have.
+This can be useful in a big project where different components produce
+and consume such serialised values: if we change the format in one place
+but forget to update it in another, we want the program to gracefully
+fail to load the file using an unexpected format.
+%
+We detail in \Cref{sec:limitation-robust} how dependent type providers
+can help structure a software project to prevent such issues.
 
 The encoding of a data description starts with a byte giving us the number
 of constructors, followed by these constructors' respective descriptions
