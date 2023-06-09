@@ -91,8 +91,9 @@ could look something like the following:
 
 \input{sum-at}
 
-This function takes a buffer, a pointer currently indicating the start of
-a tree, and an accumulator in which we add up all the values.
+This function takes a buffer of bytes,
+a pointer currently indicating the start of a tree,
+and an accumulator in which we add up all the values.
 %
 We start (line 2) by reading the byte the pointer is referencing and
 immediately move the pointer past it.
@@ -103,14 +104,16 @@ and so we inspect it (line 3).
 If the tag is 0 (line 4), the tree is a leaf and so we return.
 %
 If the tag is 1 (line 5), then the tree starts with a node and the rest
-of the buffer contains the left subtree, the byte stored in the node,
-and then the right subtree.
+of the buffer contains
+first the left subtree,
+then the byte stored in the node,
+and finally the right subtree.
 %
 We start by summing the left subtree (line 6),
 after which the pointer has been moved past its end and is now pointing
 at the byte stored in the node.
 We can therefore dereference the byte and move the pointer past it (line 7),
-increment the accumulator by the value thus obtained (line 8)
+cast the byte to an int and increment the accumulator by the value thus obtained (line 8)
 and finally sum the right subtree (line 9).
 %
 If the tag is anything other than 0 or 1 (line 11) then the buffer does not
