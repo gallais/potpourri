@@ -34,6 +34,12 @@
 \toggletrue{BLIND}
 \toggletrue{POPL}
 
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+
+%% disable the << and >> ligatures in typewriter type
+\DisableLigatures[<,>]{encoding=T1,family=tt*}
+
 
 %%
 %% end of the preamble, start of the body of the document source.
@@ -148,11 +154,14 @@
 %%
 %% The next two lines define the bibliography style to be used, and
 %% the bibliography file.
+\newpage
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{paper}
 
 %%
 %% If your work has an appendix, this is the place to put it.
+
+\newpage
 \appendix
 
 \input{safefold}
