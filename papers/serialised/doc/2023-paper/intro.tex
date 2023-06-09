@@ -119,7 +119,10 @@ and finally sum the right subtree (line 9).
 If the tag is anything other than 0 or 1 (line 11) then the buffer does not
 contain a valid tree and so we immediately exit with an error code.
 %
-At the end of a successful run the accumulator contains the sum of the nodes' content.
+At the end of a successful run the accumulator contains the sum of the nodes' content,
+%% and indeed running \texttt{sumAt} over a buffer containing
+%% \texttt{01 01 01 00 \IdrisData{01} 00 \IdrisData{05} 00 \IdrisData{0a} 01 00 \IdrisData{14} 00}
+%% correctly returns $36$.
 
 
 As we can readily see, this program
@@ -145,7 +148,7 @@ empowers us to do just that purely in library code.
 \subsection{Seamless Programming over Serialised Data}\label{sec:seamless}
 
 Forgetting about correctness for now, this can be summed up by the
-two following code snippets describing how we can compute the sum
+the following code snippet describing how we can compute the sum
 of the values stored in the type of tree we are using as a running
 example.
 
@@ -164,8 +167,8 @@ example.
   \end{minipage}
 \end{center}
 
-We reserve for later our detailed explanations of the representations
-used in this snippets
+We reserve for later our detailed explanations of the concepts
+used in this snippet
 (\IdrisType{Pointer.Mu} in \Cref{sec:pointers},
 \IdrisFunction{view} in \Cref{sec:dataview}).
 %
@@ -246,8 +249,10 @@ uniformly serialised and obtain all of our results by generic programming.
 In practice this means that we are not limited to the type of binary trees
 with bytes stored in the nodes we used in the examples above.
 %
-We include below the type signature of a generic and correct-by-construction
+We will for instance be able to implement
+a generic and correct-by-construction
 definition of \IdrisFunction{fold} operating on data stored in a buffer
+whose type declaration can be seen below
 (we will explain how it is defined in \Cref{sec:bufferfold}).
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{foldtype}
@@ -257,9 +262,9 @@ This data-genericity is our third contribution.
 \subsection{Plan}
 
 In summary, we are going to define a library for the
-generic,
 seamless,
-and correct-by-construction
+correct,
+and generic
 manipulation of algebraic types in serialised format.
 
 

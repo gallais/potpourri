@@ -25,7 +25,8 @@ void sumAt (uint8_t buf[], int *ptr, int *res, char *str) {
 }}
 
 int main () {
-  uint8_t buf[] = {1, 1, 0, 4, 1, 0, 0, 0, 10, 1, 1, 0, 100, 1, 0, 1, 0, 20, 0};
+  // uint8_t buf[] = {1, 1, 0, 4, 1, 0, 0, 0, 10, 1, 1, 0, 100, 1, 0, 1, 0, 20, 0};
+  uint8_t buf[] = {01, 0x01, 0x01, 0x00, 0x01, 0x00, 0x05, 0x00, 0x0a, 0x01, 0x00, 0x14, 0x00};
   int ptr = 0;
   int sum = 0;
   char str[10000];
