@@ -24,22 +24,30 @@ endofunctors on \IdrisType{Type} by induction on said descriptions.
 %
 \IdrisFunction{Meaning} gives us the action of the functors on objects.
 
-\ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
+\iftoggle{POPL}{
+\begin{minipage}[t]{.55\textwidth}
+  \ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
+\end{minipage}
+\begin{minipage}[t]{.4\textwidth}
+  \ExecuteMetaData[Lib.idr.tex]{pair}
+\end{minipage}}
+{
+  \ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
+}
 
 Both \IdrisData{None} and \IdrisData{Byte} are interpreted by constant
 functors (respectively the one returning the unit type, and the one returning
 the type of bytes).
-
+%
 \IdrisData{Rec} is the identity functor.
-
-
+%
 Finally (\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e})
 is interpreted as the pairing of the interpretation of
 \IdrisBound{d} and \IdrisBound{e} respectively.
 We use our own definition of pairing rather than the
 standard library's because it gives us better syntactic sugar:
 
-\ExecuteMetaData[Lib.idr.tex]{pair}
+\iftoggle{POPL}{}{\ExecuteMetaData[Lib.idr.tex]{pair}}
 
 This gives us the action of descriptions on types, let us now
 see their action on morphisms.

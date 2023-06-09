@@ -26,12 +26,15 @@
 }
 
 \usepackage{pgfplots}
+\pgfplotsset{compat=1.16, width=\textwidth}
 
-%%%%%%%%%%%%% BLINDING
+%%%%%%%%%%%%% SUBMISSION PROCESSES
 
 \newtoggle{BLIND}
+\newtoggle{POPL}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \newcommand{\agda}{Agda}
 \newcommand{\idris}{Idris~2}
 \newcommand{\assertTotal}{\IdrisPostulate{assert\KatlaUnderscore{}total}}
