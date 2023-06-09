@@ -1,6 +1,12 @@
 \section{Analogy to Separation Logic}\label{appendix:hoare}
 
-This is in no way an exhaustive introduction to separation logic.
+Some readers may feel uneasy about the fact that parts of our
+library are implemented using \idris{} escape hatches.
+%
+This section justifies this practice by drawing an analogy to
+separation logic and highlighting that this practice corresponds
+to giving a axiomatisation of the runtime behaviour of our
+library's core functions.
 
 \newcommand{\Pointer}[3]{\ensuremath{#1 \xmapsto{#2} #3}}
 \newcommand{\Hoare}[4]{\ensuremath{\lbrace~ #1 ~\rbrace~ #2 ~\lbrace~ #3.\, #4 ~\rbrace}}
@@ -163,3 +169,9 @@ It states that under the condition that $\ell$ points to $t$,
 and a pointer to the meaning of the description associated to that index by $cs$,
 and allows us to learn that $t$ is constructed using that index
 and that meaning.
+
+By combining \IdrisFunction{out} and \IdrisFunction{layer} we could once
+more define a derived rule and prove e.g. that every tree can be taken
+apart as either a leaf or a node with a pointer to a left subtree, a byte,
+and a pointer to a right subtree i.e. what \IdrisFunction{view} does in
+our library.
