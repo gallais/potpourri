@@ -24,6 +24,8 @@ RAW_DEPENDENCIES=\
   SaferIndexed.idr.tex \
   SafeFolds.idr.tex \
   paper.bib \
+  config.tex \
+  abstract.tex \
   intro.tex \
   desc.tex \
   trees.tex \

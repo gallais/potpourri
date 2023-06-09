@@ -1,75 +1,16 @@
 \documentclass[10pt]{article}
 
+\input{config}
 \bibliographystyle{alpha}
-
-\usepackage{stmaryrd}
-\usepackage{mathtools}
-\usepackage{amsmath}
-\usepackage{etoolbox}
-\usepackage{idris2}
-\usepackage{catchfilebetweentags}
-\input{robust-catch}
-\usepackage{hyperref}
-\usepackage{cleveref}
-\usepackage{bytefield}
-
-%\usepackage{fullpage}
-
-\usepackage{todonotes}
-\setuptodonotes{inline}
-
-\usepackage{listings}
-
-\lstset{ %
-  language=C,
-  numbers=left,
-  numberstyle=\tiny,
-  stepnumber=1,
-  numbersep=5pt,
-  breaklines=true,
-  otherkeywords={uint8_t},
-}
-
-\usepackage{pgfplots}
-
-%%%%%%%%%%%%% BLINDING
-
-\newtoggle{BLIND}
-\togglefalse{BLIND}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \title{Seamless, Correct, and Generic \\ Programming over Serialised Data}
 \author{\iftoggle{BLIND}{ANONYMOUS}{Guillaume Allais}}
-
-\newcommand{\agda}{Agda}
-\newcommand{\idris}{Idris~2}
-\newcommand{\assertTotal}{\IdrisPostulate{assert\KatlaUnderscore{}total}}
-\newcommand{\believeMe}{\IdrisPostulate{believe\KatlaUnderscore{}me}}
-\newcommand{\hexadesc}[1]{\texttt{\IdrisType{#1}}}
-\newcommand{\hexadata}[1]{\texttt{\IdrisData{#1}}}
-\newcommand{\hexacons}[1]{\texttt{\IdrisFunction{#1}}}
-\newcommand{\hexaoffset}[1]{\texttt{{\color{lightgray}#1}}}
-
-\newenvironment{hexdump}{\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
 
 \begin{document}
 
 \maketitle
 
-\begin{abstract}
-In typed functional languages, one can typically only manipulate data
-in a type-safe manner if it first has been deserialised into an in-memory
-tree represented as a graph of nodes-as-structs and subterms-as-pointers.
-
-We demonstrate how we can use QTT as implemented in \idris{} to define
-a small universe of serialised datatypes, and provide generic programs
-allowing users to process values stored contiguously in buffers.
-
-Our approach allows implementors to prove the full functional
-correctness by construction of the IO functions processing the
-data stored in the buffer.
-\end{abstract}
+\input{abstract}
 
 \input{intro}
 
