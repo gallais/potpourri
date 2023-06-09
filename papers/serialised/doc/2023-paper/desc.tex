@@ -89,7 +89,7 @@ do not bother recording an offset for it.
 
 We represent a constructor as a record packing together
 a name for the constructor,
-the description of its payload (which is, by virtue of
+the description of its arguments (which is, by virtue of
 being used at the toplevel, in rightmost position),
 and the values of the \IdrisFunction{static} and
 \IdrisFunction{offsets} invariants.
@@ -106,14 +106,22 @@ constructor for records of type \IdrisType{Constructor}.
 This allows us to define constructors by forming an
 expression reminiscent of Haskell's type declarations:
 \IdrisBound{name} \IdrisData{::} \IdrisBound{type}.
-
+%
 Returning to our running example, this gives us the following encodings for
 leaves that do not store anything
 and nodes that contain a left branch, a byte, and a right branch.
 
+\iftoggle{POPL}{
+  \begin{minipage}[t]{.35\textwidth}
+    \ExecuteMetaData[Serialised/Desc.idr.tex]{treeleaf}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{.55\textwidth}
+    \ExecuteMetaData[Serialised/Desc.idr.tex]{treenode}
+  \end{minipage}
+}{
 \ExecuteMetaData[Serialised/Desc.idr.tex]{treeleaf}
 \ExecuteMetaData[Serialised/Desc.idr.tex]{treenode}
-
+}
 
 \subsection{Datatypes}
 
@@ -121,13 +129,24 @@ A datatype description is given by a number of constructors together with
 a vector (also known as a length-indexed list) associating a description
 to each of these constructors.
 
-\ExecuteMetaData[Serialised/Desc.idr.tex]{data}
+\iftoggle{POPL}{
+  \begin{minipage}[t]{.55\textwidth}
+    \ExecuteMetaData[Serialised/Desc.idr.tex]{data}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{.35\textwidth}
+    \ExecuteMetaData[Serialised/Desc.idr.tex]{treedesc}
+  \end{minipage}
+}{
+  \ExecuteMetaData[Serialised/Desc.idr.tex]{data}
+}
 
-We can then encode our running example using the following \IdrisType{Data}
+We can then encode our running example as a simple \IdrisType{Data}
 declaration: a binary tree whose node stores bytes is described by the choice
 of either a \IdrisFunction{Leaf} or \IdrisFunction{Node}, as defined above.
 
-\ExecuteMetaData[Serialised/Desc.idr.tex]{treedesc}
+\iftoggle{POPL}{}{
+  \ExecuteMetaData[Serialised/Desc.idr.tex]{treedesc}
+}
 
 Now that we have a language that allows us to give a description of our
 inductive types, we are going to give these descriptions a meaning as trees.

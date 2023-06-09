@@ -95,14 +95,14 @@ into the corresponding \IdrisType{Index}.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{fromString}
 
-If the name is valid then the \IdrisFunction{isConstructor} will
+If the name is valid then \IdrisFunction{isConstructor} will
 return a valid \IdrisType{Index} and \idris{} will be able to
 \IdrisKeyword{auto}matically fill-in the implicit proof.
 %
-If the name is not valid then idris will not be able to
+If the name is not valid then idris will not
 find the index and will raise a compile time error.
 %
-We include below a successful example on the left and a failing test
+We include a successful example on the left and a failing test
 on the right hand side (\IdrisKeyword{failing} blocks are only
 accepted in \idris{} if their body leads to an error).
 
@@ -133,11 +133,11 @@ Indeed, unlike Agda, \idris{} does not (yet!) track whether a function's
 arguments are used in a strictly positive manner.
 %
 Consequently the positivity checker
-is unfortunately unable to see that \IdrisFunction{Meaning} uses its second
+is unable to see that \IdrisFunction{Meaning} uses its second
 argument in a strictly positive manner
 and that this is therefore a legal definition.
 
-Now that we can build whole trees as fixpoints of the
+Now that we can build trees as fixpoints of the
 meaning of descriptions, we can define convenient aliases for
 the \IdrisFunction{Tree} constructors.
 %
@@ -148,17 +148,26 @@ constructors.
 \idris{}'s type-directed disambiguation of constructors allows us to use
 this uniform notation for all of these pairing notions.
 
-\ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
-\ExecuteMetaData[Serialised/Desc.idr.tex]{node}
+\iftoggle{POPL}{
+  \begin{minipage}[t]{.25\textwidth}
+    \ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{.65\textwidth}
+    \ExecuteMetaData[Serialised/Desc.idr.tex]{node}
+  \end{minipage}
+}{
+  \ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
+  \ExecuteMetaData[Serialised/Desc.idr.tex]{node}
+}
 
 This enables us to define our running example:
 
-\ExecuteMetaData[Serialised/Desc.idr.tex]{example}
+\ExecuteMetaData[Serialised/Desc.idr.tex]{longexample}
 
 \subsection{Generic Fold}\label{sec:genericfoldinductive}
 
-\IdrisType{Mu} give us the initial fixpoint for these algebras i.e.
-giving any other algebra over a type \IdrisBound{a}, from a term of
+\IdrisType{Mu} gives us the initial fixpoint for these algebras i.e.
+given any other algebra over a type \IdrisBound{a}, from a term of
 type (\IdrisType{Mu} \IdrisBound{cs}), we can compute an \IdrisBound{a}.
 %
 We define the generic \IdrisFunction{fold} function over inductive values
