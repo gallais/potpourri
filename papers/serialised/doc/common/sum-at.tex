@@ -1,13 +1,12 @@
 \begin{lstlisting}
-void sumAt (uint8_t buf[], int *ptr, int *res) {
+int sumAt (uint8_t buf[], int *ptr) {
   uint8_t tag = buf[*ptr]; (*ptr)++;
   switch (tag) {
-    case 0: return;
+    case 0: return 0;
     case 1:
-      sumAt(buf, ptr, res);
+      int m = sumAt(buf, ptr, str);
       uint8_t val = buf[*ptr]; (*ptr)++;
-      *res += (int) val;
-      sumAt(buf, ptr, res);
-      return;
+      int n = sumAt(buf, ptr, str);
+      return (m + (int) val + n);
     default: exit(-1); }}
 \end{lstlisting}
