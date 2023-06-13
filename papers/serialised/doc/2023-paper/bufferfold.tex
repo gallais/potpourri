@@ -13,8 +13,10 @@ Let us go through the details of its type first.
 \ExecuteMetaData[SaferIndexed.idr.tex]{fmaptype}
 
 The first two arguments to \IdrisFunction{fmap} are similar to its pure
-counterpart: a description \IdrisBound{d} and a runtime-irrelevant function
-\IdrisBound{f} to map over a \IdrisFunction{Meaning}.
+counterpart:
+a description \IdrisBound{d}
+and a (here runtime-irrelevant) function \IdrisBound{f}
+to map over a \IdrisFunction{Meaning}.
 %
 Next we take a function which is the buffer-aware counterpart to \IdrisBound{f}:
 given any runtime-irrelevant term \IdrisBound{t} and a pointer to it in a buffer,

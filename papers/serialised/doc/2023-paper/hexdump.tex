@@ -19,7 +19,9 @@ a \hexadesc{type} description of the stored data,
 some \hexacons{nodes} of the tree
 and the \hexadata{data} stored in the nodes.
 
+\begin{center}
 \input{data-hexdump}
+\end{center}
 
 More spefically, this block is the encoding of the \IdrisFunction{example}
 given in the previous section and,
@@ -35,6 +37,11 @@ presented in \Cref{sec:intro}).
 
 
 \subsection{Header}
+
+In our example, the header is as follows:
+\begin{hexdump}
+\hexaoffset{07 00 00 00 00 00 00 00} \hexadesc{02 00 02 03 02 01 03}
+\end{hexdump}
 
 The header consists of an offset allowing us to jump past it in case we do
 not care to inspect it, followed by a binary representation of the
@@ -59,11 +66,9 @@ serialised one after the other.
 and \IdrisData{Rec} is represented by \hexadesc{03}.
 
 
-In our example, the header was as follows:
-\begin{hexdump}
-\hexaoffset{07 00 00 00 00 00 00 00} \hexadesc{02 00 02 03 02 01 03}
-\end{hexdump}
-\noindent and the data description is indeed 7 bytes long. It starts with \hexadesc{02}
+Looking once more at the header in the running example,
+the \IdrisType{Data} description is indeed 7 bytes long like the offset states.
+The \IdrisType{Data} description starts with \hexadesc{02}
 meaning that the type has two constructors.
 The first one is \hexadesc{00} i.e. \IdrisData{None}
 (this is the encoding of the type of \IdrisFunction{Leaf}),
@@ -89,7 +94,7 @@ subtrees that are to the left of any relevant information.
 
 If a given tag is associated to a description of type
 (\IdrisType{Desc} \IdrisData{True} \IdrisBound{s} \IdrisBound{o})
-then the representation of the associated node will look something
+then the representation in memory of the associated node will look something
 like the following.
 
 \label{fig:data-layout}
@@ -106,7 +111,7 @@ we start with the tag
 then we have $o$ offsets,
 and finally we have a block contiguously storing an interleaving of
 subtrees and $s$ bytes
-depending on the description's shape.
+dictated by the description.
 %
 In this example the rightmost value in the description is a subtree and
 so even though we have $o$ offsets, we actually have $(o+1)$ subtrees stored.
@@ -114,9 +119,10 @@ so even though we have $o$ offsets, we actually have $(o+1)$ subtrees stored.
 The offsets of the tag with respect to its own address is $0$.
 The tag occupies one byte and so the offset of the block of offsets is $1$.
 Each offset occupies 8 bytes and so the constructor's arguments are stored at offset $(1+8*o)$.
-Finally each value's offset can be computed by adding up the offset of the
-start of the payload block, the offsets corresponding to all of the subtrees
-that come before it, and the number of bytes stored before it;
+Finally each value's offset can be computed by adding up
+the offset of the start of the block of constructor arguments,
+the offsets corresponding to all of the subtrees that come before it,
+and the number of bytes stored before it;
 in the case of the last byte that gives $1+8*o + \Sigma_{i=1}^{o}o_i + s-1$
 hence the formula included in the diagram.
 

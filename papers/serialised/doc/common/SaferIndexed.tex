@@ -32,8 +32,8 @@ namespace Data
   All : (d : Desc r s o) -> (p : x -> Type) -> Meaning d x -> Type
   All None p t = ()
   All Byte p t = Singleton t
-  All d@(Prod _ _) p t = All' d p t
   All Rec p t = p t
+  All d@(Prod _ _) p t = All' d p t
 \end{code}
 %</allquant>
 \begin{code}
@@ -236,8 +236,8 @@ namespace Pointer
            Data.Meaning d (Data.Mu cs) -> Type
     Poke None _ t = ()
     Poke Byte cs t = Singleton t
-    Poke d@(Prod _ _) cs t = Poke' d cs t
     Poke Rec cs t = Pointer.Mu cs t
+    Poke d@(Prod _ _) cs t = Poke' d cs t
 \end{code}
 %</pokedatafun>
 \begin{code}
@@ -305,8 +305,8 @@ namespace Pointer
             Data.Meaning d (Data.Mu cs) -> Type
     Layer None _ _ = ()
     Layer Byte _ t = Singleton t
-    Layer d@(Prod _ _) cs t = Layer' d cs t
     Layer Rec cs t = Pointer.Mu cs t
+    Layer d@(Prod _ _) cs t = Layer' d cs t
 
     data Layer' : (d : Desc r s o) -> (cs : Data nm) ->
                   Data.Meaning d (Data.Mu cs) -> Type where

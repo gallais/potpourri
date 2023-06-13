@@ -45,7 +45,7 @@ Finally (\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e})
 is interpreted as the pairing of the interpretation of
 \IdrisBound{d} and \IdrisBound{e} respectively.
 We use our own definition of pairing rather than the
-standard library's because it gives us better syntactic sugar:
+standard library's because it gives us better syntactic sugar.
 
 \iftoggle{POPL}{}{\ExecuteMetaData[Lib.idr.tex]{pair}}
 
@@ -54,7 +54,7 @@ see their action on morphisms.
 %
 We once again proceed by induction on the description.
 
-\ExecuteMetaData[Serialised/Desc.idr.tex]{fmap}
+\ExecuteMetaData[Serialised/Desc.idr.tex]{fmap}\label{def:fmap}
 
 All cases but the one for \IdrisData{Rec} are structural.
 %
@@ -99,7 +99,7 @@ If the name is valid then \IdrisFunction{isConstructor} will
 return a valid \IdrisType{Index} and \idris{} will be able to
 \IdrisKeyword{auto}matically fill-in the implicit proof.
 %
-If the name is not valid then idris will not
+If the name is not valid then \idris{} will not
 find the index and will raise a compile time error.
 %
 We include a successful example on the left and a failing test
@@ -120,7 +120,7 @@ the functor corresponding to the meaning of the  constructor's description.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{alg}
 
-We can then define the fixpoint of data descriptions as the initial
+We can then introduce the fixpoint of data descriptions as the initial
 algebra, defined as the following inductive type.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{mu}
@@ -160,7 +160,7 @@ this uniform notation for all of these pairing notions.
   \ExecuteMetaData[Serialised/Desc.idr.tex]{node}
 }
 
-This enables us to define our running example:
+This enables us to define our running example as an inductive value:
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{longexample}
 
@@ -176,6 +176,7 @@ as follows:
 \ExecuteMetaData[Serialised/Desc.idr.tex]{fold}
 
 We first match on the term's top constructor, use \IdrisFunction{fmap}
+(defined in \Cref{def:fmap})
 to recursively apply the fold to all the node's subterms and finally
 apply the algebra to the result.
 

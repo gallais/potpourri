@@ -39,14 +39,18 @@ declared below.
 This family has three indices corresponding to three crucial
 invariants being tracked.
 %
-First, whether the current description is being used in the
-\IdrisBound{rightmost} branch of the overall constructor description.
+First, an index telling us whether the current description
+is being used in the \IdrisBound{rightmost} branch of the overall
+constructor description.
 %
 Second, the \IdrisBound{static}ally known size of the described data
 in the number of bytes it occupies.
 %
 Third, the number of \IdrisBound{offsets} that need to be stored to
 compensate for subterms not having a statically known size.
+%
+The reader should think of \IdrisBound{rightmost} as an `input' index
+whereas \IdrisBound{static} and \IdrisBound{offsets} are `output' indices.
 
 Next we define the family proper by giving its four constructors.
 
@@ -80,8 +84,8 @@ Last but not least, \IdrisData{Rec} is a position for a subtree.
 We cannot know its size in bytes statically and so we decide to store
 an offset unless we are in the rightmost branch of the overall description.
 %
-Indeed, in the rightmost branch of a constructor we have no reason to
-skip over the subterm to access other parts of the stored data. And so we
+Indeed, there are no additional constructor arguments behind the rightmost
+one and so we have no reason to skip past the subterm. Consequently we
 do not bother recording an offset for it.
 
 

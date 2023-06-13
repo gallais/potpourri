@@ -41,9 +41,9 @@
 \newcommand{\idris}{Idris~2}
 \newcommand{\assertTotal}{\IdrisPostulate{assert\KatlaUnderscore{}total}}
 \newcommand{\believeMe}{\IdrisPostulate{believe\KatlaUnderscore{}me}}
-\newcommand{\hexadesc}[1]{\texttt{\IdrisType{#1}}}
-\newcommand{\hexadata}[1]{\texttt{\IdrisData{#1}}}
-\newcommand{\hexacons}[1]{\texttt{\IdrisFunction{#1}}}
-\newcommand{\hexaoffset}[1]{\texttt{{\color{lightgray}#1}}}
+\newcommand{\hexadesc}[1]{\texttt{\usestt\IdrisType{#1}}}
+\newcommand{\hexadata}[1]{\texttt{\usestt\IdrisData{#1}}}
+\newcommand{\hexacons}[1]{\texttt{\usestt\IdrisFunction{#1}}}
+\newcommand{\hexaoffset}[1]{\texttt{\usestt{\color{lightgray}#1}}}
 
-\newenvironment{hexdump}{\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
+\newenvironment{hexdump}{\usestt\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}

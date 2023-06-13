@@ -3,6 +3,11 @@
 
 \section{Benchmarks}\label{sec:timing}
 
+Now that we have the ability to read, write, and program directly
+over trees stored in a buffer we can run some experiments to see
+whether this allows us to gain anything over the purely functional
+programming style.
+
 For all of these tests we generate a full tree of a given depth and
 compare the time it takes to run the composition of deserialising
 the tree and applying the pure function to the time it takes to run

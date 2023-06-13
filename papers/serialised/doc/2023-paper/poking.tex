@@ -1,5 +1,5 @@
 
-\section{Inspecting the Buffer's Content}\label{sec:poking}
+\section{Inspecting a Buffer's Content}\label{sec:poking}
 
 We can now describe the combinators allowing our users to inspect
 the value they have a pointer for.
@@ -42,8 +42,12 @@ If we access a \IdrisData{Byte} then we expect that inspecting the
 buffer will yield a runtime-relevant copy of the type-level byte we
 have for reference. Hence the use of \IdrisType{Singleton}.
 
-If we access a \IdrisData{Prod} of two descriptions then the type-level term
-better be a pair and we better be able to obtain a \IdrisType{Pointer.Meaning}
+If the description is \IdrisData{Rec} this means
+we have a substructure. In this case we simply demand a pointer to it.
+
+Last but not least, if we access a \IdrisData{Prod} of two descriptions
+then the type-level term better be a pair
+and we better be able to obtain a \IdrisType{Pointer.Meaning}
 for each of the sub-meanings.
 %
 Because \idris{} does not currently support definitional eta equality
@@ -51,9 +55,6 @@ for records, it will me more ergonomic for users if we introduce
 \IdrisType{Poke'} rather than yielding a \IdrisType{Tuple} of values.
 By matching on \IdrisType{Poke'} at the value level, they will see the
 pair at the type level also reduced to a constructor-headed tuple.
-
-Last but not least if the description is \IdrisData{Rec} this means
-we have a substructure. In this case we simply demand a pointer to it.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokedatadata}
 
@@ -80,7 +81,10 @@ read to the type index is to use the unsafe combinator
 (\IdrisType{Singleton} \IdrisBound{t}) instead of the value of type
 (\IdrisType{Singleton} \IdrisBound{bs})
 we would expect from wrapping \IdrisBound{bs} in the \IdrisData{MkSingleton} constructor.
-
+%
+As we explain in \Cref{sec:axiom-poke},
+in separation logic this would correspond to declaring an axiom
+about the \IdrisFunction{poke} language construct.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunProd}
 
@@ -93,8 +97,8 @@ the left and right subtrees.
 
 We can readily build the pointer for the \IdrisBound{left} subdescription:
 it takes the left offsets, the buffer, and has the same starting position
-as the whole description of the product as they are stored one after the other.
-Its size is the sum of the space reserverd by all of the left offsets
+as the whole description of the product as the submeanings are stored one after the other.
+Its size (\IdrisBound{sizel}) is the sum of the space reserved by all of the left offsets
 (\IdrisFunction{sum} \IdrisBound{subl}) as well as the static size occupied
 by the rest of the content  (\IdrisBound{sl}).
 
@@ -149,7 +153,7 @@ offsets stored immeditately after it.
 The \IdrisType{Out} family describes the typed point of view:
 to get your hands on the index of a tree's constructor means
 obtaining an \IdrisType{Index},
-and a \IdrisType{Pointer.Meaning} to the constructor's payload
+and a \IdrisType{Pointer.Meaning} to the constructor's arguments
 (remember that these high-level `pointers' store a vector of offsets).
 %
 The family's index (\IdrisBound{k} \IdrisData{\#} \IdrisBound{t})
@@ -182,7 +186,7 @@ natural number and then make sure that it is in the range
 $[0 \cdots \text{\IdrisFunction{consNumber} \IdrisBound{cs}}[$ using
 \IdrisFunction{natToFin}.
 %
-We then use the unsafe \IdrisPostulate{unfoldAs} primitive to step the
+We then use the unsafe \IdrisPostulate{unfoldAs} postulate to step the
 type-level \IdrisBound{t} to something of the form
 (\IdrisBound{k} \IdrisData{\#} \IdrisBound{val}).
 
@@ -208,7 +212,7 @@ to build such a value.
 To get a constructor, we start by getting the vector of offsets stored
 immediately after the tag. We then compute the size of the remaining
 \IdrisFunction{Meaning} description: it is the size of the overall tree,
-minus $1$ (for the index) and $8$ times the number of offsets (because
+minus $1$ (for the tag) and $8$ times the number of offsets (because
 each offset is stored as an 8 bytes number).
 %
 We can then use the record constructor \IdrisData{MkMeaning} to pack

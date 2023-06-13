@@ -5,7 +5,7 @@ library are implemented using \idris{} escape hatches.
 %
 This section justifies this practice by drawing an analogy to
 separation logic and highlighting that this practice corresponds
-to giving a axiomatisation of the runtime behaviour of our
+to giving an axiomatisation of the runtime behaviour of our
 library's core functions.
 
 \newcommand{\Pointer}[3]{\ensuremath{#1 \xmapsto{#2} #3}}
@@ -82,7 +82,7 @@ In case we do not care about the type of the pointer at hand
 will simply write \Pointer{\ell}{}{t}.
 
 
-\subsubsection{Axioms for \IdrisFunction{poke}}
+\subsubsection{Axioms for \IdrisFunction{poke}}\label{sec:axiom-poke}
 
 Thinking in terms of Hoare triples, if we have a pointer
 $\ell$ to a term $t$ known to be a single byte then

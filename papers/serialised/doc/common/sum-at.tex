@@ -4,9 +4,9 @@ int sumAt (uint8_t buf[], int *ptr) {
   switch (tag) {
     case 0: return 0;
     case 1:
-      int m = sumAt(buf, ptr, str);
+      int m = sumAt(buf, ptr);
       uint8_t val = buf[*ptr]; (*ptr)++;
-      int n = sumAt(buf, ptr, str);
+      int n = sumAt(buf, ptr);
       return (m + (int) val + n);
     default: exit(-1); }}
 \end{lstlisting}

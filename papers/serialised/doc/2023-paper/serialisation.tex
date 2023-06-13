@@ -30,9 +30,9 @@ serialisers.
 
 A serialisation process for a tree \IdrisBound{t} that belongs to the
 datatype \IdrisBound{cs} is a function that takes a buffer
-and a starting offset and returns an \IdrisType{IO} process that
-serialises the term in the buffer at that offset and computes the
-offset of the first byte past the serialised tree.
+and a starting position and returns an \IdrisType{IO} process that
+serialises the term in the buffer at that position and computes the
+position of the first byte past the serialised tree.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialising}
 
@@ -71,23 +71,23 @@ the description.
 
 If the description is \IdrisData{None} then there is nothing to apply
 the predicate to and so we return the unit type.
-
+%
 If the description is \IdrisData{Byte} we only demand that we have a runtime
 copy of the byte so that we may write it inside a buffer. This is done using
 the \IdrisType{Singleton} family discussed in \Cref{sec:datasingleton}.
-
-If the description is a the \IdrisData{Prod} of two subdescriptions, we once
+%
+If the description is \IdrisData{Rec} then we demand that the
+predicate holds.
+%
+Finally, if the description is a the \IdrisData{Prod} of two subdescriptions, we once
 again use an auxiliary family purely for ergonomics. It is defined mutually
 with \IdrisFunction{All} and does the expected structural operation.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{dataallquant}
 
-Finally, if the description is \IdrisData{Rec} then we demand that the
-predicate holds.
-
 It should now be clear that
 (\IdrisFunction{All} \IdrisKeyword{(}\IdrisFunction{description} \IdrisBound{k}\IdrisKeyword{)}
-(\IdrisType{Serialising} \IdrisBound{cs}\IdrisKeyword{)}) indeed corresponded
+(\IdrisType{Serialising} \IdrisBound{cs}\IdrisKeyword{)}) indeed corresponds
 to having already defined a serialisation process for each subtree.
 
 This very general combinator should be enough to define all the
@@ -141,7 +141,7 @@ a deep copying process traversing the tree.
 
 Now that we can describe actions serialising a value to a buffer,
 the last basic building block we are still missing is a function actually
-performning such actions.
+performing such actions.
 %
 This is provided by the \IdrisFunction{execSerialising} function
 declared below.
