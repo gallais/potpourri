@@ -5,8 +5,8 @@ int sumAt (uint8_t buf[], int *ptr) {
     case 0: return 0;
     case 1:
       int m = sumAt(buf, ptr);
-      uint8_t val = buf[*ptr]; (*ptr)++;
+      uint8_t b = buf[*ptr]; (*ptr)++;
       int n = sumAt(buf, ptr);
-      return (m + (int) val + n);
+      return (m + (int) b + n);
     default: exit(-1); }}
 \end{lstlisting}
