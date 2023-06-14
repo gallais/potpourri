@@ -3,7 +3,7 @@
 We now see descriptions as functors and, correspondingly,
 datatypes as the initial objects of the associated functor-algebras.
 %
-This is a standard construction derived from Malcom's
+This is a standard construction derived from Malcolm's
 work~\cite{DBLP:journals/scp/Malcolm90},
 itself building on Hagino's categorically-inspired
 definition of a lambda calculus
@@ -115,7 +115,7 @@ accepted in \idris{} if their body leads to an error).
 
 Once equipped with the ability to pick constructors, we can define
 the type of algebras for the functor described by a \IdrisType{Data}
-description. For each possible construtor, we demand an algebra for
+description. For each possible constructor, we demand an algebra for
 the functor corresponding to the meaning of the  constructor's description.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{alg}
@@ -142,7 +142,7 @@ meaning of descriptions, we can define convenient aliases for
 the \IdrisFunction{Tree} constructors.
 %
 Note that the leftmost \IdrisData{(\#)} use in each definition corresponds
-to the \IdrisType{Mu} constructror while later ones are \IdrisType{Tuple}
+to the \IdrisType{Mu} constructor while later ones are \IdrisType{Tuple}
 constructors.
 %
 \idris{}'s type-directed disambiguation of constructors allows us to use
