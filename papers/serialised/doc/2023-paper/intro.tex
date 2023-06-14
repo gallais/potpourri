@@ -74,7 +74,7 @@ of this tree.
 In the encoding below,
 leaves are represented by the byte \texttt{00},
 and nodes by the byte \texttt{01}
-(each byte is represented by two hexadecimal character,
+(each byte is represented by two hexadecimal characters,
 we have additionally once again \IdrisData{highlighted} the bytes
 corresponding to data stored in the nodes):
 
@@ -134,7 +134,7 @@ directly performs pointer arithmetic,
 explicitly mentions buffer reads,
 and relies on undocumented global invariants
 such as the structure of the data stored in the buffer,
-or the fact the pointer is being moved along and points directly past
+or the fact that the pointer is being moved along and points directly past
 the end of a subtree once \texttt{sumAt} has finished computing
 its sum.
 
