@@ -222,15 +222,16 @@ namespace Pointer
     where
 
     -- postulated, utterly unsafe
+    %unsafe
     0 unfoldAs :
       (k : Index cs) -> (t : Data.Mu cs) ->
       (val : Data.Meaning (description k) (Data.Mu cs)
        ** t === (k # val))
-    {-
-    unfoldAs k (MkMu l@_ val) with (decEq k l)
+{-
+    unfoldAs k (l@_ # val) with (decEq k l)
       _ | Yes Refl = (val ** Refl)
       _ | No _ = failWith "The IMPOSSIBLE has happened"
-    -}
+-}
 
     getOffsets : Buffer -> Int -> -- Buffer & position
                  (n : Nat) ->

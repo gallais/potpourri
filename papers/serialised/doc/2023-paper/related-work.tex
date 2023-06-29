@@ -57,6 +57,23 @@ constant-time access to each of their component.
 
 \subsubsection{Working on Serialised Data}
 
+Swierstra and van Geest~\cite{DBLP:conf/icfp/GeestS17}
+define in \agda{} a rich universe of data descriptions
+and generically implement serialising and deserialising,
+proving that the latter is a left inverse to the former.
+%
+Their universe is powerful enough that later parts of a
+description can be constrained using the \emph{value}
+associated to ealier ones.
+%
+We will be able to rely on this work when extending our
+current universe to one for type families.
+%
+In turn, our approach could be ported to their setting
+to avoid the need to fully deserialise the data in order
+to process it.
+
+
 LoCal~\cite{DBLP:conf/pldi/VollmerKRS0N19} is the work that originally
 motivated the design of this library.
 %

@@ -46,6 +46,10 @@ DEPENDENCIES=common \
 
 all: paper.pdf
 
+popl: popl.pdf
+	pdftk popl.pdf cat 1-27 output popl-paper.pdf
+	pdftk popl.pdf cat 28-end output popl-appendices.pdf
+
 common:
 	$(MAKE) -C ../common
 
