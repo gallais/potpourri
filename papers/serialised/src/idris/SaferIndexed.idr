@@ -159,6 +159,8 @@ namespace Pointer
     data Poke' : (d : Desc r s o) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
       (#) : Pointer.Meaning d cs t -> Pointer.Meaning e cs u -> Poke' (Prod d e) cs (t # u)
 
+    %spec d
+    %inline
     export
     poke : {0 cs : Data nm} -> {d : Desc r s o} ->
            forall t. Pointer.Meaning d cs t -> IO (Poke d cs t)
@@ -190,6 +192,9 @@ namespace Pointer
     data Layer' : (d : Desc r s o) -> (cs : Data nm) -> Data.Meaning d (Data.Mu cs) -> Type where
       (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t # u)
 
+
+    %spec d
+    %inline
     export
     layer : {0 cs : Data nm} -> {d : Desc r s o} ->
             forall t. Pointer.Meaning d cs t -> IO (Layer d cs t)
@@ -202,19 +207,27 @@ namespace Pointer
       go (Prod d e) (p # q) = [| layer p # layer q |]
       go Rec p = pure p
 
+  %noinline
+  public export
+  getIndex : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (Index cs)
+  getIndex mu = do
+    tag <- getBits8 (muBuffer mu) (muPosition mu)
+    let Just k = natToFin (cast tag) (consNumber cs)
+      | _ => failWith "Invalid representation"
+    pure (MkIndex k)
+
   public export
   data Out : (cs : Data nm) -> (t : Data.Mu cs) -> Type where
     (#) : (k : Index cs) ->
           forall t. Pointer.Meaning (description k) cs t ->
           Out cs (k # t)
 
+  %spec cs
+  %inline
   export
   out : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
   out {t} mu = do
-    tag <- getBits8 (muBuffer mu) (muPosition mu)
-    let Just k = natToFin (cast tag) (consNumber cs)
-      | _ => failWith "Invalid representation"
-    let k = MkIndex k
+    k <- getIndex mu
     let 0 sub = unfoldAs k t
     val <- (k #) <$> getConstructor k {t = sub.fst} (rewrite sym sub.snd in mu)
     pure (rewrite sub.snd in val)
@@ -261,6 +274,9 @@ namespace Pointer
             forall t. Layer (description k) cs t ->
             View cs (k # t)
 
+
+    %spec cs
+    %inline
     export
     view : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (View cs t)
     view ptr = do k # el <- out ptr
