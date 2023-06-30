@@ -347,18 +347,28 @@ namespace Pointer
 
   export
 \end{code}
+%<*getIndex>
+\begin{code}
+  getIndex : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (Index cs)
+  getIndex mu = do
+    tag <- getBits8 (muBuffer mu) (muPosition mu)
+    let Just k = natToFin (cast tag) (consNumber cs)
+      | _ => failWith "Invalid representation"
+    pure (MkIndex k)
+\end{code}
+%</getIndex>
+\begin{code}
+  export
+\end{code}
 %<*outfun>
 \begin{code}
-  out : {cs : Data nm} -> forall t. Pointer.Mu cs t ->
-        IO (Out cs t)
+  out : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (Out cs t)
 \end{code}
 %</outfun>
 %<*outfunbody>
 \begin{code}
   out {t} mu = do
-    tag <- getBits8 (muBuffer mu) (muPosition mu)
-    let Just k = MkIndex <$> natToFin (cast tag) (consNumber cs)
-      | _ => failWith "Invalid representation"
+    k <- getIndex mu
     let 0 sub = unfoldAs k t
     val <- (k #) <$> getConstructor k {t = sub.fst}
                        (rewrite sym sub.snd in mu)

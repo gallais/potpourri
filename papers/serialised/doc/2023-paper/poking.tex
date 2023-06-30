@@ -125,11 +125,11 @@ starting position and size as our input pointer.
 \subsection{Extracting one layer}
 
 By repeatedly poking the buffer, we can unfold a full layer.
-The result of this operation is defined by induction
+This operation's result is defined by induction
 on the description. It is identical to the definition of
 \IdrisFunction{Poke} except for the \IdrisData{Prod} case:
-here, instead of being content with a pointer for each of the
-subdescriptions, we demand a full layer for them too.
+instead of being content with a pointer for each of the
+subdescriptions, we demand a \IdrisFunction{Layer} for them too.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{layerdata}
 
@@ -164,11 +164,19 @@ the \IdrisFunction{Data.Meaning} (\IdrisBound{t}) the \IdrisType{Pointer.Meaning
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outdata}
 
-The type of the \IdrisFunction{out} function is as expected: given a pointer
+As a first step, we can get our hands on the index of the head constructor.
+We obtain a byte by calling \IdrisFunction{getBits8}, cast it to a
+natural number and then make sure that it is in the range
+$[0 \cdots \text{\IdrisFunction{consNumber} \IdrisBound{cs}}[$ using
+\IdrisFunction{natToFin}.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{getIndex}
+
+The \IdrisFunction{out} function type states that given a pointer
 to a tree \IdrisBound{t} of type \IdrisBound{cs} we can get a value
-of type (\IdrisType{Out} \IdrisBound{cs} \IdrisBound{t}).
+of type (\IdrisType{Out} \IdrisBound{cs} \IdrisBound{t})
 %
-That is to say, we can get a view allowing us to reveal what the
+i.e. we can get a view revealing what the
 index of the tree's head constructor is.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
@@ -180,11 +188,7 @@ with the runtime-irrelevant tree index.
 \ExecuteMetaData[SaferIndexed.idr.tex]{outfunbody}
 
 We start by reading the tag \IdrisBound{k}
-corresponding to the constructor choice:
-we obtain a byte by calling \IdrisFunction{getBits8}, cast it to a
-natural number and then make sure that it is in the range
-$[0 \cdots \text{\IdrisFunction{consNumber} \IdrisBound{cs}}[$ using
-\IdrisFunction{natToFin}.
+corresponding to the constructor choice.
 %
 We then use the unsafe \IdrisPostulate{unfoldAs} postulate to step the
 type-level \IdrisBound{t} to something of the form
