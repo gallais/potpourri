@@ -59,6 +59,7 @@ record Index (cs : Data nm) where
 
 ||| A smart projection
 public export
+%inline
 description : {cs : Data nm} -> (k : Index cs) ->
               let cons = index (getIndex k) (constructors cs) in
               Desc True (static cons) (offsets cons)

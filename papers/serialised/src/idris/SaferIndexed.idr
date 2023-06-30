@@ -207,7 +207,6 @@ namespace Pointer
       go (Prod d e) (p # q) = [| layer p # layer q |]
       go Rec p = pure p
 
-  %noinline
   public export
   getIndex : {cs : Data nm} -> forall t. Pointer.Mu cs t -> IO (Index cs)
   getIndex mu = do
@@ -255,13 +254,14 @@ namespace Pointer
       off <- getInt buf pos
       getOffsets buf (8 + pos) n (k . (off ::))
 
+    %inline
     getConstructor :
       (k : Index cs) ->
       forall t.
       Pointer.Mu cs (k # t) ->
       IO (Pointer.Meaning (description k) cs t)
     getConstructor (MkIndex k) mu
-      = let offs : Nat; offs = offsets (index k $ constructors cs) in
+      = let %inline offs : Nat; offs = offsets (index k $ constructors cs) in
         getOffsets (muBuffer mu) (1 + muPosition mu) offs
       $ let size = muSize mu - 1 - cast (8 * offs) in
         \ subterms, pos => MkMeaning subterms (muBuffer mu) pos size

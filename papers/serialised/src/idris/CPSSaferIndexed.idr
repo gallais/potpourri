@@ -174,10 +174,10 @@ namespace Pointer
       (#) : Pointer.Meaning d cs t -> Pointer.Meaning e cs u -> Poke' (Prod d e) cs (t # u)
 
     export
-    %spec r, s, n, d, a
+    %spec r, s, n, d, a, k
     poke : {0 cs : Data nm} -> {d : Desc r s n} ->
            forall t. Pointer.Meaning d cs t ->
-           (Poke d cs t -> IO a) -> IO a
+           (k : Poke d cs t -> IO a) -> IO a
     poke {d = None} el k = k ()
     poke {d = Byte} el k = do
       bs <- getBits8 (elemBuffer el) (elemPosition el)
@@ -206,15 +206,15 @@ namespace Pointer
       (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t # u)
 
     export
-    %spec r, s, n, d, a
+    %spec cs, r, s, n, d, k, a %inline
     layer : {0 cs : Data nm} -> {d : Desc r s n} ->
             forall t. Pointer.Meaning d cs t ->
-            (Layer d cs t -> IO a) -> IO a
+            (k : Layer d cs t -> IO a) -> IO a
     layer el k = poke el (go d k) where
 
-      %spec r, s, n, d
+      %spec r, s, n, d, a, k
       go : forall r, s, n. (d : Desc r s n) ->
-           forall t. (Layer d cs t -> IO a) ->
+           forall t. (k : Layer d cs t -> IO a) ->
            Poke d cs t -> IO a
       go None k p = k ()
       go Byte k p = k p
@@ -226,14 +226,19 @@ namespace Pointer
           forall t. Pointer.Meaning (description k) cs t ->
           Out cs (k # t)
 
-  %inline %spec cs, a
-  out : {cs : Data nm} -> forall t. Pointer.Mu cs t ->
-        (Out cs t -> IO a) -> IO a
-  out {t} mu k = do
+  %inline %spec cs, a, k
+  getIndex : {cs : Data nm} -> forall t. Pointer.Mu cs t ->
+             (k : Index cs -> IO a) -> IO a
+  getIndex mu k = do
     tag <- getBits8 (muBuffer mu) (muPosition mu)
     let Just idx = natToFin (cast tag) (consNumber cs)
       | _ => failWith "Invalid representation"
-    let idx = MkIndex idx
+    k (MkIndex idx)
+
+  %inline %spec cs, a, k
+  out : {cs : Data nm} -> forall t. Pointer.Mu cs t ->
+        (k : Out cs t -> IO a) -> IO a
+  out {t} mu k = getIndex mu $ \ idx => do
     let 0 sub = unfoldAs idx t
     getConstructor idx {t = sub.fst} (rewrite sym sub.snd in mu)
       $ k . rewrite sub.snd in (idx #)
@@ -251,21 +256,21 @@ namespace Pointer
       _ | No _ = failWith "The IMPOSSIBLE has happened"
     -}
 
-    %spec n
+    %spec n, a, k
     getOffsets : Buffer -> Int -> -- Buffer & position
                  (n : Nat) ->
-                 (Vect n Int -> Int -> IO a) -> IO a
+                 (k : Vect n Int -> Int -> IO a) -> IO a
     getOffsets buf pos 0 k = k [] pos
     getOffsets buf pos (S n) k = do
       off <- getInt buf pos
       getOffsets buf (8 + pos) n (k . (off ::))
 
-    %inline %spec cs
+    %inline %spec cs, a, k
     getConstructor :
       (k : Index cs) ->
       forall t.
       Pointer.Mu cs (k # t) ->
-      (Pointer.Meaning (description k) cs t -> IO a) -> IO a
+      (k : Pointer.Meaning (description k) cs t -> IO a) -> IO a
     getConstructor (MkIndex idx) mu
       = index {b = \ c => forall t. (Pointer.Meaning (description c) cs t -> IO a) -> IO a} (constructors cs) idx
       $ \ cons, k => getOffsets (muBuffer mu) (1 + muPosition mu) (offsets cons)
@@ -280,9 +285,9 @@ namespace Pointer
             View cs (k # t)
 
     export
-    %inline %spec cs, a
+    %inline %spec cs, a, k
     view : {cs : Data nm} -> forall t. Pointer.Mu cs t ->
-           (View cs t -> IO a) -> IO a
+           (k : View cs t -> IO a) -> IO a
     view ptr k = out ptr $ \ (idx # vs) => layer vs $ \ vs => k (idx # vs)
 
 namespace Tree

@@ -36,9 +36,10 @@ parameters (buf : Buffer)
     = do setInt buf start i
          setInts (start + 8) is
 
-export
+%spec a, b, vs, idx, k
+public export
 index : {0 b : a -> Type} ->
         (vs : Vect n a) -> (idx : Fin n) ->
-        ((v : a) -> b v) -> b (index idx vs)
+        (k : (v : a) -> b v) -> b (index idx vs)
 index (v :: _) FZ k = k v
 index (_ :: vs) (FS idx) k = index vs idx k
