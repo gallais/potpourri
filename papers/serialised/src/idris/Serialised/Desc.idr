@@ -300,7 +300,7 @@ namespace Data
 
 namespace Tree
 
-  public export
+  public export %inline
   Tree : Data String
   Tree = MkData
     [ "Leaf" :: None

@@ -12,8 +12,11 @@ import Data.String
 import Data.Singleton
 
 import Lib
+import CPSLib
 import Serialised.Desc
 
+
+%hide Lib.index
 %default total
 
 blockSize : Int
