@@ -12,7 +12,9 @@ open import Agda.Builtin.Unit using (⊤)
 open import Data.Word8.Primitive as Prim public
   using ( Word8
         ; _+_)
-  renaming (toNat to toℕ)
+  renaming ( fromNat to fromℕ
+           ; toNat to toℕ
+           )
 
 ------------------------------------------------------------------------------
 -- Syntactic sugar for literals

@@ -608,7 +608,7 @@ namespace Pointer
       Just newbuf <- newBuffer bufSize
         | Nothing => failWith "\{__LOC__} Couldn't allocate buffer"
       copyData buf 0 start newbuf 0
-      copyData buf start size newbuf start
+      copyData buf pos size newbuf start
       pure buf
     Right () <- writeBufferToFile fp buf bufSize
       | Left (err, _) => failWith (show err)

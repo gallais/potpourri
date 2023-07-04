@@ -2,23 +2,30 @@
 
 module Data.Serialisable.Pointer where
 
-open import Level using (_⊔_)
+open import Level using (_⊔_; lower)
 
-open import Data.Bool.Base using (Bool; true)
-open import Data.Buffer as Buffer using (Buffer; getWord8; getWord64)
-import Data.Fin.Base as Fin
+open import Agda.Builtin.FromNat using (fromNat)
+
+open import Data.Bool.Base using (Bool; true; false; if_then_else_)
+open import Data.Buffer as Buffer using (Buffer; getWord8; getWord64; getInt64; slice)
+open import Data.Buffer.Builder
 open import Data.Default
+import Data.Fin.Base as Fin
+open import Data.Int64 as Int64 using (Int64; _≡ᵇ_)
 open import Data.List.Base using (_∷_; [])
 open import Data.Nat using (ℕ; zero; suc; _+_; _∸_; _*_; _<?_)
 open import Data.Product as Prod using (Σ-syntax; _×_; _,_; proj₂)
+open import Data.Singleton using (Singleton; mkSingleton)
 open import Data.String.Base using (String; unlines)
 open import Data.Unit.Base using (⊤)
-open import Data.Vec.Base as Vec using (Vec; _∷_; [])
+open import Data.Vec.Base as Vec using (Vec; _∷_; []; _++_)
 open import Data.Word8 as Word8 using (Word8)
 open import Data.Word as Word64 using (Word64)
 
+open import Function.Base using (_$_)
+
 open import IO using (IO) hiding (module IO)
-open import Data.Buffer.IO
+open import Data.Buffer.IO as Buffer
 open import System.Exit
 
 open import Data.Singleton using (Singleton; unsafeMkSingleton; getSingleton)
@@ -53,7 +60,7 @@ abstract
     field
       meaningOffsets : Vec Word64 o
       meaningBuffer : Buffer
-      meaningPosition : ℕ
+      meaningPosition : Int64
       meaningSize : ℕ
 
   infix 3 μ_∋_
@@ -61,7 +68,7 @@ abstract
     constructor mkMu
     field
       muBuffer : Buffer
-      muPosition : ℕ
+      muPosition : Int64
       muSize : ℕ
 
 Poke : (d : Desc r s o) (cs : Data nm) (t : ⟦ d ⟧ (μ cs)) → Set
@@ -82,7 +89,7 @@ abstract
     = let (offl , offr , _) = Vec.splitAt ol off in
       let sizel = Vec.sum (Vec.map Word64.toℕ offl) + sl in
       let left = mkMeaning offl buf pos sizel in
-      let right = mkMeaning offr buf (pos + sizel) (size ∸ sizel) in
+      let right = mkMeaning offr buf (pos Int64.+ Int64.fromℕ sizel) (size ∸ sizel) in
       (left , right)
   poke {d = rec} (mkMeaning off buf pos size) = mkMu buf pos size
 
@@ -112,11 +119,11 @@ data Out (cs : Data nm) : (@0 t : μ cs) → Set where
         Out cs (k , t)
 
 getOffsets :
-  Buffer → ℕ → -- Buffer & position
-  (n : ℕ) → (Vec Word64 n × ℕ)
+  Buffer → Int64 → -- Buffer & position
+  (n : ℕ) → (Vec Word64 n × Int64)
 getOffsets buf pos zero = ([] , pos)
 getOffsets buf pos (suc n)
-  = Prod.map₁ (getWord64 buf pos ∷_) (getOffsets buf (pos + 8) n)
+  = Prod.map₁ (getWord64 buf pos ∷_) (getOffsets buf (pos Int64.+ 8) n)
 
 abstract
 
@@ -125,7 +132,7 @@ abstract
     ∀ {@0 t} → μ cs ∋ k , t → ⟦ description k ⟧μ cs ∋ t
   getConstructor {cs = cs} tag {t} (mkMu buf pos size)
     = let offs = Constructor.offsets (Vec.lookup (constructors cs) (getIndex tag)) in
-      let (offsets , pos) = getOffsets buf (1 + pos) offs in
+      let (offsets , pos) = getOffsets buf (1 Int64.+ pos) offs in
       let size = size ∸ 1 ∸ (8 * offs) in
       mkMeaning offsets buf pos size
 
@@ -173,12 +180,12 @@ abstract
            unless (cs Data.≡ᵇ cs′) $′ die $′ unlines
              $′ "Description mismatch:"
              ∷ "expected:"
-  --           ∷ show cs
+             ∷ Data.show cs
              ∷ "but got:"
-    --         ∷ show cs'
+             ∷ Data.show cs′
              ∷ []
-         let pos = Word64.toℕ skip + 8
-         pure (t , mkMu buf pos (Buffer.length buf ∸ pos))
+         let pos = Int64.fromℕ (Word64.toℕ skip) Int64.+ 8
+         pure (t , mkMu buf pos (Buffer.length buf ∸ Int64.toℕ pos))
 
     where postulate @0 t : μ cs -- postulated as an abstract value
 
@@ -193,6 +200,72 @@ deserialise {cs = cs} ptr with view ptr
   go byte v = v
   go (prod d e) (l , r) = ⦇ go d l , go e r ⦈
   go rec v = deserialise v
+
+
+abstract
+
+  record Serialising {@0 nm} (@0 cs : Data nm) (@0 t : μ cs) : Set₁ where
+    constructor mkSerialising
+    field runSerialising : (start : ℕ) → ℕ × Builder
+  open Serialising
+
+  goMeaning :
+    ∀ {r} {@0 s o nm} (start : ℕ) (d : Desc r s o) {@0 cs : Data nm} →
+    {@0 t : ⟦ d ⟧ (μ cs)} →
+    All d (λ t → Serialising cs t) (λ w → Singleton w) t →
+    (ℕ × Builder × Vec ℕ o)
+  goMeaning start none vs = (start , empty , [])
+  goMeaning start byte vs = (suc start , word8 (getSingleton $ lower vs) , [])
+  goMeaning start (prod d e) (vs , ws)
+    = let (middle , builder₁ , offs₁) = goMeaning start d vs in
+      let (end    , builder₂ , offs₂) = goMeaning middle e ws in
+      end , builder₁ <> builder₂ , offs₁ ++ offs₂
+  goMeaning {r} start rec vs with (end , builder) ← runSerialising (lower vs) start | r
+  ... | true = end , builder , []
+  ... | false = end , builder , end ∸ start ∷ []
+
+  goMu : ∀ {@0 nm} {cs : Data nm} (start : ℕ) →
+         (idx : Index cs) (c : Constructor nm) →
+         {@0 t : ⟦ Constructor.description c ⟧ (μ cs)} →
+         All (Constructor.description c) (λ t → Serialising cs t) (λ w → Singleton w) t →
+         ℕ × Builder
+  goMu start idx c vs
+    = let builder₁   = word8 (Word8.fromℕ (Fin.toℕ (getIndex idx))) in
+      let afterTag   = suc start in
+      let afterOffs  = afterTag + 8 * Constructor.offsets c in
+      let (end , builder₃ , is) = goMeaning afterOffs (Constructor.description c) vs in
+      end , builder₁ <> Vec.foldr′ (λ i → int64LE (Int64.fromℕ i) <>_) empty is <> builder₃
+
+  _#_ : ∀ {@0 nm} {cs : Data nm} (k : Index cs) →
+        {@0 t : ⟦ description k ⟧ (μ cs)} ->
+        All (description k) (λ t → Serialising cs t) (λ w → Singleton w) t →
+        Serialising cs (k , t)
+  _#_ {cs = cs} k layer
+    = mkSerialising $ λ start →
+        goMu start k (Vec.lookup (constructors cs) (getIndex k)) layer
+
+  {-# TERMINATING #-}
+  serialise : ∀ {@0 nm} {cs : Data nm} (t : μ cs) → Serialising cs t
+  serialise (k , t) = k # all (description k) serialise mkSingleton t
+
+  execSerialising : ∀ {@0 nm} {cs : Data nm} {@0 t : μ cs} →
+                    Serialising cs t → μ cs ∋ t
+  execSerialising {cs = cs} ser
+    = let (middle , builder₁) = setData 8 cs in
+      let (end , builder₂) = runSerialising ser middle in
+      let builder = int64LE (Int64.fromℕ (middle ∸ 8)) <> builder₁ <> builder₂ in
+      mkMu (toBuffer builder) (Int64.fromℕ middle) (end ∸ middle)
+
+
+  writeToFile : ∀ {@0 nm} {cs : Data nm} → String →
+                ∀ {@0 t} → μ cs ∋ t → IO ⊤
+  writeToFile fp (mkMu buf pos size) = let open IO in do
+    let desc = getInt64 buf 0
+    let start = 8 Int64.+ desc
+    let buf = if pos ≡ᵇ start then buf
+              else toBuffer (buffer (slice 0 start buf)
+                          <> buffer (slice pos (Int64.fromℕ size) buf))
+    Buffer.writeFile fp buf
 
 module Tree where
 

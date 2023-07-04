@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 module Data.Serialisable.Data where
 
 open import Agda.Builtin.FromNat using (fromNat)
@@ -17,6 +19,9 @@ open import Data.Word8 as Word8 using (Word8)
 
 open import Function.Base using (id; _$′_)
 
+open import Level using (Lift; lift; _⊔_)
+
+open import Data.Singleton
 open import Data.Serialisable.Desc
 
 ------------------------------------------------------------------------
@@ -37,8 +42,25 @@ fmap rec f = f
 Alg : ∀ {nm} → Data nm → Set → Set
 Alg cs X = (k : Index cs) → ⟦ description k ⟧ X → X
 
-data μ {nm} (cs : Data nm) : Set where
+data μ {@0 nm} (@0 cs : Data nm) : Set where
   _,_ : Alg cs (μ cs)
+
+@0 All : ∀ {p q r s o X} (d : Desc r s o)
+         (P : X → Set p) (Q : Word8 → Set q) →
+         (t : ⟦ d ⟧ X) → Set (p ⊔ q)
+All none P Q v = Lift _ ⊤
+All {p = p} byte P Q v = Lift p (Q v)
+All (prod d e) P Q (v , w) = All d P Q v × All e P Q w
+All {q = q} rec P Q v = Lift q (P v)
+
+all : ∀ {p q r s o X} (d : Desc r s o)
+      {P : X → Set p} {Q : Word8 → Set q} →
+      (∀ x → P x) → (∀ w → Q w) →
+      (t : ⟦ d ⟧ X) → All d P Q t
+all none p q t = _
+all byte p q w = lift (q w)
+all (prod d e) p q (t , u) = all d p q t , all e p q u
+all rec p q t = lift (p t)
 
 {-# TERMINATING #-}
 fold : ∀ {nm cs a} → Alg cs a → μ {nm} cs → a
