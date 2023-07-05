@@ -681,8 +681,10 @@ namespace Pointer
     "Node" # l # b # r => pure r
 
 
-testing : Pointer.Mu Tree t -> IO ()
-testing tree = do
+testing : String -> Pointer.Mu Tree t -> IO ()
+testing msg tree = do
+  putStrLn (replicate 72 '-')
+  putStrLn "Testing \{msg}"
   putStrLn "Tree: \{!(display tree)}"
   putStrLn "Swapped: \{!(display !(execSerialising (Pointer.swap tree)))}"
   putStrLn "DSum: \{show (Tree.sum (getSingleton !(deserialise tree)))}"
@@ -691,40 +693,37 @@ testing tree = do
   putStrLn "Rightmost: \{show !(rightmost tree)}"
   putStrLn "Tree size: \{show !(size tree)}"
 
+testingFile : String -> IO (Exists (Pointer.Mu Tree))
+testingFile fp = do
+  Evidence _ tree <- initFromFile Tree fp
+  testing fp tree
+  pure (Evidence _ tree)
+
 main : IO ()
 main = do
   -- Empty Tree
-  testing !(execSerialising leaf)
-
-  putStrLn (replicate 72 '-')
+  testing "execSerialising" !(execSerialising leaf)
 
   -- First Tree
   writeToFile "tmp" example
-  Evidence _ tree <- initFromFile Tree "tmp"
-  testing tree
-
-  putStrLn (replicate 72 '-')
+  Evidence _ tree1 <- testingFile "tmp"
+  Evidence _ tree1Left <- testingFile "tmp-left"
 
   -- Second Tree: mapping over the first one
-  writeToFile "tmp2" (map (1+) tree)
-  Evidence _ tree2 <- initFromFile Tree "tmp2"
-  testing tree2
-
-  putStrLn (replicate 72 '-')
+  writeToFile "tmp2" (map (1+) tree1)
+  Evidence _ tree2 <- testingFile "tmp2"
+  Evidence _ tree2Left <- testingFile "tmp2-left"
 
   -- Third Tree: don't go via a file
   tree3 <- execSerialising (map (2+) tree2)
-  testing tree3
-
-  putStrLn (replicate 72 '-')
+  testing "map (2+) tree2" tree3
 
   -- Fourth Tree: focus on a subtree
   tree4 <- right tree3
-  testing tree4
-
-  putStrLn (replicate 72 '-')
+  testing "right tree3" tree4
 
   -- Round-trip subtree via a file
   writeToFile "tmp3" (map (\ b => b - 20) tree4)
-  Evidence _ tree5 <- initFromFile Tree "tmp3"
-  testing tree5
+  Evidence _ tree5 <- testingFile "tmp3-left"
+
+  pure ()
