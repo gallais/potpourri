@@ -574,7 +574,7 @@ namespace Pointer
   export
   display : Pointer.Mu Tree t -> IO String
   display ptr = case !(out ptr) of
-    "Leaf" # t => pure "Leaf"
+    "Leaf" # t => pure "leaf"
     "Node" # t => do
       (l # b # r) <- layer t
       l <- display l

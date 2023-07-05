@@ -3,6 +3,7 @@ module Serialised.Desc
 import Control.Monad.State
 
 import Data.Buffer
+import Data.List1
 import Data.Fin
 import Data.String
 import Data.Vect
@@ -353,3 +354,21 @@ namespace Tree
           17
           (node leaf 23
             (node leaf 78 leaf)))))
+
+  showi : String -> Mu Tree -> String
+  showi pad t = unlines (let (hd ::: tl) = go 0 pad t [] in (pad ++ hd) :: tl) where
+
+    go : Nat -> String -> Mu Tree -> List String -> List1 String
+    go closings pad ("Leaf" # _) acc = ("leaf" ++ replicate closings ')') ::: acc
+    go closings pad ("Node" # ("Leaf" # _) # b # ("Leaf" # _)) acc
+      = (unwords ("(node" :: "leaf" :: show b :: "leaf" :: []) ++ replicate (S closings) ')') ::: acc
+    go closings pad ("Node" # l # b # r) acc
+      = let pad = "      " ++ pad in
+        let hd₁ ::: tl₁ = go (S closings) pad r acc in
+        let byte = pad ++ show b in
+        let hd₂ ::: tl₂ = go 0 pad l $ byte :: (pad ++ hd₁) :: tl₁ in
+        ("(node " ++ hd₂) ::: tl₂
+
+  export
+  show : Mu Tree -> String
+  show = showi ""

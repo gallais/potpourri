@@ -13,7 +13,7 @@ authors = "gallais"
 -- langversion
 
 -- packages to add to search path
--- depends =
+depends = contrib -- only for Alice.idr
 
 -- modules to install
 modules = Data.Singleton
