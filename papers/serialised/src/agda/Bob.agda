@@ -22,7 +22,7 @@ open import System.Console.ANSI
 
 main : Main
 main = run do
-  putStrLn (withCommand (setWeight bold) "Hello I am Agda!")
+  putStrLn (withCommand (setWeight bold) "Hello I am Bob, written in Agda!")
 
   -- Get the filename in which to read the tree
   (fp ∷ _) ← getArgs

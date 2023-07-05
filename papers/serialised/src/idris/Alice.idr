@@ -13,7 +13,7 @@ import Control.ANSI
 randomTree : Nat -> IO ATree
 randomTree Z = pure leaf
 randomTree (S n)
-  = do False <- (0 ==) <$> randomRIO (the Int32 0, 10)
+  = do False <- (0 ==) <$> randomRIO (the Int32 0, 6)
          | _ => pure leaf
        l <- randomTree n
        b <- cast <$> randomRIO (the Int32 0, 255)
@@ -22,14 +22,14 @@ randomTree (S n)
 
 main : IO ()
 main = do
-  printLn (bolden "Hello I am Idris!")
+  printLn (bolden "Hello I am Alice, written in Idris!")
 
   -- Get the filename in which to store the tree
   (_ :: fp :: _) <- getArgs
     | _ => die "Expected a file name as an argument"
 
   -- Generate a random tree and get a pointer for it
-  tree <- randomTree 2
+  tree <- randomTree 3
 
   putStrLn "I just generated the following random tree:"
   putStr (Tree.show tree)
