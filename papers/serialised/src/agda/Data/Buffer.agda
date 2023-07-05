@@ -25,7 +25,7 @@ open import Data.Buffer.Primitive as Prim public
 -- Operations
 
 slice : Int64 → Int64 → Buffer → Buffer
-slice start end buf = take (end - start) (drop start buf)
+slice start chunk buf = take chunk (drop start buf)
 
 getWordN : (n : ℕ) → Buffer → Int64 → ℕ
 getWordN n buf idx

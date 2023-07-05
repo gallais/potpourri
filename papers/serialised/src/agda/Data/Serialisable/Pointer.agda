@@ -287,3 +287,8 @@ module Tree where
   right t with view t
   ... | leaf , _ = ⦇ nothing ⦈
   ... | node , l , b , r = ⦇ right r <∣> ⦇ just b ⦈ ⦈
+
+  leftBranch : ∀ {@0 t} → μ Tree ∋ t → μ Tree ∋ Data.Tree.leftBranch t
+  leftBranch t with view t
+  ... | leaf , _ = t
+  ... | node , l , _ , _ = l

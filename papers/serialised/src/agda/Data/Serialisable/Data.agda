@@ -142,3 +142,7 @@ module Tree where
   right (leaf , _) = nothing
   right (node , l , b , r)
     = right r <∣> just b
+
+  leftBranch : μ Tree → μ Tree
+  leftBranch t@(leaf , _) = t
+  leftBranch (node , l , _ , _) = l

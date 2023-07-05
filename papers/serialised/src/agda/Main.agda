@@ -38,6 +38,14 @@ fromFile fp = do
             ++ " / "
             ++ mshow (ℕ.show ∘ Word8.toℕ) (getSingleton (Pointer.Tree.right ptr)))
 
+  let fp = fp ++ "-left"
+  writeToFile fp (Pointer.Tree.leftBranch ptr)
+  _ , ptr ← initFromFile Tree fp
+  putStrLn ("Left branch (pure / pointer):\n"
+           ++ Tree.showi "  " (leftBranch t)
+           ++ "\n"
+           ++ Tree.showi "  " (getSingleton $ deserialise ptr))
+
   where
 
     mshow : ∀ {a} {A : Set a} (s : A → String) → Maybe A → String
