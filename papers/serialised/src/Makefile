@@ -1,16 +1,32 @@
 AGDAEXECNAME=Bob
 IDRISEXECNAME=Alice
 
-COMMFILE=commfile
+COMMFILE1=commfile1
+COMMFILE2=commfile2
 
-all:
-	@ cd idris && idris2 -p contrib -c ${IDRISEXECNAME}.idr -o ${IDRISEXECNAME}
-	@ cd agda && agda-2.6.4 -c ${AGDAEXECNAME}.agda
-
-	@ echo "\n\n\nBuilds successful\n"
-	@ ./idris/build/exec/${IDRISEXECNAME} ${COMMFILE}
+all: idris/build/exec/${IDRISEXECNAME} agda/${AGDAEXECNAME}
+	@ ./idris/build/exec/${IDRISEXECNAME} generate ${COMMFILE1}
 	@ echo "\n\e[1mHello I am hexdump!\e[0m"
-	@ echo "Here is the content of ${COMMFILE}:"
-	@ hexdump -C ${COMMFILE}
+	@ echo "Here is the content of the file ${COMMFILE1}:"
+	@ hexdump -C ${COMMFILE1}
 	@ echo ""
-	@ ./agda/${AGDAEXECNAME} commfile
+	@ ./agda/${AGDAEXECNAME} ${COMMFILE1} ${COMMFILE2}
+	@ echo "\n\e[1mHello I am hexdump!\e[0m"
+	@ echo "Here is the content of the file ${COMMFILE2}:"
+	@ hexdump -C ${COMMFILE2}
+	@ echo ""
+	@ ./idris/build/exec/${IDRISEXECNAME} load ${COMMFILE2}
+
+idris/build/exec/${IDRISEXECNAME}: idris/${IDRISEXECNAME}.idr
+	@ echo "Compiling ${IDRISEXECNAME}"
+	@ cd idris && idris2 -p contrib -c ${IDRISEXECNAME}.idr -o ${IDRISEXECNAME}
+
+agda/${AGDAEXECNAME}: agda/${AGDAEXECNAME}.agda
+	@ echo "Compiling ${AGDAEXECNAME}"
+	@ cd agda && agda-2.6.4 -v0 -c ${AGDAEXECNAME}.agda
+
+clean:
+	@ echo "Removing interface files and executables"
+	@ find agda/ -name "*.agdai" | xargs rm -f
+	@ rm -f agda/${AGDAEXECNAME}
+	@ rm -rf idris/build

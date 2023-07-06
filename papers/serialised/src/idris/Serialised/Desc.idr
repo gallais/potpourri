@@ -355,6 +355,7 @@ namespace Tree
           (node leaf 23
             (node leaf 78 leaf)))))
 
+  export
   showi : String -> Mu Tree -> String
   showi pad t = unlines (let (hd ::: tl) = go 0 pad t [] in (pad ++ hd) :: tl) where
 

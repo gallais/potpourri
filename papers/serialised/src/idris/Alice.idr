@@ -1,5 +1,10 @@
 module Alice
 
+import Data.DPair
+import Data.List
+import Data.Singleton
+import Data.Vect
+
 import Serialised.Desc
 import SaferIndexed
 
@@ -10,30 +15,51 @@ import Control.ANSI
 
 %default total
 
-randomTree : Nat -> IO ATree
-randomTree Z = pure leaf
-randomTree (S n)
-  = do False <- (0 ==) <$> randomRIO (the Int32 0, 6)
+randomTree : Bool -> Nat -> IO ATree
+randomTree b Z = pure leaf
+randomTree b (S n)
+  = do False <- (b &&) . (0 ==) <$> randomRIO (the Int32 0, 6)
          | _ => pure leaf
-       l <- randomTree n
+       l <- randomTree True n
        b <- cast <$> randomRIO (the Int32 0, 255)
-       r <- randomTree n
+       r <- randomTree True n
        pure (node l b r)
+
+data Options : Type where
+  Generate : (filename : String) -> Options
+  Load     : (filename : String) -> Options
+
+help : String
+help = "Usage: Alice [generate|load] FILE"
+
+options : List String -> Maybe Options
+options ["generate", fp] = pure (Generate fp)
+options ["load", fp] = pure (Load fp)
+options _ = Nothing
 
 main : IO ()
 main = do
   printLn (bolden "Hello I am Alice, written in Idris!")
 
   -- Get the filename in which to store the tree
-  (_ :: fp :: _) <- getArgs
-    | _ => die "Expected a file name as an argument"
+  Just opts <- (options <=< tail') <$> getArgs
+    | Nothing => die help
 
-  -- Generate a random tree and get a pointer for it
-  tree <- randomTree 3
+  case opts of
 
-  putStrLn "I just generated the following random tree:"
-  putStr (Tree.show tree)
+    Generate fp => do
+      -- Generate a random tree and get a pointer for it
+      tree <- randomTree False 3
 
-  putStrLn "And I am now writing it in file \{fp}"
-  tree <- execSerialising (serialise tree)
-  writeToFile fp tree
+      putStrLn "I just generated the following random tree:"
+      putStr (Tree.showi "  " tree)
+
+      putStrLn "And I am now writing it in file \{fp}."
+      tree <- execSerialising (serialise tree)
+      writeToFile fp tree
+
+    Load fp => do
+      Evidence _ tree <- initFromFile Tree fp
+      putStrLn "I just read the following tree from file \{fp}:"
+      tree <- deserialise tree
+      putStrLn (Tree.showi "  " (getSingleton tree))

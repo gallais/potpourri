@@ -629,6 +629,7 @@ namespace Data
 ||| initFromFile creates a pointer to a datastructure stored in a file
 ||| @ cs   is the datatype you want to use to decode the buffer's content
 ||| @ safe signals whether to check the file's header matches the declared datatype
+export
 initFromFile : {default True safe : Bool} ->  (cs : Data nm) -> String -> IO (Exists (Pointer.Mu cs))
 initFromFile cs fp
   = do Right buf <- createBufferFromFile fp
