@@ -1,11 +1,7 @@
-module Serialised.Desc
-
-import Control.Monad.State
+module Data.Serialisable.Desc
 
 import Data.Buffer
-import Data.List1
 import Data.Fin
-import Data.String
 import Data.Vect
 
 import Decidable.Equality
@@ -133,45 +129,10 @@ export
 eqData : Data a -> Data b -> Bool
 eqData (MkData cs) (MkData cs') = eqConstructors cs cs'
 
-------------------------------------------------------------------------
--- Serialisation of descriptions to a Buffer
-
 parameters (buf : Buffer)
 
-  ||| Set a description in a buffer
-  ||| @ start position in the buffer to set the description at
-  ||| @ d     description to serialise
-  ||| Returns the end position
-  setDesc : (start : Int) -> (d : Desc r s o) -> IO Int
-  setDesc start None = (start + 1) <$ setBits8 buf start 0
-  setDesc start Byte = (start + 1) <$ setBits8 buf start 1
-  setDesc start (Prod d e)
-    = do setBits8 buf start 2
-         afterLeft <- setDesc (start + 1) d
-         setDesc afterLeft e
-  setDesc start Rec = (start + 1) <$ setBits8 buf start 3
-
-  ||| Set a list of constructors one after the other in a buffer
-  ||| @ start position in the buffer to set the constructors at
-  ||| @ cs    list of constructors to serialise
-  ||| Returns the end position
-  setConstructors : (start : Int) -> (cs : Vect n (Constructor _)) -> IO Int
-  setConstructors start [] = pure start
-  setConstructors start ((_ :: d) :: cs)
-    = do afterC <- setDesc start d
-         setConstructors afterC cs
-
-  ||| Set data description in a buffer
-  ||| @ start position in the buffer to set the data description at
-  ||| @ cs    data description to serialise
-  ||| Returns the end position
-  export
-  setData : (start : Int) -> (cs : Data nm) -> IO Int
-  setData start (MkData {consNumber} cs) = do
-    -- We first store the length of the list so that we know how
-    -- many constructors to deserialise on the way out
-    setBits8 buf start (cast consNumber)
-    setConstructors (start + 1) cs
+------------------------------------------------------------------------
+-- Reading descriptions from a Buffer
 
   ||| Existential wrapper to deserialise descriptions
   ||| @ rightmost is known statically but the others indices are not
@@ -219,157 +180,40 @@ parameters (buf : Buffer)
        | Nothing => failWith "Invalid header"
     MkData <$> getConstructors (start + 1) n
 
-
 ------------------------------------------------------------------------
--- Meaning of descriptions as functors
+-- Serialisation of descriptions to a Buffer
 
-namespace Data
+  ||| Set a description in a buffer
+  ||| @ start position in the buffer to set the description at
+  ||| @ d     description to serialise
+  ||| Returns the end position
+  setDesc : (start : Int) -> (d : Desc r s o) -> IO Int
+  setDesc start None = (start + 1) <$ setBits8 buf start 0
+  setDesc start Byte = (start + 1) <$ setBits8 buf start 1
+  setDesc start (Prod d e)
+    = do setBits8 buf start 2
+         afterLeft <- setDesc (start + 1) d
+         setDesc afterLeft e
+  setDesc start Rec = (start + 1) <$ setBits8 buf start 3
 
-  ||| Meaning where subterms are interpreted using the parameter
-  public export
-  Meaning : Desc r s o -> Type -> Type
-  Meaning None x = ()
-  Meaning Byte x = Bits8
-  Meaning (Prod d e) x = (Meaning d x * Meaning e x)
-  Meaning Rec x = x
+  ||| Set a list of constructors one after the other in a buffer
+  ||| @ start position in the buffer to set the constructors at
+  ||| @ cs    list of constructors to serialise
+  ||| Returns the end position
+  setConstructors : (start : Int) -> (cs : Vect n (Constructor _)) -> IO Int
+  setConstructors start [] = pure start
+  setConstructors start ((_ :: d) :: cs)
+    = do afterC <- setDesc start d
+         setConstructors afterC cs
 
-  public export
-  Meaning' : Desc r s o -> Type -> Type -> Type
-  Meaning' None x r = r
-  Meaning' Byte x r = Bits8 -> r
-  Meaning' (Prod d e) x r = Meaning' d x (Meaning' e x r)
-  Meaning' Rec x r = x -> r
-
-  public export
-  curry : (d : Desc r s o) -> (Meaning d x -> a) -> Meaning' d x a
-  curry None k = k ()
-  curry Byte k = k
-  curry (Prod d e) k = curry d (curry e . curry k)
-  curry Rec k = k
-
-  public export
-  fmap : (d : Desc{}) -> (a -> b) -> Meaning d a -> Meaning d b
-  fmap None f v = v
-  fmap Byte f v = v
-  fmap (Prod d e) f (v # w) = (fmap d f v # fmap e f w)
-  fmap Rec f v = f v
-
+  ||| Set data description in a buffer
+  ||| @ start position in the buffer to set the data description at
+  ||| @ cs    data description to serialise
+  ||| Returns the end position
   export
-  fmapId : (d : Desc{}) -> (f : a -> a) -> ((x : a) -> f x === x) ->
-           (t : Meaning d a) -> fmap d f t === t
-  fmapId None f eq t = Refl
-  fmapId Byte f eq t = Refl
-  fmapId (Prod d e) f eq (t # u) = cong2 (#) (fmapId d f eq t) (fmapId e f eq u)
-  fmapId Rec f eq t = eq t
-
-  public export
-  traverse : Monad m => (d : Desc{}) ->
-             (a -> m b) -> Meaning d a -> m (Meaning d b)
-  traverse None f v = pure v
-  traverse Byte f v = pure v
-  traverse (Prod d e) f (v # w) = [| traverse d f v # traverse e f w |]
-  traverse Rec f v = f v
-
-------------------------------------------------------------------------
--- Meaning of data descriptions as fixpoints
-
-  public export
-  Alg : Data nm -> Type -> Type
-  Alg cs x = (k : Index cs) -> Meaning (description k) x -> x
-
-  ||| Fixpoint of the description:
-  ||| 1. pick a constructor
-  ||| 2. give its meaning where subterms are entire subtrees
-  public export
-  data Mu : Data nm -> Type where
-    (#) : Alg cs (assert_total (Mu cs))
-
-  ||| Curried version of the constructor; more convenient to use
-  ||| when writing examples
-  public export
-  mkMu : (cs : Data nm) -> (k : Index cs) ->
-         Meaning' (description k) (Mu cs) (Mu cs)
-  mkMu cs k = curry (description k) (Data.(#) k)
-
-  ||| Fixpoints are initial algebras
-  public export
-  fold : {cs : Data nm} -> Alg cs a -> Mu cs -> a
-  fold alg (k # t) = alg k (assert_total $ fmap _ (fold alg) t)
-
-------------------------------------------------------------------------
--- Examples
-
-namespace Tree
-
-  public export %inline
-  Tree : Data String
-  Tree = MkData
-    [ "Leaf" :: None
-    , "Node" :: Prod Rec (Prod Byte Rec)
-    ]
-
-  public export
-  ATree : Type
-  ATree = Data.Mu Tree
-
-  public export
-  leaf : ATree
-  leaf = mkMu Tree "Leaf"
-
-  public export
-  node : ATree -> Bits8 -> ATree -> ATree
-  node = mkMu Tree "Node"
-
-  export
-  full : (n : Nat) -> ATree
-  full = evalState 0 . go where
-
-    tick : State Nat Bits8
-    tick = do
-      n <- get
-      put (S n)
-      pure (cast n)
-
-    go : (n : Nat) -> State Nat ATree
-    go 0 = pure leaf
-    go (S k) = node <$> go k <*> tick <*> go k
-
-  public export
-  example : ATree
-  example =
-    (node
-      (node (node leaf 1 leaf) 5 leaf)
-      10
-      (node leaf 20 leaf))
-
-  public export
-  bigexample : ATree
-  bigexample =
-    (node
-      (node (node leaf 1 leaf) 5 leaf)
-      10
-      (node leaf 20
-        (node
-          (node leaf 56 (node leaf 5 leaf))
-          17
-          (node leaf 23
-            (node leaf 78 leaf)))))
-
-  export
-  showi : String -> Mu Tree -> String
-  showi pad t = unlines (let (hd ::: tl) = go 0 pad t [] in (pad ++ hd) :: tl) where
-
-    go : Nat -> String -> Mu Tree -> List String -> List1 String
-    go closings pad ("Leaf" # _) acc = ("leaf" ++ replicate closings ')') ::: acc
-    go closings pad ("Node" # ("Leaf" # _) # b # ("Leaf" # _)) acc
-      = (unwords ("(node" :: "leaf" :: show b :: "leaf" :: []) ++ replicate (S closings) ')') ::: acc
-    go closings pad ("Node" # l # b # r) acc
-      = let pad = "      " ++ pad in
-        let hd₁ ::: tl₁ = go (S closings) pad r acc in
-        let byte = pad ++ show b in
-        let hd₂ ::: tl₂ = go 0 pad l $ byte :: (pad ++ hd₁) :: tl₁ in
-        ("(node " ++ hd₂) ::: tl₂
-
-  export
-  show : Mu Tree -> String
-  show = showi ""
+  setData : (start : Int) -> (cs : Data nm) -> IO Int
+  setData start (MkData {consNumber} cs) = do
+    -- We first store the length of the list so that we know how
+    -- many constructors to deserialise on the way out
+    setBits8 buf start (cast consNumber)
+    setConstructors (start + 1) cs

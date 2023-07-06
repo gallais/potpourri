@@ -1,4 +1,4 @@
-module Serialised.BiggerDesc
+module Data.Serialisable.Bigger.Desc
 
 import Data.Buffer
 import Data.Fin
