@@ -18,7 +18,10 @@ A real library would need to adopt a more robust approach
 akin to the one used in the implementation of \idris{}'s own serialisation
 code: whenever we are about to write a byte to the buffer, we make sure there
 is either enough space left or we grow it.
-
+%
+Note that our Agda port does not suffer from this limitation as it
+can rely on Haskell's {\usestt\texttt{bytestring}} library and use its
+{\usestt\texttt{Builder}} type.
 
 In our library, the data types descriptions currently need to be defined
 as values in the host language.
