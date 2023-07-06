@@ -107,10 +107,10 @@ module Data where
           n = sum r
       in m + Word8.toℕ b + n
 
-  right : μ Tree → Maybe Word8
-  right (leaf , _) = nothing
-  right (node , l , b , r)
-    = right r <∣> just b
+  rightmost : μ Tree → Maybe Word8
+  rightmost (leaf , _) = nothing
+  rightmost (node , l , b , r)
+    = rightmost r <∣> just b
 
   leftBranch : μ Tree → μ Tree
   leftBranch t@(leaf , _) = t
@@ -131,10 +131,10 @@ module Pointer where
           n = sum r
       in ⦇ ⦇ m + ⦇ Word8.toℕ b ⦈ ⦈ + n ⦈
 
-  right : ∀ {@0 t} → μ Tree ∋ t → Singleton (Data.right t)
-  right t with view t
+  rightmost : ∀ {@0 t} → μ Tree ∋ t → Singleton (Data.rightmost t)
+  rightmost t with view t
   ... | leaf , _ = ⦇ nothing ⦈
-  ... | node , l , b , r = ⦇ right r <∣> ⦇ just b ⦈ ⦈
+  ... | node , l , b , r = ⦇ rightmost r <∣> ⦇ just b ⦈ ⦈
 
   leftBranch : ∀ {@0 t} → μ Tree ∋ t → μ Tree ∋ Data.leftBranch t
   leftBranch t with view t

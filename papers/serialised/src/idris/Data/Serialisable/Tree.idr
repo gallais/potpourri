@@ -118,9 +118,20 @@ namespace Data
       in (m + cast b + n)
 
   public export
-  right : Data.Mu Tree -> Data.Mu Tree
-  right ("Node" # _ # _ # r) = r
-  right t = t
+  leftBranch : Data.Mu Tree -> Data.Mu Tree
+  leftBranch ("Node" # l # _ # _) = l
+  leftBranch t = t
+
+  public export
+  rightBranch : Data.Mu Tree -> Data.Mu Tree
+  rightBranch ("Node" # _ # _ # r) = r
+  rightBranch t = t
+
+  public export
+  rightmost : ATree -> Maybe Bits8
+  rightmost t = case t of
+    "Leaf" # _ => Nothing
+    "Node" # l # b # r => Just (fromMaybe b (rightmost r))
 
   public export
   swap : Data.Mu Tree -> Data.Mu Tree
@@ -157,10 +168,22 @@ namespace Pointer
          pure [| [| m + [| cast b |] |] + n |]
 
   export
-  right : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.right t))
-  right ptr = case !(view ptr) of
+  leftBranch : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.leftBranch t))
+  leftBranch ptr = case !(view ptr) of
+    "Leaf" # _ => pure ptr
+    "Node" # l # b # r => pure l
+
+  export
+  rightBranch : Pointer.Mu Tree t -> IO (Pointer.Mu Tree (Data.rightBranch t))
+  rightBranch ptr = case !(view ptr) of
     "Leaf" # _ => pure ptr
     "Node" # l # b # r => pure r
+
+  export
+  rightmost : Pointer.Mu Tree t -> IO (Singleton (rightmost t))
+  rightmost t = case !(view t) of
+    "Leaf" # el => pure [| Nothing |]
+    "Node" # _ # b # r => map ((Just <$>) . (fromMaybe . delay <$> b <*>)) (rightmost r)
 
   export
   swap : Pointer.Mu Tree t -> Serialising Tree (Data.swap t)

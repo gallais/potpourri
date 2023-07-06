@@ -2,8 +2,10 @@ module Timing
 
 import Data.List
 import Data.Singleton
-import Serialised.Desc
-import SaferIndexed
+import Data.Serialisable.Desc
+import Data.Serialisable.Data
+import Data.Serialisable.Pointer
+import Data.Serialisable.Tree
 
 import System.GC
 import System.Clock

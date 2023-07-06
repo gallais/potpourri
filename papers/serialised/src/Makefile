@@ -28,5 +28,7 @@ agda/${AGDAEXECNAME}: agda/${AGDAEXECNAME}.agda
 clean:
 	@ echo "Removing interface files and executables"
 	@ find agda/ -name "*.agdai" | xargs rm -f
+	@ rm -rf agda/MAlonzo
 	@ rm -f agda/${AGDAEXECNAME}
 	@ rm -rf idris/build
+	@ rm -f commfile*

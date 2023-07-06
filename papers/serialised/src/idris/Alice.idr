@@ -61,7 +61,9 @@ main = do
       writeToFile fp tree
 
     Load fp => do
-      Evidence _ tree <- initFromFile Tree fp
+      Evidence _ ptr <- initFromFile Tree fp
       putStrLn "I just read the following tree from file \{fp}:"
-      tree <- deserialise tree
-      putStrLn (Tree.showi "  " (getSingleton tree))
+      tree <- deserialise ptr
+      putStr (Tree.showi "  " (getSingleton tree))
+      w <- rightmost ptr
+      putStrLn "Its rightmost node's value is: \{show w}."

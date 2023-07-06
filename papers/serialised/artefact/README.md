@@ -1,7 +1,15 @@
 # Seamless, Correct, and Generic Programming over Serialised Data
 
-This is the code accompanying the paper. It contains two versions of
-the library: the original written in Idris, and its port to Agda.
+This archive contains
+
+1. the [appendices](popl-appendices.pdf)
+2. the code
+
+accompanying the draft paper titled
+'Seamless, Correct, and Generic Programming over Serialised Data'.
+
+The code comprises two versions of the library: the original one
+written in Idris, and its port to Agda.
 
 ## Dependencies
 
@@ -39,3 +47,60 @@ This prove that the library allows us to:
 and demonstrates that this setup allows us to easily exchange values
 between independent programs irrespective of their implementation
 language.
+
+## Structure of the artefact
+
+The important results are implemented in both Idris and Agda, while
+the ones that are only needed for pedagogical purposes in the paper
+(e.g. the more contrived --but seen as safe by the compiler--
+implementation of `fold`) do not appear in Agda.
+
+### Common modules
+
+The core modules are:
+
+1. `Data.Singleton` for the definition of the singleton family and
+the combinators that the idiom bracket notation desugars to.
+
+2. `Data.Serialisable.Desc` for the universe of description and the
+encoding of the universe codes as binary data.
+
+3. `Data.Serialisable.Data` for the meaning of these codes as strictly
+positive functors, and their fixpoints as inductive types. It also
+contains useful functions such as `fold`, `show`, and the generic
+`All` predicate lifting.
+
+4. `Data.Serialisable.Pointer` defines alternative meanings as pointers
+into buffers and provides the necessary code to (inspect / construct) a
+buffer in a correct-by-construction manner.
+
+5. `Data.Serialisable.Tree` defines the inductive type `Tree`
+that we use as a running example in the paper. It includes both
+pure and correct-by-construction buffer-based versions of `sum`,
+`rightmost`, `leftBranch`, `swap`, and `map`.
+
+### Other modules
+
+1. [`Lib`](src/idris/Lib.idr) contains some basic definitions needed
+by the Idris 2 implementation.
+
+2. [`SafeFolds`](src/idris/Data/Serialisable/SafeFolds.idr) contains
+the implementation of `fold` that are seen as obviously structurally
+recursive by Idris thanks to (manual) supercompilation.
+
+3. [`Timing`](src/idris/Timing.idr) is the module we used to generate
+the measurements shown in the paper.
+It uses [`System.GC`](src/idris/System/GC.idr) to try to minimise the
+Garbage Collector's impact on the timings.
+
+4. [`Alice`](src/idris/Alice.idr) and [`Bob`](src/agda/Bob.idr) are the
+two programs talking to each other via files containing binary data in
+the example ran by the Makefile.
+
+5. [`Data.Word8`](src/agda/Data/Word8.agda)
+, [`Data.Int64`](src/agda/Data/Int64.agda)
+, [`Data.Buffer`](src/agda/Data/Buffer.agda)
+, [`Data.Buffer.IO`](src/agda/Data/Buffer/IO.agda)
+, [`Data.Buffer.Builder`](src/agda/Data/Buffer/Builder.agda)
+are Agda modules binding Haskell types and functions using the
+Foreign Function Interface.

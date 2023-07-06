@@ -4,11 +4,16 @@ module Bob where
 
 open import Data.Default
 open import Data.List.Base using ([]; _∷_)
+open import Data.Maybe.Base using (nothing; just)
+import Data.Nat.Show as ℕ
 open import Data.Singleton using (getSingleton)
 open import Data.String.Base using (_++_)
+import Data.Word8 as Word8
 
 open import IO.Base
 open import IO.Finite
+
+open import Function.Base using (_$′_; case_of_)
 
 open import System.Environment
 open import System.Exit
@@ -35,6 +40,10 @@ main = run do
 
   putStrLn ("I just read the following tree from file " ++ fp₁ ++ ":")
   putStrLn (showi "  " (getSingleton tree))
+
+  case getSingleton $′ Pointer.rightmost ptr of λ where
+    nothing  → putStrLn "It does not have a rightmost node. :("
+    (just w) → putStrLn ("Its rightmost node's value is: " ++ ℕ.show (Word8.toℕ w) ++ ".")
 
   writeToFile fp₂ (Pointer.leftBranch ptr)
   putStrLn ("I just serialised the tree's left branch into file " ++ fp₂ ++ ".")
