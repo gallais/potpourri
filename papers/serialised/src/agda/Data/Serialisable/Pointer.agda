@@ -206,43 +206,43 @@ abstract
 
   record Serialising {@0 nm} (@0 cs : Data nm) (@0 t : μ cs) : Set₁ where
     constructor mkSerialising
-    field runSerialising : (start : ℕ) → ℕ × Builder
+    field runSerialising : ℕ × Builder
   open Serialising
 
   goMeaning :
-    ∀ {r} {@0 s o nm} (start : ℕ) (d : Desc r s o) {@0 cs : Data nm} →
+    ∀ {r} {@0 s o nm} (d : Desc r s o) {@0 cs : Data nm} →
     {@0 t : ⟦ d ⟧ (μ cs)} →
     All d (λ t → Serialising cs t) (λ w → Singleton w) t →
     (ℕ × Builder × Vec ℕ o)
-  goMeaning start none vs = (start , empty , [])
-  goMeaning start byte vs = (suc start , word8 (getSingleton $ lower vs) , [])
-  goMeaning start (prod d e) (vs , ws)
-    = let (middle , builder₁ , offs₁) = goMeaning start d vs in
-      let (end    , builder₂ , offs₂) = goMeaning middle e ws in
-      end , builder₁ <> builder₂ , offs₁ ++ offs₂
-  goMeaning {r} start rec vs with (end , builder) ← runSerialising (lower vs) start | r
-  ... | true = end , builder , []
-  ... | false = end , builder , end ∸ start ∷ []
+  goMeaning none vs = (0 , empty , [])
+  goMeaning byte vs = (1 , word8 (getSingleton $ lower vs) , [])
+  goMeaning (prod d e) (vs , ws)
+    = let (size₁ , builder₁ , offs₁) = goMeaning d vs in
+      let (size₂ , builder₂ , offs₂) = goMeaning e ws in
+      size₁ + size₂ , builder₁ <> builder₂ , offs₁ ++ offs₂
+  goMeaning {r} rec vs with (size , builder) ← runSerialising (lower vs) | r
+  ... | true = size , builder , []
+  ... | false = size , builder , size ∷ []
 
-  goMu : ∀ {@0 nm} {cs : Data nm} (start : ℕ) →
+  goMu : ∀ {@0 nm} {cs : Data nm} →
          (idx : Index cs) (c : Constructor nm) →
          {@0 t : ⟦ Constructor.description c ⟧ (μ cs)} →
          All (Constructor.description c) (λ t → Serialising cs t) (λ w → Singleton w) t →
          ℕ × Builder
-  goMu start idx c vs
-    = let builder₁   = word8 (Word8.fromℕ (Fin.toℕ (getIndex idx))) in
-      let afterTag   = suc start in
-      let afterOffs  = afterTag + 8 * Constructor.offsets c in
-      let (end , builder₃ , is) = goMeaning afterOffs (Constructor.description c) vs in
-      end , builder₁ <> Vec.foldr′ (λ i → int64LE (Int64.fromℕ i) <>_) empty is <> builder₃
+  goMu idx c vs
+    = let size₁      = 1 in
+      let builder₁   = word8 (Word8.fromℕ (Fin.toℕ (getIndex idx))) in
+      let size₂      = 8 * Constructor.offsets c in
+      let (size₃ , builder₃ , is) = goMeaning (Constructor.description c) vs in
+      let builder₂   = Vec.foldr′ (λ i → int64LE (Int64.fromℕ i) <>_) empty is in
+      size₁ + size₂ + size₃ , builder₁ <> builder₂ <> builder₃
 
   _#_ : ∀ {@0 nm} {cs : Data nm} (k : Index cs) →
         {@0 t : ⟦ description k ⟧ (μ cs)} ->
         All (description k) (λ t → Serialising cs t) (λ w → Singleton w) t →
         Serialising cs (k , t)
   _#_ {cs = cs} k layer
-    = mkSerialising $ λ start →
-        goMu start k (Vec.lookup (constructors cs) (getIndex k)) layer
+    = mkSerialising $ goMu k (Vec.lookup (constructors cs) (getIndex k)) layer
 
   {-# TERMINATING #-}
   serialise : ∀ {@0 nm} {cs : Data nm} (t : μ cs) → Serialising cs t
@@ -251,11 +251,10 @@ abstract
   execSerialising : ∀ {@0 nm} {cs : Data nm} {@0 t : μ cs} →
                     Serialising cs t → μ cs ∋ t
   execSerialising {cs = cs} ser
-    = let (middle , builder₁) = setData 8 cs in
-      let (end , builder₂) = runSerialising ser middle in
-      let builder = int64LE (Int64.fromℕ (middle ∸ 8)) <> builder₁ <> builder₂ in
-      mkMu (toBuffer builder) (Int64.fromℕ middle) (end ∸ middle)
-
+    = let (size₁ , builder₁) = setData 8 cs in
+      let (size₂ , builder₂) = runSerialising ser in
+      let builder = int64LE (Int64.fromℕ size₁) <> builder₁ <> builder₂ in
+      mkMu (toBuffer builder) (8 Int64.+ Int64.fromℕ size₁) size₂
 
   writeToFile : ∀ {@0 nm} {cs : Data nm} → String →
                 ∀ {@0 t} → μ cs ∋ t → IO ⊤
