@@ -66,4 +66,6 @@ main = do
       tree <- deserialise ptr
       putStr (Tree.showi "  " (getSingleton tree))
       w <- rightmost ptr
-      putStrLn "Its rightmost node's value is: \{show w}."
+      putStrLn $ case getSingleton w of
+        Nothing => "It does not have a rightmost node"
+        Just w => "Its rightmost node's value is: \{show w}."
