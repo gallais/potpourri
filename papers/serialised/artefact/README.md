@@ -32,11 +32,11 @@ By calling it using `cd src/ && make` you will:
 
 2. run a small bash script that will
 
-   i.   call `Alice` to generate a random tree and serialise it into a file
-   ii.  call `hexdump` to print the binary content of the file
-   iii. call `Bob` to load the file as a tree, print the tree, take its left branch, and writes the result in a second file
-   iv.  call `hexdump` to inspect that second file's content too
-   v.   call `Alice` to deserialise the content of the second file and print the tree
+   1. call `Alice` to generate a random tree and serialise it into a file
+   2. call `hexdump` to print the binary content of the file
+   3. call `Bob` to load the file as a tree, print the tree, take its left branch, and writes the result in a second file
+   4. call `hexdump` to inspect that second file's content too
+   5. call `Alice` to deserialise the content of the second file and print the tree
 
 This prove that the library allows us to:
 1. serialise trees and write them to a file
