@@ -144,13 +144,13 @@ pure and correct-by-construction buffer-based versions of `sum`,
 by the Idris 2 implementation.
 
 2. [`SafeFolds`](src/idris/Data/Serialisable/SafeFolds.idr) contains
-the implementation of `fold` that are seen as obviously structurally
+the implementations of `fold` that are seen as obviously structurally
 recursive by Idris thanks to (manual) supercompilation.
 
 3. [`Timing`](src/idris/Timing.idr) is the module we used to generate
 the measurements shown in the paper.
 It uses [`System.GC`](src/idris/System/GC.idr) to try to minimise the
-Garbage Collector's impact on the timings.
+impact of chezscheme's Garbage Collector on the timings.
 
 4. [`Alice`](src/idris/Alice.idr) and [`Bob`](src/agda/Bob.idr) are the
 two programs talking to each other via files containing binary data in
