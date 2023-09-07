@@ -128,7 +128,7 @@ export
 DecEq (Index cs) where
   decEq (MkIndex k) (MkIndex l) with (decEq k l)
     decEq (MkIndex k) (MkIndex .(k)) | Yes Refl = Yes Refl
-    decEq (MkIndex k) (MkIndex l) | No notEq = No (notEq . cong getIndex)
+    decEq (MkIndex k) (MkIndex l) | No notEq = No (\ eq => notEq (cong getIndex eq))
 
 ------------------------------------------------------------------------
 -- Show instances

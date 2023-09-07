@@ -53,3 +53,4 @@ artefact/src/%: src/%
 clean:
 	rm -rf artefact/src
 	rm -f artefact/*.pdf
+	rm -f popl-appendices.tar.gz
