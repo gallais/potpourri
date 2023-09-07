@@ -1,3 +1,0 @@
-name: linear
-depend: standard-library
-include: .
