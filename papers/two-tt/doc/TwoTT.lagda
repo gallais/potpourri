@@ -293,8 +293,8 @@ Static : Type static → Context → Set
 %<*model>
 \begin{code}
 Value : (st : Stage) → Type st → Context → Set
-Value static  A Γ = Static A Γ
-Value dynamic A Γ = Staged dynamic A Γ
+Value static   = Static
+Value dynamic  = Staged dynamic
 \end{code}
 %</model>
 \begin{code}
@@ -409,9 +409,13 @@ succ dynamic  = `succ
 -- Evaluation function turning source terms into values provided
 -- we have an environment assigning values to variables
 \end{code}
-%<*eval>
+%<*evaldecl>
 \begin{code}
 eval : Env Γ Δ → Source st A Γ → Value st A Δ
+\end{code}
+%</evaldecl>
+%<*eval>
+\begin{code}
 eval ρ (`var v)              = ρ .lookup v
 eval ρ (`app {st = st} f t)  = app st (eval ρ f) (eval ρ t)
 eval ρ (`lam {static} b)     = λλ[ σ ,  v ] eval (extend (weak-Env σ ρ) v) b

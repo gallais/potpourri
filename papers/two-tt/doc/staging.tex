@@ -43,14 +43,17 @@ As a corollary, we obtain a staging function which
 fully evaluates all of the static subterms and returns
 purely dynamic ones.
 
-
 \section{An Intrinsically Typed 2 Level Type Theory}
 
+Types are indexed by the stage they live in.
 
-\ExecuteMetaData[TwoTT.tex]{stage}
+\begin{minipage}[t]{.55\textwidth}
+  \ExecuteMetaData[TwoTT.tex]{types}
+\end{minipage}\hfill
+\begin{minipage}[t]{.4\textwidth}
+  \ExecuteMetaData[TwoTT.tex]{stage}
+\end{minipage}
 
-Types are indexed by the stage they live at.
-%
 We have both static and dynamic natural numbers,
 hence the unconstrained index \AB{st} for the
 constructor \AIC{`ℕ}.
@@ -59,8 +62,15 @@ The constructor \AIC{‘⇑\_} allows us to embed dynamic
 type into static ones; (\AIC{‘⇑} \AB{A}) is effectively
 the type of \emph{programs} that will compute a value of
 type \AB{A} at runtime.
-
-\ExecuteMetaData[TwoTT.tex]{types}
+%
+Function types are available in both layers provided that
+they are homogeneous: both the domain and codomain need
+to live in the same layer.
+%
+Last but not least, we have an example of the fact,
+highlighted in Kov{\'{a}}cs' original paper, that static
+datatypes do not need to have a counterpart at runtime:
+pairs are only available in the static layer.
 
 Context are left-nested lists of types.
 
@@ -72,10 +82,32 @@ Context are left-nested lists of types.
 
 \section{Staging by Evaluation}
 
+The goal of this section is to define a type of \AF{Value}s
+as well as an \AF{eval}uation function which computes the
+value associated to each term, provided that we have an
+appropriate environment to interpret the term's free variables.
+
+\ExecuteMetaData[TwoTT.tex]{evaldecl}
+
+We start with the model construction describing precisely
+what these values ought to be.
+
 \subsection{Model Construction}
+
+The type of values is defined by case analysis on the stage.
+%
+Static values are given a static meaning (defined below)
+while dynamic values are given a meaning as terms
+guaranteed not to contain any static subterm.
 
 \ExecuteMetaData[TwoTT.tex]{model}
 
+The family of static values is defined by induction on
+the value's type. It is fairly similar to the standard
+normalisation by evaluation
+construction~\cite{DBLP:conf/lics/BergerS91,DBLP:journals/mscs/CoquandD97,DBLP:journals/lisp/Coquand02}
+except that static values at a base types cannot possibly
+be neutral terms.
 
 \begin{AgdaSuppressSpace}
 \ExecuteMetaData[TwoTT.tex]{modelstadecl}
@@ -97,7 +129,10 @@ Context are left-nested lists of types.
 \ExecuteMetaData[TwoTT.tex]{succ}
 \ExecuteMetaData[TwoTT.tex]{app}
 
+\begin{AgdaSuppressSpace}
+\ExecuteMetaData[TwoTT.tex]{evaldecl}
 \ExecuteMetaData[TwoTT.tex]{eval}
+\end{AgdaSuppressSpace}
 
 
 \section{Future Work}
