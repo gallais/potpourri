@@ -1,0 +1,109 @@
+\documentclass{article}
+
+%%%% Agda code %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{agda}
+\input{unicode}
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+% do not indent code blocks
+\setlength\mathindent{0em}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\input{commands}
+
+\usepackage{hyperref}
+\usepackage[style=alphabetic]{biblatex}
+\bibliography{staging.bib}
+
+\title{Scoped and Typed Staging by Evaluation}
+\author{Guillaume Allais}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+This paper gives an intrinsically well scoped and well typed
+treatment of a simply typed version of the staged compilation
+with two-level type theory introduced by
+Kov{\'{a}}cs \cite{DBLP:journals/pacmpl/Kovacs22}.
+%
+We use Agda~\cite{DBLP:conf/afp/Norell08}
+as our implementation language and
+mobilise standard formalisation
+techniques extensively described by Allais, Chapman,
+McBride, and McKinna~\cite{DBLP:conf/cpp/Allais0MM17}.
+
+Starting from a language with a static and a dynamic layer,
+we perform a model construction and define an evaluation
+function turning terms into their semantical counterpart.
+%
+As a corollary, we obtain a staging function which
+fully evaluates all of the static subterms and returns
+purely dynamic ones.
+
+
+\section{An Intrinsically Typed 2 Level Type Theory}
+
+
+\ExecuteMetaData[TwoTT.tex]{stage}
+
+Types are indexed by the stage they live at.
+%
+We have both static and dynamic natural numbers,
+hence the unconstrained index \AB{st} for the
+constructor \AIC{`ℕ}.
+%
+The constructor \AIC{‘⇑\_} allows us to embed dynamic
+type into static ones; (\AIC{‘⇑} \AB{A}) is effectively
+the type of \emph{programs} that will compute a value of
+type \AB{A} at runtime.
+
+\ExecuteMetaData[TwoTT.tex]{types}
+
+Context are left-nested lists of types.
+
+\ExecuteMetaData[TwoTT.tex]{context}
+
+\ExecuteMetaData[TwoTT.tex]{var}
+
+\ExecuteMetaData[TwoTT.tex]{term}
+
+\section{Staging by Evaluation}
+
+\subsection{Model Construction}
+
+\ExecuteMetaData[TwoTT.tex]{model}
+
+
+\begin{AgdaSuppressSpace}
+\ExecuteMetaData[TwoTT.tex]{modelstadecl}
+\ExecuteMetaData[TwoTT.tex]{modelsta}
+\end{AgdaSuppressSpace}
+
+\ExecuteMetaData[TwoTT.tex]{thin}
+
+\ExecuteMetaData[TwoTT.tex]{kripke}
+
+\ExecuteMetaData[TwoTT.tex]{thinrefl}
+
+\ExecuteMetaData[TwoTT.tex]{kripkeapp}
+
+
+\subsection{Evaluation}
+
+\ExecuteMetaData[TwoTT.tex]{zero}
+\ExecuteMetaData[TwoTT.tex]{succ}
+\ExecuteMetaData[TwoTT.tex]{app}
+
+\ExecuteMetaData[TwoTT.tex]{eval}
+
+
+\section{Future Work}
+
+\cite{DBLP:journals/lisp/Coquand02}
+
+\printbibliography
+
+\end{document}
