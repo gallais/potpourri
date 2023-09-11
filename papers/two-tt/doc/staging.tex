@@ -9,6 +9,9 @@
 \setlength\mathindent{0em}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\usepackage{todonotes}
+\setuptodonotes{inline}
+
 \input{commands}
 
 \usepackage{hyperref}
@@ -27,7 +30,7 @@
 This paper gives an intrinsically well scoped and well typed
 treatment of a simply typed version of the staged compilation
 with two-level type theory introduced by
-Kov{\'{a}}cs \cite{DBLP:journals/pacmpl/Kovacs22}.
+Kov{\'{a}}cs~\cite{DBLP:journals/pacmpl/Kovacs22}.
 %
 We use Agda~\cite{DBLP:conf/afp/Norell08}
 as our implementation language and
@@ -36,30 +39,43 @@ techniques extensively described by Allais, Chapman,
 McBride, and McKinna~\cite{DBLP:conf/cpp/Allais0MM17}.
 
 Starting from a language with a static and a dynamic layer,
-we perform a model construction and define an evaluation
-function turning terms into their semantical counterpart.
+we perform a type-directed model construction
+and define an evaluation function turning terms
+into their semantical counterpart.
 %
 As a corollary, we obtain a staging function which
 fully evaluates all of the static subterms and returns
 purely dynamic ones.
 
+As already observed by Kov{\'{a}}cs, this model construction
+is analogous to the one used for normalisation by evaluation,
+hence the title of this paper.
+
 \section{An Intrinsically Typed 2 Level Type Theory}
 
-Types are indexed by the stage they live in.
+\todo{start with examples}
 
-\begin{minipage}[t]{.55\textwidth}
-  \ExecuteMetaData[TwoTT.tex]{types}
-\end{minipage}\hfill
-\begin{minipage}[t]{.4\textwidth}
-  \ExecuteMetaData[TwoTT.tex]{stage}
-\end{minipage}
+
+\subsection{Stages and Types}
+
+Our notion of types is going to be explicitly indexed by the
+stage they live in, and so we begin by defining a sum
+type \AD{Stage} with two constructors: \AIC{static},
+and \AIC{dynamic}.
+
+\ExecuteMetaData[TwoTT.tex]{stage}
+
+We can now define our inductive family of simple types indexed
+by their stage.
+
+\ExecuteMetaData[TwoTT.tex]{types}
 
 We have both static and dynamic natural numbers,
 hence the unconstrained index \AB{st} for the
 constructor \AIC{`ℕ}.
 %
 The constructor \AIC{‘⇑\_} allows us to embed dynamic
-type into static ones; (\AIC{‘⇑} \AB{A}) is effectively
+types into static ones; (\AIC{‘⇑} \AB{A}) is effectively
 the type of \emph{programs} that will compute a value of
 type \AB{A} at runtime.
 %
@@ -70,13 +86,35 @@ to live in the same layer.
 Last but not least, we have an example of the fact,
 highlighted in Kov{\'{a}}cs' original paper, that static
 datatypes do not need to have a counterpart at runtime:
-pairs are only available in the static layer.
+pairs are only available in the static layer and all traces
+of pairs will have completely disappeared after staging.
 
-Context are left-nested lists of types.
+\subsection{Contexts and Variables}
+
+In order to closely match our usual mathematical notations,
+contexts are defined as left-nested lists of types.
 
 \ExecuteMetaData[TwoTT.tex]{context}
 
+Contexts can either be empty (written \AIC{ε})
+or take an existing context \AB{Γ} and extend it on the
+right with a newly bound variable of type \AB{σ}
+(written \AB{Γ} \AIC{-,} \AB{σ}).
+Note that the stage of the newly bound variable is
+existentially quantified.
+
+Once we have contexts, we can formalise what it means
+for a variable of type \AB{σ} to be present in context \AB{Γ}.
+This is a standard definition corresponding to a scoped-and-typed
+variant of de Bruijn index~\cite{de1972lambda}.
+
 \ExecuteMetaData[TwoTT.tex]{var}
+
+Here we used notations meant to once again mimick inference
+rules~\cite{DBLP:conf/cpp/Allais0MM17}.
+\todo{Add inference rules}
+
+\subsection{Intrinsically Scoped and Typed Syntax}
 
 \ExecuteMetaData[TwoTT.tex]{term}
 
@@ -129,6 +167,9 @@ be neutral terms.
 \ExecuteMetaData[TwoTT.tex]{succ}
 \ExecuteMetaData[TwoTT.tex]{app}
 
+
+\ExecuteMetaData[TwoTT.tex]{extend}
+
 \begin{AgdaSuppressSpace}
 \ExecuteMetaData[TwoTT.tex]{evaldecl}
 \ExecuteMetaData[TwoTT.tex]{eval}
@@ -139,6 +180,7 @@ be neutral terms.
 
 \cite{DBLP:journals/lisp/Coquand02}
 
+\newpage
 \printbibliography
 
 \end{document}

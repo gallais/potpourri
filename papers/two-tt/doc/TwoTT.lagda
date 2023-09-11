@@ -123,8 +123,8 @@ data _≤_ : Context → Context → Set where
 %<*var>
 \begin{code}
 data Var : Type st → Context → Set where
-  here   : ∀[ (_-, A) ⊢ Var A ]
-  there  : ∀[ Var A ⇒ (_-, B) ⊢ Var A ]
+  here   : ∀[          (_-, A) ⊢ Var A ]
+  there  : ∀[ Var A ⇒  (_-, B) ⊢ Var A ]
 \end{code}
 %</var>
 \begin{code}
@@ -246,29 +246,32 @@ Staged = Term false
 \end{code}
 %<*kripke>
 \begin{code}
-record Kripke (A B : Context → Set) (Γ : Context) : Set where
-  constructor mkKripke
-  field runKripke : ∀ {Δ} → Γ ≤ Δ → A Δ → B Δ
+record □ (A : Context → Set) (Γ : Context) : Set where
+  constructor mkBox
+  field runBox : ∀ {Δ} → Γ ≤ Δ → A Δ
+
+Kripke : (A B : Context → Set) (Γ : Context) → Set
+Kripke A B = □ (A ⇒ B)
 \end{code}
 %</kripke>
 \begin{code}
-open Kripke
+open □
 
 -- Action of thinnings on Kripke functions spaces
 -- By construction they're the Free thinnable
 weak-Kripke : ∀ {A B} → Γ ≤ Δ → Kripke A B Γ → Kripke A B Δ
-weak-Kripke σ f .runKripke = f .runKripke ∘ ≤-trans σ
+weak-Kripke σ f .runBox = f .runBox ∘ ≤-trans σ
 
 -- lambda-abstraction
-infixr 3 mkKripke
-syntax mkKripke (λ σ x → b) = λλ[ σ , x ] b
+infixr 3 mkBox
+syntax mkBox (λ σ x → b) = λλ[ σ , x ] b
 
 -- application
 \end{code}
 %<*kripkeapp>
 \begin{code}
 _$$_ : ∀ {A B} → Kripke A B Γ → A Γ → B Γ
-f $$ t = f .runKripke ≤-refl t
+f $$ t = f .runBox ≤-refl t
 \end{code}
 %</kripkeapp>
 \begin{code}
@@ -362,24 +365,14 @@ app dynamic  f t = `app f t
 %</app>
 \begin{code}
 
--- Shifting an environment to push it under a dynamic binder
-\end{code}
-%<*shift>
-\begin{code}
-shift : {A : Type dynamic} → Env Γ Δ → Env (Γ -, A) (Δ -, A)
-shift ρ .lookup here = `var here
-shift ρ .lookup (there {A = A} v) = weak-Value A (drop ≤-refl) (ρ .lookup v)
-\end{code}
-%</shift>
-\begin{code}
-
--- Extending an environment with a value to push it under a static bindere
+-- Extending an environment with a value to push it under a binder
 \end{code}
 %<*extend>
 \begin{code}
-extend : ∀[ Env Γ ⇒ Value st A ⇒ Env (Γ -, A) ]
-extend ρ v .lookup here = v
-extend ρ v .lookup (there x) = ρ .lookup x
+extend : ∀[ Env Γ ⇒ □ (Value st A ⇒ Env (Γ -, A)) ]
+extend ρ .runBox σ v .lookup here = v
+extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x)
+
 \end{code}
 %</extend>
 \begin{code}
@@ -418,8 +411,8 @@ eval : Env Γ Δ → Source st A Γ → Value st A Δ
 \begin{code}
 eval ρ (`var v)              = ρ .lookup v
 eval ρ (`app {st = st} f t)  = app st (eval ρ f) (eval ρ t)
-eval ρ (`lam {static} b)     = λλ[ σ ,  v ] eval (extend (weak-Env σ ρ) v) b
-eval ρ (`lam {dynamic} b)    = `lam (eval (shift ρ) b)
+eval ρ (`lam {static} b)     = λλ[ σ ,  v ] eval (extend ρ .runBox σ v) b
+eval ρ (`lam {dynamic} b)    = `lam (eval (extend ρ .runBox (drop ≤-refl) (`var here)) b)
 eval ρ (`zero {st = st})     = zero st
 eval ρ (`succ {st = st} n)   = succ st (eval ρ n)
 eval ρ (`iter {st = st})     = iter st
