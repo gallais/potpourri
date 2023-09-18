@@ -181,11 +181,17 @@ weak-Term σ `snd = `snd
 ------------------------------------------------------------------------
 -- Source programs can use quotes and splices but staged code cannot
 
+\end{code}
+%<*termaliases>
+\begin{code}
 Source : ∀ st → Type st → Context → Set
 Source = Term true
 
 Staged : ∀ st → Type st → Context → Set
 Staged = Term false
+\end{code}
+%</termaliases>
+\begin{code}
 
 ------------------------------------------------------------------------
 -- Example of programs
@@ -452,11 +458,18 @@ body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
 %</body>
 \begin{code}
 
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
-
 -- Special case of evaluation: turning source terms into staged ones
+
+\end{code}
+%<*stagedecl>
+\begin{code}
 stage : Source dynamic A ε → Staged dynamic A ε
+\end{code}
+%</stagedecl>
+\begin{code}
 stage = eval (λ where .lookup ())
+
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 ------------------------------------------------------------------------
 -- Tests for the staging evaluator

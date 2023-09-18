@@ -147,6 +147,16 @@ rules~\cite{DBLP:conf/cpp/Allais0MM17}.
 
 \ExecuteMetaData[TwoTT.tex]{term}
 
+We introduce two aliases.
+%
+First, \AF{Source} for the terms users can write and that
+may that can mention quotes, splices, pairs, and projections.
+%
+Second, \AF{Staged} for our target language where all the
+static subterms have been evaluated away.
+
+\ExecuteMetaData[TwoTT.tex]{termaliases}
+
 \section{Staging by Evaluation}
 
 The goal of this section is to define a type of \AF{Value}s
@@ -156,8 +166,15 @@ appropriate environment to interpret the term's free variables.
 
 \ExecuteMetaData[TwoTT.tex]{evaldecl}
 
+As a direct corollary we will obtain a staging function
+that takes a closed dynamic term and gets rid of all of
+the quotes, splices, and pairs and projections by fully
+evaluating all of its static parts.
+
+\ExecuteMetaData[TwoTT.tex]{stagedecl}
+
 We start with the model construction describing precisely
-what these values ought to be.
+what the type of values ought to be.
 
 \subsection{Model Construction}
 
