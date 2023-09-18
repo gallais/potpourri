@@ -26,11 +26,14 @@ data Stage : Set where
   static dynamic : Stage
 \end{code}
 %</stage>
+
+%<*stagevariables>
 \begin{code}
+variable st a b : Stage
+\end{code}
+%</stagevariables>
 
-variable
-  st a b : Stage
-
+\begin{code}
 ------------------------------------------------------------------------
 -- Types are indexed by the stage they are defined at
 --
@@ -315,15 +318,15 @@ Static (A `× B)  = Static A ∩ Static B
 \begin{code}
 
 -- Action of thinnings on Kripke domains
-weak-⊨ : (A : Type _) → Γ ≤ Δ → Static A Γ → Static A Δ
-weak-⊨ `ℕ       σ = id
-weak-⊨ (`⇑ A)   σ = weak-Term σ
-weak-⊨ (A `⇒ B) σ = weak-Kripke σ
-weak-⊨ (A `× B) σ = Prod.map (weak-⊨ A σ) (weak-⊨ B σ)
+weak-Static : (A : Type _) → Γ ≤ Δ → Static A Γ → Static A Δ
+weak-Static `ℕ       σ = id
+weak-Static (`⇑ A)   σ = weak-Term σ
+weak-Static (A `⇒ B) σ = weak-Kripke σ
+weak-Static (A `× B) σ = Prod.map (weak-Static A σ) (weak-Static B σ)
 
 -- Action of thinnings on Values
 weak-Value : (A : Type st) → Γ ≤ Δ → Value st A Γ → Value st A Δ
-weak-Value {st = static}  A σ v = weak-⊨ A σ v
+weak-Value {st = static}  A σ v = weak-Static A σ v
 weak-Value {st = dynamic} A σ v = weak-Term σ v
 
 ------------------------------------------------------------------------
@@ -377,6 +380,18 @@ extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x
 %</extend>
 \begin{code}
 
+\end{code}
+%<*lam>
+\begin{code}
+lam : (st : Stage) {A B : Type st} →
+      Kripke (Value st A) (Value st B) Γ →
+      Value st (A `⇒ B) Γ
+lam static   b = λλ[ σ , v ] b .runBox σ v
+lam dynamic  b = `lam (b .runBox (drop ≤-refl) (`var here))
+\end{code}
+%</lam>
+\begin{code}
+
 -- Semantics counterpart to zero
 \end{code}
 %<*zero>
@@ -397,6 +412,13 @@ succ static   = ℕ.suc
 succ dynamic  = `succ
 \end{code}
 %</succ>
+
+%<*bodydecl>
+\begin{code}
+body : Env Γ Δ → Source st B (Γ -, A) →
+       Kripke (Value st A) (Value st B) Δ
+\end{code}
+%</bodydecl>
 \begin{code}
 
 -- Evaluation function turning source terms into values provided
@@ -411,8 +433,7 @@ eval : Env Γ Δ → Source st A Γ → Value st A Δ
 \begin{code}
 eval ρ (`var v)              = ρ .lookup v
 eval ρ (`app {st = st} f t)  = app st (eval ρ f) (eval ρ t)
-eval ρ (`lam {static} b)     = λλ[ σ ,  v ] eval (extend ρ .runBox σ v) b
-eval ρ (`lam {dynamic} b)    = `lam (eval (extend ρ .runBox (drop ≤-refl) (`var here)) b)
+eval ρ (`lam {st = st} b)    = lam st (body ρ b)
 eval ρ (`zero {st = st})     = zero st
 eval ρ (`succ {st = st} n)   = succ st (eval ρ n)
 eval ρ (`iter {st = st})     = iter st
@@ -423,6 +444,12 @@ eval ρ `fst                  = λλ[ _ , v ] Prod.proj₁ v
 eval ρ `snd                  = λλ[ _ , v ] Prod.proj₂ v
 \end{code}
 %</eval>
+
+%<*body>
+\begin{code}
+body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
+\end{code}
+%</body>
 \begin{code}
 
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)

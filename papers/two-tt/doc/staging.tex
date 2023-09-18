@@ -1,5 +1,9 @@
 \documentclass{article}
 
+%%% Remark environment
+\usepackage{amsthm}
+\newtheorem*{remark}{Remark}
+
 %%%% Agda code %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{agda}
 \input{unicode}
@@ -14,6 +18,7 @@
 
 \input{commands}
 
+%%% References
 \usepackage{hyperref}
 \usepackage[style=alphabetic]{biblatex}
 \bibliography{staging.bib}
@@ -27,15 +32,18 @@
 
 \section{Introduction}
 
-This paper gives an intrinsically well scoped and well typed
+This paper gives an intrinsically scoped-and-typed
 treatment of a simply typed version of the staged compilation
 with two-level type theory introduced by
 Kov{\'{a}}cs~\cite{DBLP:journals/pacmpl/Kovacs22}.
 %
 We use Agda~\cite{DBLP:conf/afp/Norell08}
-as our implementation language and
-mobilise standard formalisation
-techniques extensively described by Allais, Chapman,
+as our host language (but any implementation
+of Martin-Löf type theory~\cite{DBLP:books/daglib/0000395}
+with inductive families~\cite{DBLP:journals/fac/Dybjer94}
+would do)
+and mobilise standard formalisation techniques and structures
+extensively studied by Allais, Chapman,
 McBride, and McKinna~\cite{DBLP:conf/cpp/Allais0MM17}.
 
 Starting from a language with a static and a dynamic layer,
@@ -43,13 +51,15 @@ we perform a type-directed model construction
 and define an evaluation function turning terms
 into their semantical counterpart.
 %
-As a corollary, we obtain a staging function which
+As a corollary, we obtain a staging function that
 fully evaluates all of the static subterms and returns
 purely dynamic ones.
 
 As already observed by Kov{\'{a}}cs, this model construction
 is analogous to the one used for normalisation by evaluation,
 hence the title of this paper.
+
+\section{A Primer on Intrisically Typed Calculi}
 
 \section{An Intrinsically Typed 2 Level Type Theory}
 
@@ -64,6 +74,25 @@ type \AD{Stage} with two constructors: \AIC{static},
 and \AIC{dynamic}.
 
 \ExecuteMetaData[TwoTT.tex]{stage}
+
+\begin{remark}[Syntax Highlighting]
+  All the code in this paper is semantically highlighed:
+  keywords are \AK{orange}, definitions and types are \AF{blue},
+  data constructors are \AIC{green}, bound variables are
+  \AB{slanted}.
+\end{remark}
+
+We extensively use Agda's \AK{variable} mechanism: all of
+the seemingly unbound names will in fact be automatically
+quantified over in a prenex provided that they have been
+declared beforehand.
+%
+The following block for instance announces that from now
+on unbound \AB{st}s, \AB{a}s, and \AB{b}s stand for
+implicit \AD{Stage} variables.
+
+\ExecuteMetaData[TwoTT.tex]{stagevariables}
+
 
 We can now define our inductive family of simple types indexed
 by their stage.
@@ -166,6 +195,7 @@ be neutral terms.
 \ExecuteMetaData[TwoTT.tex]{zero}
 \ExecuteMetaData[TwoTT.tex]{succ}
 \ExecuteMetaData[TwoTT.tex]{app}
+\ExecuteMetaData[TwoTT.tex]{lam}
 
 
 \ExecuteMetaData[TwoTT.tex]{extend}
@@ -173,6 +203,14 @@ be neutral terms.
 \begin{AgdaSuppressSpace}
 \ExecuteMetaData[TwoTT.tex]{evaldecl}
 \ExecuteMetaData[TwoTT.tex]{eval}
+\end{AgdaSuppressSpace}
+
+The function \AF{eval} is mutually defined with an auxiliary
+function describing its behaviour on the body of a λ-abstraction.
+
+\begin{AgdaSuppressSpace}
+\ExecuteMetaData[TwoTT.tex]{bodydecl}
+\ExecuteMetaData[TwoTT.tex]{body}
 \end{AgdaSuppressSpace}
 
 
