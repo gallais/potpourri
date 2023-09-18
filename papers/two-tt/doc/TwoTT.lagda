@@ -72,14 +72,14 @@ variable
 -- Note the existential quantification over the stage of the freshly
 -- bound variable in the snoc case
 
-infixr 5 _-,_
+infixl 4 _,_
 
 \end{code}
 %<*context>
 \begin{code}
 data Context : Set where
-  ε     : Context
-  _-,_  : Context → Type st → Context
+  ε    : Context
+  _,_  : Context → Type st → Context
 \end{code}
 %</context>
 \begin{code}
@@ -97,8 +97,8 @@ infix 0 _≤_
 \begin{code}
 data _≤_ : Context → Context → Set where
   done  : ε ≤ ε
-  keep  : Γ ≤ Δ → Γ -, A ≤ Δ -, A
-  drop  : Γ ≤ Δ → Γ ≤ Δ -, A
+  keep  : Γ ≤ Δ → Γ , A ≤ Δ , A
+  drop  : Γ ≤ Δ → Γ ≤ Δ , A
 \end{code}
 %</thin>
 \begin{code}
@@ -114,7 +114,7 @@ data _≤_ : Context → Context → Set where
 \begin{code}
 ≤-refl : ∀ {Γ} → Γ ≤ Γ
 ≤-refl {ε} = done
-≤-refl {Γ -, x} = keep ≤-refl
+≤-refl {Γ , x} = keep ≤-refl
 \end{code}
 %</thinrefl>
 \begin{code}
@@ -126,8 +126,8 @@ data _≤_ : Context → Context → Set where
 %<*var>
 \begin{code}
 data Var : Type st → Context → Set where
-  here   : ∀[          (_-, A) ⊢ Var A ]
-  there  : ∀[ Var A ⇒  (_-, B) ⊢ Var A ]
+  here   : ∀[          (_, A) ⊢ Var A ]
+  there  : ∀[ Var A ⇒  (_, B) ⊢ Var A ]
 \end{code}
 %</var>
 \begin{code}
@@ -151,7 +151,7 @@ variable
 data Term : Bool → ∀ st → Type st → Context → Set where
   `var   : ∀[ Var A ⇒ Term stg st A ]
   `app   : ∀[ Term stg st (A `⇒ B) ⇒ Term stg st A ⇒ Term stg st B ]
-  `lam   : ∀[ (_-, A) ⊢ Term stg st B ⇒ Term stg st (A `⇒ B) ]
+  `lam   : ∀[ (_, A) ⊢ Term stg st B ⇒ Term stg st (A `⇒ B) ]
   `zero  : ∀[ Term stg st `ℕ ]
   `succ  : ∀[ Term stg st `ℕ ⇒ Term stg st `ℕ ]
   `iter  : ∀[ Term stg st (`ℕ `⇒ (A `⇒ A) `⇒ A `⇒ A) ]
@@ -288,7 +288,7 @@ f $$ t = f .runBox ≤-refl t
 ------------------------------------------------------------------------
 -- Definition of the domain for staging by evaluation
 
-open import Data.Nat.Base using (ℕ; _+_)
+open import Data.Nat.Base using (ℕ; suc; _+_)
 open import Data.Product as Prod using (_×_; _,_)
 
 \end{code}
@@ -360,16 +360,16 @@ iter static {A}
   go : (A : Type static) → (n : ℕ) →
        (succ : Kripke (Static A) (Static A) Γ) →
        (zero : Static A Γ) → Static A Γ
-  go A ℕ.zero    succ zero = zero
-  go A (ℕ.suc n) succ zero = succ $$ go A n succ zero
+  go A 0       succ zero = zero
+  go A (suc n) succ zero = succ $$ go A n succ zero
 
 -- Semantics counterpart to app
 \end{code}
 %<*app>
 \begin{code}
 app : ∀ st {A B} → Value st (A `⇒ B) Γ → Value st A Γ → Value st B Γ
-app static   f t = f $$ t
-app dynamic  f t = `app f t
+app static   = _$$_
+app dynamic  = `app
 \end{code}
 %</app>
 \begin{code}
@@ -378,7 +378,7 @@ app dynamic  f t = `app f t
 \end{code}
 %<*extend>
 \begin{code}
-extend : ∀[ Env Γ ⇒ □ (Value st A ⇒ Env (Γ -, A)) ]
+extend : ∀[ Env Γ ⇒ □ (Value st A ⇒ Env (Γ , A)) ]
 extend ρ .runBox σ v .lookup here = v
 extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x)
 
@@ -403,7 +403,7 @@ lam dynamic  b = `lam (b .runBox (drop ≤-refl) (`var here))
 %<*zero>
 \begin{code}
 zero : (st : Stage) → Value st `ℕ Γ
-zero static   = ℕ.zero
+zero static   = 0
 zero dynamic  = `zero
 \end{code}
 %</zero>
@@ -414,14 +414,14 @@ zero dynamic  = `zero
 %<*succ>
 \begin{code}
 succ : (st : Stage) → Value st `ℕ Γ → Value st `ℕ Γ
-succ static   = ℕ.suc
+succ static   = 1 +_
 succ dynamic  = `succ
 \end{code}
 %</succ>
 
 %<*bodydecl>
 \begin{code}
-body : Env Γ Δ → Source st B (Γ -, A) →
+body : Env Γ Δ → Source st B (Γ , A) →
        Kripke (Value st A) (Value st B) Δ
 \end{code}
 %</bodydecl>

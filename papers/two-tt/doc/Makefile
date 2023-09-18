@@ -1,4 +1,6 @@
-AGDA_FILES:=TwoTT.lagda
+AGDA_FILES:= \
+ TwoTT.lagda \
+ STLC.lagda
 AGDA_OUTPUT:=$(patsubst %.lagda,__build/%.tex,$(AGDA_FILES))
 
 AGDA=agda

@@ -23,6 +23,9 @@
 \usepackage[style=alphabetic]{biblatex}
 \bibliography{staging.bib}
 
+%%% Inference rules
+\usepackage{mathpartir}
+
 \title{Scoped and Typed Staging by Evaluation}
 \author{Guillaume Allais}
 
@@ -59,7 +62,61 @@ As already observed by Kov{\'{a}}cs, this model construction
 is analogous to the one used for normalisation by evaluation,
 hence the title of this paper.
 
-\section{A Primer on Intrisically Typed Calculi}
+\section{A Primer on Intrisically Typed λ-Calculi}
+
+Let us start with a quick primer on intrinsically typed λ-calculi
+defined in a dependently typed host language.
+%
+We first give a sum type of object types: \AIC{`ℕ} stands
+for the type of natural numbers and (\AB{A} \AIC{`⇒} \AB{B})
+for the type of functions from \AB{A} to \AB{B}.
+
+\ExecuteMetaData[STLC.tex]{type}
+
+\begin{remark}[Syntax Highlighting]
+  All the code in this paper is semantically highlighed:
+  keywords are \AK{orange}, definitions and types are \AF{blue},
+  data constructors are \AIC{green}, bound variables are
+  \AB{slanted}.
+\end{remark}
+
+We extensively use Agda's \AK{variable} mechanism: all of
+the seemingly unbound names will in fact be automatically
+quantified over in a prenex position provided that they
+have been declared beforehand.
+%
+The following block for instance announces that from now
+on unbound \AB{A}s and \AB{B}s stand for implicitly bound
+\AD{Type} variables.
+
+\ExecuteMetaData[STLC.tex]{typevariables}
+
+Next, we form contexts as left-nested lists of types.
+Contexts may be the empty context \AIC{ε}
+or a compound context (\AB{Γ} \AIC{,} \AB{A}) obtained
+by extending an existing context \AB{Γ} on the right
+with a newly bound variable of type \AB{A}.
+
+\ExecuteMetaData[STLC.tex]{context}
+
+\ExecuteMetaData[STLC.tex]{forall}
+\ExecuteMetaData[STLC.tex]{update}
+\ExecuteMetaData[STLC.tex]{arrow}
+
+
+\ExecuteMetaData[STLC.tex]{var}
+\ExecuteMetaData[STLC.tex]{varnormalised}
+
+\begin{mathpar}
+  \inferrule{x : A ∈}{⊢ x : A}
+
+  \inferrule{⊢ f : A → B \and ⊢ t : A}{⊢ f \, t : B}
+
+  \inferrule{x : A ⊢ b : B}{⊢ λx.b : A → B}
+\end{mathpar}
+
+\ExecuteMetaData[STLC.tex]{term}
+
 
 \section{An Intrinsically Typed 2 Level Type Theory}
 
@@ -74,25 +131,6 @@ type \AD{Stage} with two constructors: \AIC{static},
 and \AIC{dynamic}.
 
 \ExecuteMetaData[TwoTT.tex]{stage}
-
-\begin{remark}[Syntax Highlighting]
-  All the code in this paper is semantically highlighed:
-  keywords are \AK{orange}, definitions and types are \AF{blue},
-  data constructors are \AIC{green}, bound variables are
-  \AB{slanted}.
-\end{remark}
-
-We extensively use Agda's \AK{variable} mechanism: all of
-the seemingly unbound names will in fact be automatically
-quantified over in a prenex provided that they have been
-declared beforehand.
-%
-The following block for instance announces that from now
-on unbound \AB{st}s, \AB{a}s, and \AB{b}s stand for
-implicit \AD{Stage} variables.
-
-\ExecuteMetaData[TwoTT.tex]{stagevariables}
-
 
 We can now define our inductive family of simple types indexed
 by their stage.
@@ -128,7 +166,7 @@ contexts are defined as left-nested lists of types.
 Contexts can either be empty (written \AIC{ε})
 or take an existing context \AB{Γ} and extend it on the
 right with a newly bound variable of type \AB{σ}
-(written \AB{Γ} \AIC{-,} \AB{σ}).
+(written \AB{Γ} \AIC{,} \AB{σ}).
 Note that the stage of the newly bound variable is
 existentially quantified.
 
@@ -174,7 +212,7 @@ evaluating all of its static parts.
 \ExecuteMetaData[TwoTT.tex]{stagedecl}
 
 We start with the model construction describing precisely
-what the type of values ought to be.
+the type of values.
 
 \subsection{Model Construction}
 
@@ -198,6 +236,13 @@ be neutral terms.
 \ExecuteMetaData[TwoTT.tex]{modelsta}
 \end{AgdaSuppressSpace}
 
+Static values of type \AIC{`ℕ} are constant natural numbers;
+those of type (\AIC{`⇑} \AB{A}) are dynamic values of type \AB{A}
+i.e. staged terms of type \AB{A};
+functions from \AB{A} to \AB{B} are interpreted using Kripke function
+spaces from static values of type \AB{A} to static values of type \AB{B};
+and finally static pairs are pairs of static values.
+
 \ExecuteMetaData[TwoTT.tex]{thin}
 
 \ExecuteMetaData[TwoTT.tex]{kripke}
@@ -209,9 +254,31 @@ be neutral terms.
 
 \subsection{Evaluation}
 
+We can explain what the meaning of each term constructor is.
+In every instance we will proceed by case analysis on the
+stage the meaning is being used at.
+
+
+The term constructor \AIC{`zero} is either interpreted by
+the natural number \AN{0} or by the term constructor itself
+depending on whether it is used in a static or dynamic manner.
+
 \ExecuteMetaData[TwoTT.tex]{zero}
+
+Similarly \AIC{`succ} is interpreted either as (\AN{1} \AF{+}\AS{\_})
+if it used in a static manner or by the term constructor itself
+for dynamic uses.
+
 \ExecuteMetaData[TwoTT.tex]{succ}
+
+Application is interpreted as the semantic application defined
+for Kripke function spaces in the static case, and the syntactic
+\AIC{`app} constructor in the dynamic one.
+
 \ExecuteMetaData[TwoTT.tex]{app}
+
+
+
 \ExecuteMetaData[TwoTT.tex]{lam}
 
 
@@ -229,6 +296,7 @@ function describing its behaviour on the body of a λ-abstraction.
 \ExecuteMetaData[TwoTT.tex]{bodydecl}
 \ExecuteMetaData[TwoTT.tex]{body}
 \end{AgdaSuppressSpace}
+
 
 
 \section{Future Work}

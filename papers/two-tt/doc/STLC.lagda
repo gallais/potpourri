@@ -3,59 +3,122 @@ module STLC where
 
 open import Function.Base using (_∘_)
 
+infixr 5 _`⇒_
+
+\end{code}
+%<*type>
+\begin{code}
 data Type : Set where
-  `ℕ : Type
-  _`⇒_ : (A B : Type) → Type
+  `ℕ    : Type
+  _`⇒_  : (A B : Type) → Type
+\end{code}
+%</type>
+\begin{code}
 
+\end{code}
+%<*typevariables>
+\begin{code}
 variable A B : Type
+\end{code}
+%</typevariables>
+\begin{code}
 
+\end{code}
+%<*context>
+\begin{code}
 data Context : Set where
-  ε : Context
-  _-,_ : Context → Type → Context
+  ε    : Context
+  _,_  : Context → Type → Context
 
-variable Γ Δ θ : Context
+variable Γ Δ Θ : Context
+\end{code}
+%</context>
+\begin{code}
+
 
 variable I J : Set
 
+\end{code}
+%<*forall>
+\begin{code}
 ∀[_] : (I → Set) → Set
 ∀[ P ] = ∀ {i} → P i
+\end{code}
+%</forall>
+\begin{code}
 
 infixl 5 _⊢_
+\end{code}
+%<*update>
+\begin{code}
 _⊢_ : (I → J) → (J → Set) → (I → Set)
 (f ⊢ P) i = P (f i)
+\end{code}
+%</update>
+\begin{code}
 
 infixr 3 _⇒_
+\end{code}
+%<*arrow>
+\begin{code}
 _⇒_ : (P Q : I → Set) → (I → Set)
 (P ⇒ Q) i = P i → Q i
+\end{code}
+%</arrow>
+\begin{code}
 
+module PRINTONLY where
+
+\end{code}
+%<*varnormalised>
+\begin{code}
+  data Var : Type → Context → Set where
+    here   :            Var A (Γ , A)
+    there  : Var A Γ →  Var A (Γ , B)
+\end{code}
+%</varnormalised>
+\begin{code}
+
+\end{code}
+%<*var>
+\begin{code}
 data Var : Type → Context → Set where
-  here   : ∀[          (_-, A) ⊢ Var A ]
-  there  : ∀[ Var A ⇒  (_-, B) ⊢ Var A ]
+  here   : ∀[          (_, A) ⊢ Var A ]
+  there  : ∀[ Var A ⇒  (_, B) ⊢ Var A ]
+\end{code}
+%</var>
+\begin{code}
 
-data STLC : Type → Context → Set where
-  `var : ∀[ Var A ⇒ STLC A ]
-  `app : ∀[ STLC (A `⇒ B) ⇒ STLC A ⇒ STLC B ]
-  `lam : ∀[ (_-, A) ⊢ STLC B ⇒ STLC (A `⇒ B) ]
+\end{code}
+%<*term>
+\begin{code}
+data Term : Type → Context → Set where
+  `var  : ∀[ Var A ⇒ Term A ]
+  `app  : ∀[ Term (A `⇒ B) ⇒ Term A ⇒ Term B ]
+  `lam  : ∀[ (_, A) ⊢ Term B ⇒ Term (A `⇒ B) ]
+\end{code}
+%</term>
+\begin{code}
 
 infix 0 _≤_
 data _≤_ : Context → Context → Set where
   done  : ε ≤ ε
-  keep  : Γ ≤ Δ → Γ -, A ≤ Δ -, A
-  drop  : Γ ≤ Δ → Γ ≤ Δ -, A
+  keep  : Γ ≤ Δ → Γ , A ≤ Δ , A
+  drop  : Γ ≤ Δ → Γ ≤ Δ , A
 
 ≤-refl : ∀ {Γ} → Γ ≤ Γ
 ≤-refl {ε} = done
-≤-refl {Γ -, x} = keep ≤-refl
+≤-refl {Γ , x} = keep ≤-refl
 
 weak-Var : Γ ≤ Δ → Var A Γ → Var A Δ
 weak-Var (drop σ)  v          = there (weak-Var σ v)
 weak-Var (keep σ)  here       = here
 weak-Var (keep σ)  (there v)  = there (weak-Var σ v)
 
-weak-STLC : Γ ≤ Δ → STLC A Γ → STLC A Δ
-weak-STLC σ (`var v)    = `var (weak-Var σ v)
-weak-STLC σ (`app f t)  = `app (weak-STLC σ f) (weak-STLC σ t)
-weak-STLC σ (`lam b)    = `lam (weak-STLC (keep σ) b)
+weak-Term : Γ ≤ Δ → Term A Γ → Term A Δ
+weak-Term σ (`var v)    = `var (weak-Var σ v)
+weak-Term σ (`app f t)  = `app (weak-Term σ f) (weak-Term σ t)
+weak-Term σ (`lam b)    = `lam (weak-Term (keep σ) b)
 
 record □ (A : Context → Set) (Γ : Context) : Set where
   constructor mkBox
@@ -65,7 +128,7 @@ open □
 Kripke : (A B : Context → Set) (Γ : Context) → Set
 Kripke A B = □ (A ⇒ B)
 
-≤-trans : Γ ≤ Δ → Δ ≤ θ → Γ ≤ θ
+≤-trans : Γ ≤ Δ → Δ ≤ Θ → Γ ≤ Θ
 ≤-trans p (drop q) = drop (≤-trans p q)
 ≤-trans done done = done
 ≤-trans (keep p) (keep q) = keep (≤-trans p q)
@@ -86,17 +149,17 @@ f $$ t = f .runBox ≤-refl t
 -- Here we would traditionally enforce that (Value `ℕ)
 -- returns neutral terms
 Value : Type → Context → Set
-Value `ℕ        = STLC `ℕ
+Value `ℕ        = Term `ℕ
 Value (A `⇒ B)  = Kripke (Value A) (Value B)
 
 weak-Value : (A : Type) → Γ ≤ Δ → Value A Γ → Value A Δ
-weak-Value `ℕ        σ v = weak-STLC σ v
+weak-Value `ℕ        σ v = weak-Term σ v
 weak-Value (A `⇒ B)  σ v = weak-Kripke σ v
 
 interleaved mutual
 
-  reify    : (A : Type) → ∀[ Value A  ⇒ STLC A   ]
-  reflect  : (A : Type) → ∀[ STLC A   ⇒ Value A  ]
+  reify    : (A : Type) → ∀[ Value A  ⇒ Term A   ]
+  reflect  : (A : Type) → ∀[ Term A   ⇒ Value A  ]
 
   reify    `ℕ T = T
   reflect  `ℕ t = t
@@ -106,7 +169,7 @@ interleaved mutual
          v  = reflect A (`var here)
     in reify B (f $$ v)
   reflect  (A `⇒ B) t = λλ[ σ , V ]
-    let  f  = weak-STLC σ t
+    let  f  = weak-Term σ t
          v  = reify A V
     in reflect B (`app f v)
 
@@ -116,11 +179,11 @@ record Env (Γ Δ : Context) : Set where
   field lookup : ∀ {A} → Var A Γ → Value A Δ
 open Env
 
-extend : ∀[ Env Γ ⇒ □ (Value A ⇒ Env (Γ -, A)) ]
+extend : ∀[ Env Γ ⇒ □ (Value A ⇒ Env (Γ , A)) ]
 extend ρ .runBox σ v .lookup here = v
 extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x)
 
-eval : Env Γ Δ → STLC A Γ → Value A Δ
+eval : Env Γ Δ → Term A Γ → Value A Δ
 eval ρ (`var v)    = ρ .lookup v
 eval ρ (`app f t)  = eval ρ f $$ eval ρ t
 eval ρ (`lam b)    = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
@@ -128,7 +191,7 @@ eval ρ (`lam b)    = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
 init : Env Γ Γ
 init .lookup v = reflect _ (`var v)
 
-norm : STLC A Γ → STLC A Γ
+norm : Term A Γ → Term A Γ
 norm = reify _ ∘ eval init
 
 \end{code}
