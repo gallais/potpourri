@@ -165,32 +165,62 @@ data Term : Type → Context → Set where
 \begin{code}
 
 infix 0 _≤_
+\end{code}
+%<*ope>
+\begin{code}
 data _≤_ : Context → Context → Set where
   done  : ε ≤ ε
-  keep  : Γ ≤ Δ → Γ , A ≤ Δ , A
-  drop  : Γ ≤ Δ → Γ ≤ Δ , A
+  keep  : Γ ≤ Δ → Γ , A  ≤ Δ , A
+  drop  : Γ ≤ Δ → Γ      ≤ Δ , A
+\end{code}
+%</ope>
+\begin{code}
 
 ≤-refl : ∀ {Γ} → Γ ≤ Γ
 ≤-refl {ε} = done
 ≤-refl {Γ , x} = keep ≤-refl
 
+\end{code}
+%<*weakVar>
+\begin{code}
 weak-Var : Γ ≤ Δ → Var A Γ → Var A Δ
 weak-Var (drop σ)  v          = there (weak-Var σ v)
 weak-Var (keep σ)  here       = here
 weak-Var (keep σ)  (there v)  = there (weak-Var σ v)
+\end{code}
+%</weakVar>
+\begin{code}
 
+\end{code}
+%<*weakTerm>
+\begin{code}
 weak-Term : Γ ≤ Δ → Term A Γ → Term A Δ
 weak-Term σ (`var v)    = `var (weak-Var σ v)
 weak-Term σ (`app f t)  = `app (weak-Term σ f) (weak-Term σ t)
 weak-Term σ (`lam b)    = `lam (weak-Term (keep σ) b)
+\end{code}
+%</weakTerm>
+\begin{code}
 
+\end{code}
+%<*box>
+\begin{code}
 record □ (A : Context → Set) (Γ : Context) : Set where
   constructor mkBox
   field runBox : ∀ {Δ} → Γ ≤ Δ → A Δ
+\end{code}
+%</box>
+\begin{code}
 open □
 
+\end{code}
+%<*kripke>
+\begin{code}
 Kripke : (A B : Context → Set) (Γ : Context) → Set
 Kripke A B = □ (A ⇒ B)
+\end{code}
+%</kripke>
+\begin{code}
 
 ≤-trans : Γ ≤ Δ → Δ ≤ Θ → Γ ≤ Θ
 ≤-trans p (drop q) = drop (≤-trans p q)
@@ -212,9 +242,15 @@ f $$ t = f .runBox ≤-refl t
 -- Model construction
 -- Here we would traditionally enforce that (Value `ℕ)
 -- returns neutral terms
+\end{code}
+%<*value>
+\begin{code}
 Value : Type → Context → Set
 Value `ℕ        = Term `ℕ
 Value (A `⇒ B)  = Kripke (Value A) (Value B)
+\end{code}
+%</value>
+\begin{code}
 
 weak-Value : (A : Type) → Γ ≤ Δ → Value A Γ → Value A Δ
 weak-Value `ℕ        σ v = weak-Term σ v
@@ -247,10 +283,16 @@ extend : ∀[ Env Γ ⇒ □ (Value A ⇒ Env (Γ , A)) ]
 extend ρ .runBox σ v .lookup here = v
 extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x)
 
+\end{code}
+%<*eval>
+\begin{code}
 eval : Env Γ Δ → Term A Γ → Value A Δ
 eval ρ (`var v)    = ρ .lookup v
 eval ρ (`app f t)  = eval ρ f $$ eval ρ t
 eval ρ (`lam b)    = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
+\end{code}
+%</eval>
+\begin{code}
 
 init : Env Γ Γ
 init .lookup v = reflect _ (`var v)

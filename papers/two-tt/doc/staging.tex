@@ -277,6 +277,20 @@ Putting it all together, we obtain the following inductive family.
 \end{AgdaSuppressSpace}
 \end{AgdaAlign}
 
+\subsection{Renaming}
+
+\ExecuteMetaData[STLC.tex]{ope}
+\ExecuteMetaData[STLC.tex]{weakVar}
+\ExecuteMetaData[STLC.tex]{weakTerm}
+
+
+\subsection{Normalisation by Evaluation}
+
+  \ExecuteMetaData[STLC.tex]{box}
+  \ExecuteMetaData[STLC.tex]{kripke}
+  \ExecuteMetaData[STLC.tex]{value}
+  \ExecuteMetaData[STLC.tex]{eval}
+
 \section{An Intrinsically Typed 2 Level Type Theory}
 \todo{start with examples}
 
@@ -330,6 +344,7 @@ Second, \AF{Staged} for our target language where all the
 static subterms have been evaluated away.
 
 \ExecuteMetaData[TwoTT.tex]{termaliases}
+
 
 \section{Staging by Evaluation}
 
@@ -437,7 +452,12 @@ function describing its behaviour on the body of a λ-abstraction.
 
 \section{Future Work}
 
+Soundness and completeness
 \cite{DBLP:journals/lisp/Coquand02}
+
+Generic treatment of this construction
+\cite{DBLP:journals/jfp/AllaisACMM21}
+
 
 \newpage
 \printbibliography
