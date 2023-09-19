@@ -2,9 +2,9 @@
 module STLC where
 
 open import Function.Base using (_∘_)
+open import Data.Product using (_×_)
 
 infixr 5 _`⇒_
-
 \end{code}
 %<*type>
 \begin{code}
@@ -67,14 +67,24 @@ _⇒_ : (P Q : I → Set) → (I → Set)
 %</arrow>
 \begin{code}
 
+infixr 4 _∩_
+\end{code}
+%<*product>
+\begin{code}
+_∩_ : (P Q : I → Set) → (I → Set)
+(P ∩ Q) i = P i × Q i
+\end{code}
+%</product>
+\begin{code}
+
 module PRINTONLY where
 
 \end{code}
 %<*varnormalised>
 \begin{code}
   data Var : Type → Context → Set where
-    here   :            Var A (Γ , A)
-    there  : Var A Γ →  Var A (Γ , B)
+    here   : ∀ {Γ} →            Var A (Γ , A)
+    there  : ∀ {Γ} → Var A Γ →  Var A (Γ , B)
 \end{code}
 %</varnormalised>
 \begin{code}
@@ -88,6 +98,38 @@ data Var : Type → Context → Set where
 \end{code}
 %</var>
 \begin{code}
+
+module PRINTONLY2 where
+
+  \end{code}
+  %<*termdecl>
+  \begin{code}
+  data Term : Type → Context → Set where
+  \end{code}
+  %</termdecl>
+  %<*termvar>
+  \begin{code}
+    `var  : ∀[  Var A ⇒
+             ----------
+                Term A ]
+  \end{code}
+  %</termvar>
+  %<*termapp>
+  \begin{code}
+    `app  : ∀[  Term (A `⇒ B) ⇒ Term A ⇒
+             ------------------------
+                Term B ]
+  \end{code}
+  %</termapp>
+  %<*termlam>
+  \begin{code}
+    `lam  : ∀[  (_, A) ⊢ Term B ⇒
+             ----------------
+                Term (A `⇒ B) ]
+  \end{code}
+  %</termlam>
+  \begin{code}
+
 
 \end{code}
 %<*term>

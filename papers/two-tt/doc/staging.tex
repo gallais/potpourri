@@ -20,6 +20,7 @@
 
 %%% References
 \usepackage{hyperref}
+\usepackage{cleveref}
 \usepackage[style=alphabetic]{biblatex}
 \bibliography{staging.bib}
 
@@ -45,9 +46,10 @@ as our host language (but any implementation
 of Martin-Löf type theory~\cite{DBLP:books/daglib/0000395}
 with inductive families~\cite{DBLP:journals/fac/Dybjer94}
 would do)
-and mobilise standard formalisation techniques and structures
-extensively studied by Allais, Chapman,
-McBride, and McKinna~\cite{DBLP:conf/cpp/Allais0MM17}.
+and mobilise standard formalisation
+techniques~\cite{DBLP:journals/lisp/Coquand02, DBLP:journals/jar/BentonHKM12}
+and structures extensively studied by Allais, Chapman,
+McBride, and McKinna (from now on refered to as ACMM)~\cite{DBLP:conf/cpp/Allais0MM17}.
 
 Starting from a language with a static and a dynamic layer,
 we perform a type-directed model construction
@@ -62,14 +64,19 @@ As already observed by Kov{\'{a}}cs, this model construction
 is analogous to the one used for normalisation by evaluation,
 hence the title of this paper.
 
-\section{A Primer on Intrisically Typed λ-Calculi}
+\section{A Primer on Intrinsically Typed λ-Calculi}\label{sec:intrinsictyping}
 
 Let us start with a quick primer on intrinsically typed λ-calculi
-defined in a dependently typed host language.
-%
-We first give a sum type of object types: \AIC{`ℕ} stands
-for the type of natural numbers and (\AB{A} \AIC{`⇒} \AB{B})
-for the type of functions from \AB{A} to \AB{B}.
+defined in a dependently typed host language. The interested reader
+can refer to ACMM~\cite{DBLP:conf/cpp/Allais0MM17} for a more in-depth
+presentation of this approach.
+
+\subsection{Object Types and Contexts}
+
+We first give a sum type of object types:
+\AIC{`ℕ} that stands for the base type of natural numbers,
+and (\AB{A} \AIC{`⇒} \AB{B}) for the type of functions from
+\AB{A} to \AB{B}.
 
 \ExecuteMetaData[STLC.tex]{type}
 
@@ -91,35 +98,172 @@ on unbound \AB{A}s and \AB{B}s stand for implicitly bound
 
 \ExecuteMetaData[STLC.tex]{typevariables}
 
-Next, we form contexts as left-nested lists of types.
+Next, we form contexts as left-nested lists of types using
+constructor names similar to the ones typically used in
+inference rules.
 Contexts may be the empty context \AIC{ε}
 or a compound context (\AB{Γ} \AIC{,} \AB{A}) obtained
 by extending an existing context \AB{Γ} on the right
-with a newly bound variable of type \AB{A}.
+with a newly bound (nameless) variable of type \AB{A}.
 
 \ExecuteMetaData[STLC.tex]{context}
 
-\ExecuteMetaData[STLC.tex]{forall}
-\ExecuteMetaData[STLC.tex]{update}
+\subsection{Manipulating Indexed Types}
+
+In this paper we are going to conform to the convention
+of only mentioning context \emph{extensions} when
+presenting judgements.
+%
+That is to say we will write the application and
+λ-abstraction rules as they are in the right column
+rather than the left one that make the ambient context Γ
+explicit.
+
+\noindent
+\begin{minipage}{.4\textwidth}
+  \begin{mathpar}
+    \inferrule{Γ ⊢ f : A → B \and Γ ⊢ t : A}{Γ ⊢ f \, t : B} \and
+    \inferrule{Γ, x : A ⊢ b : B}{Γ ⊢ λx.b : A → B}
+  \end{mathpar}
+\end{minipage}\hfill
+\begin{minipage}{.4\textwidth}
+  \begin{mathpar}
+    \inferrule{f : A → B \and t : A}{f \, t : B} \and
+    \inferrule{x : A ⊢ b : B}{λx.b : A → B}
+  \end{mathpar}
+\end{minipage}
+
+To do so, we need to introduce a small set of combinators
+to manipulate indexed definitions. These are standard and
+already present in Agda's standard library.
+%
+First, \AF{∀[\_]} universally quantifies over its argument's index;
+it is meant to be used to surround a complex expression built
+up using the other combinators.
+%
+Second, the suggestively named \AF{\_⊢\_} allows us to modify
+the index; it will be useful to extend a context with freshly
+bound variables.
+%
+Third, we can form index-respecting function spaces using \AF{\_⇒\_}.
+%
+Finally, the pointwise lifting of pairing is called \AF{\_∩\_};
+it will only come into play in \Cref{sec:stagingmodel}.
+
+\noindent
+\begin{minipage}{.4\textwidth}
+  \ExecuteMetaData[STLC.tex]{forall}
+\end{minipage}\hfill
+\begin{minipage}{.5\textwidth}
+  \ExecuteMetaData[STLC.tex]{update}
+\end{minipage}
+
+\noindent
+\begin{minipage}{.4\textwidth}
 \ExecuteMetaData[STLC.tex]{arrow}
+\end{minipage}\hfill
+\begin{minipage}{.5\textwidth}
+\ExecuteMetaData[STLC.tex]{product}
+\end{minipage}
 
+\subsection{Intrinsically Typed Variables}
 
+Our first inductive family formalises what it means for a variable of type
+\AB{A} to be present in context \AB{Γ}. We present it side by side
+with the corresponding inference rules for the typing judgement
+for variables denoted ($\cdot :_v \cdot$).
+%
+The first constructor (\AIC{here}) states that in a non-empty context
+where the most local variable has type \AB{A} we can indeed obtain a
+variable of type \AB{A}.
+%
+The second one (\AIC{there}) states that if a variable of type \AB{A}
+is present in a context then it also is present in the same context
+extended with a freshly bound variable of type \AB{B}.
+
+\noindent
+\begin{minipage}{.5\textwidth}
 \ExecuteMetaData[STLC.tex]{var}
-\ExecuteMetaData[STLC.tex]{varnormalised}
-
+\end{minipage}\hfill
+\begin{minipage}{.4\textwidth}
 \begin{mathpar}
-  \inferrule{x : A ∈}{⊢ x : A}
-
-  \inferrule{⊢ f : A → B \and ⊢ t : A}{⊢ f \, t : B}
-
-  \inferrule{x : A ⊢ b : B}{⊢ λx.b : A → B}
+  \inferrule{ }{x : A ⊢ x :_v A} \and
+  \inferrule{x :_v A}{y : B ⊢ x :_v A}
 \end{mathpar}
+\end{minipage}
 
-\ExecuteMetaData[STLC.tex]{term}
+This is a standard definition
+corresponding to a scoped-and-typed variant of de Bruijn
+indices~\cite{de1972lambda}.
 
+\subsection{Intrinsically Typed Terms}
+
+We are now ready to give the type of intrinsically typed terms.
+It is an inductive family~\cite{DBLP:journals/fac/Dybjer94}
+indexed over a type and a context.
+
+\ExecuteMetaData[STLC.tex]{termdecl}
+
+We will introduce constructors in turn, each accompanied by its
+counterpart as an inference rule.
+%
+We start with the variable rule: a variable of type \AB{A} in
+context forms a valid term of type \AB{A}.
+%
+As you can see below, we use a line lexed as a comment (\AC{---})
+to suggestively typeset the constructor's type like the
+corresponding rule.
+
+\noindent
+\begin{minipage}[t]{.5\textwidth}
+  \ExecuteMetaData[STLC.tex]{termvar}
+\end{minipage}\hfill
+\begin{minipage}[t]{.35\textwidth}
+\begin{mathpar}
+  \inferrule{x :_v A}{x : A}
+\end{mathpar}
+\end{minipage}
+
+Next with have the constructor for applications. It states that
+by combining a term whose type is a function type from \AB{A} to \AB{B}
+and a term of type \AB{A}, we obtain a term of type \AB{B}.
+
+\noindent
+\begin{minipage}[t]{.5\textwidth}
+  \ExecuteMetaData[STLC.tex]{termapp}
+\end{minipage}\hfill
+\begin{minipage}[t]{.35\textwidth}
+\begin{mathpar}
+  \inferrule{f : A → B \and t : A}{f \, t : B}
+\end{mathpar}
+\end{minipage}
+
+Last but not least, the rule for λ-abstraction is the only rule
+with a premise mentioning a context extension. It states that
+we can build a term for a function from \AB{A} to \AB{B} by
+building the function's body of type \AB{B} in a context extended
+by a freshly bound variable of type \AB{A}.
+
+\noindent
+\begin{minipage}[t]{.5\textwidth}
+  \ExecuteMetaData[STLC.tex]{termlam}
+\end{minipage}\hfill
+\begin{minipage}[t]{.35\textwidth}
+\begin{mathpar}
+  \inferrule{x : A ⊢ b : B}{λx.b : A → B}
+\end{mathpar}
+\end{minipage}
+
+
+Putting it all together, we obtain the following inductive family.
+
+\begin{AgdaAlign}
+\begin{AgdaSuppressSpace}
+  \ExecuteMetaData[STLC.tex]{term}
+\end{AgdaSuppressSpace}
+\end{AgdaAlign}
 
 \section{An Intrinsically Typed 2 Level Type Theory}
-
 \todo{start with examples}
 
 
@@ -156,32 +300,10 @@ datatypes do not need to have a counterpart at runtime:
 pairs are only available in the static layer and all traces
 of pairs will have completely disappeared after staging.
 
-\subsection{Contexts and Variables}
-
-In order to closely match our usual mathematical notations,
-contexts are defined as left-nested lists of types.
-
-\ExecuteMetaData[TwoTT.tex]{context}
-
-Contexts can either be empty (written \AIC{ε})
-or take an existing context \AB{Γ} and extend it on the
-right with a newly bound variable of type \AB{σ}
-(written \AB{Γ} \AIC{,} \AB{σ}).
-Note that the stage of the newly bound variable is
-existentially quantified.
-
-Once we have contexts, we can formalise what it means
-for a variable of type \AB{σ} to be present in context \AB{Γ}.
-This is a standard definition corresponding to a scoped-and-typed
-variant of de Bruijn index~\cite{de1972lambda}.
-
-\ExecuteMetaData[TwoTT.tex]{var}
-
-Here we used notations meant to once again mimick inference
-rules~\cite{DBLP:conf/cpp/Allais0MM17}.
-\todo{Add inference rules}
-
 \subsection{Intrinsically Scoped and Typed Syntax}
+
+We skip over the definition of contexts and variables: they
+are essentially the same as the ones we gave in \Cref{sec:intrinsictyping}.
 
 \ExecuteMetaData[TwoTT.tex]{term}
 
@@ -214,7 +336,7 @@ evaluating all of its static parts.
 We start with the model construction describing precisely
 the type of values.
 
-\subsection{Model Construction}
+\subsection{Model Construction}\label{sec:stagingmodel}
 
 The type of values is defined by case analysis on the stage.
 %
