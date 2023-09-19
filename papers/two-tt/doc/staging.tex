@@ -59,10 +59,12 @@ into their semantical counterpart.
 As a corollary, we obtain a staging function that
 fully evaluates all of the static subterms and returns
 purely dynamic ones.
-
+%
 As already observed by Kov{\'{a}}cs, this model construction
 is analogous to the one used for normalisation by evaluation,
 hence the title of this paper.
+
+\todo{start with examples}
 
 \section{A Primer on Intrinsically Typed λ-Calculi}\label{sec:intrinsictyping}
 
@@ -73,9 +75,12 @@ presentation of this approach.
 
 \subsection{Object Types and Contexts}
 
-We first give a sum type of object types:
-\AIC{`ℕ} that stands for the base type of natural numbers,
-and (\AB{A} \AIC{`⇒} \AB{B}) for the type of functions from
+We first give a sum type of object types. We call it \AF{Type} and
+its own type is \AF{Set}, the type of all small types in Agda.
+It has two constructors presented in generalised algebraic datatype
+(GADT) fashion.
+First, \AIC{`ℕ} stands for the natural numbers acting as our base type.
+And second, (\AB{A} \AIC{`⇒} \AB{B}) is the type of functions from
 \AB{A} to \AB{B}.
 
 \ExecuteMetaData[STLC.tex]{type}
@@ -84,11 +89,11 @@ and (\AB{A} \AIC{`⇒} \AB{B}) for the type of functions from
   All the code in this paper is semantically highlighed:
   keywords are \AK{orange}, definitions and types are \AF{blue},
   data constructors are \AIC{green}, bound variables are
-  \AB{slanted}.
+  \AB{slanted}, and comments are \AC{brown}.
 \end{remark}
 
 We extensively use Agda's \AK{variable} mechanism: all of
-the seemingly unbound names will in fact be automatically
+the seemingly unbound names will in fact have been automatically
 quantified over in a prenex position provided that they
 have been declared beforehand.
 %
@@ -116,8 +121,8 @@ presenting judgements.
 %
 That is to say we will write the application and
 λ-abstraction rules as they are in the right column
-rather than the left one that make the ambient context Γ
-explicit.
+rather than the left one where the ambient context Γ
+is mentioned explicitly.
 
 \noindent
 \begin{minipage}{.4\textwidth}
@@ -136,19 +141,6 @@ explicit.
 To do so, we need to introduce a small set of combinators
 to manipulate indexed definitions. These are standard and
 already present in Agda's standard library.
-%
-First, \AF{∀[\_]} universally quantifies over its argument's index;
-it is meant to be used to surround a complex expression built
-up using the other combinators.
-%
-Second, the suggestively named \AF{\_⊢\_} allows us to modify
-the index; it will be useful to extend a context with freshly
-bound variables.
-%
-Third, we can form index-respecting function spaces using \AF{\_⇒\_}.
-%
-Finally, the pointwise lifting of pairing is called \AF{\_∩\_};
-it will only come into play in \Cref{sec:stagingmodel}.
 
 \noindent
 \begin{minipage}{.4\textwidth}
@@ -158,13 +150,35 @@ it will only come into play in \Cref{sec:stagingmodel}.
   \ExecuteMetaData[STLC.tex]{update}
 \end{minipage}
 
+First, \AF{∀[\_]} universally quantifies over its argument's index;
+it is meant to be used to surround a complex expression built
+up using the other combinators.
+%
+Second, the suggestively named \AF{\_⊢\_} allows us to modify
+the index; it will be useful to extend a context with freshly
+bound variables.
+
 \noindent
 \begin{minipage}{.4\textwidth}
-\ExecuteMetaData[STLC.tex]{arrow}
+  \ExecuteMetaData[STLC.tex]{arrow}
 \end{minipage}\hfill
 \begin{minipage}{.5\textwidth}
-\ExecuteMetaData[STLC.tex]{product}
+  \ExecuteMetaData[STLC.tex]{product}
 \end{minipage}
+
+Third, we can form index-respecting function spaces using \AF{\_⇒\_}.
+%
+Finally, the pointwise lifting of pairing is called \AF{\_∩\_};
+it will only come into play in \Cref{sec:stagingmodel}.
+
+We include below an artificial example of a type written using
+the combinators together with its full expansion using explicit
+context-passing.
+
+\begin{AgdaSuppressSpace}
+  \ExecuteMetaData[STLC.tex]{swaptype}
+  \ExecuteMetaData[STLC.tex]{swaptypenormalised}
+\end{AgdaSuppressSpace}
 
 \subsection{Intrinsically Typed Variables}
 
@@ -185,7 +199,7 @@ extended with a freshly bound variable of type \AB{B}.
 \begin{minipage}{.5\textwidth}
 \ExecuteMetaData[STLC.tex]{var}
 \end{minipage}\hfill
-\begin{minipage}{.4\textwidth}
+\begin{minipage}{.45\textwidth}
 \begin{mathpar}
   \inferrule{ }{x : A ⊢ x :_v A} \and
   \inferrule{x :_v A}{y : B ⊢ x :_v A}

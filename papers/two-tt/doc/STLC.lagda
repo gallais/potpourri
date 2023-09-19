@@ -3,6 +3,7 @@ module STLC where
 
 open import Function.Base using (_∘_)
 open import Data.Product using (_×_)
+open import Agda.Builtin.Equality using (_≡_; refl)
 
 infixr 5 _`⇒_
 \end{code}
@@ -78,6 +79,27 @@ _∩_ : (P Q : I → Set) → (I → Set)
 \begin{code}
 
 module PRINTONLY where
+
+  swapType : (P Q : Context → Set) (A : Type) → Set
+  swapType P Q A =
+\end{code}
+%<*swaptype>
+\begin{code}
+    ∀[ (_, A) ⊢ (P ∩ Q ⇒ Q ∩ P) ]
+\end{code}
+%</swaptype>
+\begin{code}
+
+  _ : (P Q : Context → Set) (A : Type) → swapType P Q A ≡ (
+\end{code}
+%<*swaptypenormalised>
+\begin{code}
+    ∀ {Γ} → (P (Γ , A) × Q (Γ , A)) → (Q (Γ , A) × P (Γ , A))
+\end{code}
+%</swaptypenormalised>
+\begin{code}
+    )
+  _ = λ P Q A → refl
 
 \end{code}
 %<*varnormalised>
