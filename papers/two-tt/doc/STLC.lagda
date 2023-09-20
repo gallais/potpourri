@@ -10,7 +10,7 @@ infixr 5 _`⇒_
 %<*type>
 \begin{code}
 data Type : Set where
-  `ℕ    : Type
+  `α    : Type
   _`⇒_  : (A B : Type) → Type
 \end{code}
 %</type>
@@ -240,20 +240,20 @@ _$$_ : ∀ {A B} → Kripke A B Γ → A Γ → B Γ
 f $$ t = f .runBox ≤-refl t
 
 -- Model construction
--- Here we would traditionally enforce that (Value `ℕ)
+-- Here we would traditionally enforce that (Value `α)
 -- returns neutral terms
 \end{code}
 %<*value>
 \begin{code}
 Value : Type → Context → Set
-Value `ℕ        = Term `ℕ
+Value `α        = Term `α
 Value (A `⇒ B)  = Kripke (Value A) (Value B)
 \end{code}
 %</value>
 \begin{code}
 
 weak-Value : (A : Type) → Γ ≤ Δ → Value A Γ → Value A Δ
-weak-Value `ℕ        σ v = weak-Term σ v
+weak-Value `α        σ v = weak-Term σ v
 weak-Value (A `⇒ B)  σ v = weak-Kripke σ v
 
 interleaved mutual
@@ -261,8 +261,8 @@ interleaved mutual
   reify    : (A : Type) → ∀[ Value A  ⇒ Term A   ]
   reflect  : (A : Type) → ∀[ Term A   ⇒ Value A  ]
 
-  reify    `ℕ T = T
-  reflect  `ℕ t = t
+  reify    `α T = T
+  reflect  `α t = t
 
   reify    (A `⇒ B) T = `lam
     let  f  = weak-Kripke (drop ≤-refl) T

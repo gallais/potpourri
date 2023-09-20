@@ -12,7 +12,6 @@
 
 module TwoTT where
 
-open import Data.Bool.Base using (Bool; true; false)
 open import Function.Base using (_∘_; id; const)
 open import Relation.Unary using (IUniversal; _⇒_; _⊢_; _∩_)
 
@@ -29,7 +28,7 @@ data Stage : Set where
 
 %<*stagevariables>
 \begin{code}
-variable st a b : Stage
+variable st : Stage
 \end{code}
 %</stagevariables>
 
@@ -55,17 +54,31 @@ infixr 5 _`⇒_
 %<*types>
 \begin{code}
 data Type : Stage → Set where
+  `α    : Type st
+\end{code}
+%<*typesnat>
+\begin{code}
   `ℕ    : Type st
+\end{code}
+%</typesnat>
+\begin{code}
   `⇑_   : Type dynamic → Type static
   _`⇒_  : (A B : Type st) → Type st
+\end{code}
+%<*typesprod>
+\begin{code}
   _`×_  : (A B : Type static) → Type static
+\end{code}
+%</typesprod>
+\begin{code}
 \end{code}
 %</types>
 \begin{code}
 
 variable
-  A : Type a
-  B : Type b
+  A : Type st
+  B : Type st
+  C : Type st
 
 ------------------------------------------------------------------------
 -- Context are your usual left-nested lists of types.
@@ -142,30 +155,45 @@ weak-Var (keep σ) (there v) = there (weak-Var σ v)
 -- they describe but also by a boolean describing whether it is legal
 -- to uses quotes and splices
 
+data Phase : Set where
+  source staged : Phase
+
 variable
-  stg : Bool
+  ph : Phase
 
 \end{code}
 %<*term>
 \begin{code}
-data Term : Bool → ∀ st → Type st → Context → Set where
-  `var   : ∀[ Var A ⇒ Term stg st A ]
-  `app   : ∀[ Term stg st (A `⇒ B) ⇒ Term stg st A ⇒ Term stg st B ]
-  `lam   : ∀[ (_, A) ⊢ Term stg st B ⇒ Term stg st (A `⇒ B) ]
-  `zero  : ∀[ Term stg st `ℕ ]
-  `succ  : ∀[ Term stg st `ℕ ⇒ Term stg st `ℕ ]
-  `iter  : ∀[ Term stg st (`ℕ `⇒ (A `⇒ A) `⇒ A `⇒ A) ]
-  `⟨_⟩   : ∀[ Term true _ A ⇒ Term true _ (`⇑ A) ]
-  `∼_    : ∀[ Term true _ (`⇑ A) ⇒ Term true _ A ]
-  _`,_   : ∀[ Term true _ A ⇒ Term true _ B ⇒ Term true _ (A `× B) ]
-  `fst   : ∀[ Term true _ ((A `× B) `⇒ A) ]
-  `snd   : ∀[ Term true _ ((A `× B) `⇒ B) ]
+data Term : Phase → ∀ st → Type st → Context → Set where
+  `var   : ∀[ Var A ⇒ Term ph st A ]
+  `app   : ∀[ Term ph st (A `⇒ B) ⇒ Term ph st A ⇒ Term ph st B ]
+  `lam   : ∀[ (_, A) ⊢ Term ph st B ⇒ Term ph st (A `⇒ B) ]
+\end{code}
+%<*termnat>
+\begin{code}
+  `zero  : ∀[ Term ph st `ℕ ]
+  `succ  : ∀[ Term ph st `ℕ ⇒ Term ph st `ℕ ]
+  `iter  : ∀[ Term ph st (`ℕ `⇒ (A `⇒ A) `⇒ A `⇒ A) ]
+\end{code}
+%</termnat>
+\begin{code}
+  `⟨_⟩   : ∀[ Term source dynamic A ⇒ Term source static (`⇑ A) ]
+  `∼_    : ∀[ Term source static (`⇑ A) ⇒ Term source dynamic A ]
+\end{code}
+%<*termprod>
+\begin{code}
+  _`,_   : ∀[ Term source static A ⇒ Term source static B ⇒ Term source static (A `× B) ]
+  `fst   : ∀[ Term source static ((A `× B) `⇒ A) ]
+  `snd   : ∀[ Term source static ((A `× B) `⇒ B) ]
+\end{code}
+%</termprod>
+\begin{code}
 \end{code}
 %</term>
 \begin{code}
 
 -- Action of thinnings on terms
-weak-Term : Γ ≤ Δ → Term stg st A Γ → Term stg st A Δ
+weak-Term : Γ ≤ Δ → Term ph st A Γ → Term ph st A Δ
 weak-Term σ (`var v) = `var (weak-Var σ v)
 weak-Term σ (`app f t) = `app (weak-Term σ f) (weak-Term σ t)
 weak-Term σ (`lam b) = `lam (weak-Term (keep σ) b)
@@ -179,29 +207,14 @@ weak-Term σ `fst = `fst
 weak-Term σ `snd = `snd
 
 ------------------------------------------------------------------------
--- Source programs can use quotes and splices but staged code cannot
-
-\end{code}
-%<*termaliases>
-\begin{code}
-Source : ∀ st → Type st → Context → Set
-Source = Term true
-
-Staged : ∀ st → Type st → Context → Set
-Staged = Term false
-\end{code}
-%</termaliases>
-\begin{code}
-
-------------------------------------------------------------------------
 -- Example of programs
 
 -- Purely dynamic identity function
 \end{code}
 %<*iddyn>
 \begin{code}
-`id₀ : Source dynamic (A `⇒ A) ε
-`id₀ = `lam (`var here)
+`idᵈ : Term ph dynamic (A `⇒ A) ε
+`idᵈ = `lam (`var here)
 \end{code}
 %</iddyn>
 \begin{code}
@@ -210,43 +223,62 @@ Staged = Term false
 \end{code}
 %<*idsta>
 \begin{code}
-`id₁ : Source static (`⇑ A `⇒ `⇑ A) ε
-`id₁ = `lam (`var here)
+`idˢ : Term source static (`⇑ A `⇒ `⇑ A) ε
+`idˢ = `lam (`var here)
 \end{code}
 %</idsta>
 \begin{code}
 
+infixr 3 _`∘_
+_`∘_ : ∀[ Term ph st (B `⇒ C) ⇒ Term ph st (A `⇒ B) ⇒ Term ph st (A `⇒ C) ]
+g `∘ f =  let Γ≤Γ,A = drop ≤-refl in
+          `lam (`app (weak-Term Γ≤Γ,A g) (`app (weak-Term Γ≤Γ,A f) (`var here)))
+
 -- Turning static nats into dyanmic ones by computing their
 -- representation as codes
 \end{code}
+%<*reify>
 \begin{code}
-`reify : ∀[ Source static (`ℕ `⇒ `⇑ `ℕ) ]
+`reify : ∀[ Term source static (`ℕ `⇒ `⇑ `ℕ) ]
 `reify = `lam (`app (`app (`app `iter (`var here)) (`lam `⟨ `succ (`∼ `var here) ⟩)) `⟨ `zero ⟩)
+\end{code}
+%</reify>
+\begin{code}
 
 -- Addition in terms of iteration
-`add : ∀[ Source st (`ℕ `⇒ `ℕ `⇒ `ℕ) ]
+\end{code}
+%<*add>
+\begin{code}
+`add : ∀[ Term ph st (`ℕ `⇒ `ℕ `⇒ `ℕ) ]
 `add = `lam (`app (`app `iter (`var here)) (`lam (`succ (`var here))))
+\end{code}
+%</add>
+\begin{code}
 
 -- Double as addition of a term with itself.
 -- Note that we return a *dynamic* value which will have been
 -- computed at staging time
-`double : Source static (`ℕ `⇒ `⇑ `ℕ) ε
+`double : Term source static (`ℕ `⇒ `⇑ `ℕ) ε
 `double = `lam (`app `reify (`app (`app `add (`var here)) (`var here)))
 
 -- Efficiently computing the Fibonacci sequence using a pair
 -- of values. aux(n) = (fib n, fib (suc n))
--- Note that we return a dynamic value: the pairs will all be computed
--- away during staging!
-`fib : Source static (`ℕ `⇒ `⇑ `ℕ) ε
-`fib = `lam (`app `reify (`app `fst (`app aux (`var here)))) where
-
-  aux : ∀[ Source static (`ℕ `⇒ `ℕ `× `ℕ) ]
-  aux = `lam (`app (`app (`app `iter (`var here))
+\end{code}
+%<*fib>
+\begin{code}
+`fib : Term source static (`ℕ `⇒ `ℕ) ε
+`fib = `fst `∘ `lam (`app (`app (`app
+  -- this implements n ↦ (fib n, fib (1 + n))
+  `iter (`var here))
         {- step -} (`lam
-          let fibn = `app `fst (`var here)
-              fibsn = `app `snd (`var here)
-          in fibsn `, `app (`app `add fibn) fibsn))
+          let fibₙ    = `app `fst (`var here)
+              fib₁₊ₙ  = `app `snd (`var here)
+              fib₂₊ₙ  = `app (`app `add fibₙ) fib₁₊ₙ
+          in (fib₁₊ₙ `, fib₂₊ₙ)))
         {- base -} (`zero `, `succ `zero))
+\end{code}
+%</fib>
+\begin{code}
 
 ------------------------------------------------------------------------
 -- Semantics toolkit: Kripke function spaces between
@@ -288,6 +320,7 @@ f $$ t = f .runBox ≤-refl t
 ------------------------------------------------------------------------
 -- Definition of the domain for staging by evaluation
 
+open import Data.Empty using (⊥)
 open import Data.Nat.Base using (ℕ; suc; _+_)
 open import Data.Product as Prod using (_×_; _,_)
 
@@ -306,7 +339,7 @@ Static : Type static → Context → Set
 \begin{code}
 Value : (st : Stage) → Type st → Context → Set
 Value static   = Static
-Value dynamic  = Staged dynamic
+Value dynamic  = Term staged dynamic
 \end{code}
 %</model>
 \begin{code}
@@ -315,16 +348,28 @@ Value dynamic  = Staged dynamic
 \end{code}
 %<*modelsta>
 \begin{code}
+Static `α        = const ⊥
+\end{code}
+%<*modelnat>
+\begin{code}
 Static `ℕ        = const ℕ
+\end{code}
+%</modelnat>
+\begin{code}
 Static (`⇑ A)    = Value dynamic A
 Static (A `⇒ B)  = Kripke (Static A) (Static B)
+\end{code}
+%<*modelprod>
+\begin{code}
 Static (A `× B)  = Static A ∩ Static B
 \end{code}
+%</modelprod>
 %</modelsta>
 \begin{code}
 
 -- Action of thinnings on Kripke domains
 weak-Static : (A : Type _) → Γ ≤ Δ → Static A Γ → Static A Δ
+weak-Static `α       σ = id
 weak-Static `ℕ       σ = id
 weak-Static (`⇑ A)   σ = weak-Term σ
 weak-Static (A `⇒ B) σ = weak-Kripke σ
@@ -349,19 +394,20 @@ weak-Env : Δ ≤ θ → Env Γ Δ → Env Γ θ
 weak-Env σ ρ .lookup {A = A} v = weak-Value A σ (ρ .lookup v)
 
 -- Semantics counterpart to iter
+\end{code}
+%<*iter>
+\begin{code}
+iterate : {ty : Set} → (ty → ty) → ty → ℕ → ty
+iterate succ zero 0        = zero
+iterate succ zero (suc n)  = succ (iterate succ zero n)
+
 iter : ∀ st {A} → Value st (`ℕ `⇒ (A `⇒ A) `⇒ (A `⇒ A)) Γ
-iter dynamic = `iter
-iter static {A}
-  = λλ[ _ , m ] λλ[ _ , succ ] λλ[ σ , zero ]
-    go A m (weak-Kripke σ succ) zero
-
-  where
-
-  go : (A : Type static) → (n : ℕ) →
-       (succ : Kripke (Static A) (Static A) Γ) →
-       (zero : Static A Γ) → Static A Γ
-  go A 0       succ zero = zero
-  go A (suc n) succ zero = succ $$ go A n succ zero
+iter dynamic  = `iter
+iter static   = λλ[ _ , m ] λλ[ _ , succ ] λλ[ σ , zero ]
+                iterate (weak-Kripke σ succ $$_) zero m
+\end{code}
+%</iter>
+\begin{code}
 
 -- Semantics counterpart to app
 \end{code}
@@ -421,7 +467,7 @@ succ dynamic  = `succ
 
 %<*bodydecl>
 \begin{code}
-body : Env Γ Δ → Source st B (Γ , A) →
+body : Env Γ Δ → Term source st B (Γ , A) →
        Kripke (Value st A) (Value st B) Δ
 \end{code}
 %</bodydecl>
@@ -432,7 +478,7 @@ body : Env Γ Δ → Source st B (Γ , A) →
 \end{code}
 %<*evaldecl>
 \begin{code}
-eval : Env Γ Δ → Source st A Γ → Value st A Δ
+eval : Env Γ Δ → Term source st A Γ → Value st A Δ
 \end{code}
 %</evaldecl>
 %<*eval>
@@ -463,7 +509,7 @@ body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
 \end{code}
 %<*stagedecl>
 \begin{code}
-stage : Source dynamic A ε → Staged dynamic A ε
+stage : Term source dynamic A ε → Term staged dynamic A ε
 \end{code}
 %</stagedecl>
 \begin{code}
@@ -474,30 +520,41 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 ------------------------------------------------------------------------
 -- Tests for the staging evaluator
 
--- `id₁ is a static identity and thus computes
-test-id₁ : stage (`∼ `app `id₁ `⟨ `zero ⟩) ≡ `zero
-test-id₁ = refl
+infix 0 _∋_↝_
+_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic A ε → Set
+A ∋ s ↝ t = stage s ≡ t
 
--- `id₀ is a dynamic identity and thus stays stuck
-test-id₀ : stage (`app `id₀ `zero)
-         ≡ `app (`lam (`var here)) `zero
-test-id₀ = refl
+-- `idˢ is a static identity and thus computes
+test-idˢ : `ℕ ∋ `∼ `app `idˢ `⟨ `zero ⟩ ↝ `zero
+test-idˢ = refl
+
+-- `idᵈ is a dynamic identity and thus stays stuck
+test-idᵈ : `ℕ ∋ `app `idᵈ `zero ↝ `app `idᵈ `zero
+test-idᵈ = refl
 
 -- We can of course mix the two
-test-id₀₁ : stage (`app `id₀ (`∼ `app `id₁ `⟨ `zero ⟩))
-          ≡ `app (`lam (`var here)) `zero
-test-id₀₁ = refl
+test-idᵈˢ : stage (`app `idᵈ (`∼ `app `idˢ `⟨ `zero ⟩))
+          ≡ `app `idᵈ `zero
+test-idᵈˢ = refl
 
 -- Just for ease of use in the test cases involving computations
-fromℕ : ℕ → ∀[ Term stg st `ℕ ]
+fromℕ : ℕ → ∀[ Term ph st `ℕ ]
 fromℕ ℕ.zero    = `zero
 fromℕ (ℕ.suc n) = `succ (fromℕ n)
 
 -- Finally, the static `double computes at staging time
-test-double : stage (`∼ (`app `double (fromℕ 4))) ≡ fromℕ 8
+test-double : `ℕ ∋ `∼ (`app `double (fromℕ 4)) ↝ fromℕ 8
 test-double = refl
 
 -- And computing fib by using pairs, a feature not available
 -- in the target language!
-test-fib : stage (`∼ (`app `fib (fromℕ 8))) ≡ fromℕ 21
+test-fib :
+\end{code}
+%<*testfib>
+\begin{code}
+  `ℕ ∋  `app (`app `add `zero) (`∼ `app (`reify `∘ `fib) (fromℕ 8))
+     ↝  `app (`app `add `zero) (fromℕ 21)
+\end{code}
+%</testfib>
+\begin{code}
 test-fib = refl

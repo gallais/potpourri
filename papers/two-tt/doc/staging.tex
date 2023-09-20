@@ -79,8 +79,8 @@ We first give a sum type of object types. We call it \AF{Type} and
 its own type is \AF{Set}, the type of all small types in Agda.
 It has two constructors presented in generalised algebraic datatype
 (GADT) fashion.
-First, \AIC{`ℕ} stands for the natural numbers acting as our base type.
-And second, (\AB{A} \AIC{`⇒} \AB{B}) is the type of functions from
+We use \AIC{`α} as our base type,
+and (\AB{A} \AIC{`⇒} \AB{B}) is the type of functions from
 \AB{A} to \AB{B}.
 
 \ExecuteMetaData[STLC.tex]{type}
@@ -169,7 +169,7 @@ bound variables.
 Third, we can form index-respecting function spaces using \AF{\_⇒\_}.
 %
 Finally, the pointwise lifting of pairing is called \AF{\_∩\_};
-it will only come into play in \Cref{sec:stagingmodel}.
+it will only come into play in \Cref{sec:stagingmodelprod}.
 
 We include below an artificial example of a type written using
 the combinators together with its full expansion using explicit
@@ -331,9 +331,9 @@ by their stage.
 
 \ExecuteMetaData[BasicTwoTT.tex]{types}
 
-We have both static and dynamic natural numbers,
+We have both static and dynamic terms of base type,
 hence the unconstrained index \AB{st} for the
-constructor \AIC{`ℕ}.
+constructor \AIC{`α}.
 %
 The constructor \AIC{‘⇑\_} allows us to embed dynamic
 types into static ones; (\AIC{‘⇑} \AB{A}) is effectively
@@ -352,17 +352,19 @@ of pairs will have completely disappeared after staging.
 
 \subsection{Intrinsically Scoped and Typed Syntax}
 
-\todo{Replace \AD{Bool} with \AD{Phase}}
-
 We skip over the definition of contexts and variables: they
 are essentially the same as the ones we gave in \Cref{sec:intrinsictyping}.
+
+\ExecuteMetaData[BasicTwoTT.tex]{phase}
+
+Our type of term is indexed by a phase, a stage, a type EZ
 
 \ExecuteMetaData[BasicTwoTT.tex]{termdecl}
 
 The first constructors are familiar: they are exactly the ones
 seen in the previous section. These constructs are available
 at both levels and both before and after staging hence the fact
-that the status and stage indices are polymorphic here.
+that the state and phase indices are polymorphic here.
 
 \ExecuteMetaData[BasicTwoTT.tex]{termstlc}
 
@@ -370,6 +372,9 @@ Next we have the constructs specific to the two level calculus:
 quotes (\AIC{`⟨\_⟩}) let users insert dynamic terms into static
 expressions while splices (\AIC{`∼\_}) allow static terms to
 be inserted in dynamic ones.
+%
+Staging will, by definition, eliminate these and so their phase
+indexed is constrained to be \AIC{source}.
 
 \ExecuteMetaData[BasicTwoTT.tex]{termtwolevel}
 
@@ -384,16 +389,6 @@ calculus.
   \end{AgdaSuppressSpace}
 \end{AgdaAlign}
 
-We introduce two aliases.
-%
-First, \AF{Source} for the terms users can write and that
-may that can mention quotes, splices, pairs, and projections.
-%
-Second, \AF{Staged} for our target language where all the
-static subterms have been evaluated away.
-
-\ExecuteMetaData[BasicTwoTT.tex]{termaliases}
-
 
 \section{Staging by Evaluation}
 
@@ -404,9 +399,9 @@ appropriate environment to interpret the term's free variables.
 
 \ExecuteMetaData[BasicTwoTT.tex]{evaldecl}
 
-As a direct corollary we will obtain a staging function
+As a corollary we will obtain a staging function
 that takes a closed dynamic term and gets rid of all of
-the quotes, splices, and pairs and projections by fully
+the quotes and splices by fully
 evaluating all of its static parts.
 
 \ExecuteMetaData[BasicTwoTT.tex]{stagedecl}
@@ -419,8 +414,8 @@ the type of values.
 The type of values is defined by case analysis on the stage.
 %
 Static values are given a static meaning (defined below)
-while dynamic values are given a meaning as terms
-guaranteed not to contain any static subterm.
+while dynamic values are given a meaning as staged terms
+i.e. terms guaranteed not to contain any static subterm.
 
 \ExecuteMetaData[BasicTwoTT.tex]{model}
 
@@ -436,9 +431,9 @@ be neutral terms.
 \ExecuteMetaData[BasicTwoTT.tex]{modelsta}
 \end{AgdaSuppressSpace}
 
-Static values of type \AIC{`α} do not exist as this base type does
-not have any associated constructors;
-those of type (\AIC{`⇑} \AB{A}) are dynamic values of type \AB{A}
+There are no static values of type \AIC{`α} as this base type does
+not have any associated constructors and so we return the empty type \AD{⊥};
+values of type (\AIC{`⇑} \AB{A}) are dynamic values of type \AB{A}
 i.e. staged terms of type \AB{A};
 functions from \AB{A} to \AB{B} are interpreted using Kripke function
 spaces from static values of type \AB{A} to static values of type \AB{B}.
@@ -450,6 +445,7 @@ spaces from static values of type \AB{A} to static values of type \AB{B}.
 \ExecuteMetaData[BasicTwoTT.tex]{thinrefl}
 
 \ExecuteMetaData[BasicTwoTT.tex]{kripkeapp}
+\ExecuteMetaData[BasicTwoTT.tex]{kripkelam}
 
 
 \subsection{Evaluation}
@@ -464,7 +460,6 @@ for Kripke function spaces in the static case, and the syntactic
 \AIC{`app} constructor in the dynamic one.
 
 \ExecuteMetaData[BasicTwoTT.tex]{app}
-
 
 
 \ExecuteMetaData[BasicTwoTT.tex]{lam}
@@ -485,6 +480,89 @@ function describing its behaviour on the body of a λ-abstraction.
 \ExecuteMetaData[BasicTwoTT.tex]{body}
 \end{AgdaSuppressSpace}
 
+We obtain the \AF{stage} function by calling \AF{eval} with an
+empty environment.
+
+\begin{AgdaSuppressSpace}
+\ExecuteMetaData[BasicTwoTT.tex]{stagefun}
+\end{AgdaSuppressSpace}
+
+
+\section{A More Practical Two Level Calculus}
+
+We are now going to extend the minimal calculus we used so far to
+show a more realistic example of a two level calculus.
+
+First we are going to add natural numbers and their eliminator.
+These will be available at both stages and we will see how we
+can transfer a static natural number to the dynamic phase by
+defining a static \AF{`reify} term.
+
+Second, based on Kov{\'{a}}cs' observation that the static and
+dynamic language do not need to have exactly the same features,
+we are going to add a type of static pairs.
+%
+These pairs and their projections can be used in arbitrary static
+code but will be guaranteed to be evaluated away during staging.
+%
+We will demonstrate this by giving a static term \AF{`fib}
+implementing a standard linear (ignoring the cost of addition)
+algorithm for the Fibonacci function.
+%
+This will allow us to obtain e.g.
+
+\ExecuteMetaData[TwoTT.tex]{testfib}
+
+\noindent where \AF{fromℕ} is a helper function turning Agda
+literals into \AF{Term}s built using \AIC{`zero} and \AIC{`succ}.
+
+\subsection{Adding natural numbers}
+
+\subsubsection{Types and Terms}
+
+\ExecuteMetaData[TwoTT.tex]{typesnat}
+
+\ExecuteMetaData[TwoTT.tex]{termnat}
+
+\ExecuteMetaData[TwoTT.tex]{reify}
+
+\ExecuteMetaData[TwoTT.tex]{add}
+
+\subsubsection{Staging by Evaluation}
+
+Static values of type \AIC{`ℕ} are constant natural numbers.
+
+\ExecuteMetaData[TwoTT.tex]{modelnat}
+
+The term constructor \AIC{`zero} is either interpreted by
+the natural number \AN{0} or by the term constructor itself
+depending on whether it is used in a static or dynamic manner.
+
+\ExecuteMetaData[TwoTT.tex]{zero}
+
+Similarly \AIC{`succ} is interpreted either as (\AN{1} \AF{+}\AS{\_})
+if it used in a static manner or by the term constructor itself
+for dynamic uses.
+
+\ExecuteMetaData[TwoTT.tex]{succ}
+
+\ExecuteMetaData[TwoTT.tex]{iter}
+
+\subsection{Adding static pairs}\label{sec:stagingmodelprod}
+
+\subsubsection{Types and Terms}
+
+\ExecuteMetaData[TwoTT.tex]{typesprod}
+
+\ExecuteMetaData[TwoTT.tex]{termprod}
+
+\ExecuteMetaData[TwoTT.tex]{fib}
+
+\subsubsection{Staging by Evaluation}
+
+Static pairs are pairs of static values.
+
+\ExecuteMetaData[TwoTT.tex]{modelprod}
 
 
 \section{Future Work}
@@ -498,5 +576,4 @@ Generic treatment of this construction
 
 \newpage
 \printbibliography
-
 \end{document}

@@ -17,7 +17,6 @@ module BasicTwoTT where
 
 open import Data.Default
 open import Data.Empty using (⊥)
-open import Data.Bool.Base using (Bool; true; false)
 open import Function.Base using (_∘_; id; const)
 open import Relation.Unary using (IUniversal; _⇒_; _⊢_; _∩_)
 
@@ -141,54 +140,47 @@ weak-Var (keep σ) (there v) = there (weak-Var σ v)
 -- they describe but also by a boolean describing whether it is legal
 -- to uses quotes and splices
 
-variable
-  stg : Bool
+\end{code}
+%<*phase>
+\begin{code}
+data Phase : Set where
+  source staged : Phase
+
+variable ph : Phase
+\end{code}
+%</phase>
+\begin{code}
 
 \end{code}
 %<*term>
 %<*termdecl>
 \begin{code}
-data Term : Bool → ∀ st → Type st → Context → Set where
+data Term : Phase → ∀ st → Type st → Context → Set where
 \end{code}
 %</termdecl>
 %<*termstlc>
 \begin{code}
-  `var   : ∀[ Var A ⇒ Term stg st A ]
-  `app   : ∀[ Term stg st (A `⇒ B) ⇒ Term stg st A ⇒ Term stg st B ]
-  `lam   : ∀[ (_, A) ⊢ Term stg st B ⇒ Term stg st (A `⇒ B) ]
+  `var   : ∀[ Var A ⇒ Term ph st A ]
+  `app   : ∀[ Term ph st (A `⇒ B) ⇒ Term ph st A ⇒ Term ph st B ]
+  `lam   : ∀[ (_, A) ⊢ Term ph st B ⇒ Term ph st (A `⇒ B) ]
 \end{code}
 %</termstlc>
 %<*termtwolevel>
 \begin{code}
-  `⟨_⟩   : ∀[ Term true dynamic A ⇒ Term true static (`⇑ A) ]
-  `∼_    : ∀[ Term true static (`⇑ A) ⇒ Term true dynamic A ]
+  `⟨_⟩   : ∀[ Term source dynamic A ⇒ Term source static (`⇑ A) ]
+  `∼_    : ∀[ Term source static (`⇑ A) ⇒ Term source dynamic A ]
 \end{code}
 %</termtwolevel>
 %</term>
 \begin{code}
 
 -- Action of thinnings on terms
-weak-Term : Γ ≤ Δ → Term stg st A Γ → Term stg st A Δ
+weak-Term : Γ ≤ Δ → Term ph st A Γ → Term ph st A Δ
 weak-Term σ (`var v) = `var (weak-Var σ v)
 weak-Term σ (`app f t) = `app (weak-Term σ f) (weak-Term σ t)
 weak-Term σ (`lam b) = `lam (weak-Term (keep σ) b)
 weak-Term σ `⟨ t ⟩ = `⟨ weak-Term σ t ⟩
 weak-Term σ (`∼ t) = `∼ weak-Term σ t
-
-------------------------------------------------------------------------
--- Source programs can use quotes and splices but staged code cannot
-
-\end{code}
-%<*termaliases>
-\begin{code}
-Source : ∀ st → Type st → Context → Set
-Source = Term true
-
-Staged : ∀ st → Type st → Context → Set
-Staged = Term false
-\end{code}
-%</termaliases>
-\begin{code}
 
 ------------------------------------------------------------------------
 -- Example of programs
@@ -209,7 +201,7 @@ open WithDefault
 \end{code}
 %<*idsta>
 \begin{code}
-`idˢ : Source static (`⇑ A `⇒ `⇑ A) ε
+`idˢ : Term source static (`⇑ A `⇒ `⇑ A) ε
 `idˢ = `lam (`var here)
 \end{code}
 %</idsta>
@@ -240,7 +232,13 @@ weak-Kripke σ f .runBox = f .runBox ∘ ≤-trans σ
 
 -- lambda-abstraction
 infixr 3 mkBox
+\end{code}
+%<*kripkelam>
+\begin{code}
 syntax mkBox (λ σ x → b) = λλ[ σ , x ] b
+\end{code}
+%</kripkelam>
+\begin{code}
 
 -- application
 \end{code}
@@ -273,7 +271,7 @@ Static : Type static → Context → Set
 \begin{code}
 Value : (st : Stage) → Type st → Context → Set
 Value static   = Static
-Value dynamic  = Staged dynamic
+Value dynamic  = Term staged dynamic
 \end{code}
 %</model>
 \begin{code}
@@ -349,7 +347,7 @@ lam dynamic  b = `lam (b .runBox (drop ≤-refl) (`var here))
 
 %<*bodydecl>
 \begin{code}
-body : Env Γ Δ → Source st B (Γ , A) →
+body : Env Γ Δ → Term source st B (Γ , A) →
        Kripke (Value st A) (Value st B) Δ
 \end{code}
 %</bodydecl>
@@ -360,7 +358,7 @@ body : Env Γ Δ → Source st B (Γ , A) →
 \end{code}
 %<*evaldecl>
 \begin{code}
-eval : Env Γ Δ → Source st A Γ → Value st A Δ
+eval : Env Γ Δ → Term source st A Γ → Value st A Δ
 \end{code}
 %</evaldecl>
 %<*eval>
@@ -383,13 +381,17 @@ body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
 -- Special case of evaluation: turning source terms into staged ones
 
 \end{code}
+%<*stagefun>
 %<*stagedecl>
 \begin{code}
-stage : Source dynamic A ε → Staged dynamic A ε
+stage : Term source dynamic A ε → Term staged dynamic A ε
 \end{code}
 %</stagedecl>
 \begin{code}
 stage = eval (λ where .lookup ())
+\end{code}
+%</stagefun>
+\begin{code}
 
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
@@ -397,7 +399,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 -- Tests for the staging evaluator
 
 infix 0 _∋_↝_
-_∋_↝_ : (A : Type dynamic) → Source dynamic A ε → Staged dynamic A ε → Set
+_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic A ε → Set
 A ∋ s ↝ t = stage s ≡ t
 
 -- `idˢ is a static identity and thus computes
