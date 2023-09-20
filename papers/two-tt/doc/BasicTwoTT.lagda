@@ -146,14 +146,24 @@ variable
 
 \end{code}
 %<*term>
+%<*termdecl>
 \begin{code}
 data Term : Bool → ∀ st → Type st → Context → Set where
+\end{code}
+%</termdecl>
+%<*termstlc>
+\begin{code}
   `var   : ∀[ Var A ⇒ Term stg st A ]
   `app   : ∀[ Term stg st (A `⇒ B) ⇒ Term stg st A ⇒ Term stg st B ]
   `lam   : ∀[ (_, A) ⊢ Term stg st B ⇒ Term stg st (A `⇒ B) ]
-  `⟨_⟩   : ∀[ Term true _ A ⇒ Term true _ (`⇑ A) ]
-  `∼_    : ∀[ Term true _ (`⇑ A) ⇒ Term true _ A ]
 \end{code}
+%</termstlc>
+%<*termtwolevel>
+\begin{code}
+  `⟨_⟩   : ∀[ Term true dynamic A ⇒ Term true static (`⇑ A) ]
+  `∼_    : ∀[ Term true static (`⇑ A) ⇒ Term true dynamic A ]
+\end{code}
+%</termtwolevel>
 %</term>
 \begin{code}
 

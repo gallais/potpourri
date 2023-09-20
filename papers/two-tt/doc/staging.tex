@@ -352,10 +352,37 @@ of pairs will have completely disappeared after staging.
 
 \subsection{Intrinsically Scoped and Typed Syntax}
 
+\todo{Replace \AD{Bool} with \AD{Phase}}
+
 We skip over the definition of contexts and variables: they
 are essentially the same as the ones we gave in \Cref{sec:intrinsictyping}.
 
-\ExecuteMetaData[BasicTwoTT.tex]{term}
+\ExecuteMetaData[BasicTwoTT.tex]{termdecl}
+
+The first constructors are familiar: they are exactly the ones
+seen in the previous section. These constructs are available
+at both levels and both before and after staging hence the fact
+that the status and stage indices are polymorphic here.
+
+\ExecuteMetaData[BasicTwoTT.tex]{termstlc}
+
+Next we have the constructs specific to the two level calculus:
+quotes (\AIC{`⟨\_⟩}) let users insert dynamic terms into static
+expressions while splices (\AIC{`∼\_}) allow static terms to
+be inserted in dynamic ones.
+
+\ExecuteMetaData[BasicTwoTT.tex]{termtwolevel}
+
+
+Putting it all together, we obtain the following inductive
+family representing a minimal intrinsically typed two-level
+calculus.
+
+\begin{AgdaAlign}
+  \begin{AgdaSuppressSpace}
+    \ExecuteMetaData[BasicTwoTT.tex]{term}
+  \end{AgdaSuppressSpace}
+\end{AgdaAlign}
 
 We introduce two aliases.
 %
