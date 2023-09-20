@@ -291,8 +291,30 @@ Putting it all together, we obtain the following inductive family.
   \ExecuteMetaData[STLC.tex]{value}
   \ExecuteMetaData[STLC.tex]{eval}
 
-\section{An Intrinsically Typed 2 Level Type Theory}
-\todo{start with examples}
+\section{Minimal Intrinsically Typed Two Level Type Theory}
+
+We start with the smallest two level calculus we can possibly define
+by extending the simply typed λ-calculus as defined in the previous
+section with quotes and splices.
+
+This will enable us to write and stage simple programs such as the following.
+
+\ExecuteMetaData[BasicTwoTT.tex]{testid01}
+
+The three-place relation (\AB{A} \AF{∋} \AB{s} \AF{↝} \AB{t}) states
+that staging a term \AB{s} at type \AB{A} yields the term \AB{t}.
+%
+Here, \AF{`idᵈ} is a dynamic identity function
+while \AF{`idˢ} is a static one,
+\AIC{`⟨\_⟩} quotes a static term inside a dynamic one,
+and \AIC{`∼\_} splices a dynamic term in a static one.
+%
+Correspondingly, staging will partially evaluate the call to
+\AF{`idˢ} as well as all the quotes and splices while leaving
+the rest of the term intact.
+%
+Hence the result: the call to the static identity function has
+fully reduced but the call to the dynamic one has been preserved.
 
 
 \subsection{Stages and Types}
@@ -302,12 +324,12 @@ stage they live in, and so we begin by defining a sum
 type \AD{Stage} with two constructors: \AIC{static},
 and \AIC{dynamic}.
 
-\ExecuteMetaData[TwoTT.tex]{stage}
+\ExecuteMetaData[BasicTwoTT.tex]{stage}
 
 We can now define our inductive family of simple types indexed
 by their stage.
 
-\ExecuteMetaData[TwoTT.tex]{types}
+\ExecuteMetaData[BasicTwoTT.tex]{types}
 
 We have both static and dynamic natural numbers,
 hence the unconstrained index \AB{st} for the
@@ -333,7 +355,7 @@ of pairs will have completely disappeared after staging.
 We skip over the definition of contexts and variables: they
 are essentially the same as the ones we gave in \Cref{sec:intrinsictyping}.
 
-\ExecuteMetaData[TwoTT.tex]{term}
+\ExecuteMetaData[BasicTwoTT.tex]{term}
 
 We introduce two aliases.
 %
@@ -343,7 +365,7 @@ may that can mention quotes, splices, pairs, and projections.
 Second, \AF{Staged} for our target language where all the
 static subterms have been evaluated away.
 
-\ExecuteMetaData[TwoTT.tex]{termaliases}
+\ExecuteMetaData[BasicTwoTT.tex]{termaliases}
 
 
 \section{Staging by Evaluation}
@@ -353,14 +375,14 @@ as well as an \AF{eval}uation function which computes the
 value associated to each term, provided that we have an
 appropriate environment to interpret the term's free variables.
 
-\ExecuteMetaData[TwoTT.tex]{evaldecl}
+\ExecuteMetaData[BasicTwoTT.tex]{evaldecl}
 
 As a direct corollary we will obtain a staging function
 that takes a closed dynamic term and gets rid of all of
 the quotes, splices, and pairs and projections by fully
 evaluating all of its static parts.
 
-\ExecuteMetaData[TwoTT.tex]{stagedecl}
+\ExecuteMetaData[BasicTwoTT.tex]{stagedecl}
 
 We start with the model construction describing precisely
 the type of values.
@@ -373,7 +395,7 @@ Static values are given a static meaning (defined below)
 while dynamic values are given a meaning as terms
 guaranteed not to contain any static subterm.
 
-\ExecuteMetaData[TwoTT.tex]{model}
+\ExecuteMetaData[BasicTwoTT.tex]{model}
 
 The family of static values is defined by induction on
 the value's type. It is fairly similar to the standard
@@ -383,24 +405,24 @@ except that static values at a base types cannot possibly
 be neutral terms.
 
 \begin{AgdaSuppressSpace}
-\ExecuteMetaData[TwoTT.tex]{modelstadecl}
-\ExecuteMetaData[TwoTT.tex]{modelsta}
+\ExecuteMetaData[BasicTwoTT.tex]{modelstadecl}
+\ExecuteMetaData[BasicTwoTT.tex]{modelsta}
 \end{AgdaSuppressSpace}
 
-Static values of type \AIC{`ℕ} are constant natural numbers;
+Static values of type \AIC{`α} do not exist as this base type does
+not have any associated constructors;
 those of type (\AIC{`⇑} \AB{A}) are dynamic values of type \AB{A}
 i.e. staged terms of type \AB{A};
 functions from \AB{A} to \AB{B} are interpreted using Kripke function
-spaces from static values of type \AB{A} to static values of type \AB{B};
-and finally static pairs are pairs of static values.
+spaces from static values of type \AB{A} to static values of type \AB{B}.
 
-\ExecuteMetaData[TwoTT.tex]{thin}
+\ExecuteMetaData[BasicTwoTT.tex]{thin}
 
-\ExecuteMetaData[TwoTT.tex]{kripke}
+\ExecuteMetaData[BasicTwoTT.tex]{kripke}
 
-\ExecuteMetaData[TwoTT.tex]{thinrefl}
+\ExecuteMetaData[BasicTwoTT.tex]{thinrefl}
 
-\ExecuteMetaData[TwoTT.tex]{kripkeapp}
+\ExecuteMetaData[BasicTwoTT.tex]{kripkeapp}
 
 
 \subsection{Evaluation}
@@ -410,42 +432,30 @@ In every instance we will proceed by case analysis on the
 stage the meaning is being used at.
 
 
-The term constructor \AIC{`zero} is either interpreted by
-the natural number \AN{0} or by the term constructor itself
-depending on whether it is used in a static or dynamic manner.
-
-\ExecuteMetaData[TwoTT.tex]{zero}
-
-Similarly \AIC{`succ} is interpreted either as (\AN{1} \AF{+}\AS{\_})
-if it used in a static manner or by the term constructor itself
-for dynamic uses.
-
-\ExecuteMetaData[TwoTT.tex]{succ}
-
 Application is interpreted as the semantic application defined
 for Kripke function spaces in the static case, and the syntactic
 \AIC{`app} constructor in the dynamic one.
 
-\ExecuteMetaData[TwoTT.tex]{app}
+\ExecuteMetaData[BasicTwoTT.tex]{app}
 
 
 
-\ExecuteMetaData[TwoTT.tex]{lam}
+\ExecuteMetaData[BasicTwoTT.tex]{lam}
 
 
-\ExecuteMetaData[TwoTT.tex]{extend}
+\ExecuteMetaData[BasicTwoTT.tex]{extend}
 
 \begin{AgdaSuppressSpace}
-\ExecuteMetaData[TwoTT.tex]{evaldecl}
-\ExecuteMetaData[TwoTT.tex]{eval}
+\ExecuteMetaData[BasicTwoTT.tex]{evaldecl}
+\ExecuteMetaData[BasicTwoTT.tex]{eval}
 \end{AgdaSuppressSpace}
 
 The function \AF{eval} is mutually defined with an auxiliary
 function describing its behaviour on the body of a λ-abstraction.
 
 \begin{AgdaSuppressSpace}
-\ExecuteMetaData[TwoTT.tex]{bodydecl}
-\ExecuteMetaData[TwoTT.tex]{body}
+\ExecuteMetaData[BasicTwoTT.tex]{bodydecl}
+\ExecuteMetaData[BasicTwoTT.tex]{body}
 \end{AgdaSuppressSpace}
 
 
