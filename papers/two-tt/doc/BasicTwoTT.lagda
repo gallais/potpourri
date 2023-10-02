@@ -21,22 +21,37 @@ open import Function.Base using (_∘_; id; const)
 open import Relation.Unary using (IUniversal; _⇒_; _⊢_; _∩_)
 
 ------------------------------------------------------------------------
+-- We have two phases: source code and staged code
+
+\end{code}
+%<*phase>
+\begin{code}
+data Phase : Set where
+  source staged : Phase
+
+variable ph : Phase
+\end{code}
+%</phase>
+
+\begin{code}
+
+------------------------------------------------------------------------
 -- We have two stages: static and dynamic
 
 \end{code}
 %<*stage>
 \begin{code}
-data Stage : Set where
-  static dynamic : Stage
+data Stage : Phase → Set where
+  static : Stage source
+  dynamic : Stage ph
 \end{code}
 %</stage>
 
 %<*stagevariables>
 \begin{code}
-variable st a b : Stage
+variable st a b : Stage ph
 \end{code}
 %</stagevariables>
-
 \begin{code}
 ------------------------------------------------------------------------
 -- Types are indexed by the stage they are defined at
@@ -53,9 +68,9 @@ infixr 5 _`⇒_
 \end{code}
 %<*types>
 \begin{code}
-data Type : Stage → Set where
+data Type : Stage ph → Set where
   `α    : Type st
-  `⇑_   : Type dynamic → Type static
+  `⇑_   : Type {source} dynamic → Type static
   _`⇒_  : (A B : Type st) → Type st
 \end{code}
 %</types>
@@ -64,6 +79,10 @@ data Type : Stage → Set where
 variable
   A : Type a
   B : Type b
+
+erase : Type {source} dynamic → Type {staged} dynamic
+erase `α        = `α
+erase (A `⇒ B)  = erase A `⇒ erase B
 
 ------------------------------------------------------------------------
 -- Context are your usual left-nested lists of types.
@@ -141,21 +160,10 @@ weak-Var (keep σ) (there v) = there (weak-Var σ v)
 -- to uses quotes and splices
 
 \end{code}
-%<*phase>
-\begin{code}
-data Phase : Set where
-  source staged : Phase
-
-variable ph : Phase
-\end{code}
-%</phase>
-\begin{code}
-
-\end{code}
 %<*term>
 %<*termdecl>
 \begin{code}
-data Term : Phase → ∀ st → Type st → Context → Set where
+data Term : (ph : Phase) → (st : Stage ph) → Type st → Context → Set where
 \end{code}
 %</termdecl>
 %<*termstlc>
@@ -191,7 +199,7 @@ open WithDefault
 \end{code}
 %<*iddyn>
 \begin{code}
-`idᵈ : ∀ {b} → Term b dynamic (A `⇒ A) ε
+`idᵈ : Term ph dynamic (A `⇒ A) ε
 `idᵈ = `lam (`var here)
 \end{code}
 %</iddyn>
@@ -269,9 +277,9 @@ Static : Type static → Context → Set
 \end{code}
 %<*model>
 \begin{code}
-Value : (st : Stage) → Type st → Context → Set
+Value : (st : Stage source) → Type st → Context → Set
 Value static   = Static
-Value dynamic  = Term staged dynamic
+Value dynamic  = Term staged dynamic ∘ erase
 \end{code}
 %</model>
 \begin{code}
@@ -337,7 +345,7 @@ extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x
 \end{code}
 %<*lam>
 \begin{code}
-lam : (st : Stage) {A B : Type st} →
+lam : (st : Stage source) {A B : Type st} →
       Kripke (Value st A) (Value st B) Γ →
       Value st (A `⇒ B) Γ
 lam static   b = λλ[ σ , v ] b .runBox σ v
@@ -384,7 +392,7 @@ body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
 %<*stagefun>
 %<*stagedecl>
 \begin{code}
-stage : Term source dynamic A ε → Term staged dynamic A ε
+stage : Term source dynamic A ε → Term staged dynamic (erase A) ε
 \end{code}
 %</stagedecl>
 \begin{code}
@@ -399,7 +407,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 -- Tests for the staging evaluator
 
 infix 0 _∋_↝_
-_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic A ε → Set
+_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic (erase A) ε → Set
 A ∋ s ↝ t = stage s ≡ t
 
 -- `idˢ is a static identity and thus computes
