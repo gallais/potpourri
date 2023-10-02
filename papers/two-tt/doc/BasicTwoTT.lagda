@@ -80,9 +80,15 @@ variable
   A : Type a
   B : Type b
 
-erase : Type {source} dynamic → Type {staged} dynamic
-erase `α        = `α
-erase (A `⇒ B)  = erase A `⇒ erase B
+\end{code}
+%<*asStaged>
+\begin{code}
+asStaged : Type {source} dynamic → Type {staged} dynamic
+asStaged `α        = `α
+asStaged (A `⇒ B)  = asStaged A `⇒ asStaged B
+\end{code}
+%</asStaged>
+\begin{code}
 
 ------------------------------------------------------------------------
 -- Context are your usual left-nested lists of types.
@@ -279,7 +285,7 @@ Static : Type static → Context → Set
 \begin{code}
 Value : (st : Stage source) → Type st → Context → Set
 Value static   = Static
-Value dynamic  = Term staged dynamic ∘ erase
+Value dynamic  = Term staged dynamic ∘ asStaged
 \end{code}
 %</model>
 \begin{code}
@@ -392,7 +398,7 @@ body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
 %<*stagefun>
 %<*stagedecl>
 \begin{code}
-stage : Term source dynamic A ε → Term staged dynamic (erase A) ε
+stage : Term source dynamic A ε → Term staged dynamic (asStaged A) ε
 \end{code}
 %</stagedecl>
 \begin{code}
@@ -407,7 +413,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 -- Tests for the staging evaluator
 
 infix 0 _∋_↝_
-_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic (erase A) ε → Set
+_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic (asStaged A) ε → Set
 A ∋ s ↝ t = stage s ≡ t
 
 -- `idˢ is a static identity and thus computes

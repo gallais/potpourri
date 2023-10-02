@@ -326,12 +326,24 @@ Hence the result: the call to the static identity function has
 fully reduced but the call to the dynamic one has been preserved.
 
 
-\subsection{Stages and Types}
+\subsection{Phases, Stages, and Types}
 
-Our notion of types is going to be explicitly indexed by the
-stage they live in, and so we begin by defining a sum
-type \AD{Stage} with two constructors: \AIC{static},
-and \AIC{dynamic}.
+We start by defining a sum type of phases denoting whether
+we are currently writing \AIC{source} code or inspecting
+\AIC{staged} code that has already been partially evaluated.
+
+\ExecuteMetaData[BasicTwoTT.tex]{phase}
+
+Additionally, our notion of types is going to be explicitly
+indexed by the stage they live in. These stages are indexed
+over the phase they are allowed to appear in.
+%
+The \AIC{static} stage is only available in the \AIC{source}
+phase: once code has been staged, all of its static parts will
+be gone.
+%
+The \AIC{dynamic} stage however will be available in both
+phases, hence the unconstrained index \AB{ph}.
 
 \ExecuteMetaData[BasicTwoTT.tex]{stage}
 
@@ -341,30 +353,32 @@ by their stage.
 \ExecuteMetaData[BasicTwoTT.tex]{types}
 
 We have both static and dynamic terms of base type,
-hence the unconstrained index \AB{st} for the
-constructor \AIC{`α}.
+hence the unconstrained indices \AB{ph} and \AB{st}
+for the constructor \AIC{`α}.
 %
 The constructor \AIC{‘⇑\_} allows us to embed dynamic
 types into static ones; (\AIC{‘⇑} \AB{A}) is effectively
 the type of \emph{programs} that will compute a value of
-type \AB{A} at runtime.
+type \AB{A} at runtime. This is only available in the
+\AIC{source} phase.
 %
 Function types are available in both layers provided that
 they are homogeneous: both the domain and codomain need
 to live in the same layer.
-%
-Last but not least, we have an example of the fact,
-highlighted in Kov{\'{a}}cs' original paper, that static
-datatypes do not need to have a counterpart at runtime:
-pairs are only available in the static layer and all traces
-of pairs will have completely disappeared after staging.
+
+Purely dynamic types in the source phase have a direct
+counterpart in the staged one. We demonstrate this by
+implementing the following \AF{asStaged} function.
+
+\ExecuteMetaData[BasicTwoTT.tex]{asStaged}
+
+It is essentially the identity function except for the
+fact that its domain and codomain have different indices.
 
 \subsection{Intrinsically Scoped and Typed Syntax}
 
 We skip over the definition of contexts and variables: they
 are essentially the same as the ones we gave in \Cref{sec:intrinsictyping}.
-
-\ExecuteMetaData[BasicTwoTT.tex]{phase}
 
 Our type of term is indexed by a phase, a stage, a type EZ
 
@@ -558,6 +572,12 @@ for dynamic uses.
 \ExecuteMetaData[TwoTT.tex]{iter}
 
 \subsection{Adding static pairs}\label{sec:stagingmodelprod}
+
+We now have an example of the fact, highlighted in Kov{\'{a}}cs'
+original paper, that static datatypes do not need to have a
+counterpart at runtime: pairs are only available in the static
+layer and all traces of pairs and their projections will have
+completely disappeared after staging.
 
 \subsubsection{Types and Terms}
 
