@@ -18,6 +18,11 @@
 
 \input{commands}
 
+%%% Toggle
+\newtoggle{BLIND}
+\toggletrue{BLIND}
+
+
 %%% References
 \usepackage{hyperref}
 \usepackage{cleveref}
@@ -28,7 +33,11 @@
 \usepackage{mathpartir}
 
 \title{Scoped and Typed Staging by Evaluation}
-\author{Guillaume Allais}
+\iftoggle{BLIND}{
+  \author{ANONYMOUS}
+}{
+  \author{Guillaume Allais}
+}
 
 \begin{document}
 
