@@ -295,10 +295,30 @@ Putting it all together, we obtain the following inductive family.
 
 \subsection{Normalisation by Evaluation}
 
-  \ExecuteMetaData[STLC.tex]{box}
-  \ExecuteMetaData[STLC.tex]{kripke}
-  \ExecuteMetaData[STLC.tex]{value}
-  \ExecuteMetaData[STLC.tex]{eval}
+This whole process is based on Kripke semantics for intuitionistic
+logic~\cite{DBLP:journals/apal/MitchellM91}.
+As a consequence one of the central concepts is closure under future
+worlds, here context extensions.
+This idea is captured by the definition of the \AR{□} record: we
+can inhabit (\AR{□} \AB{A} \AB{Γ}) whenever for any extension
+\AB{Δ} of \AB{Γ} we are able to construct an (\AB{A} \AB{Δ}).
+
+\ExecuteMetaData[STLC.tex]{box}
+
+For more information on \AR{□} and its properties, the interested
+reader can consult Allais, Atkey, Chapman, McBride, and
+McKinna~\cite[Section~3.1]{DBLP:journals/jfp/AllaisACMM21}.
+%
+
+\ExecuteMetaData[STLC.tex]{kripke}
+
+The model construction follows standard normalisation by
+evaluation~\cite{DBLP:conf/lics/BergerS91,DBLP:journals/mscs/CoquandD97,DBLP:journals/lisp/Coquand02}.
+The family of values is defined by induction on the value's
+type.
+
+\ExecuteMetaData[STLC.tex]{value}
+\ExecuteMetaData[STLC.tex]{eval}
 
 \section{Minimal Intrinsically Typed Two Level Type Theory}
 
@@ -457,8 +477,7 @@ i.e. terms guaranteed not to contain any static subterm.
 
 The family of static values is defined by induction on
 the value's type. It is fairly similar to the standard
-normalisation by evaluation
-construction~\cite{DBLP:conf/lics/BergerS91,DBLP:journals/mscs/CoquandD97,DBLP:journals/lisp/Coquand02}
+normalisation by evaluation construction
 except that static values at a base types cannot possibly
 be neutral terms.
 
