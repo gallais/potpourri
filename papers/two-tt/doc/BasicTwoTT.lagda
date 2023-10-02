@@ -205,7 +205,7 @@ open WithDefault
 \end{code}
 %<*iddyn>
 \begin{code}
-`idᵈ : Term ph dynamic (A `⇒ A) ε
+`idᵈ : ∀[ Term ph dynamic (A `⇒ A) ]
 `idᵈ = `lam (`var here)
 \end{code}
 %</iddyn>
@@ -215,7 +215,7 @@ open WithDefault
 \end{code}
 %<*idsta>
 \begin{code}
-`idˢ : Term source static (`⇑ A `⇒ `⇑ A) ε
+`idˢ : ∀[ Term source static (A `⇒ A) ]
 `idˢ = `lam (`var here)
 \end{code}
 %</idsta>

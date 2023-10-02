@@ -412,6 +412,19 @@ calculus.
   \end{AgdaSuppressSpace}
 \end{AgdaAlign}
 
+We can readily write examples such as the following definitions
+of a purely dynamic and a purely static identity function. The
+dynamic function will survive staging even if it is applied to a
+dynamic argument while the static one can only exist in the
+source phase and will be fully evaluated during staging.
+
+\noindent
+\begin{minipage}{.4\textwidth}
+  \ExecuteMetaData[BasicTwoTT.tex]{iddyn}
+\end{minipage}\hfill
+\begin{minipage}{.5\textwidth}
+  \ExecuteMetaData[BasicTwoTT.tex]{idsta}
+\end{minipage}
 
 \section{Staging by Evaluation}
 
