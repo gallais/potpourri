@@ -16,19 +16,35 @@ open import Function.Base using (_∘_; id; const)
 open import Relation.Unary using (IUniversal; _⇒_; _⊢_; _∩_)
 
 ------------------------------------------------------------------------
+-- We have two phases: source code and staged code
+
+\end{code}
+%<*phase>
+\begin{code}
+data Phase : Set where
+  source staged : Phase
+
+variable ph : Phase
+\end{code}
+%</phase>
+
+\begin{code}
+
+------------------------------------------------------------------------
 -- We have two stages: static and dynamic
 
 \end{code}
 %<*stage>
 \begin{code}
-data Stage : Set where
-  static dynamic : Stage
+data Stage : Phase → Set where
+  static : Stage source
+  dynamic : Stage ph
 \end{code}
 %</stage>
 
 %<*stagevariables>
 \begin{code}
-variable st : Stage
+variable st : Stage ph
 \end{code}
 %</stagevariables>
 
@@ -53,7 +69,7 @@ infixr 5 _`⇒_
 \end{code}
 %<*types>
 \begin{code}
-data Type : Stage → Set where
+data Type : Stage ph → Set where
   `α    : Type st
 \end{code}
 %<*typesnat>
@@ -62,7 +78,7 @@ data Type : Stage → Set where
 \end{code}
 %</typesnat>
 \begin{code}
-  `⇑_   : Type dynamic → Type static
+  `⇑_   : Type {source} dynamic → Type static
   _`⇒_  : (A B : Type st) → Type st
 \end{code}
 %<*typesprod>
@@ -79,6 +95,17 @@ variable
   A : Type st
   B : Type st
   C : Type st
+
+\end{code}
+%<*asStaged>
+\begin{code}
+asStaged : Type {source} dynamic → Type {staged} dynamic
+asStaged `α        = `α
+asStaged `ℕ        = `ℕ
+asStaged (A `⇒ B)  = asStaged A `⇒ asStaged B
+\end{code}
+%</asStaged>
+\begin{code}
 
 ------------------------------------------------------------------------
 -- Context are your usual left-nested lists of types.
@@ -155,16 +182,10 @@ weak-Var (keep σ) (there v) = there (weak-Var σ v)
 -- they describe but also by a boolean describing whether it is legal
 -- to uses quotes and splices
 
-data Phase : Set where
-  source staged : Phase
-
-variable
-  ph : Phase
-
 \end{code}
 %<*term>
 \begin{code}
-data Term : Phase → ∀ st → Type st → Context → Set where
+data Term : (ph : Phase) → (st : Stage ph) → Type st → Context → Set where
   `var   : ∀[ Var A ⇒ Term ph st A ]
   `app   : ∀[ Term ph st (A `⇒ B) ⇒ Term ph st A ⇒ Term ph st B ]
   `lam   : ∀[ (_, A) ⊢ Term ph st B ⇒ Term ph st (A `⇒ B) ]
@@ -219,11 +240,11 @@ weak-Term σ `snd = `snd
 %</iddyn>
 \begin{code}
 
--- Static identity function for dynamic values
+-- Static identity function
 \end{code}
 %<*idsta>
 \begin{code}
-`idˢ : Term source static (`⇑ A `⇒ `⇑ A) ε
+`idˢ : Term source static (A `⇒ A) ε
 `idˢ = `lam (`var here)
 \end{code}
 %</idsta>
@@ -337,9 +358,9 @@ Static : Type static → Context → Set
 \end{code}
 %<*model>
 \begin{code}
-Value : (st : Stage) → Type st → Context → Set
+Value : (st : Stage source) → Type st → Context → Set
 Value static   = Static
-Value dynamic  = Term staged dynamic
+Value dynamic  = Term staged dynamic ∘ asStaged
 \end{code}
 %</model>
 \begin{code}
@@ -435,7 +456,7 @@ extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x
 \end{code}
 %<*lam>
 \begin{code}
-lam : (st : Stage) {A B : Type st} →
+lam : (st : Stage source) {A B : Type st} →
       Kripke (Value st A) (Value st B) Γ →
       Value st (A `⇒ B) Γ
 lam static   b = λλ[ σ , v ] b .runBox σ v
@@ -448,7 +469,7 @@ lam dynamic  b = `lam (b .runBox (drop ≤-refl) (`var here))
 \end{code}
 %<*zero>
 \begin{code}
-zero : (st : Stage) → Value st `ℕ Γ
+zero : (st : Stage source) → Value st `ℕ Γ
 zero static   = 0
 zero dynamic  = `zero
 \end{code}
@@ -459,7 +480,7 @@ zero dynamic  = `zero
 \end{code}
 %<*succ>
 \begin{code}
-succ : (st : Stage) → Value st `ℕ Γ → Value st `ℕ Γ
+succ : (st : Stage source) → Value st `ℕ Γ → Value st `ℕ Γ
 succ static   = 1 +_
 succ dynamic  = `succ
 \end{code}
@@ -509,7 +530,7 @@ body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
 \end{code}
 %<*stagedecl>
 \begin{code}
-stage : Term source dynamic A ε → Term staged dynamic A ε
+stage : Term source dynamic A ε → Term staged dynamic (asStaged A) ε
 \end{code}
 %</stagedecl>
 \begin{code}
@@ -521,7 +542,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 -- Tests for the staging evaluator
 
 infix 0 _∋_↝_
-_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic A ε → Set
+_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic (asStaged A) ε → Set
 A ∋ s ↝ t = stage s ≡ t
 
 -- `idˢ is a static identity and thus computes
