@@ -247,8 +247,14 @@ infixr 3 mkBox
 syntax mkBox (λ σ x → b) = λλ[ σ , x ] b
 
 -- application
+\end{code}
+%<*semapp>
+\begin{code}
 _$$_ : ∀ {A B} → Kripke A B Γ → A Γ → B Γ
 f $$ t = f .runBox ≤-refl t
+\end{code}
+%</semapp>
+\begin{code}
 
 -- Model construction
 -- Here we would traditionally enforce that (Value `α)
