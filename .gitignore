@@ -1,5 +1,6 @@
 **/#*
 **/build/
+**/__build/
 *~
 *.agdai
 *.o
