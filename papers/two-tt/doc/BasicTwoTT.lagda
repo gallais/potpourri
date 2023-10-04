@@ -49,7 +49,7 @@ data Stage : Phase → Set where
 
 %<*stagevariables>
 \begin{code}
-variable st a b : Stage ph
+variable st : Stage ph
 \end{code}
 %</stagevariables>
 \begin{code}
@@ -72,13 +72,11 @@ data Type : Stage ph → Set where
   `α    : Type st
   `⇑_   : Type {source} dynamic → Type static
   _`⇒_  : (A B : Type st) → Type st
+
+variable A B C : Type st
 \end{code}
 %</types>
 \begin{code}
-
-variable
-  A : Type a
-  B : Type b
 
 \end{code}
 %<*asStaged>
@@ -219,6 +217,17 @@ open WithDefault
 `idˢ = `lam (`var here)
 \end{code}
 %</idsta>
+\begin{code}
+
+infixr 3 _`∘_
+\end{code}
+%<*composition>
+\begin{code}
+_`∘_    : ∀[ Term ph st (B `⇒ C) ⇒ Term ph st (A `⇒ B) ⇒ Term ph st (A `⇒ C) ]
+g `∘ f  =  let Γ≤Γ,A = drop ≤-refl in
+           `lam (`app (weak-Term Γ≤Γ,A g) (`app (weak-Term Γ≤Γ,A f) (`var here)))
+\end{code}
+%</composition>
 \begin{code}
 
 ------------------------------------------------------------------------

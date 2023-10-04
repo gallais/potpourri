@@ -250,10 +250,16 @@ weak-Term σ `snd = `snd
 %</idsta>
 \begin{code}
 
+\end{code}
+%<*composition>
+\begin{code}
 infixr 3 _`∘_
 _`∘_ : ∀[ Term ph st (B `⇒ C) ⇒ Term ph st (A `⇒ B) ⇒ Term ph st (A `⇒ C) ]
 g `∘ f =  let Γ≤Γ,A = drop ≤-refl in
           `lam (`app (weak-Term Γ≤Γ,A g) (`app (weak-Term Γ≤Γ,A f) (`var here)))
+\end{code}
+%</composition>
+\begin{code}
 
 -- Turning static nats into dyanmic ones by computing their
 -- representation as codes

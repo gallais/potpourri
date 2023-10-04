@@ -19,7 +19,7 @@ data Type : Set where
 \end{code}
 %<*typevariables>
 \begin{code}
-variable A B : Type
+variable A B C : Type
 \end{code}
 %</typevariables>
 \begin{code}
@@ -200,6 +200,17 @@ weak-Term σ (`app f t)  = `app (weak-Term σ f) (weak-Term σ t)
 weak-Term σ (`lam b)    = `lam (weak-Term (keep σ) b)
 \end{code}
 %</weakTerm>
+\begin{code}
+
+infixr 3 _`∘_
+\end{code}
+%<*composition>
+\begin{code}
+_`∘_    : ∀[ Term (B `⇒ C) ⇒ Term (A `⇒ B) ⇒ Term (A `⇒ C) ]
+g `∘ f  =  let Γ≤Γ,A = drop ≤-refl in
+           `lam (`app (weak-Term Γ≤Γ,A g) (`app (weak-Term Γ≤Γ,A f) (`var here)))
+\end{code}
+%</composition>
 \begin{code}
 
 \end{code}

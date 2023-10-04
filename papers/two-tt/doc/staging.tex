@@ -292,6 +292,10 @@ Putting it all together, we obtain the following inductive family.
 \ExecuteMetaData[STLC.tex]{weakVar}
 \ExecuteMetaData[STLC.tex]{weakTerm}
 
+Using these results, we can define function composition
+as a pseudo constructor.
+
+\ExecuteMetaData[STLC.tex]{composition}
 
 \subsection{Normalisation by Evaluation}
 
@@ -446,6 +450,7 @@ source phase and will be fully evaluated during staging.
   \ExecuteMetaData[BasicTwoTT.tex]{idsta}
 \end{minipage}
 
+
 \section{Staging by Evaluation}
 
 The goal of this section is to define a type of \AF{Value}s
@@ -573,13 +578,32 @@ literals into \AF{Term}s built using \AIC{`zero} and \AIC{`succ}.
 
 \subsection{Adding natural numbers}
 
+Our first extension adds the inductive type of Peano-style natural numbers,
+its two constructors, and the appropriate eliminator for it.
+
 \subsubsection{Types and Terms}
+
+First we extend the definition of \AD{Type} with a new constructor
+\AIC{`ℕ}. Natural numbers will be present at both stages and so we
+allow the index to be polymorphic.
 
 \ExecuteMetaData[TwoTT.tex]{typesnat}
 
+We then add \AD{Term} constructors for the two Peano-style
+constructors (\AIC{`zero} and \AIC{`succ}) as well as an
+eliminator (\AIC{`iter}) which turns a natural number into
+its Church encoding~\cite[Chapter 3]{church1941calculi}.
+
 \ExecuteMetaData[TwoTT.tex]{termnat}
 
+Our first program example is the function \AF{`reify} that
+turns its static natural number argument into a dynamic
+encoding.
+
 \ExecuteMetaData[TwoTT.tex]{reify}
+
+We can also naturally define addition as iterated calls to
+\AIC{`succ}.
 
 \ExecuteMetaData[TwoTT.tex]{add}
 
@@ -628,10 +652,25 @@ Static pairs are pairs of static values.
 
 \section{Application: Circuit Generation}
 
-We can depart even more radically from the functional setting and make
-the function spaces static only. In our previous example, that
+Quipper, a functional programming language to describe
+quantum computations introduced by Green, Lumsdaine, Ross, Selinger,
+and Valiron~\cite{DBLP:conf/rc/GreenLRSV13}, gives us a
+good example of a setting in which we can have two very distinct
+layers.
 
-\cite{DBLP:conf/rc/GreenLRSV13,DBLP:conf/types/FlorSS15}
+Indeed, by defining a small functional hardware description language
+we can investigate a case study where functions are only available
+in the static layer, with only circuits in the dynamic one.
+In our experiment, we use a minimal circuit language inspired by
+Flor, Swierstra, and Sijsling's work on formal hardware description
+and verification~\cite{DBLP:conf/types/FlorSS15}.
+
+
+
+\section{Related work}
+
+\todo{Brigitte Pientka}
+\todo{Mathys Rennela}
 
 \section{Future Work}
 
