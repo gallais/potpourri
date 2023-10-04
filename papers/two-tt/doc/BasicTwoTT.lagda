@@ -42,8 +42,8 @@ variable ph : Phase
 %<*stage>
 \begin{code}
 data Stage : Phase → Set where
-  static : Stage source
-  dynamic : Stage ph
+  static   : Stage source
+  dynamic  : Stage ph
 \end{code}
 %</stage>
 
@@ -108,7 +108,7 @@ data Context : Set where
 \begin{code}
 
 variable
-  Γ Δ θ : Context
+  Γ Δ Θ : Context
 
 ------------------------------------------------------------------------
 -- Thinnings
@@ -126,7 +126,7 @@ data _≤_ : Context → Context → Set where
 %</thin>
 \begin{code}
 
-≤-trans : Γ ≤ Δ → Δ ≤ θ → Γ ≤ θ
+≤-trans : Γ ≤ Δ → Δ ≤ Θ → Γ ≤ Θ
 ≤-trans p (drop q) = drop (≤-trans p q)
 ≤-trans done done = done
 ≤-trans (keep p) (keep q) = keep (≤-trans p q)
@@ -322,7 +322,7 @@ open Env
 
 -- Action of thinnings on environments
 -- (pointwise lifting of the action on values)
-weak-Env : Δ ≤ θ → Env Γ Δ → Env Γ θ
+weak-Env : Δ ≤ Θ → Env Γ Δ → Env Γ Θ
 weak-Env σ ρ .lookup {A = A} v = weak-Value A σ (ρ .lookup v)
 
 -- Semantics counterpart to app
