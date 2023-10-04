@@ -1,6 +1,7 @@
 AGDA_FILES:= \
  BasicTwoTT.lagda \
  TwoTT.lagda \
+ MetaCircuit.lagda \
  STLC.lagda
 AGDA_OUTPUT:=$(patsubst %.lagda,__build/%.tex,$(AGDA_FILES))
 

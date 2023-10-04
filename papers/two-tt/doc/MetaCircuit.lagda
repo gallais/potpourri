@@ -24,13 +24,18 @@ variable st : Stage ph
 infixr 3 _`⇒_
 infixr 5 `⇑_
 
+\end{code}
+%<*type>
+\begin{code}
 data Type : ∀ {ph} → Stage ph → Set where
-  _`⇒_  : (A B : Type static) → Type static
-  `⇑_   : Type {source} dynamic → Type static
-  ⟨_∶_⟩ : (i o : ℕ) → Type {ph} dynamic
+  _`⇒_   : (A B : Type static) → Type static
+  `⇑_    : Type {source} dynamic → Type static
+  ⟨_∶_⟩  : (i o : ℕ) → Type {ph} dynamic
+\end{code}
+%</type>
+\begin{code}
 
 variable m i o i₁ o₁ i₂ o₂ : ℕ
-
 variable A B C : Type st
 
 \end{code}
@@ -84,18 +89,55 @@ data Term : (ph : Phase) (st : Stage ph) → Type st → Context → Set where
   `⟨_⟩   : ∀[ Term source dynamic A ⇒ Term source static (`⇑ A) ]
   `∼_    : ∀[ Term source static (`⇑ A) ⇒ Term source dynamic A ]
   -- circuit
+\end{code}
+%<*termcircuit>
+%<*termcircuitnand>
+\begin{code}
   `nand  : ∀[ Term ph dynamic ⟨ 2 ∶ 1 ⟩ ]
-  `par   : ∀[ Term ph dynamic ⟨ i₁ ∶ o₁ ⟩ ⇒ Term ph dynamic ⟨ i₂ ∶ o₂ ⟩ ⇒ Term ph dynamic ⟨ i₁ + i₂ ∶ o₁ + o₂ ⟩ ]
-  `seq   : ∀[ Term ph dynamic ⟨ i ∶ m ⟩ ⇒ Term ph dynamic ⟨ m ∶ o ⟩ ⇒ Term ph dynamic ⟨ i ∶ o ⟩ ]
+\end{code}
+%</termcircuitnand>
+%<*termcircuitpar>
+\begin{code}
+  `par   : ∀[  Term ph dynamic ⟨ i₁ ∶ o₁ ⟩ ⇒
+               Term ph dynamic ⟨ i₂ ∶ o₂ ⟩ ⇒
+               Term ph dynamic ⟨ i₁ + i₂ ∶ o₁ + o₂ ⟩ ]
+\end{code}
+%</termcircuitpar>
+%<*termcircuitseq>
+\begin{code}
+  `seq   : ∀[  Term ph dynamic ⟨ i ∶ m ⟩ ⇒
+               Term ph dynamic ⟨ m ∶ o ⟩ ⇒
+               Term ph dynamic ⟨ i ∶ o ⟩ ]
+\end{code}
+%</termcircuitseq>
+%<*termcircuitmix>
+\begin{code}
   `mix   : Vec (Fin i) o → ∀[ Term ph dynamic ⟨ i ∶ o ⟩ ]
+\end{code}
+%</termcircuitmix>
 
+%<*dup>
+\begin{code}
+`dup :  ∀[ Term ph dynamic ⟨ 1 ∶ 2 ⟩ ]
+`dup = `mix (zero ∷ zero ∷ [])
+\end{code}
+%</dup>
 
+%<*diag>
+\begin{code}
 `diag : ∀[ Term source static (`⇑ ⟨ 2 ∶ 1 ⟩ `⇒ `⇑ ⟨ 1 ∶ 1 ⟩) ]
-`diag = `lam `⟨ `seq (`mix (zero ∷ zero ∷ [])) (`∼ `var here) ⟩
+`diag = `lam `⟨ `seq `dup (`∼ `var here) ⟩
+\end{code}
+%</diag>
 
+%<*not>
+\begin{code}
 `not : ∀[ Term source dynamic ⟨ 1 ∶ 1 ⟩ ]
 `not = `∼ `app `diag `⟨ `nand ⟩
+\end{code}
+%</not>
 
+\begin{code}
 -- Action of thinnings on terms
 weak-Term : Γ ≤ Δ → Term ph st A Γ → Term ph st A Δ
 weak-Term σ (`var v) = `var (weak-Var σ v)
@@ -265,7 +307,15 @@ infix 0 _∋_↝_
 _∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic (asStaged A) ε → Set
 A ∋ s ↝ t = stage s ≡ t
 
-_ : ⟨ 1 ∶ 1 ⟩ ∋ `not ↝ `seq (`mix (zero ∷ zero ∷ [])) `nand
-_ = refl
+testNot :
+\end{code}
+%<*testNot>
+\begin{code}
+  ⟨ 1 ∶ 1 ⟩ ∋ `not ↝ `seq `dup `nand
+\end{code}
+%</testNot>
+\begin{code}
+testNot = refl
+
 
 \end{code}

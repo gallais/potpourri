@@ -295,6 +295,7 @@ Putting it all together, we obtain the following inductive family.
 Using these results, we can define function composition
 as a pseudo constructor.
 
+\label{def:composition}
 \ExecuteMetaData[STLC.tex]{composition}
 
 \subsection{Normalisation by Evaluation}
@@ -605,6 +606,7 @@ encoding.
 We can also naturally define addition as iterated calls to
 \AIC{`succ}.
 
+\label{def:add}
 \ExecuteMetaData[TwoTT.tex]{add}
 
 \subsubsection{Staging by Evaluation}
@@ -625,6 +627,11 @@ for dynamic uses.
 
 \ExecuteMetaData[TwoTT.tex]{succ}
 
+The meaning of \AIC{`iter} in the static layer is defined in
+terms of the \AF{iterate} function defined by pattern-matching
+in the host language and turning a natural number into its
+Church encoding.
+
 \ExecuteMetaData[TwoTT.tex]{iter}
 
 \subsection{Adding static pairs}\label{sec:stagingmodelprod}
@@ -643,6 +650,9 @@ completely disappeared after staging.
 
 \ExecuteMetaData[TwoTT.tex]{fib}
 
+using \AF{\_`∘\_} defined in~\Cref{def:composition},
+and \AF{`add} defined in~\Cref{def:add}.
+
 \subsubsection{Staging by Evaluation}
 
 Static pairs are pairs of static values.
@@ -652,33 +662,122 @@ Static pairs are pairs of static values.
 
 \section{Application: Circuit Generation}
 
-Quipper, a functional programming language to describe
-quantum computations introduced by Green, Lumsdaine, Ross, Selinger,
-and Valiron~\cite{DBLP:conf/rc/GreenLRSV13}, gives us a
-good example of a setting in which we can have two very distinct
-layers.
+This section's content is inspired by Quipper, a functional
+programming language to describe quantum computations
+introduced by Green, Lumsdaine, Ross, Selinger, and
+Valiron~\cite{DBLP:conf/rc/GreenLRSV13}.
+%
+This project gives us a good example of a setting in which
+we have two very distinct layers: a static layer with a
+full-fledged functional language, and a dynamic layer of
+quantum circuits obtained by partially evaluating the source.
 
-Indeed, by defining a small functional hardware description language
-we can investigate a case study where functions are only available
-in the static layer, with only circuits in the dynamic one.
-In our experiment, we use a minimal circuit language inspired by
-Flor, Swierstra, and Sijsling's work on formal hardware description
-and verification~\cite{DBLP:conf/types/FlorSS15}.
+In our proof of concept, we focus on a minimal language of
+classical circuits inspired by Π-ware a formal hardware
+description and verification language proposed by
+Flor, Swierstra, and Sijsling~\cite{DBLP:conf/types/FlorSS15}.
 
+\subsection{Types and Terms}
 
+Our definition of types should now be mostly unsurprising.
+We have function spaces (this time confined to the static
+layer), a lifting construct allowing the embedding of
+dynamic types in the static layer at the source stage,
+and finally a type of circuits characterised by their input
+and output arities, both represented by a natural number in
+the host language.
+
+\ExecuteMetaData[MetaCircuit.tex]{type}
+
+Next, we extend the basic simply typed lambda calculus with
+quotes and splices with term constructors for circuit descriptions.
+
+Our first constructor gives us the universal nand gate.
+Its type records the fact it takes two inputs and returns
+a single output.
+
+\ExecuteMetaData[MetaCircuit.tex]{termcircuitnand}
+
+Next, we have a constructor for the parallel composition
+of existing circuits. Their respective input and output
+are arities simply added up.
+
+\ExecuteMetaData[MetaCircuit.tex]{termcircuitpar}
+
+We can also compose circuits sequentially, provided
+that the output arity of the first circuit matches
+the input arity of the second.
+
+\ExecuteMetaData[MetaCircuit.tex]{termcircuitseq}
+
+Finally, we follow the Π-ware~\cite{DBLP:conf/types/FlorSS15}
+approach and offer a general rewiring component.
+A mix of $i$ inputs and $o$ outputs is defined by
+vector (i.e. a list of known length) of size $o$
+containing finite numbers between $0$ and $i$
+corresponding to the input the output is connected to.
+%
+This allows arbitrary duplications and deletions
+of inputs.
+
+\todo{Explain vec, fin; give example with diagram}
+
+\ExecuteMetaData[MetaCircuit.tex]{termcircuitmix}
+
+We can use the \AIC{`mix} construct to define \AF{`dup},
+a circuit duplicating its input.
+
+\ExecuteMetaData[MetaCircuit.tex]{dup}
+
+We can then define our first real example: \AF{`diag},
+a static program taking a circuit with two inputs and
+one output and returning a circuit with one input and
+one output.
+It does so by duplicating the one input and feeding it
+to both of the argument's ports.
+
+\ExecuteMetaData[MetaCircuit.tex]{diag}
+
+We can then obtain the \AF{`not} gate by taking the diagonal
+of the \AIC{`nand} built-in gate.
+
+\ExecuteMetaData[MetaCircuit.tex]{not}
+
+Staging this definition does evaluate away all of the functions
+and function calls to yield a simple circuit as shown below.
+
+\ExecuteMetaData[MetaCircuit.tex]{testNot}
 
 \section{Related work}
 
 \todo{Brigitte Pientka}
 \todo{Mathys Rennela}
+\todo{Bob's SMT paper}
 
 \section{Future Work}
 
-Soundness and completeness
-\cite{DBLP:journals/lisp/Coquand02}
+In this paper we focused on the model constructions and the
+acquisition of a staging-by-evaluation function as a corollary.
+Following Catarina Coquand's work on formalising normalisation
+by evaluation~\cite{DBLP:journals/lisp/Coquand02} we could
+additionally introduce the appropriate logical relations to
+prove that this process is sound and complete with respect
+to a small step semantics for the static layer.
 
-Generic treatment of this construction
-\cite{DBLP:journals/jfp/AllaisACMM21}
+
+Even though we have seen that having two wildly different
+language layers can be extremely useful, a two-level
+construction with exactly the same features is still very
+useful: it lets programmers use their language of choice
+as its own metaprogramming facilities.
+%
+Correspondingly, giving a generic treatment of the construction
+taking a language and returning its standard two-level version
+is an important endeavour.
+%
+A promising approach involves defining such a transformation
+by induction over a universe of language
+descriptions~\cite{DBLP:journals/jfp/AllaisACMM21}.
 
 \section*{Acknowledgements}
 
