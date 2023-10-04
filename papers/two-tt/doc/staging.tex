@@ -18,10 +18,12 @@
 
 \input{commands}
 
+%%% Tikz
+\usepackage{tikz}
+
 %%% Toggle
 \newtoggle{BLIND}
 \toggletrue{BLIND}
-
 
 %%% References
 \usepackage{hyperref}
@@ -712,8 +714,8 @@ the input arity of the second.
 
 Finally, we follow the Π-ware~\cite{DBLP:conf/types/FlorSS15}
 approach and offer a general rewiring component.
-A mix of $i$ inputs and $o$ outputs is defined by
-vector (i.e. a list of known length) of size $o$
+A `mix' of $i$ inputs returning $o$ outputs is defined by
+a vector (i.e. a list of known length) of size $o$
 containing finite numbers between $0$ and $i$
 corresponding to the input the output is connected to.
 %
@@ -724,10 +726,61 @@ of inputs.
 
 \ExecuteMetaData[MetaCircuit.tex]{termcircuitmix}
 
-We can use the \AIC{`mix} construct to define \AF{`dup},
-a circuit duplicating its input.
+Typical examples include
+\AF{`id$_2$} (the identity circuit on two inputs),
+\AF{`swap} (the circuit connecting its first input to its second output and vice-versa),
+and \AF{`dup} (the circuit duplicating its single input).
+We present them below together with the corresponding wiring diagrams.
 
-\ExecuteMetaData[MetaCircuit.tex]{dup}
+\noindent
+\begin{minipage}{.5\textwidth}
+  \ExecuteMetaData[MetaCircuit.tex]{id2}
+\end{minipage}\hfill
+\begin{minipage}{.25\textwidth}
+  \begin{tikzpicture}
+    \draw[fill] (0,0)  circle[radius=1.5pt] node { };
+    \draw[fill] (0,.5) circle[radius=1.5pt] node { };
+
+    \draw[fill] (1,0)  circle[radius=1.5pt] node { };
+    \draw[fill] (1,.5) circle[radius=1.5pt] node { };
+
+    \draw [->] (0,0)  to [out=0,in=180] (.95,0);
+    \draw [->] (0,.5) to [out=0,in=180] (.95,.5);
+  \end{tikzpicture}
+\end{minipage}
+
+\noindent
+\begin{minipage}{.5\textwidth}
+  \ExecuteMetaData[MetaCircuit.tex]{swap}
+\end{minipage}\hfill
+\begin{minipage}{.25\textwidth}
+  \begin{tikzpicture}
+    \draw[fill] (0,0)  circle[radius=1.5pt] node { };
+    \draw[fill] (0,.5) circle[radius=1.5pt] node { };
+
+    \draw[fill] (1,0)  circle[radius=1.5pt] node { };
+    \draw[fill] (1,.5) circle[radius=1.5pt] node { };
+
+    \draw [->] (0,0)  to [out=0,in=180] (.95,.5);
+    \draw [->] (0,.5) to [out=0,in=180] (.95,0);
+  \end{tikzpicture}
+\end{minipage}
+
+\noindent
+\begin{minipage}{.5\textwidth}
+  \ExecuteMetaData[MetaCircuit.tex]{dup}
+\end{minipage}\hfill
+\begin{minipage}{.25\textwidth}
+  \begin{tikzpicture}
+    \draw[fill] (0,.25) circle[radius=1.5pt] node { };
+
+    \draw[fill] (1,0)  circle[radius=1.5pt] node { };
+    \draw[fill] (1,.5) circle[radius=1.5pt] node { };
+
+    \draw [->] (0,.25) to [out=-45,in=180] (.95,0);
+    \draw [->] (0,.25) to [out=45,in=180] (.95,.5);
+  \end{tikzpicture}
+\end{minipage}
 
 We can then define our first real example: \AF{`diag},
 a static program taking a circuit with two inputs and

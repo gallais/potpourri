@@ -116,6 +116,20 @@ data Term : (ph : Phase) (st : Stage ph) → Type st → Context → Set where
 \end{code}
 %</termcircuitmix>
 
+%<*id2>
+\begin{code}
+`id₂ :  ∀[ Term ph dynamic ⟨ 2 ∶ 2 ⟩ ]
+`id₂ = `mix (zero ∷ suc zero ∷ [])
+\end{code}
+%</id2>
+
+%<*swap>
+\begin{code}
+`swap :  ∀[ Term ph dynamic ⟨ 2 ∶ 2 ⟩ ]
+`swap = `mix (suc zero ∷ zero ∷ [])
+\end{code}
+%</swap>
+
 %<*dup>
 \begin{code}
 `dup :  ∀[ Term ph dynamic ⟨ 1 ∶ 2 ⟩ ]
