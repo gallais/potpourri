@@ -32,6 +32,7 @@ data Context : Set where
   _,_  : Context → Type → Context
 
 variable Γ Δ Θ : Context
+variable P Q : Context → Set
 \end{code}
 %</context>
 \begin{code}
@@ -233,7 +234,7 @@ open □
 \end{code}
 %<*kripke>
 \begin{code}
-Kripke : (A B : Context → Set) (Γ : Context) → Set
+Kripke : (A B : Context → Set) → (Context → Set)
 Kripke A B = □ (A ⇒ B)
 \end{code}
 %</kripke>
@@ -251,22 +252,46 @@ Kripke A B = □ (A ⇒ B)
 ≤-trans (keep p) (keep q) = keep (≤-trans p q)
 ≤-trans (drop p) (keep q) = drop (≤-trans p q)
 
-weak-Kripke : ∀ {A B} → Γ ≤ Δ → Kripke A B Γ → Kripke A B Δ
-weak-Kripke σ f .runBox = f .runBox ∘ ≤-trans σ
+\end{code}
+%<*extract>
+\begin{code}
+extract : ∀ {P} → ∀[ □ P ⇒ P ]
+extract p = p .runBox ≤-refl
+\end{code}
+%</extract>
+\begin{code}
 
--- lambda-abstraction
-infixr 3 mkBox
-syntax mkBox (λ σ x → b) = λλ[ σ , x ] b
+\end{code}
+%<*duplicate>
+\begin{code}
+duplicate : ∀ {P} → ∀[ □ P ⇒ □ (□ P) ]
+duplicate p .runBox σ .runBox = p .runBox ∘ ≤-trans σ
+\end{code}
+%</duplicate>
+\begin{code}
+
+\end{code}
+%<*weakKripke>
+\begin{code}
+weak-Kripke : Γ ≤ Δ → Kripke P Q Γ → Kripke P Q Δ
+weak-Kripke σ f = duplicate f .runBox σ
+\end{code}
+%</weakKripke>
+\begin{code}
 
 -- application
 \end{code}
 %<*semapp>
 \begin{code}
-_$$_ : ∀ {A B} → Kripke A B Γ → A Γ → B Γ
-f $$ t = f .runBox ≤-refl t
+_$$_ : ∀[ Kripke P Q ⇒ P ⇒ Q ]
+_$$_ = extract
 \end{code}
 %</semapp>
 \begin{code}
+
+-- lambda-abstraction
+infixr 3 mkBox
+syntax mkBox (λ σ x → b) = λλ[ σ , x ] b
 
 -- Model construction
 -- Here we would traditionally enforce that (Value `α)
@@ -281,9 +306,15 @@ Value (A `⇒ B)  = Kripke (Value A) (Value B)
 %</value>
 \begin{code}
 
+\end{code}
+%<*weakValue>
+\begin{code}
 weak-Value : (A : Type) → Γ ≤ Δ → Value A Γ → Value A Δ
 weak-Value `α        σ v = weak-Term σ v
 weak-Value (A `⇒ B)  σ v = weak-Kripke σ v
+\end{code}
+%</weakValue>
+\begin{code}
 
 interleaved mutual
 
@@ -314,9 +345,15 @@ record Env (Γ Δ : Context) : Set where
 \begin{code}
 open Env
 
+\end{code}
+%<*extend>
+\begin{code}
 extend : ∀[ Env Γ ⇒ □ (Value A ⇒ Env (Γ , A)) ]
-extend ρ .runBox σ v .lookup here = v
-extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x)
+extend ρ .runBox σ v .lookup here       = v
+extend ρ .runBox σ v .lookup (there x)  = weak-Value _ σ (ρ .lookup x)
+\end{code}
+%</extend>
+\begin{code}
 
 \end{code}
 %<*eval>

@@ -372,27 +372,63 @@ For more information on \AR{□} and its properties, the interested
 reader can consult Allais, Atkey, Chapman, McBride, and
 McKinna~\cite[Section~3.1]{DBLP:journals/jfp/AllaisACMM21}.
 %
+We will only use the fact that it is a comonad, that is to say that
+we can define \AF{extract} and \AF{duplicate} thanks to
+the fact that the embedding relation is a preorder.
+
+\ExecuteMetaData[STLC.tex]{extract}
+\ExecuteMetaData[STLC.tex]{duplicate}
+
 Kripke function spaces then correspond to functions inside a box,
 hence the following definition.
 
 \ExecuteMetaData[STLC.tex]{kripke}
 
+The comonadic structure of \AF{□} additionally ensures we can define
+semantic application and weakening of Kripke function spaces.
+
 \ExecuteMetaData[STLC.tex]{semapp}
+\ExecuteMetaData[STLC.tex]{weakKripke}
 
 The model construction follows standard normalisation by
 evaluation~\cite{DBLP:conf/lics/BergerS91,DBLP:journals/mscs/CoquandD97,DBLP:journals/lisp/Coquand02}.
 The family of values is defined by induction on the value's
 type.
 %
-Values of base types are neutral terms (this is not enforced here and
+Values of a base type are neutral terms (this is not enforced here and
 we are happy to simply reuse \AF{Term}) while values of a function type
-are kripke function spaces between values of the domain and values of
+are Kripke function spaces between values of the domain and values of
 the codomain.
 
 \ExecuteMetaData[STLC.tex]{value}
 
+It is easy to prove that values can be weakened given that they are
+defined in terms of families already known to be amenable to weakenings.
+
+\ExecuteMetaData[STLC.tex]{weakValue}
+
+Environments are functions associating a \AF{Value}
+to each \AF{Var}iable in scope.
 
 \ExecuteMetaData[STLC.tex]{env}
+
+Environments will mostly be passed around except when they are pushed
+under a binder, interpreted as a Kripke function space.
+%
+In this case, the environment will have to be extended with the newly
+provided value while its existing content will have to be transported
+into the bigger context.
+%
+The \AF{extend} definition combines these two operations into a single
+one. It is defined in copattern style~\cite{DBLP:conf/popl/AbelPTS13}:
+{\AS{.}\ARF{runBox}} builds a box while {\AS{.}\ARF{lookup}} builds the
+returned environment. The definition proceeds by case analysis on the
+variable to be mapped to a value: if it is the newly bound one, we
+immediately return the value we just obtained, and otherwise we look
+up the associated value in the old environment and use \AB{σ} to
+appropriately weaken it.
+
+\ExecuteMetaData[STLC.tex]{extend}
 
 The evaluation function maps terms to values provided that
 an environment assigns a value to every free variable in scope.
