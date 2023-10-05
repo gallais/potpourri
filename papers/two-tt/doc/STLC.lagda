@@ -176,7 +176,13 @@ data _≤_ : Context → Context → Set where
 %</ope>
 \begin{code}
 
+\end{code}
+%<*lerefl>
+\begin{code}
 ≤-refl : ∀ {Γ} → Γ ≤ Γ
+\end{code}
+%</lerefl>
+\begin{code}
 ≤-refl {ε} = done
 ≤-refl {Γ , x} = keep ≤-refl
 
@@ -233,7 +239,13 @@ Kripke A B = □ (A ⇒ B)
 %</kripke>
 \begin{code}
 
+\end{code}
+%<*letrans>
+\begin{code}
 ≤-trans : Γ ≤ Δ → Δ ≤ Θ → Γ ≤ Θ
+\end{code}
+%</letrans>
+\begin{code}
 ≤-trans p (drop q) = drop (≤-trans p q)
 ≤-trans done done = done
 ≤-trans (keep p) (keep q) = keep (≤-trans p q)
@@ -292,8 +304,14 @@ interleaved mutual
 
 
 -- Type of environments mapping variables to values
+\end{code}
+%<*env>
+\begin{code}
 record Env (Γ Δ : Context) : Set where
   field lookup : ∀ {A} → Var A Γ → Value A Δ
+\end{code}
+%</env>
+\begin{code}
 open Env
 
 extend : ∀[ Env Γ ⇒ □ (Value A ⇒ Env (Γ , A)) ]
@@ -302,8 +320,12 @@ extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x
 
 \end{code}
 %<*eval>
+%<*evaldecl>
 \begin{code}
 eval : Env Γ Δ → Term A Γ → Value A Δ
+\end{code}
+%</evaldecl>
+\begin{code}
 eval ρ (`var v)    = ρ .lookup v
 eval ρ (`app f t)  = eval ρ f $$ eval ρ t
 eval ρ (`lam b)    = λλ[ σ , v ] eval (extend ρ .runBox σ v) b

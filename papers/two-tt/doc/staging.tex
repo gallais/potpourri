@@ -109,14 +109,14 @@ quantified over in a prenex position provided that they
 have been declared beforehand.
 %
 The following block for instance announces that from now
-on unbound \AB{A}s and \AB{B}s stand for implicitly bound
+on unbound \AB{A}s, \AB{B}s, and \AB{C}s stand for implicitly bound
 \AD{Type} variables.
 
 \ExecuteMetaData[STLC.tex]{typevariables}
 
 Next, we form contexts as left-nested lists of types using
 constructor names similar to the ones typically used in
-inference rules.
+type judgments.
 Contexts may be the empty context \AIC{ε}
 or a compound context (\AB{Γ} \AIC{,} \AB{A}) obtained
 by extending an existing context \AB{Γ} on the right
@@ -232,8 +232,8 @@ indexed over a type and a context.
 We will introduce constructors in turn, each accompanied by its
 counterpart as an inference rule.
 %
-We start with the variable rule: a variable of type \AB{A} in
-context forms a valid term of type \AB{A}.
+We start with the variable rule: a variable of type \AB{A}
+forms a valid term of type \AB{A}.
 %
 As you can see below, we use a line lexed as a comment (\AC{---})
 to suggestively typeset the constructor's type like the
@@ -249,7 +249,7 @@ corresponding rule.
 \end{mathpar}
 \end{minipage}
 
-Next with have the constructor for applications. It states that
+Next we have the constructor for applications. It states that
 by combining a term whose type is a function type from \AB{A} to \AB{B}
 and a term of type \AB{A}, we obtain a term of type \AB{B}.
 
@@ -288,11 +288,45 @@ Putting it all together, we obtain the following inductive family.
 \end{AgdaSuppressSpace}
 \end{AgdaAlign}
 
-\subsection{Renaming}
+This gives us the intrinsically scoped-and-typed syntax for
+the simply typed lambda calculus. As any well behaved syntax,
+it is stable under weakening as we are going to see shortly.
+
+\subsection{Weakening}
+
+Following Altenkirch, Hofmann, and Streicher~\cite{DBLP:conf/ctcs/AltenkirchHS95}
+we start by defining the category of weakenings with contexts
+as objects and the following inductive family as morphims.
 
 \ExecuteMetaData[STLC.tex]{ope}
 
-The action of order preserving embeddings on variables is given
+This relation, also known as order-preserving embeddings in the
+literature, is a first order description of order-preserving
+injections:
+\AIC{done} is the trivial injection of the empty context into
+itself;
+\AIC{keep} extend an existing injection into one that preserves
+the most local variable;
+and \AIC{drop} records that the most local variable of the target
+context does not have a pre-image via the injection.
+
+We can define identity and composition of these morphisms (we leave
+the definitions out here and invite the interested reader to look
+at the code in the accompanying material).
+
+\noindent
+\begin{minipage}{.3\textwidth}
+  \ExecuteMetaData[STLC.tex]{lerefl}
+\end{minipage}\hfill
+\begin{minipage}{.5\textwidth}
+  \ExecuteMetaData[STLC.tex]{letrans}
+\end{minipage}
+
+These order-preserving embeddings all have an action on suitably
+well behaved scoped families. We will call these actions weakening
+principles.
+%
+The action on variables is given
 by the following \AF{weak-Var} definition. It is defined by
 induction over the renaming and case analysis on the de Bruijn
 index if the most local variable happens to be in both contexts.
@@ -300,19 +334,29 @@ index if the most local variable happens to be in both contexts.
 \ExecuteMetaData[STLC.tex]{weakVar}
 
 The action on terms is purely structural, with the caveat that
-the renaming needs to be amended when going under a binder: the
+the weakening needs to be amended when going under a binder: the
 most recently bound variable is present in both the source and
 target contexts and so we use \AIC{keep} to mark it as retained.
 
 \ExecuteMetaData[STLC.tex]{weakTerm}
 
 Using these results, we can define function composition
-as a pseudo constructor.
+as a pseudo constructor: provided $g$ and $f$, we form
+$λx.g\,(f\, x)$ i.e. we use $g$ and $f$ in a context extended
+with $x$ hence the need for weakening.
 
 \label{def:composition}
 \ExecuteMetaData[STLC.tex]{composition}
 
+
 \subsection{Normalisation by Evaluation}
+
+It is now time to define an evaluation function for this syntax.
+By the end of this section, we will have a function turning terms
+into values, provided that we have an environment assigning values
+to each of the term's free variables.
+
+\ExecuteMetaData[STLC.tex]{evaldecl}
 
 This whole process is based on Kripke semantics for intuitionistic
 logic~\cite{DBLP:journals/apal/MitchellM91}.
@@ -328,9 +372,10 @@ For more information on \AR{□} and its properties, the interested
 reader can consult Allais, Atkey, Chapman, McBride, and
 McKinna~\cite[Section~3.1]{DBLP:journals/jfp/AllaisACMM21}.
 %
+Kripke function spaces then correspond to functions inside a box,
+hence the following definition.
 
 \ExecuteMetaData[STLC.tex]{kripke}
-
 
 \ExecuteMetaData[STLC.tex]{semapp}
 
@@ -338,8 +383,16 @@ The model construction follows standard normalisation by
 evaluation~\cite{DBLP:conf/lics/BergerS91,DBLP:journals/mscs/CoquandD97,DBLP:journals/lisp/Coquand02}.
 The family of values is defined by induction on the value's
 type.
+%
+Values of base types are neutral terms (this is not enforced here and
+we are happy to simply reuse \AF{Term}) while values of a function type
+are kripke function spaces between values of the domain and values of
+the codomain.
 
 \ExecuteMetaData[STLC.tex]{value}
+
+
+\ExecuteMetaData[STLC.tex]{env}
 
 The evaluation function maps terms to values provided that
 an environment assigns a value to every free variable in scope.
@@ -348,7 +401,9 @@ to its semantical counterpart: variables become environment lookups,
 application become Kripke applications, and λ-abstractions become
 Kripke functions.
 
+\begin{AgdaSuppressSpace}
 \ExecuteMetaData[STLC.tex]{eval}
+\end{AgdaSuppressSpace}
 
 \section{Minimal Intrinsically Typed Two Level Type Theory}
 
