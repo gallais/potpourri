@@ -916,6 +916,22 @@ composing \AF{`dup} and \AIC{`nand} as shown below.
 
 \ExecuteMetaData[MetaCircuit.tex]{testNot}
 
+
+Going back to a slightly more complex setting, if we add booleans in the
+static layer, we can once again define more interesting circuits like the
+following \AF{`tab} term which takes a function that takes a boolean
+and computes a one-input one-output and returns a circuit with two outputs
+and one output that has the same behaviour.
+
+\ExecuteMetaData[MetaCircuit.tex]{tab}
+
+It is natural to want to push this even further and generalise that
+term to one tabulating functions whose computed circuit has an
+arbitrary number of inputs and outputs.
+%
+This would be possible in a setting where the static layer is dependently
+typed like in Kov{\'{a}}cs' original paper.
+
 \section{Related work}
 
 \todo{Brigitte Pientka}

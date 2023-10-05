@@ -3,12 +3,19 @@
 
 module MetaCircuit where
 
+open import Data.Bool using (Bool; true; false; if_then_else_)
 open import Data.Empty using (⊥)
 open import Data.Fin.Base using (Fin; zero; suc)
 open import Data.Nat.Base using (ℕ; _+_)
 open import Data.Vec.Base using (Vec; []; _∷_)
 open import Function.Base using (_∘_; id; const)
 open import Relation.Unary using (IUniversal; _⇒_; _⊢_)
+
+open import Agda.Builtin.FromNat
+open import Data.Unit.Base
+import Data.Nat.Literals; instance nat = Data.Nat.Literals.number
+import Data.Fin.Literals; instance fin = λ {n} → Data.Fin.Literals.number n
+
 
 data Phase : Set where
   source staged : Phase
@@ -34,6 +41,7 @@ data Type : ∀ {ph} → Stage ph → Set where
 \end{code}
 %</type>
 \begin{code}
+  `Bool : Type static
 
 variable m i o i₁ o₁ i₂ o₂ : ℕ
 variable A B C : Type st
@@ -88,6 +96,10 @@ data Term : (ph : Phase) (st : Stage ph) → Type st → Context → Set where
   -- two level
   `⟨_⟩   : ∀[ Term source dynamic A ⇒ Term source static (`⇑ A) ]
   `∼_    : ∀[ Term source static (`⇑ A) ⇒ Term source dynamic A ]
+  -- booleans
+  `true   : ∀[ Term source static `Bool ]
+  `false  : ∀[ Term source static `Bool ]
+  `ifte   : ∀[ Term source static (`Bool `⇒ A `⇒ A `⇒ A) ]
   -- circuit
 \end{code}
 %<*termcircuit>
@@ -152,6 +164,28 @@ data Term : (ph : Phase) (st : Stage ph) → Type st → Context → Set where
 %</not>
 
 \begin{code}
+`and : ∀[ Term source dynamic ⟨ 2 ∶ 1 ⟩ ]
+`and = `seq `nand `not
+
+`or : ∀[ Term source dynamic ⟨ 2 ∶ 1 ⟩ ]
+`or = `seq (`par `not `not) `nand
+
+`id₁ : ∀[ Term ph dynamic ⟨ 1 ∶ 1 ⟩ ]
+`id₁ = `mix (zero ∷ [])
+\end{code}
+%<*tab>
+\begin{code}
+`tab : ∀[ Term source static ((`Bool `⇒ `⇑ ⟨ 1 ∶ 1 ⟩) `⇒ `⇑ ⟨ 2 ∶ 1 ⟩) ]
+`tab = `lam `⟨ `seq (`seq (`seq
+         (`par `dup `dup)
+         (`mix (0 ∷ 2 ∷ 1 ∷ 3 ∷ [])))
+         (`par (`seq (`par `id₁ (`∼ `app (`var here) `true))  `and)
+               (`seq (`par `not (`∼ `app (`var here) `false)) `and)))
+         `or ⟩
+\end{code}
+%</tab>
+
+\begin{code}
 -- Action of thinnings on terms
 weak-Term : Γ ≤ Δ → Term ph st A Γ → Term ph st A Δ
 weak-Term σ (`var v) = `var (weak-Var σ v)
@@ -163,6 +197,9 @@ weak-Term σ `nand = `nand
 weak-Term σ (`par s t) = `par (weak-Term σ s) (weak-Term σ t)
 weak-Term σ (`seq s t) = `seq (weak-Term σ s) (weak-Term σ t)
 weak-Term σ (`mix k) = `mix k
+weak-Term σ `true = `true
+weak-Term σ `false = `true
+weak-Term σ `ifte = `ifte
 
 \end{code}
 %<*kripke>
@@ -230,11 +267,13 @@ Static (A `⇒ B)  = Kripke (Static A) (Static B)
 \end{code}
 %</modelsta>
 \begin{code}
+Static `Bool     = const Bool
 
 -- Action of thinnings on Kripke domains
 weak-Static : (A : Type _) → Γ ≤ Δ → Static A Γ → Static A Δ
 weak-Static (`⇑ A)   σ = weak-Term σ
 weak-Static (A `⇒ B) σ = weak-Kripke σ
+weak-Static `Bool    σ = id
 
 -- Action of thinnings on Values
 weak-Value : (A : Type st) → Γ ≤ Δ → Value st A Γ → Value st A Δ
@@ -288,6 +327,13 @@ eval ρ (`seq s t)  = `seq (eval ρ s) (eval ρ t)
 eval ρ (`mix k)    = `mix k
 \end{code}
 %</eval>
+\begin{code}
+eval ρ `true = true
+eval ρ `false = false
+eval ρ (`ifte {A = A})
+  = λλ[ _ , b ] λλ[ _ , t ] λλ[ σ , f ]
+    (if b then weak-Value A σ t else f)
+\end{code}
 
 %<*body>
 \begin{code}
