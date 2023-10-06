@@ -20,6 +20,9 @@
 
 %%% Tikz
 \usepackage{tikz}
+\usepackage{circuitikz}
+\ctikzset{logic ports=ieee}
+%%\usepackage{calc}
 
 %%% Toggle
 \newtoggle{BLIND}
@@ -781,9 +784,11 @@ Static pairs are pairs of static values.
 This section's content is inspired by Quipper, a functional
 programming language to describe quantum computations
 introduced by Green, Lumsdaine, Ross, Selinger, and
-Valiron~\cite{DBLP:conf/rc/GreenLRSV13}.
+Valiron~\cite{DBLP:conf/rc/GreenLRSV13} and related
+formal treatments such as Rennela and Staton's categorical
+models~\cite{DBLP:journals/lmcs/RennelaS19}.
 %
-This project gives us a good example of a setting in which
+This strand of research gives us a good example of a setting in which
 we have two very distinct layers: a static layer with a
 full-fledged functional language, and a dynamic layer of
 quantum circuits obtained by partially evaluating the source.
@@ -792,6 +797,10 @@ In our proof of concept, we focus on a minimal language of
 classical circuits inspired by Π-ware a formal hardware
 description and verification language proposed by
 Flor, Swierstra, and Sijsling~\cite{DBLP:conf/types/FlorSS15}.
+%
+This allows us to focus on the two-level aspect instead of
+having to deal with linearity and untary operators which are
+specific to the Quantum aspect.
 
 \subsection{Types and Terms}
 
@@ -858,8 +867,8 @@ We present them below together with the corresponding wiring diagrams.
     \draw[fill] (1,0)  circle[radius=1.5pt] node { };
     \draw[fill] (1,.5) circle[radius=1.5pt] node { };
 
-    \draw [->] (0,0)  to [out=0,in=180] (.95,0);
-    \draw [->] (0,.5) to [out=0,in=180] (.95,.5);
+    \draw[-] (0,0)  to [out=0,in=180] (.95,0);
+    \draw[-] (0,.5) to [out=0,in=180] (.95,.5);
   \end{tikzpicture}
 \end{minipage}
 
@@ -875,8 +884,8 @@ We present them below together with the corresponding wiring diagrams.
     \draw[fill] (1,0)  circle[radius=1.5pt] node { };
     \draw[fill] (1,.5) circle[radius=1.5pt] node { };
 
-    \draw [->] (0,0)  to [out=0,in=180] (.95,.5);
-    \draw [->] (0,.5) to [out=0,in=180] (.95,0);
+    \draw[-] (0,0)  to [out=0,in=180] (.95,.5);
+    \draw[-] (0,.5) to [out=0,in=180] (.95,0);
   \end{tikzpicture}
 \end{minipage}
 
@@ -891,8 +900,8 @@ We present them below together with the corresponding wiring diagrams.
     \draw[fill] (1,0)  circle[radius=1.5pt] node { };
     \draw[fill] (1,.5) circle[radius=1.5pt] node { };
 
-    \draw [->] (0,.25) to [out=-45,in=180] (.95,0);
-    \draw [->] (0,.25) to [out=45,in=180] (.95,.5);
+    \draw[-] (0,.25) to [out=-45,in=180] (.95,0);
+    \draw[-] (0,.25) to [out=45,in=180] (.95,.5);
   \end{tikzpicture}
 \end{minipage}
 
@@ -905,6 +914,7 @@ and then feeding it to both of the argument's ports.
 
 \ExecuteMetaData[MetaCircuit.tex]{diag}
 
+
 We can then obtain the \AF{`not} gate by taking the diagonal
 of the \AIC{`nand} built-in gate.
 
@@ -916,14 +926,49 @@ composing \AF{`dup} and \AIC{`nand} as shown below.
 
 \ExecuteMetaData[MetaCircuit.tex]{testNot}
 
-
 Going back to a slightly more complex setting, if we add booleans in the
-static layer, we can once again define more interesting circuits like the
-following \AF{`tab} term which takes a function that takes a boolean
-and computes a one-input one-output and returns a circuit with two outputs
-and one output that has the same behaviour.
+static layer, we can once again define more interesting terms like the
+following \AF{`tab} which, given a function that takes a boolean
+and computes a one-input one-output circuit, returns a circuit with two
+inputs and one output that has the same behaviour.
 
 \ExecuteMetaData[MetaCircuit.tex]{tab}
+
+\begin{tikzpicture}{circuit logic US}
+    \coordinate (b) at (0,2);
+    \draw[fill] (b) circle[radius=1.5pt] node {};
+    \draw (b)+(-.5,0) node {$b$} edge (b);
+
+    \coordinate (x) at (0,0);
+    \draw[fill] (x) circle[radius=1.5pt] node {};
+    \draw (x)+(-.5,0) node {$x$} edge (x);
+
+    \node[rectangle, draw] at (2, 1.5) (f1) {$f\,1$};
+    \draw[-] (x) to [out=45, in=180] (f1);
+
+    \node[rectangle, draw] at (2, 0) (f0) {$f\,0$};
+    \draw[-] (x) to [out=0, in=180] (f0);
+
+    \draw (4, 0.15) node[and port, scale=.5] (and0) {};
+    \draw[-] (f0) [out=0, in=180] to (and0.in 2);
+
+    \draw (4, 1.85) node[and port, scale=.5] (and1) {};
+    \draw[-] (b) [out=0, in=180] to (and1.in 1);
+    \draw[-] (f1) [out=0, in=180] to (and1.in 2);
+
+    \draw (2, .75) node[not port, scale=.35] (not0) {};
+    \draw[-] (b) [out=-45, in=180] to (not0.in 1);
+    \draw[-] (not0.out) [out=0, in=180] to (and0.in 1);
+
+    \draw (6, 1) node[or port, scale=.5] (or01) {};
+    \draw[-] (and1.out) [out=0, in=180] to (or01.in 1);
+    \draw[-] (and0.out) [out=0, in=180] to (or01.in 2);
+
+    \coordinate (tag) at (7,1);
+    \draw[fill] (tag) circle[radius=1.5pt] node {};
+    \draw (tag)+(.5,0) node {$r$} edge (tag);
+    \draw[-] (or01.out) to (tag);
+\end{tikzpicture}
 
 It is natural to want to push this even further and generalise that
 term to one tabulating functions whose computed circuit has an
