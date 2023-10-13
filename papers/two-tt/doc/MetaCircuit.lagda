@@ -172,6 +172,7 @@ data Term : (ph : Phase) (st : Stage ph) → Type st → Context → Set where
 
 `id₁ : ∀[ Term ph dynamic ⟨ 1 ∶ 1 ⟩ ]
 `id₁ = `mix (zero ∷ [])
+
 \end{code}
 %<*tab>
 \begin{code}

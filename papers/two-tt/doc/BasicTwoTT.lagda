@@ -422,8 +422,16 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 -- Tests for the staging evaluator
 
 infix 0 _∋_↝_
-_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic (asStaged A) ε → Set
+\end{code}
+%<*stagedto>
+\begin{code}
+_∋_↝_ : (A : Type dynamic) →
+        Term source dynamic A ε →
+        Term staged dynamic (asStaged A) ε → Set
 A ∋ s ↝ t = stage s ≡ t
+\end{code}
+%</stagedto>
+\begin{code}
 
 -- `idˢ is a static identity and thus computes
 \end{code}

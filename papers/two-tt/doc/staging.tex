@@ -26,7 +26,7 @@
 
 %%% Toggle
 \newtoggle{BLIND}
-\toggletrue{BLIND}
+\togglefalse{BLIND}
 
 %%% References
 \usepackage{hyperref}
@@ -524,7 +524,8 @@ fact that its domain and codomain have different indices.
 We skip over the definition of contexts and variables: they
 are essentially the same as the ones we gave in \Cref{sec:intrinsictyping}.
 
-Our type of term is indexed by a phase, a stage, a type EZ
+Our type of term is indexed by a phase, a stage, a type
+at that stage, and a context.
 
 \ExecuteMetaData[BasicTwoTT.tex]{termdecl}
 
@@ -541,7 +542,7 @@ expressions while splices (\AIC{`∼\_}) allow static terms to
 be inserted in dynamic ones.
 %
 Staging will, by definition, eliminate these and so their phase
-indexed is constrained to be \AIC{source}.
+index is constrained to be \AIC{source}.
 
 \ExecuteMetaData[BasicTwoTT.tex]{termtwolevel}
 
@@ -570,6 +571,8 @@ source phase and will be fully evaluated during staging.
   \ExecuteMetaData[BasicTwoTT.tex]{idsta}
 \end{minipage}
 
+Now that we have a syntax, we can start building the machinery
+that will actually perform its partial evaluation.
 
 \section{Staging by Evaluation}
 
@@ -799,7 +802,7 @@ description and verification language proposed by
 Flor, Swierstra, and Sijsling~\cite{DBLP:conf/types/FlorSS15}.
 %
 This allows us to focus on the two-level aspect instead of
-having to deal with linearity and untary operators which are
+having to deal with linearity and unitary operators which are
 specific to the Quantum aspect.
 
 \subsection{Types and Terms}
@@ -824,8 +827,9 @@ a single output.
 \ExecuteMetaData[MetaCircuit.tex]{termcircuitnand}
 
 Next, we have a constructor for the parallel composition
-of existing circuits. Their respective input and output
-are arities simply added up.
+of existing circuits. The input and output arities of the
+resulting circuit is obtained by adding up the respective
+input and output arities of each of the components.
 
 \ExecuteMetaData[MetaCircuit.tex]{termcircuitpar}
 
@@ -914,14 +918,35 @@ and then feeding it to both of the argument's ports.
 
 \ExecuteMetaData[MetaCircuit.tex]{diag}
 
+\begin{minipage}{.1\textwidth}
+  $c \mapsto$
+\end{minipage}
+\begin{minipage}{.75\textwidth}
+  \begin{tikzpicture}
+
+    \coordinate (x) at (0,.25);
+    \draw[fill] (x) circle[radius=1.5pt] node {};
+    \draw (x)+(-.5,0) node {$x$} edge (x);
+
+    \node[rectangle, draw, minimum height=.75cm, minimum width=.5cm] at (1, .25) (c) {$c$};
+
+    \draw[-] (x) to [out=-45,in=180] ([yshift=.1cm] c.south west);
+    \draw[-] (x) to [out=45,in=180] ([yshift=-.1cm] c.north west);
+
+    \coordinate (r) at ([xshift=1cm] c);
+    \draw[fill] (r) circle[radius=1.5pt] node {};
+    \draw[-] (c.east) to (r);
+    \draw (r)+(.5,0) node {$r$} edge (r);
+  \end{tikzpicture}
+\end{minipage}
 
 We can then obtain the \AF{`not} gate by taking the diagonal
 of the \AIC{`nand} built-in gate.
 
 \ExecuteMetaData[MetaCircuit.tex]{not}
 
-Staging this definition does evaluate away all of the functions
-and function calls to yield a simple circuit obtained by sequentially
+Staging this definition does evaluate away all of the function
+calls to yield a simple circuit obtained by sequentially
 composing \AF{`dup} and \AIC{`nand} as shown below.
 
 \ExecuteMetaData[MetaCircuit.tex]{testNot}
@@ -934,7 +959,11 @@ inputs and one output that has the same behaviour.
 
 \ExecuteMetaData[MetaCircuit.tex]{tab}
 
-\begin{tikzpicture}{circuit logic US}
+\begin{minipage}{.1\textwidth}
+  $f \mapsto$
+\end{minipage}\hfill
+\begin{minipage}{.85\textwidth}
+  \begin{tikzpicture}{circuit logic US}
     \coordinate (b) at (0,2);
     \draw[fill] (b) circle[radius=1.5pt] node {};
     \draw (b)+(-.5,0) node {$b$} edge (b);
@@ -968,14 +997,15 @@ inputs and one output that has the same behaviour.
     \draw[fill] (tag) circle[radius=1.5pt] node {};
     \draw (tag)+(.5,0) node {$r$} edge (tag);
     \draw[-] (or01.out) to (tag);
-\end{tikzpicture}
+  \end{tikzpicture}
+\end{minipage}
 
-It is natural to want to push this even further and generalise that
-term to one tabulating functions whose computed circuit has an
-arbitrary number of inputs and outputs.
+It is natural to want to generalise this term to one tabulating
+a function computing circuits of with $i$ inputs and $o$ outputs
+to obtain a circuit with $(1+i)$ inputs and $o$ outputs.
 %
-This would be possible in a setting where the static layer is dependently
-typed like in Kov{\'{a}}cs' original paper.
+This would be possible in a setting where the static layer is
+dependently typed like in Kov{\'{a}}cs' original paper.
 
 \section{Related work}
 
