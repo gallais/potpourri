@@ -2,7 +2,7 @@
 
 %%% Remark environment
 \usepackage{amsthm}
-\newtheorem*{remark}{Remark}
+\newtheorem*{remark}{Agda-ism}
 
 %%%% Agda code %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{agda}
@@ -89,10 +89,11 @@ presentation of this approach.
 
 \subsection{Object Types and Contexts}
 
-We first give a sum type of object types. We call it \AF{Type} and
-its own type is \AF{Set}, the type of all small types in Agda.
-It has two constructors presented in generalised algebraic datatype
-(GADT) fashion.
+We first give an inductive definition of object types.
+We call it \AF{Type} and its own type is \AF{Set},
+the type of all small types in Agda.
+It has two constructors presented in generalised algebraic
+datatype fashion.
 We use \AIC{`α} as our base type,
 and (\AB{A} \AIC{`⇒} \AB{B}) is the type of functions from
 \AB{A} to \AB{B}.
@@ -100,17 +101,19 @@ and (\AB{A} \AIC{`⇒} \AB{B}) is the type of functions from
 \ExecuteMetaData[STLC.tex]{type}
 
 \begin{remark}[Syntax Highlighting]
-  All the code in this paper is semantically highlighed:
+  All of the code snippets in this paper are semantically highlighed:
   keywords are \AK{orange}, definitions and types are \AF{blue},
   data constructors are \AIC{green}, bound variables are
   \AB{slanted}, and comments are \AC{brown}.
 \end{remark}
 
-We extensively use Agda's \AK{variable} mechanism: all of
-the seemingly unbound names will in fact have been automatically
-quantified over in a prenex position provided that they
-have been declared beforehand.
-%
+\begin{remark}[Implicit Prenex Polymorphism]
+  We extensively use Agda's \AK{variable} mechanism: all of
+  the seemingly unbound names will in fact have been automatically
+  quantified over in a prenex position provided that they
+  have been declared beforehand.
+\end{remark}
+
 The following block for instance announces that from now
 on unbound \AB{A}s, \AB{B}s, and \AB{C}s stand for implicitly bound
 \AD{Type} variables.
@@ -136,7 +139,7 @@ presenting judgements.
 That is to say we will write the application and
 λ-abstraction rules as they are in the right column
 rather than the left one where the ambient context Γ
-is mentioned explicitly.
+is explicitly threaded.
 
 \noindent
 \begin{minipage}{.4\textwidth}
@@ -153,8 +156,8 @@ is mentioned explicitly.
 \end{minipage}
 
 To do so, we need to introduce a small set of combinators
-to manipulate indexed definitions. These are standard and
-already present in Agda's standard library.
+to manipulate indexed definitions. These are commonplace
+and already present in Agda's standard library.
 
 \noindent
 \begin{minipage}{.4\textwidth}
@@ -196,8 +199,10 @@ context-passing.
 
 \subsection{Intrinsically Typed Variables}
 
-Our first inductive family formalises what it means for a variable of type
-\AB{A} to be present in context \AB{Γ}. We present it side by side
+Our first inductive family~\cite{DBLP:journals/fac/Dybjer94} formalises
+what it means for a variable of type \AB{A} to be present in context \AB{Γ}.
+It is indexed over said type and context.
+We present it side by side
 with the corresponding inference rules for the typing judgement
 for variables denoted ($\cdot :_v \cdot$).
 %
@@ -222,17 +227,18 @@ extended with a freshly bound variable of type \AB{B}.
 
 This is a standard definition
 corresponding to a scoped-and-typed variant of de Bruijn
-indices~\cite{de1972lambda}.
+indices~\cite{de1972lambda}:
+\AIC{here} corresponds to zero, and \AIC{there} to successor.
 
 \subsection{Intrinsically Typed Terms}
 
 We are now ready to give the type of intrinsically typed terms.
-It is an inductive family~\cite{DBLP:journals/fac/Dybjer94}
-indexed over a type and a context.
+It is once again an inductive family indexed over a type and a
+context; its declaration is as follows.
 
 \ExecuteMetaData[STLC.tex]{termdecl}
 
-We will introduce constructors in turn, each accompanied by its
+We will introduce constructors in turn, each paralleled by its
 counterpart as an inference rule.
 %
 We start with the variable rule: a variable of type \AB{A}
@@ -282,7 +288,6 @@ by a freshly bound variable of type \AB{A}.
 \end{mathpar}
 \end{minipage}
 
-
 Putting it all together, we obtain the following inductive family.
 
 \begin{AgdaAlign}
@@ -292,7 +297,13 @@ Putting it all together, we obtain the following inductive family.
 \end{AgdaAlign}
 
 This gives us the intrinsically scoped-and-typed syntax for
-the simply typed lambda calculus. As any well behaved syntax,
+the simply typed lambda calculus.
+And we give our first example: the identity function ($λ.0$ in de Bruijn notation).
+
+\ExecuteMetaData[STLC.tex]{id}
+
+
+As any well behaved syntax should,
 it is stable under weakening as we are going to see shortly.
 
 \subsection{Weakening}
@@ -303,7 +314,7 @@ as objects and the following inductive family as morphims.
 
 \ExecuteMetaData[STLC.tex]{ope}
 
-This relation, also known as order-preserving embeddings in the
+This relation on contexts, also known as order-preserving embeddings in the
 literature, is a first order description of order-preserving
 injections:
 \AIC{done} is the trivial injection of the empty context into
@@ -314,7 +325,7 @@ and \AIC{drop} records that the most local variable of the target
 context does not have a pre-image via the injection.
 
 We can define identity and composition of these morphisms (we leave
-the definitions out here and invite the interested reader to look
+the definitions out and invite the interested reader to look
 at the code in the accompanying material).
 
 \noindent
@@ -327,8 +338,10 @@ at the code in the accompanying material).
 
 These order-preserving embeddings all have an action on suitably
 well behaved scoped families. We will call these actions weakening
-principles.
-%
+principles, and introduce the following type synonym to describe them.
+
+\ExecuteMetaData[STLC.tex]{weaken}
+
 The action on variables is given
 by the following \AF{weak-Var} definition. It is defined by
 induction over the renaming and case analysis on the de Bruijn
@@ -351,15 +364,17 @@ with $x$ hence the need for weakening.
 \label{def:composition}
 \ExecuteMetaData[STLC.tex]{composition}
 
-
 \subsection{Normalisation by Evaluation}
 
 It is now time to define an evaluation function for this syntax.
-By the end of this section, we will have a function turning terms
-into values, provided that we have an environment assigning values
-to each of the term's free variables.
+By the end of this section, we will have a function \AF{eval}
+turning terms into values,
+provided that we have an environment assigning values
+to each of the term's free variables. It will have the following type.
 
 \ExecuteMetaData[STLC.tex]{evaldecl}
+
+\subsubsection{Kripke Function Spaces}
 
 This whole process is based on Kripke semantics for intuitionistic
 logic~\cite{DBLP:journals/apal/MitchellM91}.
@@ -388,13 +403,33 @@ hence the following definition.
 \ExecuteMetaData[STLC.tex]{kripke}
 
 The comonadic structure of \AF{□} additionally ensures we can define
-semantic application and weakening of Kripke function spaces.
+semantic application (\AF{\_\$\$\_}) and weakening of Kripke function
+spaces.
 
-\ExecuteMetaData[STLC.tex]{semapp}
-\ExecuteMetaData[STLC.tex]{weakKripke}
+\noindent
+\begin{minipage}{0.45\textwidth}
+  \ExecuteMetaData[STLC.tex]{semapp}
+\end{minipage}\hfill
+\begin{minipage}{0.5\textwidth}
+  \ExecuteMetaData[STLC.tex]{weakKripke}
+\end{minipage}
 
-The model construction follows standard normalisation by
-evaluation~\cite{DBLP:conf/lics/BergerS91,DBLP:journals/mscs/CoquandD97,DBLP:journals/lisp/Coquand02}.
+Finally, we introduce a notation to hide away \AR{□}-related
+notions when building \AF{Kripke} functions.
+%
+After the following declarations we can simply write
+\AIC{λλ[ σ , v ] b} to implement a function of type
+(\AF{Kripke} \AB{A} \AB{B} \AB{Γ}).
+
+\ExecuteMetaData[STLC.tex]{mkbox}
+
+We now have all of the ingredients to perform the model
+construction allowing us to implement a normaliser.
+
+\subsubsection{Model Construction}
+
+This step follows standard techniques for normalisation
+by evaluation~\cite{DBLP:conf/lics/BergerS91,DBLP:journals/mscs/CoquandD97,DBLP:journals/lisp/Coquand02}.
 The family of values is defined by induction on the value's
 type.
 %

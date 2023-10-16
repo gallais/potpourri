@@ -165,6 +165,14 @@ data Term : Type → Context → Set where
 %</term>
 \begin{code}
 
+\end{code}
+%<*id>
+\begin{code}
+`id : ∀[ Term (A `⇒ A) ]
+`id = `lam (`var here)
+\end{code}
+%</id>
+\begin{code}
 infix 0 _≤_
 \end{code}
 %<*ope>
@@ -180,17 +188,26 @@ data _≤_ : Context → Context → Set where
 \end{code}
 %<*lerefl>
 \begin{code}
-≤-refl : ∀ {Γ} → Γ ≤ Γ
+≤-refl : Γ ≤ Γ
 \end{code}
 %</lerefl>
 \begin{code}
 ≤-refl {ε} = done
 ≤-refl {Γ , x} = keep ≤-refl
+\end{code}
+
+%<*weaken>
+\begin{code}
+Weaken : (Context → Set) → Set
+Weaken P = ∀ {Γ Δ} → Γ ≤ Δ → P Γ → P Δ
+\end{code}
+%</weaken>
+\begin{code}
 
 \end{code}
 %<*weakVar>
 \begin{code}
-weak-Var : Γ ≤ Δ → Var A Γ → Var A Δ
+weak-Var : Weaken (Var A)
 weak-Var (drop σ)  v          = there (weak-Var σ v)
 weak-Var (keep σ)  here       = here
 weak-Var (keep σ)  (there v)  = there (weak-Var σ v)
@@ -201,7 +218,7 @@ weak-Var (keep σ)  (there v)  = there (weak-Var σ v)
 \end{code}
 %<*weakTerm>
 \begin{code}
-weak-Term : Γ ≤ Δ → Term A Γ → Term A Δ
+weak-Term : Weaken (Term A)
 weak-Term σ (`var v)    = `var (weak-Var σ v)
 weak-Term σ (`app f t)  = `app (weak-Term σ f) (weak-Term σ t)
 weak-Term σ (`lam b)    = `lam (weak-Term (keep σ) b)
@@ -225,7 +242,7 @@ g `∘ f  =  let Γ≤Γ,A = drop ≤-refl in
 \begin{code}
 record □ (A : Context → Set) (Γ : Context) : Set where
   constructor mkBox
-  field runBox : ∀ {Δ} → Γ ≤ Δ → A Δ
+  field runBox : ∀[ (Γ ≤_) ⇒ A ]
 \end{code}
 %</box>
 \begin{code}
@@ -273,7 +290,7 @@ duplicate p .runBox σ .runBox = p .runBox ∘ ≤-trans σ
 \end{code}
 %<*weakKripke>
 \begin{code}
-weak-Kripke : Γ ≤ Δ → Kripke P Q Γ → Kripke P Q Δ
+weak-Kripke : Weaken (Kripke P Q)
 weak-Kripke σ f = duplicate f .runBox σ
 \end{code}
 %</weakKripke>
@@ -291,7 +308,13 @@ _$$_ = extract
 
 -- lambda-abstraction
 infixr 3 mkBox
+\end{code}
+%<*mkbox>
+\begin{code}
 syntax mkBox (λ σ x → b) = λλ[ σ , x ] b
+\end{code}
+%</mkbox>
+\begin{code}
 
 -- Model construction
 -- Here we would traditionally enforce that (Value `α)
@@ -309,7 +332,7 @@ Value (A `⇒ B)  = Kripke (Value A) (Value B)
 \end{code}
 %<*weakValue>
 \begin{code}
-weak-Value : (A : Type) → Γ ≤ Δ → Value A Γ → Value A Δ
+weak-Value : (A : Type) → Weaken (Value A)
 weak-Value `α        σ v = weak-Term σ v
 weak-Value (A `⇒ B)  σ v = weak-Kripke σ v
 \end{code}

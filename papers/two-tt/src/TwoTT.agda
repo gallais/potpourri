@@ -70,7 +70,7 @@ module Contexts (T : ∀ {ph} → Stage ph → Set) where
   ≤-trans (keep p) (keep q) = keep (≤-trans p q)
   ≤-trans (drop p) (keep q) = drop (≤-trans p q)
 
-  ≤-refl : ∀ {Γ} → Γ ≤ Γ
+  ≤-refl : Γ ≤ Γ
   ≤-refl {ε} = done
   ≤-refl {Γ , x} = keep ≤-refl
 
@@ -92,7 +92,7 @@ module Contexts (T : ∀ {ph} → Stage ph → Set) where
 
   record □ (A : Context → Set) (Γ : Context) : Set where
     constructor mkBox
-    field runBox : ∀ {Δ} → Γ ≤ Δ → A Δ
+    field runBox : ∀[ (Γ ≤_) ⇒ A ]
   open □ public
 
   Kripke : (A B : Context → Set) (Γ : Context) → Set
