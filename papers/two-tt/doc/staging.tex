@@ -863,7 +863,8 @@ the host language.
 
 Next, we extend the basic simply typed lambda calculus with
 quotes and splices with term constructors for circuit descriptions.
-
+They will all belong to the dynamic stage.
+%
 Our first constructor gives us the universal nand gate.
 Its type records the fact it takes two inputs and returns
 a single output.
@@ -872,7 +873,7 @@ a single output.
 
 Next, we have a constructor for the parallel composition
 of existing circuits. The input and output arities of the
-resulting circuit is obtained by adding up the respective
+resulting circuit are obtained by adding up the respective
 input and output arities of each of the components.
 
 \ExecuteMetaData[MetaCircuit.tex]{termcircuitpar}
