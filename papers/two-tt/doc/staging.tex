@@ -319,7 +319,7 @@ literature, is a first order description of order-preserving
 injections:
 \AIC{done} is the trivial injection of the empty context into
 itself;
-\AIC{keep} extend an existing injection into one that preserves
+\AIC{keep} extends an existing injection into one that preserves
 the most local variable;
 and \AIC{drop} records that the most local variable of the target
 context does not have a pre-image via the injection.
@@ -363,6 +363,15 @@ with $x$ hence the need for weakening.
 
 \label{def:composition}
 \ExecuteMetaData[STLC.tex]{composition}
+
+\begin{remark}[Lexing of Identifiers]
+  Ignoring details about reserved characters for now: any
+  space-free string of unicode characters is considered a
+  single identifier.
+  Correspondingly, in the example above \AB{Γ≤Γ,A} is a single
+  identifier named like this to document for the human reader
+  what its type looks like.
+\end{remark}
 
 \subsection{Normalisation by Evaluation}
 
