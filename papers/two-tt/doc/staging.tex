@@ -1,53 +1,3 @@
-\documentclass{article}
-
-%%% Remark environment
-\usepackage{amsthm}
-\newtheorem*{remark}{Agda-ism}
-
-%%%% Agda code %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\usepackage{agda}
-\input{unicode}
-\usepackage{catchfilebetweentags}
-\input{robust-catch}
-% do not indent code blocks
-\setlength\mathindent{0em}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\usepackage{todonotes}
-\setuptodonotes{inline}
-
-\input{commands}
-
-%%% Tikz
-\usepackage{tikz}
-\usepackage{circuitikz}
-\ctikzset{logic ports=ieee}
-%%\usepackage{calc}
-
-%%% Toggle
-\newtoggle{BLIND}
-\togglefalse{BLIND}
-
-%%% References
-\usepackage{hyperref}
-\usepackage{cleveref}
-\usepackage[style=alphabetic]{biblatex}
-\bibliography{staging.bib}
-
-%%% Inference rules
-\usepackage{mathpartir}
-
-\title{Scoped and Typed Staging by Evaluation}
-\iftoggle{BLIND}{
-  \author{ANONYMOUS}
-}{
-  \author{Guillaume Allais}
-}
-
-\begin{document}
-
-\maketitle
-
 \section{Introduction}
 
 This paper gives an intrinsically scoped-and-typed
@@ -82,7 +32,7 @@ hence the title of this paper.
 
 \section{A Primer on Intrinsically Typed λ-Calculi}\label{sec:intrinsictyping}
 
-Let us start with a quick primer on intrinsically typed λ-calculi
+Let us start with a quick primer on intrinsically scoped-and-typed λ-calculi
 defined in a dependently typed host language. The interested reader
 can refer to ACMM~\cite{DBLP:conf/cpp/Allais0MM17} for a more in-depth
 presentation of this approach.
@@ -227,7 +177,7 @@ extended with a freshly bound variable of type \AB{B}.
 
 This is a standard definition
 corresponding to a scoped-and-typed variant of de Bruijn
-indices~\cite{de1972lambda}:
+indices~\cite{de1972lambda,DBLP:journals/scp/BellegardeH94,DBLP:conf/csl/AltenkirchR99,DBLP:journals/jfp/BirdP99}:
 \AIC{here} corresponds to zero, and \AIC{there} to successor.
 
 \subsection{Intrinsically Typed Terms}
@@ -1159,7 +1109,17 @@ out of scope for this paper.
 
 \todo{Brigitte Pientka}
 \todo{Mathys Rennela}
+
+
 \todo{Bob's SMT paper}
+
+In their work on compiling higher order specification to SMT
+solvers~\cite{DBLP:conf/cpp/DaggittAKKA23},
+Daggit, Atkey, Kokke, Komendantskaya, and Arnaboldi
+designed a cunning 'translation by evaluation' to
+partially evaluate specifications written in a full featured
+high level functional language (without recursion)
+into first order SMT constraints.
 
 \section{Future Work}
 
@@ -1185,17 +1145,3 @@ is an important endeavour.
 A promising approach involves defining such a transformation
 by induction over a universe of language
 descriptions~\cite{DBLP:journals/jfp/AllaisACMM21}.
-
-\section*{Acknowledgements}
-
-\iftoggle{BLIND}{
-  Thanks to XXX for comments.
-}{
-  We would like to thank Bob Atkey for his suggestion to index
-  stages by a phase, thus allowing us to ensure that a staged
-  term does not have any static subterm.
-}
-
-\newpage
-\printbibliography
-\end{document}

@@ -1,0 +1,33 @@
+%%% Remark environment
+\usepackage{amsthm}
+\newtheorem*{remark}{Agda-ism}
+
+%%%% Agda code %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{agda}
+\input{unicode}
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+% do not indent code blocks
+\setlength\mathindent{0em}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{todonotes}
+\setuptodonotes{inline}
+
+\input{commands}
+
+%%% Tikz
+\usepackage{tikz}
+\usepackage{circuitikz}
+\ctikzset{logic ports=ieee}
+
+%%% Toggle
+\newtoggle{BLIND}
+\togglefalse{BLIND}
+
+%%% References
+\usepackage{hyperref}
+\usepackage{cleveref}
+
+%%% Inference rules
+\usepackage{mathpartir}

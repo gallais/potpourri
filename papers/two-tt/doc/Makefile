@@ -1,3 +1,5 @@
+.PRECIOUS: __build/%.tex
+
 AGDA_FILES:= \
  BasicTwoTT.lagda \
  TwoTT.lagda \
@@ -7,8 +9,16 @@ AGDA_OUTPUT:=$(patsubst %.lagda,__build/%.tex,$(AGDA_FILES))
 
 AGDA=agda
 
+PAPER=pepm
+
+all: $(PAPER).pdf
+
 DEPENDENCIES:=$(AGDA_OUTPUT) \
-  staging.bib
+  staging.bib \
+  staging.tex \
+  unicode.tex \
+  config.tex \
+  acks.tex \
 
 __build/%.bib: %.bib
 	@mkdir -p $(dir $@)
@@ -18,8 +28,9 @@ __build/%.tex: %.lagda
 	@mkdir -p $(dir $@)
 	${AGDA} -i . --latex $< --latex-dir=__build > $(basename $@).log
 
-all: $(DEPENDENCIES)
-	latexmk -pdf -outdir=__build -bibtex staging.tex
+%.pdf: %.tex $(DEPENDENCIES)
+	latexmk -pdf -outdir=__build -bibtex $<
+	ln -sf __build/$(basename $@).pdf .
 
 clean:
 	rm -rf __build
