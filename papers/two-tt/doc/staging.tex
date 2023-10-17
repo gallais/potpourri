@@ -92,13 +92,13 @@ rather than the left one where the ambient context Γ
 is explicitly threaded.
 
 \noindent
-\begin{minipage}{.4\textwidth}
+\begin{minipage}{.2\textwidth}
   \begin{mathpar}
     \inferrule{Γ ⊢ f : A → B \and Γ ⊢ t : A}{Γ ⊢ f \, t : B} \and
     \inferrule{Γ, x : A ⊢ b : B}{Γ ⊢ λx.b : A → B}
   \end{mathpar}
 \end{minipage}\hfill
-\begin{minipage}{.4\textwidth}
+\begin{minipage}{.2\textwidth}
   \begin{mathpar}
     \inferrule{f : A → B \and t : A}{f \, t : B} \and
     \inferrule{x : A ⊢ b : B}{λx.b : A → B}
@@ -108,35 +108,27 @@ is explicitly threaded.
 To do so, we need to introduce a small set of combinators
 to manipulate indexed definitions. These are commonplace
 and already present in Agda's standard library.
-
-\noindent
-\begin{minipage}{.4\textwidth}
-  \ExecuteMetaData[STLC.tex]{forall}
-\end{minipage}\hfill
-\begin{minipage}{.5\textwidth}
-  \ExecuteMetaData[STLC.tex]{update}
-\end{minipage}
-
+%
 First, \AF{∀[\_]} universally quantifies over its argument's index;
 it is meant to be used to surround a complex expression built
 up using the other combinators.
-%
+
+\ExecuteMetaData[STLC.tex]{forall}
+
 Second, the suggestively named \AF{\_⊢\_} allows us to modify
 the index; it will be useful to extend a context with freshly
 bound variables.
 
-\noindent
-\begin{minipage}{.4\textwidth}
-  \ExecuteMetaData[STLC.tex]{arrow}
-\end{minipage}\hfill
-\begin{minipage}{.5\textwidth}
-  \ExecuteMetaData[STLC.tex]{product}
-\end{minipage}
+\ExecuteMetaData[STLC.tex]{update}
 
-Third, we can form index-respecting function spaces using \AF{\_⇒\_}.
-%
+Third, we can form index-respecting function spaces.
+
+\ExecuteMetaData[STLC.tex]{arrow}
+
 Finally, the pointwise lifting of pairing is called \AF{\_∩\_};
 it will only come into play in \Cref{sec:stagingmodelprod}.
+
+\ExecuteMetaData[STLC.tex]{product}
 
 We include below an artificial example of a type written using
 the combinators together with its full expansion using explicit
@@ -164,16 +156,12 @@ The second one (\AIC{there}) states that if a variable of type \AB{A}
 is present in a context then it also is present in the same context
 extended with a freshly bound variable of type \AB{B}.
 
-\noindent
-\begin{minipage}{.5\textwidth}
 \ExecuteMetaData[STLC.tex]{var}
-\end{minipage}\hfill
-\begin{minipage}{.45\textwidth}
+
 \begin{mathpar}
   \inferrule{ }{x : A ⊢ x :_v A} \and
   \inferrule{x :_v A}{y : B ⊢ x :_v A}
 \end{mathpar}
-\end{minipage}
 
 This is a standard definition
 corresponding to a scoped-and-typed variant of de Bruijn
@@ -194,15 +182,15 @@ counterpart as an inference rule.
 We start with the variable rule: a variable of type \AB{A}
 forms a valid term of type \AB{A}.
 %
-As you can see below, we use a line lexed as a comment (\AC{---})
+As you can see below, we use a line lexed as a comment (\AC{----})
 to suggestively typeset the constructor's type like the
 corresponding rule.
 
 \noindent
-\begin{minipage}[t]{.5\textwidth}
+\begin{minipage}[t]{.25\textwidth}
   \ExecuteMetaData[STLC.tex]{termvar}
 \end{minipage}\hfill
-\begin{minipage}[t]{.35\textwidth}
+\begin{minipage}[t]{.17\textwidth}
 \begin{mathpar}
   \inferrule{x :_v A}{x : A}
 \end{mathpar}
@@ -213,10 +201,10 @@ by combining a term whose type is a function type from \AB{A} to \AB{B}
 and a term of type \AB{A}, we obtain a term of type \AB{B}.
 
 \noindent
-\begin{minipage}[t]{.5\textwidth}
+\begin{minipage}[t]{.25\textwidth}
   \ExecuteMetaData[STLC.tex]{termapp}
 \end{minipage}\hfill
-\begin{minipage}[t]{.35\textwidth}
+\begin{minipage}[t]{.17\textwidth}
 \begin{mathpar}
   \inferrule{f : A → B \and t : A}{f \, t : B}
 \end{mathpar}
@@ -229,10 +217,10 @@ building the function's body of type \AB{B} in a context extended
 by a freshly bound variable of type \AB{A}.
 
 \noindent
-\begin{minipage}[t]{.5\textwidth}
+\begin{minipage}[t]{.25\textwidth}
   \ExecuteMetaData[STLC.tex]{termlam}
 \end{minipage}\hfill
-\begin{minipage}[t]{.35\textwidth}
+\begin{minipage}[t]{.17\textwidth}
 \begin{mathpar}
   \inferrule{x : A ⊢ b : B}{λx.b : A → B}
 \end{mathpar}
@@ -251,7 +239,6 @@ the simply typed lambda calculus.
 And we give our first example: the identity function ($λ.0$ in de Bruijn notation).
 
 \ExecuteMetaData[STLC.tex]{id}
-
 
 As any well behaved syntax should,
 it is stable under weakening as we are going to see shortly.
@@ -279,10 +266,10 @@ the definitions out and invite the interested reader to look
 at the code in the accompanying material).
 
 \noindent
-\begin{minipage}{.3\textwidth}
+\begin{minipage}{.15\textwidth}
   \ExecuteMetaData[STLC.tex]{lerefl}
 \end{minipage}\hfill
-\begin{minipage}{.5\textwidth}
+\begin{minipage}{.27\textwidth}
   \ExecuteMetaData[STLC.tex]{letrans}
 \end{minipage}
 
@@ -293,7 +280,7 @@ principles, and introduce the following type synonym to describe them.
 \ExecuteMetaData[STLC.tex]{weaken}
 
 The action on variables is given
-by the following \AF{weak-Var} definition. It is defined by
+by the following \AF{wkVar} definition. It is defined by
 induction over the renaming and case analysis on the de Bruijn
 index if the most local variable happens to be in both contexts.
 
@@ -361,7 +348,7 @@ The definition of \AF{duplicate} proceeds by
 copattern-matching~\cite{DBLP:conf/popl/AbelPTS13}.
 This allows us to define values of a record type
 (here \AR{□}) by defining the result of taking
-each of its projections (here the unique \ARF{runBox} one).
+each of its projections (here the unique \ARF{run□} one).
 In this instance it is particularly useful because we have
 a type involving nested records and each projection takes
 additional arguments: an (implicit) context and a weakening
@@ -377,13 +364,13 @@ The comonadic structure of \AF{□} additionally ensures we can define
 semantic application (\AF{\_\$\$\_}) and weakening of Kripke function
 spaces.
 
-\noindent
-\begin{minipage}{0.45\textwidth}
+%% \noindent
+%% \begin{minipage}{0.45\textwidth}
   \ExecuteMetaData[STLC.tex]{semapp}
-\end{minipage}\hfill
-\begin{minipage}{0.5\textwidth}
+%% \end{minipage}\hfill
+%% \begin{minipage}{0.5\textwidth}
   \ExecuteMetaData[STLC.tex]{weakKripke}
-\end{minipage}
+%% \end{minipage}
 
 Finally, we introduce a notation to hide away \AR{□}-related
 notions when building \AF{Kripke} functions.
@@ -430,7 +417,7 @@ into the bigger context.
 %
 The \AF{extend} definition combines these two operations into a single
 one. It is defined in copattern style:
-{\AS{.}\ARF{runBox}} builds a box while {\AS{.}\ARF{lookup}} builds the
+{\AS{.}\ARF{run□}} builds a box while {\AS{.}\ARF{get}} builds the
 returned environment. The definition proceeds by case analysis on the
 variable to be mapped to a value: if it is the newly bound one, we
 immediately return the value we just obtained, and otherwise we look
@@ -580,10 +567,10 @@ dynamic argument while the static one can only exist in the
 source phase and will be fully evaluated during staging.
 
 \noindent
-\begin{minipage}{.4\textwidth}
+\begin{minipage}{.21\textwidth}
   \ExecuteMetaData[BasicTwoTT.tex]{iddyn}
 \end{minipage}\hfill
-\begin{minipage}{.5\textwidth}
+\begin{minipage}{.23\textwidth}
   \ExecuteMetaData[BasicTwoTT.tex]{idsta}
 \end{minipage}
 
@@ -691,7 +678,7 @@ The keyword (\AS{λ} \AK{where}) is analogous to Haskell's
 \texttt{\textbackslash{}case}: it introduces a pattern-matching lambda.
 In this instance, it is a copattern-matching one: we define
 the environment of type (\AR{Env} \AIC{ε} \AIC{ε}) by
-copattern-matching on {\AS{.}\ARF{lookup}} which allows us to bind
+copattern-matching on {\AS{.}\ARF{get}} which allows us to bind
 an argument of type (\AD{Var} \AB{A} \AIC{ε}) that can in turn
 be immediately dismissed as uninhabited using the empty pattern \AS{()}.
 \end{remark}
@@ -786,7 +773,7 @@ for dynamic uses.
 The meaning of \AIC{`iter} in the static layer is defined in
 terms of the \AF{iterate} function defined by pattern-matching
 in the host language and turning a natural number into its
-Church encoding. Note that we need to use \AF{weak-Kripke} to
+Church encoding. Note that we need to use \AF{wkKripke} to
 bring the \AB{succ} argument into the wider scope the \AB{zero}
 one lives int.
 
@@ -794,7 +781,7 @@ one lives int.
 
 
 We can readily compute with these numbers. Reifying the static
-result obtained by adding $7$ to $37$ will for instance return
+result obtained by adding $7$ to $35$ will for instance return
 $42$ (here \AF{fromℕ} once again stands for a helper function
 turning Agda literals into \AD{Term} numbers).
 
@@ -939,10 +926,10 @@ and \AF{`dup} (the circuit \emph{dup}licating its single input).
 We present them below together with the corresponding wiring diagrams.
 
 \noindent
-\begin{minipage}{.5\textwidth}
+\begin{minipage}{.25\textwidth}
   \ExecuteMetaData[MetaCircuit.tex]{id2}
 \end{minipage}\hfill
-\begin{minipage}{.25\textwidth}
+\begin{minipage}{.125\textwidth}
   \begin{tikzpicture}
     \draw[fill] (0,0)  circle[radius=1.5pt] node { };
     \draw[fill] (0,.5) circle[radius=1.5pt] node { };
@@ -956,10 +943,10 @@ We present them below together with the corresponding wiring diagrams.
 \end{minipage}
 
 \noindent
-\begin{minipage}{.5\textwidth}
+\begin{minipage}{.25\textwidth}
   \ExecuteMetaData[MetaCircuit.tex]{swap}
 \end{minipage}\hfill
-\begin{minipage}{.25\textwidth}
+\begin{minipage}{.125\textwidth}
   \begin{tikzpicture}
     \draw[fill] (0,0)  circle[radius=1.5pt] node { };
     \draw[fill] (0,.5) circle[radius=1.5pt] node { };
@@ -973,10 +960,10 @@ We present them below together with the corresponding wiring diagrams.
 \end{minipage}
 
 \noindent
-\begin{minipage}{.5\textwidth}
+\begin{minipage}{.25\textwidth}
   \ExecuteMetaData[MetaCircuit.tex]{dup}
 \end{minipage}\hfill
-\begin{minipage}{.25\textwidth}
+\begin{minipage}{.125\textwidth}
   \begin{tikzpicture}
     \draw[fill] (0,.25) circle[radius=1.5pt] node { };
 
@@ -997,10 +984,11 @@ and then feeding it to both of the argument's ports.
 
 \ExecuteMetaData[MetaCircuit.tex]{diag}
 
-\begin{minipage}{.1\textwidth}
+\medskip
+\begin{minipage}{.05\textwidth}
   $c \mapsto$
 \end{minipage}
-\begin{minipage}{.75\textwidth}
+\begin{minipage}{.375\textwidth}
   \begin{tikzpicture}
 
     \coordinate (x) at (0,.25);
@@ -1018,6 +1006,7 @@ and then feeding it to both of the argument's ports.
     \draw (r)+(.5,0) node {$r$} edge (r);
   \end{tikzpicture}
 \end{minipage}
+\medskip
 
 We can then obtain the \AF{`not} gate by taking the diagonal
 of the \AIC{`nand} built-in gate.
@@ -1044,10 +1033,10 @@ of the circuit as defined above, we obtain the following circuit
 diagram.
 
 \medskip
-\begin{minipage}{.1\textwidth}
+\begin{minipage}{.05\textwidth}
   $f \mapsto$
 \end{minipage}\hfill
-\begin{minipage}{.85\textwidth}
+\begin{minipage}{.425\textwidth}\scalebox{.85}{
   \begin{tikzpicture}{circuit logic US}
     \coordinate (b) at (0,2);
     \draw[fill] (b) circle[radius=1.5pt] node {};
@@ -1090,14 +1079,14 @@ diagram.
     \draw[dashed] ([xshift=4.75cm, yshift=.4cm] b) to ([xshift=4.75cm, yshift=-.4cm] x);
     \draw[dashed] ([xshift=1.25cm, yshift=1cm] x) to ([xshift=4.75cm, yshift=1cm] x);
 
-  \end{tikzpicture}
+  \end{tikzpicture}}
 \end{minipage}
 \medskip
 
 This term is not in and of itself particularly useful but its
 generalisation to one that could take a function computing an
-{\AIC{⟨} \AB{i} \AIC{∣} \AB{o} \AIC{⟩}} circuit and return an
-equivalent {\AIC{⟨} \AN{1} \AF{+} \AB{i} \AIC{∣} \AB{o} \AIC{⟩}}
+{\AIC{⟨}~\AB{i}~\AIC{∣}~\AB{o}~\AIC{⟩}} circuit and return an
+equivalent {\AIC{⟨}~\AN{1}~\AF{+}~\AB{i}~\AIC{∣}~\AB{o}~\AIC{⟩}}
 circuit would allow us to build arbitrarily complex circuits
 by tabulating static n-ary boolean functions.
 

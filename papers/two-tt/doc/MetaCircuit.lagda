@@ -18,13 +18,13 @@ import Data.Fin.Literals; instance fin = λ {n} → Data.Fin.Literals.number n
 
 
 data Phase : Set where
-  source staged : Phase
+  src stg : Phase
 
 variable ph : Phase
 
 data Stage : Phase → Set where
-  static   : Stage source
-  dynamic  : Stage ph
+  sta : Stage src
+  dyn : Stage ph
 
 variable st : Stage ph
 
@@ -35,13 +35,13 @@ infixr 5 `⇑_
 %<*type>
 \begin{code}
 data Type : Stage ph → Set where
-  _`⇒_    : (A B : Type static) → Type static
-  `⇑_     : Type {source} dynamic → Type static
-  `⟨_∣_⟩  : (i o : ℕ) → Type {ph} dynamic
+  _`⇒_    : (A B : Type sta) → Type sta
+  `⇑_     : Type {src} dyn → Type sta
+  `⟨_∣_⟩  : (i o : ℕ) → Type {ph} dyn
 \end{code}
 %</type>
 \begin{code}
-  `Bool : Type static
+  `Bool : Type sta
 
 variable m i o i₁ o₁ i₂ o₂ : ℕ
 variable A B C : Type st
@@ -49,7 +49,7 @@ variable A B C : Type st
 \end{code}
 %<*asStaged>
 \begin{code}
-asStaged : Type {source} dynamic → Type {staged} dynamic
+asStaged : Type {src} dyn → Type {stg} dyn
 asStaged `⟨ i ∣ o ⟩ = `⟨ i ∣ o ⟩
 \end{code}
 %</asStaged>
@@ -91,92 +91,92 @@ weak-Var (keep σ) (there v) = there (weak-Var σ v)
 data Term : (ph : Phase) (st : Stage ph) → Type st → Context → Set where
   -- stlc
   `var   : ∀[ Var A ⇒ Term ph st A ]
-  `app   : ∀[ Term source static (A `⇒ B) ⇒ Term source static A ⇒ Term source static B ]
-  `lam   : ∀[ (_, A) ⊢ Term source static B ⇒ Term source static (A `⇒ B) ]
+  `app   : ∀[ Term src sta (A `⇒ B) ⇒ Term src sta A ⇒ Term src sta B ]
+  `lam   : ∀[ (_, A) ⊢ Term src sta B ⇒ Term src sta (A `⇒ B) ]
   -- two level
-  `⟨_⟩   : ∀[ Term source dynamic A ⇒ Term source static (`⇑ A) ]
-  `∼_    : ∀[ Term source static (`⇑ A) ⇒ Term source dynamic A ]
+  `⟨_⟩   : ∀[ Term src dyn A ⇒ Term src sta (`⇑ A) ]
+  `∼_    : ∀[ Term src sta (`⇑ A) ⇒ Term src dyn A ]
   -- booleans
-  `true   : ∀[ Term source static `Bool ]
-  `false  : ∀[ Term source static `Bool ]
-  `ifte   : ∀[ Term source static (`Bool `⇒ A `⇒ A `⇒ A) ]
+  `true   : ∀[ Term src sta `Bool ]
+  `false  : ∀[ Term src sta `Bool ]
+  `ifte   : ∀[ Term src sta (`Bool `⇒ A `⇒ A `⇒ A) ]
   -- circuit
 \end{code}
 %<*termcircuit>
 %<*termcircuitnand>
 \begin{code}
-  `nand  : ∀[ Term ph dynamic `⟨ 2 ∣ 1 ⟩ ]
+  `nand  : ∀[ Term ph dyn `⟨ 2 ∣ 1 ⟩ ]
 \end{code}
 %</termcircuitnand>
 %<*termcircuitpar>
 \begin{code}
-  `par   : ∀[  Term ph dynamic `⟨ i₁        ∣ o₁        ⟩ ⇒
-               Term ph dynamic `⟨       i₂  ∣       o₂  ⟩ ⇒
-               Term ph dynamic `⟨ i₁ +  i₂  ∣ o₁ +  o₂  ⟩ ]
+  `par   : ∀[  Term ph dyn `⟨ i₁        ∣ o₁        ⟩ ⇒
+               Term ph dyn `⟨       i₂  ∣       o₂  ⟩ ⇒
+               Term ph dyn `⟨ i₁ +  i₂  ∣ o₁ +  o₂  ⟩ ]
 \end{code}
 %</termcircuitpar>
 %<*termcircuitseq>
 \begin{code}
-  `seq   : ∀[  Term ph dynamic `⟨ i  ∣ m  ⟩ ⇒
-               Term ph dynamic `⟨ m  ∣ o  ⟩ ⇒
-               Term ph dynamic `⟨ i  ∣ o  ⟩ ]
+  `seq   : ∀[  Term ph dyn `⟨ i  ∣ m  ⟩ ⇒
+               Term ph dyn `⟨ m  ∣ o  ⟩ ⇒
+               Term ph dyn `⟨ i  ∣ o  ⟩ ]
 \end{code}
 %</termcircuitseq>
 %<*termcircuitmix>
 \begin{code}
-  `mix   : Vec (Fin i) o → ∀[ Term ph dynamic `⟨ i ∣ o ⟩ ]
+  `mix   : Vec (Fin i) o → ∀[ Term ph dyn `⟨ i ∣ o ⟩ ]
 \end{code}
 %</termcircuitmix>
 
 %<*id2>
 \begin{code}
-`id₂ :  ∀[ Term ph dynamic `⟨ 2 ∣ 2 ⟩ ]
+`id₂ :  ∀[ Term ph dyn `⟨ 2 ∣ 2 ⟩ ]
 `id₂ = `mix (0 ∷ 1 ∷ [])
 \end{code}
 %</id2>
 
 %<*swap>
 \begin{code}
-`swap :  ∀[ Term ph dynamic `⟨ 2 ∣ 2 ⟩ ]
+`swap :  ∀[ Term ph dyn `⟨ 2 ∣ 2 ⟩ ]
 `swap = `mix (1 ∷ 0 ∷ [])
 \end{code}
 %</swap>
 
 %<*dup>
 \begin{code}
-`dup :  ∀[ Term ph dynamic `⟨ 1 ∣ 2 ⟩ ]
+`dup :  ∀[ Term ph dyn `⟨ 1 ∣ 2 ⟩ ]
 `dup = `mix (0 ∷ 0 ∷ [])
 \end{code}
 %</dup>
 
 %<*diag>
 \begin{code}
-`diag : ∀[ Term source static (`⇑ `⟨ 2 ∣ 1 ⟩ `⇒ `⇑ `⟨ 1 ∣ 1 ⟩) ]
+`diag : ∀[ Term src sta (`⇑ `⟨ 2 ∣ 1 ⟩ `⇒ `⇑ `⟨ 1 ∣ 1 ⟩) ]
 `diag = `lam `⟨ `seq `dup (`∼ `var here) ⟩
 \end{code}
 %</diag>
 
 %<*not>
 \begin{code}
-`not : ∀[ Term source dynamic `⟨ 1 ∣ 1 ⟩ ]
+`not : ∀[ Term src dyn `⟨ 1 ∣ 1 ⟩ ]
 `not = `∼ `app `diag `⟨ `nand ⟩
 \end{code}
 %</not>
 
 \begin{code}
-`and : ∀[ Term source dynamic `⟨ 2 ∣ 1 ⟩ ]
+`and : ∀[ Term src dyn `⟨ 2 ∣ 1 ⟩ ]
 `and = `seq `nand `not
 
-`or : ∀[ Term source dynamic `⟨ 2 ∣ 1 ⟩ ]
+`or : ∀[ Term src dyn `⟨ 2 ∣ 1 ⟩ ]
 `or = `seq (`par `not `not) `nand
 
-`id₁ : ∀[ Term ph dynamic `⟨ 1 ∣ 1 ⟩ ]
+`id₁ : ∀[ Term ph dyn `⟨ 1 ∣ 1 ⟩ ]
 `id₁ = `mix (zero ∷ [])
 
 \end{code}
 %<*tab>
 \begin{code}
-`tab : ∀[ Term source static ((`Bool `⇒ `⇑ `⟨ 1 ∣ 1 ⟩) `⇒ `⇑ `⟨ 2 ∣ 1 ⟩) ]
+`tab : ∀[ Term src sta ((`Bool `⇒ `⇑ `⟨ 1 ∣ 1 ⟩) `⇒ `⇑ `⟨ 2 ∣ 1 ⟩) ]
 `tab = `lam `⟨ `seq (`seq (`seq
          (`par `dup `dup)
          (`mix (0 ∷ 2 ∷ 1 ∷ 3 ∷ [])))
@@ -242,7 +242,7 @@ f $$ t = f .runBox ≤-refl t
 \end{code}
 %<*modelstadecl>
 \begin{code}
-Static : Type static → Context → Set
+Static : Type sta → Context → Set
 \end{code}
 %</modelstadecl>
 \begin{code}
@@ -252,9 +252,9 @@ Static : Type static → Context → Set
 \end{code}
 %<*model>
 \begin{code}
-Value : (st : Stage source) → Type st → Context → Set
-Value static   = Static
-Value dynamic  = Term staged dynamic ∘ asStaged
+Value : (st : Stage src) → Type st → Context → Set
+Value sta  = Static
+Value dyn  = Term stg dyn ∘ asStaged
 \end{code}
 %</model>
 \begin{code}
@@ -263,7 +263,7 @@ Value dynamic  = Term staged dynamic ∘ asStaged
 \end{code}
 %<*modelsta>
 \begin{code}
-Static (`⇑ A)    = Value dynamic A
+Static (`⇑ A)    = Value dyn A
 Static (A `⇒ B)  = Kripke (Static A) (Static B)
 \end{code}
 %</modelsta>
@@ -278,8 +278,8 @@ weak-Static `Bool    σ = id
 
 -- Action of thinnings on Values
 weak-Value : (A : Type st) → Γ ≤ Δ → Value st A Γ → Value st A Δ
-weak-Value {st = static}  A σ v = weak-Static A σ v
-weak-Value {st = dynamic} A σ v = weak-Term σ v
+weak-Value {st = sta} A σ v = weak-Static A σ v
+weak-Value {st = dyn} A σ v = weak-Term σ v
 
 -- Type of environments mapping variables to values
 record Env (Γ Δ : Context) : Set where
@@ -301,7 +301,7 @@ extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x
 \end{code}
 %<*bodydecl>
 \begin{code}
-body : Env Γ Δ → Term source st B (Γ , A) →
+body : Env Γ Δ → Term src st B (Γ , A) →
        Kripke (Value st A) (Value st B) Δ
 \end{code}
 %</bodydecl>
@@ -312,7 +312,7 @@ body : Env Γ Δ → Term source st B (Γ , A) →
 \end{code}
 %<*evaldecl>
 \begin{code}
-eval : Env Γ Δ → Term source st A Γ → Value st A Δ
+eval : Env Γ Δ → Term src st A Γ → Value st A Δ
 \end{code}
 %</evaldecl>
 %<*eval>
@@ -349,7 +349,7 @@ body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
 %<*stagefun>
 %<*stagedecl>
 \begin{code}
-stage : Term source dynamic A ε → Term staged dynamic (asStaged A) ε
+stage : Term src dyn A ε → Term stg dyn (asStaged A) ε
 \end{code}
 %</stagedecl>
 \begin{code}
@@ -365,7 +365,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 -- Tests for the staging evaluator
 
 infix 0 _∋_↝_
-_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic (asStaged A) ε → Set
+_∋_↝_ : (A : Type dyn) → Term src dyn A ε → Term stg dyn (asStaged A) ε → Set
 A ∋ s ↝ t = stage s ≡ t
 
 testNot :

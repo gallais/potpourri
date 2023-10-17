@@ -27,7 +27,7 @@ open import Relation.Unary using (IUniversal; _⇒_; _⊢_; _∩_)
 %<*phase>
 \begin{code}
 data Phase : Set where
-  source staged : Phase
+  src stg : Phase
 
 variable ph : Phase
 \end{code}
@@ -42,8 +42,8 @@ variable ph : Phase
 %<*stage>
 \begin{code}
 data Stage : Phase → Set where
-  static   : Stage source
-  dynamic  : Stage ph
+  sta : Stage src
+  dyn : Stage ph
 
 variable st : Stage ph
 \end{code}
@@ -66,7 +66,7 @@ infixr 5 _`⇒_
 \begin{code}
 data Type : Stage ph → Set where
   `α    : Type st
-  `⇑_   : Type {source} dynamic → Type static
+  `⇑_   : Type {src} dyn → Type sta
   _`⇒_  : (A B : Type st) → Type st
 
 variable A B C : Type st
@@ -77,7 +77,7 @@ variable A B C : Type st
 \end{code}
 %<*asStaged>
 \begin{code}
-asStaged : Type {source} dynamic → Type {staged} dynamic
+asStaged : Type {src} dyn → Type {stg} dyn
 asStaged `α        = `α
 asStaged (A `⇒ B)  = asStaged A `⇒ asStaged B
 \end{code}
@@ -163,7 +163,8 @@ weak-Var (keep σ) (there v) = there (weak-Var σ v)
 %<*term>
 %<*termdecl>
 \begin{code}
-data Term : (ph : Phase) → (st : Stage ph) → Type st → Context → Set where
+data Term : (ph : Phase) (st : Stage ph) →
+            Type st → Context → Set where
 \end{code}
 %</termdecl>
 %<*termstlc>
@@ -175,8 +176,8 @@ data Term : (ph : Phase) → (st : Stage ph) → Type st → Context → Set whe
 %</termstlc>
 %<*termtwolevel>
 \begin{code}
-  `⟨_⟩   : ∀[ Term source dynamic A ⇒ Term source static (`⇑ A) ]
-  `∼_    : ∀[ Term source static (`⇑ A) ⇒ Term source dynamic A ]
+  `⟨_⟩   : ∀[ Term src dyn A ⇒ Term src sta (`⇑ A) ]
+  `∼_    : ∀[ Term src sta (`⇑ A) ⇒ Term src dyn A ]
 \end{code}
 %</termtwolevel>
 %</term>
@@ -199,7 +200,7 @@ open WithDefault
 \end{code}
 %<*iddyn>
 \begin{code}
-`idᵈ : ∀[ Term ph dynamic (A `⇒ A) ]
+`idᵈ : ∀[ Term ph dyn (A `⇒ A) ]
 `idᵈ = `lam (`var here)
 \end{code}
 %</iddyn>
@@ -209,7 +210,7 @@ open WithDefault
 \end{code}
 %<*idsta>
 \begin{code}
-`idˢ : ∀[ Term source static (A `⇒ A) ]
+`idˢ : ∀[ Term src sta (A `⇒ A) ]
 `idˢ = `lam (`var here)
 \end{code}
 %</idsta>
@@ -235,7 +236,7 @@ g `∘ f  =  let Γ≤Γ,A = drop ≤-refl in
 \begin{code}
 record □ (A : Context → Set) (Γ : Context) : Set where
   constructor mkBox
-  field runBox : ∀ {Δ} → Γ ≤ Δ → A Δ
+  field run□ : ∀ {Δ} → Γ ≤ Δ → A Δ
 
 Kripke : (A B : Context → Set) (Γ : Context) → Set
 Kripke A B = □ (A ⇒ B)
@@ -247,7 +248,7 @@ open □
 -- Action of thinnings on Kripke functions spaces
 -- By construction they're the Free thinnable
 weak-Kripke : ∀ {A B} → Γ ≤ Δ → Kripke A B Γ → Kripke A B Δ
-weak-Kripke σ f .runBox = f .runBox ∘ ≤-trans σ
+weak-Kripke σ f .run□ = f .run□ ∘ ≤-trans σ
 
 -- lambda-abstraction
 infixr 3 mkBox
@@ -264,7 +265,7 @@ syntax mkBox (λ σ x → b) = λλ[ σ , x ] b
 %<*kripkeapp>
 \begin{code}
 _$$_ : ∀ {A B} → Kripke A B Γ → A Γ → B Γ
-f $$ t = f .runBox ≤-refl t
+f $$ t = f .run□ ≤-refl t
 \end{code}
 %</kripkeapp>
 \begin{code}
@@ -278,7 +279,7 @@ open import Data.Product as Prod using (_×_; _,_)
 \end{code}
 %<*modelstadecl>
 \begin{code}
-Static : Type static → Context → Set
+Static : Type sta → Context → Set
 \end{code}
 %</modelstadecl>
 \begin{code}
@@ -288,9 +289,9 @@ Static : Type static → Context → Set
 \end{code}
 %<*model>
 \begin{code}
-Value : (st : Stage source) → Type st → Context → Set
-Value static   = Static
-Value dynamic  = Term staged dynamic ∘ asStaged
+Value : (st : Stage src) → Type st → Context → Set
+Value sta  = Static
+Value dyn  = Term stg dyn ∘ asStaged
 \end{code}
 %</model>
 \begin{code}
@@ -300,7 +301,7 @@ Value dynamic  = Term staged dynamic ∘ asStaged
 %<*modelsta>
 \begin{code}
 Static `α        = const ⊥
-Static (`⇑ A)    = Value dynamic A
+Static (`⇑ A)    = Value dyn A
 Static (A `⇒ B)  = Kripke (Static A) (Static B)
 \end{code}
 %</modelsta>
@@ -314,29 +315,30 @@ weak-Static (A `⇒ B) σ = weak-Kripke σ
 
 -- Action of thinnings on Values
 weak-Value : (A : Type st) → Γ ≤ Δ → Value st A Γ → Value st A Δ
-weak-Value {st = static}  A σ v = weak-Static A σ v
-weak-Value {st = dynamic} A σ v = weak-Term σ v
+weak-Value {st = sta} A σ v = weak-Static A σ v
+weak-Value {st = dyn} A σ v = weak-Term σ v
 
 ------------------------------------------------------------------------
 -- Evaluator for staging by evaluation
 
 -- Type of environments mapping variables to values
 record Env (Γ Δ : Context) : Set where
-  field lookup : ∀ {st A} → Var A Γ → Value st A Δ
+  field get : ∀ {st A} → Var A Γ → Value st A Δ
 open Env
 
 -- Action of thinnings on environments
 -- (pointwise lifting of the action on values)
 weak-Env : Δ ≤ Θ → Env Γ Δ → Env Γ Θ
-weak-Env σ ρ .lookup {A = A} v = weak-Value A σ (ρ .lookup v)
+weak-Env σ ρ .get {A = A} v = weak-Value A σ (ρ .get v)
 
 -- Semantics counterpart to app
 \end{code}
 %<*app>
 \begin{code}
-app : ∀ st {A B} → Value st (A `⇒ B) Γ → Value st A Γ → Value st B Γ
-app static   = _$$_
-app dynamic  = `app
+app : (st : Stage src) {A B : Type st} →
+      Value st (A `⇒ B) Γ → Value st A Γ → Value st B Γ
+app sta  = _$$_
+app dyn  = `app
 \end{code}
 %</app>
 \begin{code}
@@ -346,8 +348,8 @@ app dynamic  = `app
 %<*extend>
 \begin{code}
 extend : ∀[ Env Γ ⇒ □ (Value st A ⇒ Env (Γ , A)) ]
-extend ρ .runBox σ v .lookup here = v
-extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x)
+extend ρ .run□ σ v .get here = v
+extend ρ .run□ σ v .get (there {A = B} x) = weak-Value B σ (ρ .get x)
 
 \end{code}
 %</extend>
@@ -356,17 +358,17 @@ extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x
 \end{code}
 %<*lam>
 \begin{code}
-lam : (st : Stage source) {A B : Type st} →
+lam : (st : Stage src) {A B : Type st} →
       Kripke (Value st A) (Value st B) Γ →
       Value st (A `⇒ B) Γ
-lam static   b = λλ[ σ , v ] b .runBox σ v
-lam dynamic  b = `lam (b .runBox (drop ≤-refl) (`var here))
+lam sta  b = λλ[ σ , v ] b .run□ σ v
+lam dyn  b = `lam (b .run□ (drop ≤-refl) (`var here))
 \end{code}
 %</lam>
 
 %<*bodydecl>
 \begin{code}
-body : Env Γ Δ → Term source st B (Γ , A) →
+body : Env Γ Δ → Term src st B (Γ , A) →
        Kripke (Value st A) (Value st B) Δ
 \end{code}
 %</bodydecl>
@@ -377,12 +379,12 @@ body : Env Γ Δ → Term source st B (Γ , A) →
 \end{code}
 %<*evaldecl>
 \begin{code}
-eval : Env Γ Δ → Term source st A Γ → Value st A Δ
+eval : Env Γ Δ → Term src st A Γ → Value st A Δ
 \end{code}
 %</evaldecl>
 %<*eval>
 \begin{code}
-eval ρ (`var v)              = ρ .lookup v
+eval ρ (`var v)              = ρ .get v
 eval ρ (`app {st = st} f t)  = app st (eval ρ f) (eval ρ t)
 eval ρ (`lam {st = st} b)    = lam st (body ρ b)
 eval ρ `⟨ t ⟩                = eval ρ t
@@ -392,7 +394,7 @@ eval ρ (`∼ v)                = eval ρ v
 
 %<*body>
 \begin{code}
-body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
+body ρ b = λλ[ σ , v ] eval (extend ρ .run□ σ v) b
 \end{code}
 %</body>
 \begin{code}
@@ -403,11 +405,11 @@ body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
 %<*stagefun>
 %<*stagedecl>
 \begin{code}
-stage : Term source dynamic A ε → Term staged dynamic (asStaged A) ε
+stage : Term src dyn A ε → Term stg dyn (asStaged A) ε
 \end{code}
 %</stagedecl>
 \begin{code}
-stage = eval (λ where .lookup ())
+stage = eval (λ where .get ())
 \end{code}
 %</stagefun>
 \begin{code}
@@ -421,9 +423,9 @@ infix 0 _∋_↝_
 \end{code}
 %<*stagedto>
 \begin{code}
-_∋_↝_ : (A : Type dynamic) →
-        Term source dynamic A ε →
-        Term staged dynamic (asStaged A) ε → Set
+_∋_↝_ : (A : Type dyn) →
+        Term src dyn A ε →
+        Term stg dyn (asStaged A) ε → Set
 A ∋ s ↝ t = stage s ≡ t
 \end{code}
 %</stagedto>

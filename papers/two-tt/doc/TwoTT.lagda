@@ -22,7 +22,7 @@ open import Relation.Unary using (IUniversal; _⇒_; _⊢_; _∩_)
 %<*phase>
 \begin{code}
 data Phase : Set where
-  source staged : Phase
+  src stg : Phase
 
 variable ph : Phase
 \end{code}
@@ -37,8 +37,8 @@ variable ph : Phase
 %<*stage>
 \begin{code}
 data Stage : Phase → Set where
-  static : Stage source
-  dynamic : Stage ph
+  sta : Stage src
+  dyn : Stage ph
 \end{code}
 %</stage>
 
@@ -78,12 +78,12 @@ data Type : Stage ph → Set where
 \end{code}
 %</typesnat>
 \begin{code}
-  `⇑_   : Type {source} dynamic → Type static
+  `⇑_   : Type {src} dyn → Type sta
   _`⇒_  : (A B : Type st) → Type st
 \end{code}
 %<*typesprod>
 \begin{code}
-  _`×_  : (A B : Type static) → Type static
+  _`×_  : (A B : Type sta) → Type sta
 \end{code}
 %</typesprod>
 \begin{code}
@@ -99,7 +99,7 @@ variable
 \end{code}
 %<*asStaged>
 \begin{code}
-asStaged : Type {source} dynamic → Type {staged} dynamic
+asStaged : Type {src} dyn → Type {stg} dyn
 asStaged `α        = `α
 asStaged `ℕ        = `ℕ
 asStaged (A `⇒ B)  = asStaged A `⇒ asStaged B
@@ -198,14 +198,15 @@ data Term : (ph : Phase) → (st : Stage ph) → Type st → Context → Set whe
 \end{code}
 %</termnat>
 \begin{code}
-  `⟨_⟩   : ∀[ Term source dynamic A ⇒ Term source static (`⇑ A) ]
-  `∼_    : ∀[ Term source static (`⇑ A) ⇒ Term source dynamic A ]
+  `⟨_⟩   : ∀[ Term src dyn A ⇒ Term src sta (`⇑ A) ]
+  `∼_    : ∀[ Term src sta (`⇑ A) ⇒ Term src dyn A ]
 \end{code}
 %<*termprod>
 \begin{code}
-  _`,_   : ∀[ Term source static A ⇒ Term source static B ⇒ Term source static (A `× B) ]
-  `fst   : ∀[ Term source static ((A `× B) `⇒ A) ]
-  `snd   : ∀[ Term source static ((A `× B) `⇒ B) ]
+  _`,_   : ∀[  Term src sta A ⇒ Term src sta B ⇒
+               Term src sta (A `× B) ]
+  `fst   : ∀[ Term src sta ((A `× B) `⇒ A) ]
+  `snd   : ∀[ Term src sta ((A `× B) `⇒ B) ]
 \end{code}
 %</termprod>
 \begin{code}
@@ -234,7 +235,7 @@ weak-Term σ `snd = `snd
 \end{code}
 %<*iddyn>
 \begin{code}
-`idᵈ : Term ph dynamic (A `⇒ A) ε
+`idᵈ : Term ph dyn (A `⇒ A) ε
 `idᵈ = `lam (`var here)
 \end{code}
 %</iddyn>
@@ -244,7 +245,7 @@ weak-Term σ `snd = `snd
 \end{code}
 %<*idsta>
 \begin{code}
-`idˢ : Term source static (A `⇒ A) ε
+`idˢ : Term src sta (A `⇒ A) ε
 `idˢ = `lam (`var here)
 \end{code}
 %</idsta>
@@ -266,8 +267,10 @@ g `∘ f =  let Γ≤Γ,A = drop ≤-refl in
 \end{code}
 %<*reify>
 \begin{code}
-`reify : ∀[ Term source static (`ℕ `⇒ `⇑ `ℕ) ]
-`reify = `lam (`app (`app (`app `iter (`var here)) (`lam `⟨ `succ (`∼ `var here) ⟩)) `⟨ `zero ⟩)
+`reify : ∀[ Term src sta (`ℕ `⇒ `⇑ `ℕ) ]
+`reify = `lam (`app (`app (`app `iter (`var here))
+   (`lam `⟨ `succ (`∼ `var here) ⟩))
+   `⟨ `zero ⟩)
 \end{code}
 %</reify>
 \begin{code}
@@ -285,7 +288,7 @@ g `∘ f =  let Γ≤Γ,A = drop ≤-refl in
 -- Double as addition of a term with itself.
 -- Note that we return a *dynamic* value which will have been
 -- computed at staging time
-`double : Term source static (`ℕ `⇒ `⇑ `ℕ) ε
+`double : Term src sta (`ℕ `⇒ `⇑ `ℕ) ε
 `double = `lam (`app `reify (`app (`app `add (`var here)) (`var here)))
 
 -- Efficiently computing the Fibonacci sequence using a pair
@@ -293,7 +296,7 @@ g `∘ f =  let Γ≤Γ,A = drop ≤-refl in
 \end{code}
 %<*fib>
 \begin{code}
-`fib : Term source static (`ℕ `⇒ `ℕ) ε
+`fib : Term src sta (`ℕ `⇒ `ℕ) ε
 `fib = `fst `∘ `lam (`app (`app (`app
   -- this implements n ↦ (fib n, fib (1 + n))
   `iter (`var here))
@@ -354,7 +357,7 @@ open import Data.Product as Prod using (_×_; _,_)
 \end{code}
 %<*modelstadecl>
 \begin{code}
-Static : Type static → Context → Set
+Static : Type sta → Context → Set
 \end{code}
 %</modelstadecl>
 \begin{code}
@@ -364,9 +367,9 @@ Static : Type static → Context → Set
 \end{code}
 %<*model>
 \begin{code}
-Value : (st : Stage source) → Type st → Context → Set
-Value static   = Static
-Value dynamic  = Term staged dynamic ∘ asStaged
+Value : (st : Stage src) → Type st → Context → Set
+Value sta  = Static
+Value dyn  = Term stg dyn ∘ asStaged
 \end{code}
 %</model>
 \begin{code}
@@ -383,7 +386,7 @@ Static `ℕ        = const ℕ
 \end{code}
 %</modelnat>
 \begin{code}
-Static (`⇑ A)    = Value dynamic A
+Static (`⇑ A)    = Value dyn A
 Static (A `⇒ B)  = Kripke (Static A) (Static B)
 \end{code}
 %<*modelprod>
@@ -404,8 +407,8 @@ weak-Static (A `× B) σ = Prod.map (weak-Static A σ) (weak-Static B σ)
 
 -- Action of thinnings on Values
 weak-Value : (A : Type st) → Γ ≤ Δ → Value st A Γ → Value st A Δ
-weak-Value {st = static}  A σ v = weak-Static A σ v
-weak-Value {st = dynamic} A σ v = weak-Term σ v
+weak-Value {st = sta} A σ v = weak-Static A σ v
+weak-Value {st = dyn} A σ v = weak-Term σ v
 
 ------------------------------------------------------------------------
 -- Evaluator for staging by evaluation
@@ -429,9 +432,9 @@ iterate succ zero 0        = zero
 iterate succ zero (suc n)  = succ (iterate succ zero n)
 
 iter : ∀ st {A} → Value st (`ℕ `⇒ (A `⇒ A) `⇒ (A `⇒ A)) Γ
-iter dynamic  = `iter
-iter static   = λλ[ _ , m ] λλ[ _ , succ ] λλ[ σ , zero ]
-                iterate (weak-Kripke σ succ $$_) zero m
+iter dyn  = `iter
+iter sta  = λλ[ _ , m ] λλ[ _ , succ ] λλ[ σ , zero ]
+            iterate (weak-Kripke σ succ $$_) zero m
 \end{code}
 %</iter>
 \begin{code}
@@ -441,8 +444,8 @@ iter static   = λλ[ _ , m ] λλ[ _ , succ ] λλ[ σ , zero ]
 %<*app>
 \begin{code}
 app : ∀ st {A B} → Value st (A `⇒ B) Γ → Value st A Γ → Value st B Γ
-app static   = _$$_
-app dynamic  = `app
+app sta  = _$$_
+app dyn  = `app
 \end{code}
 %</app>
 \begin{code}
@@ -462,11 +465,11 @@ extend ρ .runBox σ v .lookup (there {A = B} x) = weak-Value B σ (ρ .lookup x
 \end{code}
 %<*lam>
 \begin{code}
-lam : (st : Stage source) {A B : Type st} →
+lam : (st : Stage src) {A B : Type st} →
       Kripke (Value st A) (Value st B) Γ →
       Value st (A `⇒ B) Γ
-lam static   b = λλ[ σ , v ] b .runBox σ v
-lam dynamic  b = `lam (b .runBox (drop ≤-refl) (`var here))
+lam sta  b = λλ[ σ , v ] b .runBox σ v
+lam dyn  b = `lam (b .runBox (drop ≤-refl) (`var here))
 \end{code}
 %</lam>
 \begin{code}
@@ -475,9 +478,9 @@ lam dynamic  b = `lam (b .runBox (drop ≤-refl) (`var here))
 \end{code}
 %<*zero>
 \begin{code}
-zero : (st : Stage source) → Value st `ℕ Γ
-zero static   = 0
-zero dynamic  = `zero
+zero : (st : Stage src) → Value st `ℕ Γ
+zero sta  = 0
+zero dyn  = `zero
 \end{code}
 %</zero>
 \begin{code}
@@ -486,26 +489,26 @@ zero dynamic  = `zero
 \end{code}
 %<*succ>
 \begin{code}
-succ : (st : Stage source) → Value st `ℕ Γ → Value st `ℕ Γ
-succ static   = 1 +_
-succ dynamic  = `succ
+succ : (st : Stage src) → Value st `ℕ Γ → Value st `ℕ Γ
+succ sta  = 1 +_
+succ dyn  = `succ
 \end{code}
 %</succ>
 
 %<*bodydecl>
 \begin{code}
-body : Env Γ Δ → Term source st B (Γ , A) →
+body : Env Γ Δ → Term src st B (Γ , A) →
        Kripke (Value st A) (Value st B) Δ
 \end{code}
 %</bodydecl>
 \begin{code}
 
--- Evaluation function turning source terms into values provided
+-- Evaluation function turning src terms into values provided
 -- we have an environment assigning values to variables
 \end{code}
 %<*evaldecl>
 \begin{code}
-eval : Env Γ Δ → Term source st A Γ → Value st A Δ
+eval : Env Γ Δ → Term src st A Γ → Value st A Δ
 \end{code}
 %</evaldecl>
 %<*eval>
@@ -540,7 +543,7 @@ body ρ b = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
 \end{code}
 %<*stagedecl>
 \begin{code}
-stage : Term source dynamic A ε → Term staged dynamic (asStaged A) ε
+stage : Term src dyn A ε → Term stg dyn (asStaged A) ε
 \end{code}
 %</stagedecl>
 \begin{code}
@@ -552,7 +555,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 -- Tests for the staging evaluator
 
 infix 0 _∋_↝_
-_∋_↝_ : (A : Type dynamic) → Term source dynamic A ε → Term staged dynamic (asStaged A) ε → Set
+_∋_↝_ : (A : Type dyn) → Term src dyn A ε → Term stg dyn (asStaged A) ε → Set
 A ∋ s ↝ t = stage s ≡ t
 
 -- `idˢ is a static identity and thus computes
@@ -577,7 +580,8 @@ test-add :
 \end{code}
 %<*testadd>
 \begin{code}
-  `ℕ ∋ `∼ `app `reify (`app (`app `add (fromℕ 7)) (fromℕ 35)) ↝ fromℕ 42
+  `ℕ  ∋  `∼ `app `reify (`app (`app `add (fromℕ 7)) (fromℕ 35))
+      ↝  fromℕ 42
 \end{code}
 %</testadd>
 \begin{code}

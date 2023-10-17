@@ -133,7 +133,7 @@ module PRINTONLY2 where
   %<*termvar>
   \begin{code}
     `var  : ∀[  Var A ⇒
-             ----------
+             --------
                 Term A ]
   \end{code}
   %</termvar>
@@ -207,10 +207,10 @@ Weaken P = ∀ {Γ Δ} → Γ ≤ Δ → P Γ → P Δ
 \end{code}
 %<*weakVar>
 \begin{code}
-weak-Var : Weaken (Var A)
-weak-Var (drop σ)  v          = there (weak-Var σ v)
-weak-Var (keep σ)  here       = here
-weak-Var (keep σ)  (there v)  = there (weak-Var σ v)
+wkVar : Weaken (Var A)
+wkVar (drop σ)  v          = there (wkVar σ v)
+wkVar (keep σ)  here       = here
+wkVar (keep σ)  (there v)  = there (wkVar σ v)
 \end{code}
 %</weakVar>
 \begin{code}
@@ -218,10 +218,10 @@ weak-Var (keep σ)  (there v)  = there (weak-Var σ v)
 \end{code}
 %<*weakTerm>
 \begin{code}
-weak-Term : Weaken (Term A)
-weak-Term σ (`var v)    = `var (weak-Var σ v)
-weak-Term σ (`app f t)  = `app (weak-Term σ f) (weak-Term σ t)
-weak-Term σ (`lam b)    = `lam (weak-Term (keep σ) b)
+wkTerm : Weaken (Term A)
+wkTerm σ (`var v)    = `var (wkVar σ v)
+wkTerm σ (`app f t)  = `app (wkTerm σ f) (wkTerm σ t)
+wkTerm σ (`lam b)    = `lam (wkTerm (keep σ) b)
 \end{code}
 %</weakTerm>
 \begin{code}
@@ -232,7 +232,8 @@ infixr 3 _`∘_
 \begin{code}
 _`∘_    : ∀[ Term (B `⇒ C) ⇒ Term (A `⇒ B) ⇒ Term (A `⇒ C) ]
 g `∘ f  =  let Γ≤Γ,A = drop ≤-refl in
-           `lam (`app (weak-Term Γ≤Γ,A g) (`app (weak-Term Γ≤Γ,A f) (`var here)))
+           `lam (`app (wkTerm Γ≤Γ,A g)
+                      (`app (wkTerm Γ≤Γ,A f) (`var here)))
 \end{code}
 %</composition>
 \begin{code}
@@ -241,8 +242,8 @@ g `∘ f  =  let Γ≤Γ,A = drop ≤-refl in
 %<*box>
 \begin{code}
 record □ (A : Context → Set) (Γ : Context) : Set where
-  constructor mkBox
-  field runBox : ∀[ (Γ ≤_) ⇒ A ]
+  constructor mk□
+  field run□ : ∀[ (Γ ≤_) ⇒ A ]
 \end{code}
 %</box>
 \begin{code}
@@ -273,7 +274,7 @@ Kripke A B = □ (A ⇒ B)
 %<*extract>
 \begin{code}
 extract : ∀ {P} → ∀[ □ P ⇒ P ]
-extract p = p .runBox ≤-refl
+extract p = p .run□ ≤-refl
 \end{code}
 %</extract>
 \begin{code}
@@ -282,7 +283,7 @@ extract p = p .runBox ≤-refl
 %<*duplicate>
 \begin{code}
 duplicate : ∀ {P} → ∀[ □ P ⇒ □ (□ P) ]
-duplicate p .runBox σ .runBox = p .runBox ∘ ≤-trans σ
+duplicate p .run□ σ .run□ = p .run□ ∘ ≤-trans σ
 \end{code}
 %</duplicate>
 \begin{code}
@@ -290,8 +291,8 @@ duplicate p .runBox σ .runBox = p .runBox ∘ ≤-trans σ
 \end{code}
 %<*weakKripke>
 \begin{code}
-weak-Kripke : Weaken (Kripke P Q)
-weak-Kripke σ f = duplicate f .runBox σ
+wkKripke : Weaken (Kripke P Q)
+wkKripke σ f = duplicate f .run□ σ
 \end{code}
 %</weakKripke>
 \begin{code}
@@ -307,11 +308,11 @@ _$$_ = extract
 \begin{code}
 
 -- lambda-abstraction
-infixr 3 mkBox
+infixr 3 mk□
 \end{code}
 %<*mkbox>
 \begin{code}
-syntax mkBox (λ σ x → b) = λλ[ σ , x ] b
+syntax mk□ (λ σ x → b) = λλ[ σ , x ] b
 \end{code}
 %</mkbox>
 \begin{code}
@@ -332,9 +333,9 @@ Value (A `⇒ B)  = Kripke (Value A) (Value B)
 \end{code}
 %<*weakValue>
 \begin{code}
-weak-Value : (A : Type) → Weaken (Value A)
-weak-Value `α        σ v = weak-Term σ v
-weak-Value (A `⇒ B)  σ v = weak-Kripke σ v
+wkValue : (A : Type) → Weaken (Value A)
+wkValue `α        σ v = wkTerm σ v
+wkValue (A `⇒ B)  σ v = wkKripke σ v
 \end{code}
 %</weakValue>
 \begin{code}
@@ -354,11 +355,11 @@ interleaved mutual
   reflect  `α t = t
 
   reify    (A `⇒ B) T = `lam
-    let  f  = weak-Kripke (drop ≤-refl) T
+    let  f  = wkKripke (drop ≤-refl) T
          v  = reflect A (`var here)
     in reify B (f $$ v)
   reflect  (A `⇒ B) t = λλ[ σ , V ]
-    let  f  = weak-Term σ t
+    let  f  = wkTerm σ t
          v  = reify A V
     in reflect B (`app f v)
 
@@ -368,7 +369,7 @@ interleaved mutual
 %<*env>
 \begin{code}
 record Env (Γ Δ : Context) : Set where
-  field lookup : ∀ {A} → Var A Γ → Value A Δ
+  field get : ∀ {A} → Var A Γ → Value A Δ
 \end{code}
 %</env>
 \begin{code}
@@ -378,8 +379,8 @@ open Env
 %<*extend>
 \begin{code}
 extend : ∀[ Env Γ ⇒ □ (Value A ⇒ Env (Γ , A)) ]
-extend ρ .runBox σ v .lookup here       = v
-extend ρ .runBox σ v .lookup (there x)  = weak-Value _ σ (ρ .lookup x)
+extend ρ .run□ σ v .get here       = v
+extend ρ .run□ σ v .get (there x)  = wkValue _ σ (ρ .get x)
 \end{code}
 %</extend>
 \begin{code}
@@ -392,15 +393,15 @@ eval : Env Γ Δ → Term A Γ → Value A Δ
 \end{code}
 %</evaldecl>
 \begin{code}
-eval ρ (`var v)    = ρ .lookup v
+eval ρ (`var v)    = ρ .get v
 eval ρ (`app f t)  = eval ρ f $$ eval ρ t
-eval ρ (`lam b)    = λλ[ σ , v ] eval (extend ρ .runBox σ v) b
+eval ρ (`lam b)    = λλ[ σ , v ] eval (extend ρ .run□ σ v) b
 \end{code}
 %</eval>
 \begin{code}
 
 init : Env Γ Γ
-init .lookup v = reflect _ (`var v)
+init .get v = reflect _ (`var v)
 
 norm : Term A Γ → Term A Γ
 norm = reify _ ∘ eval init
