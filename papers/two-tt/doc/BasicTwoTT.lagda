@@ -44,14 +44,10 @@ variable ph : Phase
 data Stage : Phase → Set where
   static   : Stage source
   dynamic  : Stage ph
-\end{code}
-%</stage>
 
-%<*stagevariables>
-\begin{code}
 variable st : Stage ph
 \end{code}
-%</stagevariables>
+%</stage>
 \begin{code}
 ------------------------------------------------------------------------
 -- Types are indexed by the stage they are defined at

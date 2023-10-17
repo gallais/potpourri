@@ -518,10 +518,14 @@ eval ρ (`succ {st = st} n)   = succ st (eval ρ n)
 eval ρ (`iter {st = st})     = iter st
 eval ρ `⟨ t ⟩                = eval ρ t
 eval ρ (`∼ v)                = eval ρ v
+\end{code}
+%<*evalprod>
+\begin{code}
 eval ρ (s `, t)              = eval ρ s , eval ρ t
 eval ρ `fst                  = λλ[ _ , v ] Prod.proj₁ v
 eval ρ `snd                  = λλ[ _ , v ] Prod.proj₂ v
 \end{code}
+%</evalprod>
 %</eval>
 
 %<*body>
@@ -568,6 +572,16 @@ test-idᵈˢ = refl
 fromℕ : ℕ → ∀[ Term ph st `ℕ ]
 fromℕ ℕ.zero    = `zero
 fromℕ (ℕ.suc n) = `succ (fromℕ n)
+
+test-add :
+\end{code}
+%<*testadd>
+\begin{code}
+  `ℕ ∋ `∼ `app `reify (`app (`app `add (fromℕ 7)) (fromℕ 35)) ↝ fromℕ 42
+\end{code}
+%</testadd>
+\begin{code}
+test-add = refl
 
 -- Finally, the static `double computes at staging time
 test-double : `ℕ ∋ `∼ (`app `double (fromℕ 4)) ↝ fromℕ 8

@@ -341,7 +341,13 @@ weak-Value (A `⇒ B)  σ v = weak-Kripke σ v
 
 interleaved mutual
 
+\end{code}
+%<*reify>
+\begin{code}
   reify    : (A : Type) → ∀[ Value A  ⇒ Term A   ]
+\end{code}
+%</reify>
+\begin{code}
   reflect  : (A : Type) → ∀[ Term A   ⇒ Value A  ]
 
   reify    `α T = T
@@ -398,5 +404,8 @@ init .lookup v = reflect _ (`var v)
 
 norm : Term A Γ → Term A Γ
 norm = reify _ ∘ eval init
-
+\end{code}
+\begin{code}
+_ : norm {A = `α `⇒ `α} {Γ = ε} (`id `∘ `id) ≡ `id
+_ = refl
 \end{code}

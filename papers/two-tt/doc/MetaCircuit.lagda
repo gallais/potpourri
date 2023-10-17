@@ -34,10 +34,10 @@ infixr 5 `⇑_
 \end{code}
 %<*type>
 \begin{code}
-data Type : ∀ {ph} → Stage ph → Set where
-  _`⇒_   : (A B : Type static) → Type static
-  `⇑_    : Type {source} dynamic → Type static
-  ⟨_∶_⟩  : (i o : ℕ) → Type {ph} dynamic
+data Type : Stage ph → Set where
+  _`⇒_    : (A B : Type static) → Type static
+  `⇑_     : Type {source} dynamic → Type static
+  `⟨_∣_⟩  : (i o : ℕ) → Type {ph} dynamic
 \end{code}
 %</type>
 \begin{code}
@@ -50,7 +50,7 @@ variable A B C : Type st
 %<*asStaged>
 \begin{code}
 asStaged : Type {source} dynamic → Type {staged} dynamic
-asStaged ⟨ i ∶ o ⟩ = ⟨ i ∶ o ⟩
+asStaged `⟨ i ∣ o ⟩ = `⟨ i ∣ o ⟩
 \end{code}
 %</asStaged>
 \begin{code}
@@ -105,78 +105,78 @@ data Term : (ph : Phase) (st : Stage ph) → Type st → Context → Set where
 %<*termcircuit>
 %<*termcircuitnand>
 \begin{code}
-  `nand  : ∀[ Term ph dynamic ⟨ 2 ∶ 1 ⟩ ]
+  `nand  : ∀[ Term ph dynamic `⟨ 2 ∣ 1 ⟩ ]
 \end{code}
 %</termcircuitnand>
 %<*termcircuitpar>
 \begin{code}
-  `par   : ∀[  Term ph dynamic ⟨ i₁ ∶ o₁ ⟩ ⇒
-               Term ph dynamic ⟨ i₂ ∶ o₂ ⟩ ⇒
-               Term ph dynamic ⟨ i₁ + i₂ ∶ o₁ + o₂ ⟩ ]
+  `par   : ∀[  Term ph dynamic `⟨ i₁        ∣ o₁        ⟩ ⇒
+               Term ph dynamic `⟨       i₂  ∣       o₂  ⟩ ⇒
+               Term ph dynamic `⟨ i₁ +  i₂  ∣ o₁ +  o₂  ⟩ ]
 \end{code}
 %</termcircuitpar>
 %<*termcircuitseq>
 \begin{code}
-  `seq   : ∀[  Term ph dynamic ⟨ i ∶ m ⟩ ⇒
-               Term ph dynamic ⟨ m ∶ o ⟩ ⇒
-               Term ph dynamic ⟨ i ∶ o ⟩ ]
+  `seq   : ∀[  Term ph dynamic `⟨ i  ∣ m  ⟩ ⇒
+               Term ph dynamic `⟨ m  ∣ o  ⟩ ⇒
+               Term ph dynamic `⟨ i  ∣ o  ⟩ ]
 \end{code}
 %</termcircuitseq>
 %<*termcircuitmix>
 \begin{code}
-  `mix   : Vec (Fin i) o → ∀[ Term ph dynamic ⟨ i ∶ o ⟩ ]
+  `mix   : Vec (Fin i) o → ∀[ Term ph dynamic `⟨ i ∣ o ⟩ ]
 \end{code}
 %</termcircuitmix>
 
 %<*id2>
 \begin{code}
-`id₂ :  ∀[ Term ph dynamic ⟨ 2 ∶ 2 ⟩ ]
-`id₂ = `mix (zero ∷ suc zero ∷ [])
+`id₂ :  ∀[ Term ph dynamic `⟨ 2 ∣ 2 ⟩ ]
+`id₂ = `mix (0 ∷ 1 ∷ [])
 \end{code}
 %</id2>
 
 %<*swap>
 \begin{code}
-`swap :  ∀[ Term ph dynamic ⟨ 2 ∶ 2 ⟩ ]
-`swap = `mix (suc zero ∷ zero ∷ [])
+`swap :  ∀[ Term ph dynamic `⟨ 2 ∣ 2 ⟩ ]
+`swap = `mix (1 ∷ 0 ∷ [])
 \end{code}
 %</swap>
 
 %<*dup>
 \begin{code}
-`dup :  ∀[ Term ph dynamic ⟨ 1 ∶ 2 ⟩ ]
-`dup = `mix (zero ∷ zero ∷ [])
+`dup :  ∀[ Term ph dynamic `⟨ 1 ∣ 2 ⟩ ]
+`dup = `mix (0 ∷ 0 ∷ [])
 \end{code}
 %</dup>
 
 %<*diag>
 \begin{code}
-`diag : ∀[ Term source static (`⇑ ⟨ 2 ∶ 1 ⟩ `⇒ `⇑ ⟨ 1 ∶ 1 ⟩) ]
+`diag : ∀[ Term source static (`⇑ `⟨ 2 ∣ 1 ⟩ `⇒ `⇑ `⟨ 1 ∣ 1 ⟩) ]
 `diag = `lam `⟨ `seq `dup (`∼ `var here) ⟩
 \end{code}
 %</diag>
 
 %<*not>
 \begin{code}
-`not : ∀[ Term source dynamic ⟨ 1 ∶ 1 ⟩ ]
+`not : ∀[ Term source dynamic `⟨ 1 ∣ 1 ⟩ ]
 `not = `∼ `app `diag `⟨ `nand ⟩
 \end{code}
 %</not>
 
 \begin{code}
-`and : ∀[ Term source dynamic ⟨ 2 ∶ 1 ⟩ ]
+`and : ∀[ Term source dynamic `⟨ 2 ∣ 1 ⟩ ]
 `and = `seq `nand `not
 
-`or : ∀[ Term source dynamic ⟨ 2 ∶ 1 ⟩ ]
+`or : ∀[ Term source dynamic `⟨ 2 ∣ 1 ⟩ ]
 `or = `seq (`par `not `not) `nand
 
-`id₁ : ∀[ Term ph dynamic ⟨ 1 ∶ 1 ⟩ ]
+`id₁ : ∀[ Term ph dynamic `⟨ 1 ∣ 1 ⟩ ]
 `id₁ = `mix (zero ∷ [])
 
 \end{code}
 %<*tab>
 \begin{code}
-`tab : ∀[ Term source static ((`Bool `⇒ `⇑ ⟨ 1 ∶ 1 ⟩) `⇒ `⇑ ⟨ 2 ∶ 1 ⟩) ]
+`tab : ∀[ Term source static ((`Bool `⇒ `⇑ `⟨ 1 ∣ 1 ⟩) `⇒ `⇑ `⟨ 2 ∣ 1 ⟩) ]
 `tab = `lam `⟨ `seq (`seq (`seq
          (`par `dup `dup)
          (`mix (0 ∷ 2 ∷ 1 ∷ 3 ∷ [])))
@@ -372,7 +372,7 @@ testNot :
 \end{code}
 %<*testNot>
 \begin{code}
-  ⟨ 1 ∶ 1 ⟩ ∋ `not ↝ `seq `dup `nand
+  `⟨ 1 ∣ 1 ⟩ ∋ `not ↝ `seq `dup `nand
 \end{code}
 %</testNot>
 \begin{code}

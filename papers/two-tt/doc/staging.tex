@@ -406,6 +406,18 @@ the fact that the embedding relation is a preorder.
 \ExecuteMetaData[STLC.tex]{extract}
 \ExecuteMetaData[STLC.tex]{duplicate}
 
+\begin{remark}[Copattern matching]
+The definition of \AF{duplicate} proceeds by
+copattern-matching~\cite{DBLP:conf/popl/AbelPTS13}.
+This allows us to define values of a record type
+(here \AR{□}) by defining the result of taking
+each of its projections (here the unique \ARF{runBox} one).
+In this instance it is particularly useful because we have
+a type involving nested records and each projection takes
+additional arguments: an (implicit) context and a weakening
+into that context.
+\end{remark}
+
 Kripke function spaces then correspond to functions inside a box,
 hence the following definition.
 
@@ -467,7 +479,7 @@ provided value while its existing content will have to be transported
 into the bigger context.
 %
 The \AF{extend} definition combines these two operations into a single
-one. It is defined in copattern style~\cite{DBLP:conf/popl/AbelPTS13}:
+one. It is defined in copattern style:
 {\AS{.}\ARF{runBox}} builds a box while {\AS{.}\ARF{lookup}} builds the
 returned environment. The definition proceeds by case analysis on the
 variable to be mapped to a value: if it is the newly bound one, we
@@ -487,6 +499,16 @@ Kripke functions.
 \begin{AgdaSuppressSpace}
 \ExecuteMetaData[STLC.tex]{eval}
 \end{AgdaSuppressSpace}
+
+A typical normalisation by evaluation presentation would
+conclude with the definition of a reification function
+extracting a term from a value in a type-directed manner
+before defining normalisation as the composition of evaluation
+and reification.
+%
+This last step will however not be useful for our study of two level
+calculi and so we leave it out and refer the interested
+reader to Catarina Coquand's work~\cite{DBLP:journals/lisp/Coquand02}.
 
 \section{Minimal Intrinsically Typed Two Level Type Theory}
 
@@ -523,8 +545,8 @@ we are currently writing \AIC{source} code or inspecting
 \ExecuteMetaData[BasicTwoTT.tex]{phase}
 
 Additionally, our notion of types is going to be explicitly
-indexed by the stage they live in. These stages are indexed
-over the phase they are allowed to appear in.
+indexed by the stage they live in. These stages are themselves
+indexed over the phase they are allowed to appear in.
 %
 The \AIC{static} stage is only available in the \AIC{source}
 phase: once code has been staged, all of its static parts will
@@ -576,7 +598,7 @@ at that stage, and a context.
 The first constructors are familiar: they are exactly the ones
 seen in the previous section. These constructs are available
 at both levels and both before and after staging hence the fact
-that the state and phase indices are polymorphic here.
+that the phase and stage indices are polymorphic here.
 
 \ExecuteMetaData[BasicTwoTT.tex]{termstlc}
 
@@ -621,9 +643,11 @@ that will actually perform its partial evaluation.
 \section{Staging by Evaluation}
 
 The goal of this section is to define a type of \AF{Value}s
-as well as an \AF{eval}uation function which computes the
+as well as an evaluation function which computes the
 value associated to each term, provided that we have an
 appropriate environment to interpret the term's free variables.
+%
+This will once again yield a function \AF{eval} of the following type.
 
 \ExecuteMetaData[BasicTwoTT.tex]{evaldecl}
 
@@ -665,22 +689,13 @@ i.e. staged terms of type \AB{A};
 functions from \AB{A} to \AB{B} are interpreted using Kripke function
 spaces from static values of type \AB{A} to static values of type \AB{B}.
 
-\ExecuteMetaData[BasicTwoTT.tex]{thin}
-
-\ExecuteMetaData[BasicTwoTT.tex]{kripke}
-
-\ExecuteMetaData[BasicTwoTT.tex]{thinrefl}
-
-\ExecuteMetaData[BasicTwoTT.tex]{kripkeapp}
-\ExecuteMetaData[BasicTwoTT.tex]{kripkelam}
-
-
 \subsection{Evaluation}
 
-We can explain what the meaning of each term constructor is.
+We can now explain what the meaning of each term constructor is.
 In every instance we will proceed by case analysis on the
-stage the meaning is being used at.
-
+stage the meaning is being used at, essentially using a
+meaning inspired by normalisation by evaluation for the static
+part and one inspired by substitution for the dynamic one.
 
 Application is interpreted as the semantic application defined
 for Kripke function spaces in the static case, and the syntactic
@@ -688,11 +703,17 @@ for Kripke function spaces in the static case, and the syntactic
 
 \ExecuteMetaData[BasicTwoTT.tex]{app}
 
+Lambda-abstraction are mapped to Kripke λs for static values
+and to syntactic ones for the dynamic ones.
 
 \ExecuteMetaData[BasicTwoTT.tex]{lam}
 
-
-\ExecuteMetaData[BasicTwoTT.tex]{extend}
+Putting it all together, we obtain the following definition
+of the evaluation function.
+Note that by virtue of the model construction the interpretation
+of both \AIC{`∼\_} and \AIC{`⟨\_⟩} is the identity function:
+static values of type (\AIC{`⇑} A) and staged terms of type \AB{A}
+are interchangeable.
 
 \begin{AgdaSuppressSpace}
 \ExecuteMetaData[BasicTwoTT.tex]{evaldecl}
@@ -701,19 +722,29 @@ for Kripke function spaces in the static case, and the syntactic
 
 The function \AF{eval} is mutually defined with an auxiliary
 function describing its behaviour on the body of a λ-abstraction.
+It is defined using semantics lambdas and \AF{extend}.
 
 \begin{AgdaSuppressSpace}
 \ExecuteMetaData[BasicTwoTT.tex]{bodydecl}
 \ExecuteMetaData[BasicTwoTT.tex]{body}
 \end{AgdaSuppressSpace}
 
-We obtain the \AF{stage} function by calling \AF{eval} with an
+We finally obtain the \AF{stage} function by calling \AF{eval} with an
 empty environment.
 
 \begin{AgdaSuppressSpace}
 \ExecuteMetaData[BasicTwoTT.tex]{stagefun}
 \end{AgdaSuppressSpace}
 
+\begin{remark}[(Co)Pattern-Matching Lambda]
+The keyword (\AS{λ} \AK{where}) is analogous to Haskell's
+\texttt{\textbackslash{}case}: it introduces a pattern-matching lambda.
+In this instance, it is a copattern-matching one: we define
+the environment of type (\AR{Env} \AIC{ε} \AIC{ε}) by
+copattern-matching on {\AS{.}\ARF{lookup}} which allows us to bind
+an argument of type (\AD{Var} \AB{A} \AIC{ε}) that can in turn
+be immediately dismissed as uninhabited using the empty pattern \AS{()}.
+\end{remark}
 
 \section{A More Practical Two Level Calculus}
 
@@ -741,7 +772,8 @@ This will allow us to obtain e.g.
 \ExecuteMetaData[TwoTT.tex]{testfib}
 
 \noindent where \AF{fromℕ} is a helper function turning Agda
-literals into \AF{Term}s built using \AIC{`zero} and \AIC{`succ}.
+literals into \AF{Term}s built using \AIC{`zero} and \AIC{`succ},
+and \AF{`add} is a dynamic addition function.
 
 \subsection{Adding natural numbers}
 
@@ -765,22 +797,30 @@ its Church encoding~\cite[Chapter 3]{church1941calculi}.
 
 Our first program example is the function \AF{`reify} that
 turns its static natural number argument into a dynamic
-encoding.
+encoding. It does so by iterating over its input and replacing
+static \AIC{`zero}s and \AIC{`succ}s by dynamic ones.
 
 \ExecuteMetaData[TwoTT.tex]{reify}
 
 We can also naturally define addition as iterated calls to
-\AIC{`succ}.
+\AIC{`succ}. This definition is valid at both stages hence
+the polymorphic phase and stage indices.
 
 \label{def:add}
 \ExecuteMetaData[TwoTT.tex]{add}
 
+Let us now see how to evaluate the newly added constructs.
+
 \subsubsection{Staging by Evaluation}
 
-Static values of type \AIC{`ℕ} are constant natural numbers.
+We extend the definition of \AF{Static} with a new clause decreeing
+that values of type \AIC{`ℕ} are constant natural numbers.
 
 \ExecuteMetaData[TwoTT.tex]{modelnat}
 
+We can then describe the semantical counterparts of the newly
+added constructors.
+%
 The term constructor \AIC{`zero} is either interpreted by
 the natural number \AN{0} or by the term constructor itself
 depending on whether it is used in a static or dynamic manner.
@@ -796,35 +836,80 @@ for dynamic uses.
 The meaning of \AIC{`iter} in the static layer is defined in
 terms of the \AF{iterate} function defined by pattern-matching
 in the host language and turning a natural number into its
-Church encoding.
+Church encoding. Note that we need to use \AF{weak-Kripke} to
+bring the \AB{succ} argument into the wider scope the \AB{zero}
+one lives int.
 
 \ExecuteMetaData[TwoTT.tex]{iter}
 
+
+We can readily compute with these numbers. Reifying the static
+result obtained by adding $7$ to $37$ will for instance return
+$42$ (here \AF{fromℕ} once again stands for a helper function
+turning Agda literals into \AD{Term} numbers).
+
+\ExecuteMetaData[TwoTT.tex]{testadd}
+
+Let us now look at an example of the fact, highlighted in
+Kov{\'{a}}cs' original paper, that static datatypes do not
+need to have a counterpart at runtime.
+
 \subsection{Adding static pairs}\label{sec:stagingmodelprod}
 
-We now have an example of the fact, highlighted in Kov{\'{a}}cs'
-original paper, that static datatypes do not need to have a
-counterpart at runtime: pairs are only available in the static
-layer and all traces of pairs and their projections will have
-completely disappeared after staging.
+We now want to add pairs that are only available in the static
+layer and ensure that all traces of pairs and their projections
+will have completely disappeared after staging.
 
 \subsubsection{Types and Terms}
 
+We first extend the inductive definition of object types
+with a new construct for pair types. It is explicitly
+marked as \AIC{static} only.
+
 \ExecuteMetaData[TwoTT.tex]{typesprod}
+
+We then extend the inductive family of term constructs
+with a constructor for pairs (\AIC{\_`,\_}) and two constructors
+for the first (\AIC{`fst}) and second (\AIC{`snd}) projection
+respectively.
 
 \ExecuteMetaData[TwoTT.tex]{termprod}
 
+This enables us to implement in the static layer the classic
+linear definition of the Fibonacci function which internally
+uses a pair of the current Fibonacci number and its successor.
+%
+It is obtained by taking the first projection of the result
+of iterating the invariant-respecting \emph{step} function
+over the valid \emph{base} case.
+
 \ExecuteMetaData[TwoTT.tex]{fib}
 
-using \AF{\_`∘\_} defined in~\Cref{def:composition},
+This definition uses \AF{\_`∘\_} defined in~\Cref{def:composition},
 and \AF{`add} defined in~\Cref{def:add}.
 
 \subsubsection{Staging by Evaluation}
 
-Static pairs are pairs of static values.
+The amendment to the model construction and the definition of the
+constructors' semantical counterparts is easy.
+%
+First, static pairs are pairs of static values.
 
 \ExecuteMetaData[TwoTT.tex]{modelprod}
 
+Second, pair constructors are mapped to pair constructors in
+the host language, and the same for projections.
+
+\ExecuteMetaData[TwoTT.tex]{evalprod}
+
+These definition now allow us to evaluate static calls to the Fibonacci
+function such as the one presented in this section's introduction.
+
+\ExecuteMetaData[TwoTT.tex]{testfib}
+
+While this addition of static pairs may seem interesting
+but anecdotal, the same techniques can be used to work on
+defining a much more applicable two level language.
 
 \section{Application: Circuit Generation}
 
@@ -840,14 +925,14 @@ we have two very distinct layers: a static layer with a
 full-fledged functional language, and a dynamic layer of
 quantum circuits obtained by partially evaluating the source.
 
-In our proof of concept, we focus on a minimal language of
+In our proof of concept, we study a minimal language of
 classical circuits inspired by Π-ware a formal hardware
 description and verification language proposed by
 Flor, Swierstra, and Sijsling~\cite{DBLP:conf/types/FlorSS15}.
 %
 This allows us to focus on the two-level aspect instead of
 having to deal with linearity and unitary operators which are
-specific to the Quantum aspect.
+specific to the Quantum setting.
 
 \subsection{Types and Terms}
 
@@ -855,9 +940,10 @@ Our definition of types should now be mostly unsurprising.
 We have function spaces (this time confined to the static
 layer), a lifting construct allowing the embedding of
 dynamic types in the static layer at the source stage,
-and finally a type of circuits characterised by their input
-and output arities, both represented by a natural number in
-the host language.
+and finally a type of circuits
+(\AIC{⟨} \AB{i} \AIC{∣} \AB{o} \AIC{⟩}) characterised by
+their input (\AB{i}) and output (\AB{o}) arities,
+both represented by a natural number in the host language.
 
 \ExecuteMetaData[MetaCircuit.tex]{type}
 
@@ -894,14 +980,12 @@ corresponding to the input the output is connected to.
 This allows arbitrary duplications and deletions
 of inputs.
 
-\todo{Explain vec, fin; give example with diagram}
-
 \ExecuteMetaData[MetaCircuit.tex]{termcircuitmix}
 
 Typical examples include
-\AF{`id$_2$} (the identity circuit on two inputs),
-\AF{`swap} (the circuit connecting its first input to its second output and vice-versa),
-and \AF{`dup} (the circuit duplicating its single input).
+\AF{`id$_2$} (the \emph{id}entity circuit on two inputs),
+\AF{`swap} (the circuit \emph{swap}ping its two inputs),
+and \AF{`dup} (the circuit \emph{dup}licating its single input).
 We present them below together with the corresponding wiring diagrams.
 
 \noindent
@@ -996,14 +1080,20 @@ composing \AF{`dup} and \AIC{`nand} as shown below.
 
 \ExecuteMetaData[MetaCircuit.tex]{testNot}
 
-Going back to a slightly more complex setting, if we add booleans in the
-static layer, we can once again define more interesting terms like the
-following \AF{`tab} which, given a function that takes a boolean
-and computes a one-input one-output circuit, returns a circuit with two
-inputs and one output that has the same behaviour.
+Going back to a slightly more complex setting, adding booleans in the
+static layer, lets us once again define more interesting terms.
+For instance the following \AF{`tab} circuit \emph{tab}ulating its
+input: given a function that takes a boolean and computes a one-input
+one-output circuit, it returns a circuit with two inputs and one
+output that has the same behaviour.
 
 \ExecuteMetaData[MetaCircuit.tex]{tab}
 
+Using dashed lines to separate the different constituting parts
+of the circuit as defined above, we obtain the following circuit
+diagram.
+
+\medskip
 \begin{minipage}{.1\textwidth}
   $f \mapsto$
 \end{minipage}\hfill
@@ -1030,7 +1120,7 @@ inputs and one output that has the same behaviour.
     \draw[-] (b) [out=0, in=180] to (and1.in 1);
     \draw[-] (f1) [out=0, in=180] to (and1.in 2);
 
-    \draw (2, .75) node[not port, scale=.35] (not0) {};
+    \draw (2, .65) node[not port, scale=.35] (not0) {};
     \draw[-] (b) [out=-45, in=180] to (not0.in 1);
     \draw[-] (not0.out) [out=0, in=180] to (and0.in 1);
 
@@ -1042,15 +1132,28 @@ inputs and one output that has the same behaviour.
     \draw[fill] (tag) circle[radius=1.5pt] node {};
     \draw (tag)+(.5,0) node {$r$} edge (tag);
     \draw[-] (or01.out) to (tag);
+
+    \draw[dashed] ([xshift=-.25cm, yshift=1cm] x) to ([xshift=.5cm, yshift=1cm] x);
+    \draw[dashed] ([xshift=.5cm, yshift=.4cm] b) to ([xshift=.5cm, yshift=-.4cm] x);
+    \draw[dashed] ([xshift=1.25cm, yshift=.4cm] b) to ([xshift=1.25cm, yshift=-.4cm] x);
+    \draw[dashed] ([xshift=3cm, yshift=.4cm] b) to ([xshift=3cm, yshift=-.4cm] x);
+    \draw[dashed] ([xshift=4.75cm, yshift=.4cm] b) to ([xshift=4.75cm, yshift=-.4cm] x);
+    \draw[dashed] ([xshift=1.25cm, yshift=1cm] x) to ([xshift=4.75cm, yshift=1cm] x);
+
   \end{tikzpicture}
 \end{minipage}
+\medskip
 
-It is natural to want to generalise this term to one tabulating
-a function computing circuits of with $i$ inputs and $o$ outputs
-to obtain a circuit with $(1+i)$ inputs and $o$ outputs.
-%
-This would be possible in a setting where the static layer is
-dependently typed like in Kov{\'{a}}cs' original paper.
+This term is not in and of itself particularly useful but its
+generalisation to one that could take a function computing an
+{\AIC{⟨} \AB{i} \AIC{∣} \AB{o} \AIC{⟩}} circuit and return an
+equivalent {\AIC{⟨} \AN{1} \AF{+} \AB{i} \AIC{∣} \AB{o} \AIC{⟩}}
+circuit would allow us to build arbitrarily complex circuits
+by tabulating static n-ary boolean functions.
+
+This would however require a setting where the static layer is
+dependently typed like in Kov{\'{a}}cs' original work, something
+out of scope for this paper.
 
 \section{Related work}
 
