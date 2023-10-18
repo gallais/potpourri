@@ -878,9 +878,9 @@ We have function spaces (this time confined to the static
 layer), a lifting construct allowing the embedding of
 dynamic types in the static layer at the source stage,
 and finally a type of circuits
-(\AIC{⟨} \AB{i} \AIC{∣} \AB{o} \AIC{⟩}) characterised by
+\AIC{⟨}~\AB{i}~\AIC{∣}~\AB{o}~\AIC{⟩} characterised by
 their input (\AB{i}) and output (\AB{o}) arities,
-both represented by a natural number in the host language.
+each represented by a natural number in the host language.
 
 \ExecuteMetaData[MetaCircuit.tex]{type}
 
@@ -981,6 +981,9 @@ one output and returning a circuit with one input and
 one output.
 It does so by first duplicating the one input using \AF{`dup}
 and then feeding it to both of the argument's ports.
+%
+We present it below together with the corresponding
+circuit diagram.
 
 \ExecuteMetaData[MetaCircuit.tex]{diag}
 
@@ -1096,8 +1099,13 @@ out of scope for this paper.
 
 \section{Related work}
 
-\todo{Brigitte Pientka}
+Prior work on partial evaluation and metaprogramming
+abounds so we will only focus on the very most relevant
+works involving strong types.
 
+\subsection{Two Level Theories}
+
+\paragraph{Quantum Circuits Generation}
 As already mentioned in \Cref{sec:circuits}, such two level
 systems occur naturally when defining high level languages
 for (quantum) circuit descriptions.
@@ -1109,11 +1117,12 @@ a clear invariant-enforcing improvement over the weakly
 typed Haskell embedded domain specific language Quipper~\cite{DBLP:conf/rc/GreenLRSV13}.
 %
 EWire is an ad-hoc construction which, although not worded
-in terms of a two level type theory, effectively is one:
-quotes and splices are called boxing and unboxing,
+explicitly in terms of a two level type theory, effectively
+is one: quotes and splices are called boxing and unboxing,
 and a QWire-inspired partial normalisation procedure
 proven to be semantics-preserving is defined.
 
+\paragraph{SMT Constraints Generation}
 In their work on compiling higher order specification to SMT
 solvers~\cite{DBLP:conf/cpp/DaggittAKKA23},
 Daggit, Atkey, Kokke, Komendantskaya, and Arnaboldi
@@ -1131,6 +1140,10 @@ correctness: the generated formula is proven to be logically
 equivalent to the high level specification.
 %
 This is an obvious avenue for future work on our part.
+
+\subsection{Typed Metaprogramming}
+
+\todo{Brigitte Pientka}
 
 
 \section{Future Work}
