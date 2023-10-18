@@ -1108,7 +1108,11 @@ and Zdancewic's QWire~\cite{DBLP:conf/popl/Paykin0Z17},
 a clear invariant-enforcing improvement over the weakly
 typed Haskell embedded domain specific language Quipper~\cite{DBLP:conf/rc/GreenLRSV13}.
 %
-These constructions are once again ad-hoc
+EWire is an ad-hoc construction which, although not worded
+in terms of a two level type theory, effectively is one:
+quotes and splices are called boxing and unboxing,
+and a QWire-inspired partial normalisation procedure
+proven to be semantics-preserving is defined.
 
 In their work on compiling higher order specification to SMT
 solvers~\cite{DBLP:conf/cpp/DaggittAKKA23},
