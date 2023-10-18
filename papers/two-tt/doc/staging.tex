@@ -18,35 +18,40 @@
 
 \section{Introduction}
 
-This paper gives an intrinsically scoped-and-typed
-treatment of a simply typed version of the staged compilation
-with two-level type theory introduced by
-Kov{\'{a}}cs~\cite{DBLP:journals/pacmpl/Kovacs22}.
+Staged compilation, by running arbitrary programs at compile
+time in order to generate code, is a way to offer users
+metaprogramming facilities.
 %
-We use Agda~\cite{DBLP:conf/afp/Norell08}
+Kov{\'{a}}cs demonstrated that the notion of two level
+type theories, originally introduced in homotopy theory,
+can be repurposed to describe layered languages equipped
+with a staging operation partially evaluating the terms
+in the upper layer~\cite{DBLP:journals/pacmpl/Kovacs22}.
+
+In order to enable the mechanised study of such systems,
+we give an intrinsically scoped-and-typed treatment of
+various two level simply typed calculi and their
+corresponding staging operations evaluating away all of
+the static subterms.
+%
+We obtain these staging operations by performing type-directed
+model constructions reminiscent of the ones used for normalisation
+by evaluation, hence the title of this paper.
+
+This culminates in a system that takes seriously Kov{\'{a}}cs'
+remark that the static and dynamic layers do not need to have
+exactly the same features. Its static layer is a higher order
+functional language while the dynamic one corresponds to
+digital circuit descriptions.
+%
+This casts existing work on high level languages for quantum
+circuit descriptions into a new light as two level theories.
+
+This work has been fully formalised using Agda~\cite{DBLP:conf/afp/Norell08}
 as our host language (but any implementation
 of Martin-Löf type theory~\cite{DBLP:books/daglib/0000395}
 with inductive families~\cite{DBLP:journals/fac/Dybjer94}
-would do)
-and mobilise standard formalisation
-techniques~\cite{DBLP:journals/lisp/Coquand02, DBLP:journals/jar/BentonHKM12}
-and structures extensively studied by Allais, Chapman,
-McBride, and McKinna (from now on refered to as ACMM)~\cite{DBLP:conf/cpp/Allais0MM17}.
-
-Starting from a language with a static and a dynamic layer,
-we perform a type-directed model construction
-and define an evaluation function turning terms
-into their semantical counterpart.
-%
-As a corollary, we obtain a staging function that
-fully evaluates all of the static subterms and returns
-purely dynamic ones.
-%
-As already observed by Kov{\'{a}}cs, this model construction
-is analogous to the one used for normalisation by evaluation,
-hence the title of this paper.
-
-\todo{start with examples}
+would do).
 
 \section{A Primer on Intrinsically Typed λ-Calculi}\label{sec:intrinsictyping}
 
