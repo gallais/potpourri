@@ -19,6 +19,7 @@ DEPENDENCIES:=$(AGDA_OUTPUT) \
   staging.tex \
   unicode.tex \
   config.tex \
+  commands.tex \
   acks.tex \
 
 __build/%.sty: %.sty

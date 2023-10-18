@@ -252,8 +252,8 @@ open □
 \end{code}
 %<*kripke>
 \begin{code}
-Kripke : (A B : Context → Set) → (Context → Set)
-Kripke A B = □ (A ⇒ B)
+Kripke : (P Q : Context → Set) → (Context → Set)
+Kripke P Q = □ (P ⇒ Q)
 \end{code}
 %</kripke>
 \begin{code}
@@ -273,7 +273,7 @@ Kripke A B = □ (A ⇒ B)
 \end{code}
 %<*extract>
 \begin{code}
-extract : ∀ {P} → ∀[ □ P ⇒ P ]
+extract : ∀[ □ P ⇒ P ]
 extract p = p .run□ ≤-refl
 \end{code}
 %</extract>
@@ -282,7 +282,7 @@ extract p = p .run□ ≤-refl
 \end{code}
 %<*duplicate>
 \begin{code}
-duplicate : ∀ {P} → ∀[ □ P ⇒ □ (□ P) ]
+duplicate : ∀[ □ P ⇒ □ (□ P) ]
 duplicate p .run□ σ .run□ = p .run□ ∘ ≤-trans σ
 \end{code}
 %</duplicate>

@@ -848,7 +848,7 @@ While this addition of static pairs may seem interesting
 but anecdotal, the same techniques can be used to work on
 defining a much more applicable two level language.
 
-\section{Application: Circuit Generation}
+\section{Application: Circuit Generation}\label{sec:circuits}
 
 This section's content is inspired by Quipper, a functional
 programming language to describe quantum computations
@@ -1097,10 +1097,18 @@ out of scope for this paper.
 \section{Related work}
 
 \todo{Brigitte Pientka}
-\todo{Mathys Rennela}
 
-
-\todo{Bob's SMT paper}
+As already mentioned in \Cref{sec:circuits}, such two level
+systems occur naturally when defining high level languages
+for (quantum) circuit descriptions.
+%
+Rennela and Staton's EWire language is itself the categorical
+treatment of a minor generalisation of Paykin, Rand,
+and Zdancewic's QWire~\cite{DBLP:conf/popl/Paykin0Z17},
+a clear invariant-enforcing improvement over the weakly
+typed Haskell embedded domain specific language Quipper~\cite{DBLP:conf/rc/GreenLRSV13}.
+%
+These constructions are once again ad-hoc
 
 In their work on compiling higher order specification to SMT
 solvers~\cite{DBLP:conf/cpp/DaggittAKKA23},
@@ -1109,6 +1117,17 @@ designed a cunning 'translation by evaluation' to
 partially evaluate specifications written in a full featured
 high level functional language (without recursion)
 into first order SMT constraints.
+%
+This is not explicitly designed as a two level system and
+so the sucess of the partial evaluation comes from a careful
+but ultimately ad-hoc design rather than a systematic approach.
+%
+Unlike ours, their system however comes with a proof of
+correctness: the generated formula is proven to be logically
+equivalent to the high level specification.
+%
+This is an obvious avenue for future work on our part.
+
 
 \section{Future Work}
 
