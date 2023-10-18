@@ -476,8 +476,8 @@ fully reduced but the call to the dynamic one has been preserved.
 \subsection{Phases, Stages, and Types}
 
 We start by defining a sum type of phases denoting whether
-we are currently writing \AIC{source} code or inspecting
-\AIC{staged} code that has already been partially evaluated.
+we are currently writing \AIC{src} code or inspecting
+\AIC{stg} code that has already been partially evaluated.
 
 \ExecuteMetaData[BasicTwoTT.tex]{phase}
 
@@ -485,11 +485,11 @@ Additionally, our notion of types is going to be explicitly
 indexed by the stage they live in. These stages are themselves
 indexed over the phase they are allowed to appear in.
 %
-The \AIC{static} stage is only available in the \AIC{source}
+The static (\AIC{sta}) stage is only available in the \AIC{src}
 phase: once code has been staged, all of its static parts will
 be gone.
 %
-The \AIC{dynamic} stage however will be available in both
+The dynamic (\AIC{dyn}) stage however will be available in both
 phases, hence the unconstrained index \AB{ph}.
 
 \ExecuteMetaData[BasicTwoTT.tex]{stage}
@@ -507,7 +507,7 @@ The constructor \AIC{‘⇑\_} allows us to embed dynamic
 types into static ones; (\AIC{‘⇑} \AB{A}) is effectively
 the type of \emph{programs} that will compute a value of
 type \AB{A} at runtime. This is only available in the
-\AIC{source} phase.
+\AIC{src} phase.
 %
 Function types are available in both layers provided that
 they are homogeneous: both the domain and codomain need
@@ -545,7 +545,7 @@ expressions while splices (\AIC{`∼\_}) allow static terms to
 be inserted in dynamic ones.
 %
 Staging will, by definition, eliminate these and so their phase
-index is constrained to be \AIC{source}.
+index is constrained to be \AIC{src}.
 
 \ExecuteMetaData[BasicTwoTT.tex]{termtwolevel}
 
@@ -801,7 +801,7 @@ will have completely disappeared after staging.
 
 We first extend the inductive definition of object types
 with a new construct for pair types. It is explicitly
-marked as \AIC{static} only.
+marked as \AIC{sta} only.
 
 \ExecuteMetaData[TwoTT.tex]{typesprod}
 

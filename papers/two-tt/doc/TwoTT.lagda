@@ -428,8 +428,8 @@ weak-Env σ ρ .lookup {A = A} v = weak-Value A σ (ρ .lookup v)
 %<*iter>
 \begin{code}
 iterate : {ty : Set} → (ty → ty) → ty → ℕ → ty
-iterate succ zero 0        = zero
-iterate succ zero (suc n)  = succ (iterate succ zero n)
+iterate s z 0        = z
+iterate s z (suc n)  = s (iterate s z n)
 
 iter : ∀ st {A} → Value st (`ℕ `⇒ (A `⇒ A) `⇒ (A `⇒ A)) Γ
 iter dyn  = `iter
