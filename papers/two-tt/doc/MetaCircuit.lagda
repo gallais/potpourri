@@ -163,12 +163,22 @@ data Term : (ph : Phase) (st : Stage ph) → Type st → Context → Set where
 \end{code}
 %</not>
 
+%<*and>
 \begin{code}
 `and : ∀[ Term src dyn `⟨ 2 ∣ 1 ⟩ ]
 `and = `seq `nand `not
+\end{code}
+%</and>
+\begin{code}
 
+\end{code}
+%<*or>
+\begin{code}
 `or : ∀[ Term src dyn `⟨ 2 ∣ 1 ⟩ ]
 `or = `seq (`par `not `not) `nand
+\end{code}
+%</or>
+\begin{code}
 
 `id₁ : ∀[ Term ph dyn `⟨ 1 ∣ 1 ⟩ ]
 `id₁ = `mix (zero ∷ [])

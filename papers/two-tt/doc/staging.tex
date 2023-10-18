@@ -159,7 +159,7 @@ context-passing.
 
 \subsection{Intrinsically Typed Variables}
 
-Our first inductive family~\cite{DBLP:journals/fac/Dybjer94} formalises
+Our first inductive family~\cite{DBLP:journals/fac/Dybjer94} \AD{Var} formalises
 what it means for a variable of type \AB{A} to be present in context \AB{Γ}.
 It is indexed over said type and context.
 We present it side by side
@@ -182,7 +182,7 @@ extended with a freshly bound variable of type \AB{B}.
 \end{mathpar}
 
 This is a standard definition
-corresponding to a scoped-and-typed variant of de Bruijn
+corresponding to a scoped-and-typed variant of De Bruijn
 indices~\cite{de1972lambda,DBLP:journals/scp/BellegardeH94,DBLP:conf/csl/AltenkirchR99,DBLP:journals/jfp/BirdP99}:
 \AIC{here} corresponds to zero, and \AIC{there} to successor.
 
@@ -280,8 +280,7 @@ and \AIC{drop} records that the most local variable of the target
 context does not have a pre-image via the injection.
 
 We can define identity and composition of these morphisms (we leave
-the definitions out and invite the interested reader to look
-at the code in the accompanying material).
+the definitions out but they are available in the accompanying material).
 
 \noindent
 \begin{minipage}{.15\textwidth}
@@ -332,7 +331,7 @@ with $x$ hence the need for weakening.
 
 It is now time to define an evaluation function for this syntax.
 By the end of this section, we will have a function \AF{eval}
-turning terms into values,
+turning terms into Kripke-style values,
 provided that we have an environment assigning values
 to each of the term's free variables. It will have the following type.
 
@@ -350,8 +349,8 @@ can inhabit (\AR{□} \AB{A} \AB{Γ}) whenever for any extension
 
 \ExecuteMetaData[STLC.tex]{box}
 
-For more information on \AR{□} and its properties, the interested
-reader can consult Allais, Atkey, Chapman, McBride, and
+For more information on \AR{□} and its properties, see
+Allais, Atkey, Chapman, McBride, and
 McKinna~\cite[Section~3.1]{DBLP:journals/jfp/AllaisACMM21}.
 %
 We will only use the fact that it is a comonad, that is to say that
@@ -393,13 +392,23 @@ spaces.
 Finally, we introduce a notation to hide away \AR{□}-related
 notions when building \AF{Kripke} functions.
 %
-After the following declarations we can simply write
+After the following declarations we can write
 \AIC{λλ[} \AB{σ} \AIC{,} \AB{v} \AIC{]} \AB{b} to implement a function of type
 (\AF{Kripke} \AB{A} \AB{B} \AB{Γ}).
 
 \ExecuteMetaData[STLC.tex]{mkbox}
 
-We now have all of the ingredients to perform the model
+\begin{remark}[Syntax Declarations]
+  A \AK{syntax} declaration introduces syntactic sugar that is
+  allowed to perform variable binding, or take arguments in a
+  seemingly out-of-order manner.
+  %
+  In the above declaration the left hand side describes the
+  actual term and the right hand side its newly introduced
+  sugared form.
+\end{remark}
+
+We now have all of the ingredients necessary to perform the model
 construction allowing us to implement a normaliser.
 
 \subsubsection{Model Construction}
@@ -416,7 +425,7 @@ the codomain.
 
 \ExecuteMetaData[STLC.tex]{value}
 
-It is easy to prove that values can be weakened given that they are
+We prove that values can be weakened by using the fact they are
 defined in terms of families already known to be amenable to weakenings.
 
 \ExecuteMetaData[STLC.tex]{weakValue}
@@ -426,11 +435,14 @@ to each \AF{Var}iable in scope.
 
 \ExecuteMetaData[STLC.tex]{env}
 
-Environments will mostly be passed around except when they are pushed
-under a binder, interpreted as a Kripke function space.
+In the upcoming definition of the evaluation function, environments
+will in general simply be threaded through. They will only need to
+be modified when going under a binder. This binder, interpreted as
+a Kripke function space, will provide a context weakening and a value
+living in that context.
 %
-In this case, the environment will have to be extended with the newly
-provided value while its existing content will have to be transported
+The environment will have to be extended with the value while its
+existing content will need to be transported, along the weakening,
 into the bigger context.
 %
 The \AF{extend} definition combines these two operations into a single
@@ -461,15 +473,22 @@ extracting a term from a value in a type-directed manner
 before defining normalisation as the composition of evaluation
 and reification.
 %
-This last step will however not be useful for our study of two level
-calculi and so we leave it out and refer the interested
-reader to Catarina Coquand's work~\cite{DBLP:journals/lisp/Coquand02}.
+This last step will however not be useful for our study of two
+level calculi and so we leave it out. It can be found in details
+in Catarina Coquand's work on normalisation by evaluation for
+a simply typed λ-calculus with explicit
+substitutions~\cite{DBLP:journals/lisp/Coquand02}.
+
+Now that we have seen how to define a small well scoped-and-typed
+language and construct an evaluation function by performing a model
+construction, we can start looking at a extending it to two level
+language.
 
 \section{Minimal Intrinsically Typed Two Level Type Theory}
 
 We start with the smallest two level calculus we can possibly define
 by extending the simply typed λ-calculus as defined in the previous
-section with quotes and splices.
+section with quotes (\AIC{`⟨\_⟩}) and splices (\AIC{`∼\_}).
 
 This will enable us to write and stage simple programs such as the following.
 
@@ -729,6 +748,9 @@ This will allow us to obtain e.g.
 \noindent where \AF{fromℕ} is a helper function turning Agda
 literals into \AF{Term}s built using \AIC{`zero} and \AIC{`succ},
 and \AF{`add} is a dynamic addition function.
+%
+Note that the dynamic call to addition was not evaluated
+away during staging.
 
 \subsection{Adding natural numbers}
 
@@ -1040,9 +1062,20 @@ composing \AF{`dup} and \AIC{`nand} as shown below.
 
 \ExecuteMetaData[MetaCircuit.tex]{testNot}
 
+Using standard constructions, we can define \AF{`and} and \AF{`or}
+in terms of the universal \AIC{`nand} gate.
+
+\noindent
+\begin{minipage}{.22\textwidth}
+  \ExecuteMetaData[MetaCircuit.tex]{and}
+\end{minipage}\hfill
+\begin{minipage}{.22\textwidth}
+  \ExecuteMetaData[MetaCircuit.tex]{or}
+\end{minipage}
+
 Going back to a slightly more complex setting, adding booleans in the
-static layer, lets us once again define more interesting terms.
-For instance the following \AF{`tab} circuit \emph{tab}ulating its
+static layer lets us once again define more interesting terms.
+For instance, the following \AF{`tab} circuit \emph{tab}ulating its
 input: given a function that takes a boolean and computes a one-input
 one-output circuit, it returns a circuit with two inputs and one
 output that has the same behaviour.
@@ -1121,8 +1154,6 @@ Prior work on partial evaluation and metaprogramming
 abounds so we will only focus on the very most relevant
 works involving strong types.
 
-\subsection{Two Level Theories}
-
 \paragraph{Quantum Circuits Generation}
 As already mentioned in \Cref{sec:circuits}, such two level
 systems occur naturally when defining high level languages
@@ -1141,8 +1172,8 @@ and a QWire-inspired partial normalisation procedure
 proven to be semantics-preserving is defined.
 
 \paragraph{SMT Constraints Generation}
-In their work on compiling higher order specification to SMT
-solvers~\cite{DBLP:conf/cpp/DaggittAKKA23},
+In their work on compiling higher order specifications to SMT
+constraints~\cite{DBLP:conf/cpp/DaggittAKKA23},
 Daggit, Atkey, Kokke, Komendantskaya, and Arnaboldi
 designed a cunning 'translation by evaluation' to
 partially evaluate specifications written in a full featured
@@ -1159,22 +1190,46 @@ equivalent to the high level specification.
 %
 This is an obvious avenue for future work on our part.
 
-\subsection{Typed Metaprogramming}
-
-\todo{Brigitte Pientka}
-
+\paragraph{Typed Metaprogramming}
+Jang, Gélineau, Monnier, and Pientka's
+Mœbius~\cite{DBLP:journals/pacmpl/JangGMP22} defines
+a type theory with a built in notion of quasiquotations
+that can be used to generate programs in a type-safe
+manner.
+%
+The language lets metaprograms inspect the code fragments
+they are passed as arguments thus allowing e.g. the
+implementation of optimisation passes post-processing the
+result of a prior metaprogram.
+%
+This is extremely powerful, at the cost of a more complex
+underlying theory.
+%
+In Mœbius the meta and object language are essentially the
+same but it does not seem to be a necessary restriction.
 
 \section{Future Work}
 
-In this paper we focused on the model constructions and the
-acquisition of a staging-by-evaluation function as a corollary.
+\paragraph{Soundness and Completeness}
+We focused here on the intrinsically typed language description,
+the corresponding model construction, and the acquisition of a
+staging-by-evaluation function as a corollary.
+%
 Following Catarina Coquand's work on formalising normalisation
 by evaluation~\cite{DBLP:journals/lisp/Coquand02} we could
 additionally introduce the appropriate logical relations to
 prove that this process is sound and complete with respect
 to a small step semantics for the static layer.
 
+\paragraph{Dependently Typed Circuit Description Language}
+Our undergraduates are already being taught digital logic
+using a functional-style circuit description language.
+Extending it with a dependently typed meta-programming
+layer would allow them to structure their understanding
+of the generic construction of arithmetic circuits for
+arbitrarily large inputs.
 
+\paragraph{Generic Two Level Construction}
 Even though we have seen that having two wildly different
 language layers can be extremely useful, a two-level
 construction with exactly the same features is still very
