@@ -1,3 +1,4 @@
+.PRECIOUS: build/latex/%.tex build/latex/%.idr.tex build/latex/%.csv
 .PHONY: all common
 
 RAW_DEPENDENCIES=\

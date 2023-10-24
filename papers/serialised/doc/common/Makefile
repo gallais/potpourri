@@ -11,7 +11,7 @@ build/ttc/*/%.ttm build/ttc/*/%.ttc: %.tex
 build/latex/%.idr.tex: %.tex build/ttc/*/%.ttm build/ttc/*/%.ttc
 	mkdir -p $(dir $@)
 	katla literate $*.tex build/ttc/*/$*.ttm > $@
-	perl -0777 -i -pe 's/\\Katlanewline{}\n\\end{code}/\n\\end{code}/igs' $@
+#	perl -0777 -i -pe 's/\\Katlanewline{}\n\\end{code}/\n\\end{code}/igs' $@
 
 clean:
 	rm -rf build/latex
