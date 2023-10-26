@@ -1,0 +1,179 @@
+\section{Serialising Data}\label{sec:serialising}
+
+So far all of our example programs involved taking an inductive value
+apart and computing a return value in the host language.
+%
+But we may instead want to compute another value in serialised form.
+%
+We include below one such example: a \IdrisFunction{map} function which
+takes a function \IdrisBound{f} acting on bytes
+and applies it to all of the ones stored
+in the nodes of our type of \IdrisFunction{Tree}s.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{serialisedmap}\label{fig:serialised-map}
+
+It calls the \IdrisFunction{view} we just defined to observe whether
+the tree is a leaf or a node.
+If it's a leaf, it returns a leaf.
+If it's a node, it returns a node where the map has been recursively applied
+to the left and right subtrees while the function \IdrisBound{f} has been applied
+to the byte \IdrisBound{b}.
+
+%% \subsection{Generic Traverse}
+%% \ExecuteMetaData[SaferIndexed.idr.tex]{traverse}
+
+In this section we are going to spell out how we can define high-level
+constructs allowing users to write these correct-by-construction
+serialisers.
+
+\subsection{The Type of Serialisation Processes}
+
+A serialisation process for a tree \IdrisBound{t} that belongs to the
+datatype \IdrisBound{cs} is a function that takes a buffer
+and a starting position and returns an \IdrisType{IO} process that
+serialises the term in the buffer at that position and computes the
+position of the first byte past the serialised tree.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{serialising}
+
+We do not expect users to define such processes by hand and in fact
+prevent them from doing so by not exporting the \IdrisData{MkSerialising}
+constructor.
+%
+Instead, we provide high-level, invariant-respecting combinators to safely
+construct such serialisation processes.
+
+\subsection{Building Serialisation Processes}
+
+Our main combinator is \IdrisFunction{(\#)}: by providing
+a node's constructor index
+and a way to serialise all of the node's subtrees,
+we obtain a serialisation process for said node.
+%
+We will give a detailed explanation of \IdrisFunction{All} below.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{serialisemu}
+
+The keen reader may refer to the accompanying code to see the implementation.
+Informally (cf. \Cref{sec:tree-serialisation} for the description of the format):
+first we write the tag corresponding to the choice of constructor,
+then we leave some space for the offsets,
+in the meantime we write all of the constructor's arguments and collect the offsets
+associated to each subtree while doing so,
+and finally we fill in the space we had left blank with the offsets
+we have thus collected.
+
+The \IdrisFunction{All} quantifier performs the pointwise lifting of a predicate over
+the functor described by a \IdrisType{Desc}. It is defined by induction over
+the description.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{allquant}
+
+If the description is \IdrisData{None} then there is nothing to apply
+the predicate to and so we return the unit type.
+%
+If the description is \IdrisData{Byte} we only demand that we have a runtime
+copy of the byte so that we may write it inside a buffer. This is done using
+the \IdrisType{Singleton} family discussed in \Cref{sec:datasingleton}.
+%
+If the description is \IdrisData{Rec} then we demand that the
+predicate holds.
+%
+Finally, if the description is a the \IdrisData{Prod} of two subdescriptions, we once
+again use an auxiliary family purely for ergonomics. It is defined mutually
+with \IdrisFunction{All} and does the expected structural operation.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{dataallquant}
+
+It should now be clear that
+(\IdrisFunction{All} \IdrisKeyword{(}\IdrisFunction{description} \IdrisBound{k}\IdrisKeyword{)}
+(\IdrisType{Serialising} \IdrisBound{cs}\IdrisKeyword{)}) indeed corresponds
+to having already defined a serialisation process for each subtree.
+
+This very general combinator should be enough to define all the
+serialisers we may ever want.
+%
+By repeatedly pattern-matching on the input tree and using \IdrisFunction{(\#)},
+we can for instance define the correct-by-construction generic serialisation function.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{serialise}
+
+We nonetheless include other combinators purely for performance reasons.
+
+\subsection{Copying Entire Trees}
+
+We introduce a \IdrisFunction{copy} combinator for trees that we want to
+serialise as-is and have a pointer for.
+%
+Equipped with this combinator, we are able to easily write e.g.
+the \IdrisFunction{swap} function which takes a binary tree apart
+and swaps its left and right branches (if the tree is non-empty).
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{swap}
+
+We could define this \IdrisFunction{copy} combinator at a high level
+either by composing
+\IdrisFunction{deserialise} and \IdrisFunction{serialise},
+or by interleaving calls to \IdrisFunction{view} and \IdrisFunction{(\#)}.
+%
+This would however lead to a slow implementation that needs to
+traverse the entire tree in order to simply copy it.
+
+Instead, we implement \IdrisFunction{copy} by using the
+\IdrisFunction{copyData} primitive for \IdrisType{Buffer}s
+present in \idris{}'s standard library.
+%
+This primitive allows us to grab a slice of the source buffer
+corresponding to the tree
+and to copy the raw bytes directly into the target buffer.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{copy}
+
+This is the one combinator that crucially relies
+on our format only using offsets and not absolute addresses
+and on the accuracy of the size information we have been keeping
+in \IdrisType{Pointer.Mu} and \IdrisType{Pointer.Meaning}.
+%
+As we can see in \Cref{sec:timing}, this is spectacularly faster than
+a deep copying process traversing the tree.
+
+\subsection{Executing a Serialisation Action}
+
+Now that we can describe actions serialising a value to a buffer,
+the last basic building block we are still missing is a function actually
+performing such actions.
+%
+This is provided by the \IdrisFunction{execSerialising} function
+declared below.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{execSerialising}
+
+By executing a (\IdrisType{Serialising} \IdrisBound{cs} \IdrisBound{t}), we
+obtain an \IdrisType{IO} process returning a pointer to the tree \IdrisBound{t}
+stored in a buffer.
+%
+We can then either compute further with this tree (e.g. by calling
+\IdrisFunction{sum} on it), or write it to a file for safekeeping
+using the function \IdrisFunction{writeToFile}
+introduced in \Cref{sec:writetofile}.
+
+\subsection{Evaluation Order}
+
+The careful reader may have noticed that we can and do run arbitrary \IdrisType{IO}
+operations when building a value of type \IdrisType{Serialising}
+(cf. the \IdrisFunction{map} example in \Cref{fig:serialised-map} where we perform
+a call to \IdrisFunction{view} to inspect the input's shape).
+
+This is possible thanks to \idris{} elaborating \IdrisKeyword{do}-blocks using
+whichever appropriate bind operator is in scope. In particular, we have defined
+the following one to use when building a serialisation process:
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{serialisingbind}
+
+By using this bind we can temporarily pause writing to the buffer to make
+arbitrary \IdrisType{IO} requests to the outside world.
+%
+In particular, this allows us to interleave reading from the original buffer
+and writing into the target one thus having a much better memory footprint than
+if we were to first use the \IdrisType{IO} monad to build in one go the whole
+serialisation process for a given tree and then execute it.

@@ -1,0 +1,137 @@
+\section{Serialised Representation}\label{sec:hexdump}
+
+Before we can give a meaning to descriptions as pointers into a buffer we
+need to decide on a serialisation format.
+%
+The format we have opted for is split in two parts: a header containing
+data that can be used to check that a user's claim that a given file
+contains a serialised tree of a given type is correct, followed by the
+actual representation of the tree.
+
+
+For instance, the following binary snippet is a hex dump of a file
+containing the serialised representation of a binary tree belonging to
+the type we have been using as our running example.
+%
+The raw data is semantically highlighted:
+8-bytes-long \hexaoffset{offsets},
+a \hexadesc{type} description of the stored data,
+some \hexacons{nodes} of the tree
+and the \hexadata{data} stored in the nodes.
+
+\begin{center}
+\input{data-hexdump}
+\end{center}
+
+More specifically, this block is the encoding of the \IdrisFunction{example}
+given in the previous section and,
+%
+knowing that a \IdrisFunction{leaf} is represented here by \hexacons{00}
+and a \IdrisFunction{node} is represented by \hexacons{01}
+%
+the careful reader can check
+(modulo ignoring the type description and offsets for now)
+that the data is stored in a depth-first, left-to-right traversal of the tree
+(i.e. we get exactly the bit pattern we saw in the naïve encoding
+presented in \Cref{sec:intro}).
+
+
+\subsection{Header}
+
+In our example, the header is as follows:
+\begin{hexdump}
+\hexaoffset{07 00 00 00 00 00 00 00} \hexadesc{02 00 02 03 02 01 03}
+\end{hexdump}
+
+The header consists of an offset allowing us to jump past it in case we do
+not care to inspect it, followed by a binary representation of the
+\IdrisType{Data} description of the value stored in the buffer.
+%
+This can be useful in a big project where different components produce
+and consume such serialised values: if we change the format in one place
+but forget to update it in another, we want the program to gracefully
+fail to load the file using an unexpected format.
+%
+We detail in \Cref{sec:limitation-robust} how dependent type providers
+can help structure a software project to prevent such issues.
+
+The encoding of a data description starts with a byte giving us the number
+of constructors, followed by these constructors' respective descriptions
+serialised one after the other.
+%
+\IdrisData{None} is represented by \hexadesc{00},
+\IdrisData{Byte} is represented by \hexadesc{01},
+(\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e}) is represented by
+\hexadesc{02} followed by the representation of \IdrisBound{d} and then that of \IdrisBound{e},
+and \IdrisData{Rec} is represented by \hexadesc{03}.
+
+
+Looking once more at the header in the running example,
+the \IdrisType{Data} description is indeed 7 bytes long like the offset states.
+The \IdrisType{Data} description starts with \hexadesc{02}
+meaning that the type has two constructors.
+The first one is \hexadesc{00} i.e. \IdrisData{None}
+(this is the encoding of the type of \IdrisFunction{Leaf}),
+and the second one is \hexadesc{02 03 02 01 03} i.e.
+\IdrisKeyword{(}\IdrisData{Prod} \IdrisData{Rec}
+\IdrisKeyword{(}\IdrisData{Prod} \IdrisData{Byte} \IdrisData{Rec}\IdrisKeyword{))}
+(that is to say the encoding of the type of \IdrisFunction{Node}).
+%
+According to the header, this file does contain a \IdrisFunction{Tree}.
+
+\subsection{Tree Serialisation}\label{sec:tree-serialisation}
+
+Our main focus in the definition of this format is that we should be able
+to process any of a node's subtrees without having to first traverse the
+subtrees that come before it.
+%
+This will allow us to, for instance, implement a function looking up the
+value stored in the rightmost node in our running example type of binary
+trees in time linear in the depth of the tree rather than exponential.
+%
+To this end each node needs to store an offset measuring the size of the
+subtrees that are to the left of any relevant information.
+
+If a given tag is associated to a description of type
+(\IdrisType{Desc} \IdrisData{True} \IdrisBound{s} \IdrisBound{o})
+then the representation in memory of the associated node will look something
+like the following.
+
+\label{fig:data-layout}
+\begin{center}
+\input{data-layout}
+\end{center}
+
+On the first line we have a description of the data layout and on the
+second line we have the offset of various positions in the block with
+respect to the tag's address.
+
+For the data layout,
+we start with the tag
+then we have $o$ offsets,
+and finally we have a block contiguously storing an interleaving of
+subtrees and $s$ bytes
+dictated by the description.
+%
+In this example the rightmost value in the description is a subtree and
+so even though we have $o$ offsets, we actually have $(o+1)$ subtrees stored.
+
+The offsets of the tag with respect to its own address is $0$.
+The tag occupies one byte and so the offset of the block of offsets is $1$.
+Each offset occupies 8 bytes and so the constructor's arguments are stored at offset $(1+8*o)$.
+Finally each value's offset can be computed by adding up
+the offset of the start of the block of constructor arguments,
+the offsets corresponding to all of the subtrees that come before it,
+and the number of bytes stored before it;
+in the case of the last byte that gives $1+8*o + \Sigma_{i=1}^{o}o_i + s-1$
+hence the formula included in the diagram.
+
+Going back to our running example, this translates to the following
+respective data layouts and offsets for a leaf and a node.
+
+\begin{center}
+  \input{data-layout-nodes}
+\end{center}
+
+Now that we understand the format we want, we ought to be able to implement pointers
+and the functions manipulating them.

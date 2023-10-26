@@ -1,0 +1,70 @@
+% jfpguide.tex
+% v1.0, released 19 Nov 2019
+% Copyright 2019 Cambridge University Press
+
+\documentclass{jfp}
+
+\input{config}
+\togglefalse{BLIND}
+\toggletrue{POPL}
+
+\begin{document}
+
+\journaltitle{JFP}
+\cpr{Cambridge University Press}
+\doival{10.1017/xxxxx}
+
+\totalpg{\pageref{lastpage01}}
+\jnlDoiYr{2022}
+
+\title{Seamless, Correct, and Generic Programming over Serialised Data}
+
+\begin{authgrp}
+\author{Guillaume Allais}
+\affiliation{University of Strathclyde, G1 1XH\\
+        (\email{guillaume.allais@ens-lyon.org})}
+\end{authgrp}
+
+%\received{20 March 1995; revised 30 September 1998}
+
+\input{abstract}
+
+\maketitle
+
+\input{intro}
+
+\input{desc}
+\input{trees}
+\input{hexdump}
+\input{pointers}
+\input{views}
+\input{poking}
+\input{bufferfold}
+\input{serialisation}
+
+\input{timing}
+
+\input{conclusion}
+\input{related-work}
+\input{limitations}
+
+%%
+%% The acknowledgments section is defined using the "acks" environment
+%% (and NOT an unnumbered section). This ensures the proper
+%% identification of the section in the article metadata, and the
+%% consistent spelling of the heading.
+\section*{Acknowledgements}
+\input{acknowledgements}
+
+\bibliographystyle{JFPlike}
+\bibliography{paper}
+
+\appendix
+
+\input{safefold}
+\input{rightmost}
+\input{hoare}
+
+\label{lastpage01}
+
+\end{document}

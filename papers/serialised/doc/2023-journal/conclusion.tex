@@ -1,0 +1,14 @@
+\section{Conclusion}
+
+We have seen how, using a universe of descriptions indexed by their static
+and dynamic sizes, we can define a precise language of values serialised in
+a buffer.
+%
+This allowed us to develop a library to manipulate such trees in a seamless,
+correct, and generic manner either using low-level combinators like
+\IdrisFunction{poke} or high-level programs like a data-polymorphic
+\IdrisFunction{fold}.
+%
+We then provided users with convenient tools to write serialisation processes
+thus allowing them to compositionally build correct-by-construction values
+stored in buffers.

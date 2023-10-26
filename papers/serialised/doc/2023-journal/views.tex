@@ -1,0 +1,50 @@
+
+\section{Interlude: Views and Singletons}\label{sec:view}
+
+The precise indexing of pointers by a runtime-irrelevant copy of the value
+they are pointing to means that inspecting the buffer's content should
+not only return runtime information but also refine the index to reflect
+that information at the type-level.
+%
+As a consequence, the functions we are going to define in the following
+subsections are views.
+
+\subsection{Views}
+
+A view
+in the sense of Wadler~\cite{DBLP:conf/popl/Wadler87},
+and subsequently refined by McBride and McKinna~\cite{DBLP:journals/jfp/McBrideM04}
+for a type $T$ is a type family $V$ indexed by $T$ together
+with a function which maps values $t$ of type $T$ to values of type
+$V\,t$.
+%
+By inspecting the $V\,t$ values we can learn something about the
+$t$ input.
+%
+The prototypical example is perhaps the `snoc` (`cons' backwards) view
+of right-nested lists as if they were left-nested.
+We present the \IdrisType{Snoc} family below.
+
+\ExecuteMetaData[Snoc.idr.tex]{Snoc}
+
+By matching on a value of type
+(\IdrisType{Snoc} \IdrisBound{xs}) we get to learn
+either that \IdrisBound{xs} is empty (\IdrisData{Lin}, nil backwards)
+or that it has an initial segment \IdrisBound{init} and a last element
+\IdrisBound{last} (\IdrisBound{init} \IdrisData{:<} \IdrisBound{last}).
+%
+The function \IdrisFunction{unsnoc} demonstrates that we can always
+\emph{view} a \IdrisType{List} in a \IdrisType{Snoc}-manner.
+
+\ExecuteMetaData[Snoc.idr.tex]{unsnoc}
+
+Here we defined \IdrisType{Snoc} as an inductive family but it can
+sometimes be convenient to define the family recursively instead.
+In which case the \IdrisType{Singleton} inductive family can
+help us connect runtime values to their
+runtime-irrelevant type-level counterparts.
+
+\input{singleton}
+
+We are now equipped with the appropriate notions and definitions to
+look at a buffer's content.

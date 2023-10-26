@@ -1,0 +1,75 @@
+
+\subsection{Generic Fold}\label{sec:bufferfold}
+
+The implementation of the generic \IdrisFunction{fold} over a tree stored
+in a buffer is going to have the same structure as the generic fold over
+inductive values: first match on the top constructor, then use \IdrisFunction{fmap}
+to apply the fold to all the substructures and, finally, apply the algebra to
+the result.
+%
+We start by implementing the buffer-based counterpart to \IdrisFunction{fmap}.
+Let us go through the details of its type first.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{fmaptype}
+
+The first two arguments to \IdrisFunction{fmap} are similar to its pure
+counterpart:
+a description \IdrisBound{d}
+and a (here runtime-irrelevant) function \IdrisBound{f}
+to map over a \IdrisFunction{Meaning}.
+%
+Next we take a function which is the buffer-aware counterpart to \IdrisBound{f}:
+given any runtime-irrelevant term \IdrisBound{t} and a pointer to it in a buffer,
+it returns an \IdrisType{IO} process computing the value (\IdrisBound{f} \IdrisBound{t}).
+%
+Finally, we take a runtime-irrelevant meaning \IdrisBound{t}
+as well as a pointer to its representation in a buffer and compute
+an \IdrisType{IO} process which will return a value equal to
+(\IdrisFunction{Data.fmap} \IdrisBound{d} \IdrisBound{f} \IdrisBound{t}).
+
+We can now look at the definition of \IdrisFunction{fmap}.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{fmapfun}
+
+We poke the buffer to reveal the value the \IdrisType{Pointer.Meaning}
+named \IdrisBound{ptr} is pointing at and then dispatch over the description
+\IdrisBound{d} using the \IdrisFunction{go} auxiliary function.
+
+If the description is \IdrisData{None} we use \IdrisFunction{byIrrelevance}
+which happily builds any (\IdrisType{Singleton} \IdrisBound{t}) provided
+that \IdrisBound{t}'s type is proof irrelevant.
+
+If the description is \IdrisData{Byte}, the value is left untouched and so
+we can simply return it immediately.
+
+If we have a \IdrisData{Prod} of two descriptions, we recursively apply
+\IdrisFunction{fmap} to each of them and pair the results back.
+
+Finally, if we have a \IdrisData{Rec} we apply the function operating
+on buffers that we know performs the same computation as \IdrisBound{f}.
+
+
+We can now combine \IdrisFunction{out} and \IdrisFunction{fmap} to compute
+the correct-by-construction \IdrisFunction{fold}: provided an algebra for
+a datatype \IdrisBound{cs} and a pointer to a tree of type \IdrisBound{cs}
+stored in a buffer, we return an \IdrisType{IO} process computing the fold.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{foldtype}
+
+We first use \IdrisFunction{out} to reveal the constructor choice in the
+tree's top node, we then recursively apply (\IdrisFunction{fold} \IdrisBound{alg})
+to all the substructures by calling \IdrisFunction{fmap}, and we conclude by
+applying the algebra to this result.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{foldfun}
+
+We once again (cf. \Cref{sec:genericfoldinductive}) had to
+use \assertTotal{} because it is not obvious to
+\idris{} that \IdrisFunction{fmap} only uses its argument on subterms.
+%
+This could have also been avoided by mutually defining \IdrisFunction{fold}
+and a specialised version of
+(\IdrisFunction{fmap} \IdrisKeyword{(}\IdrisFunction{fold} \IdrisBound{alg}\IdrisKeyword{)})
+at the cost of code duplication and obfuscation.
+%
+We once again include such a definition in \Cref{appendix:safefold}.

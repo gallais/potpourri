@@ -1,0 +1,177 @@
+\section{Analogy to Separation Logic}\label{appendix:hoare}
+
+Some readers may feel uneasy about the fact that parts of our
+library are implemented using \idris{} escape hatches.
+%
+This section justifies this practice by drawing an analogy to
+separation logic and highlighting that this practice corresponds
+to giving an axiomatisation of the runtime behaviour of our
+library's core functions.
+
+\newcommand{\Pointer}[3]{\ensuremath{#1 \xmapsto{#2} #3}}
+\newcommand{\Hoare}[4]{\ensuremath{\lbrace~ #1 ~\rbrace~ #2 ~\lbrace~ #3.\, #4 ~\rbrace}}
+\newcommand{\Meaning}[2]{\ensuremath{\llbracket \,#1\, \rrbracket\, (\Mu{#2})}}
+\newcommand{\Mu}[1]{\ensuremath{\mu \, \mathit{#1}}}
+
+\subsection{Interlude: Separation Logic}
+
+A Hoare triple~\cite{DBLP:journals/cacm/Hoare69} of the form
+\[ \Hoare{P}{e}{v}{Q} \]
+states that under the precondition
+$P$, and binding the result of evaluating the expression $e$ as $v$,
+we can prove that $Q$ holds.
+%
+One of the basic predicates of separation logic~\cite{DBLP:conf/lics/Reynolds02}
+is a `points to' assertion (\Pointer{\ell}{}{t}) stating that
+the label $\ell$ points to a memory location containing $t$.
+
+A separation logic proof system then typically consists in defining
+a language and providing axioms characterising the behaviour of
+each language construct.
+%
+The simplest example involving memory is perhaps a language
+with pointers to bytes and a single \texttt{deref} construct
+dereferencing a pointer.
+%
+We can then give the following axiom
+\[ \Hoare{\Pointer{\ell}{}{\mathit{bs}}}{\texttt{deref}\,\ell}{v}{\mathit{bs} = v \ast \Pointer{\ell}{}{\mathit{bs}}} \]
+to characterise \texttt{deref} by stating that the value
+it returns is precisely the one the pointer is referencing,
+and that the pointer is still valid and still referencing
+the same value after it has been dereferenced.
+
+The axioms can be combined to prove statements about more
+complex programs such as the following silly one for instance.
+Here we state that if we dereference the pointer a first time,
+discard the result and then dereference it once more then we
+end up in the same situation as if we had dereferenced it only once.
+\[ \Hoare{\Pointer{\ell}{}{\mathit{bs}}}{\texttt{deref}\,\ell;\, \texttt{deref}\,\ell}{v}{\mathit{bs} = v \ast \Pointer{\ell}{}{\mathit{bs}}} \]
+
+Note that in all of these rules $\mathit{bs}$ is only present
+in the specification layer. \texttt{deref} itself cannot possibly
+return $\mathit{bs}$ directly, it needs to actually perform an
+effectful operation that will read the memory cell's content.
+
+\subsection{Characterising Our Library}
+
+We are going to explain that we can see our library as a small
+embedded Domain Specific
+Language (eDSL)~\cite{DBLP:journals/csur/Hudak96}
+that has \IdrisFunction{poke} and \IdrisFunction{out} as
+sole language constructs.
+%
+Our main departure from separation logic is that we want to
+program in a correct-by-construction fashion and so the types
+of \IdrisFunction{poke} and \IdrisFunction{out} have to be
+just as informative as the axioms we would postulate
+in separation logic.
+%
+This dual status of the basic building blocks being both
+executable programs \emph{and} an axiomatic specification
+of their respective behaviour is precisely why their
+implementations in \idris{} necessarily uses unsafe features.
+
+We are going to write \Pointer{\ell}{\Meaning{d}{cs}}{t} for the assumption
+that we own a pointer $\ell$ of type
+(\IdrisType{Pointer.Meaning} \IdrisBound{d} \IdrisBound{cs} \IdrisBound{t}),
+and \Pointer{\ell}{\Mu{cs}}{t} for the assumption that we own
+a pointer $\ell$ of type (\IdrisType{Pointer.Mu} \IdrisBound{cs} \IdrisBound{t}).
+%
+In case we do not care about the type of the pointer at hand
+(e.g. because it can be easily inferred from the context), we
+will simply write \Pointer{\ell}{}{t}.
+
+
+\subsubsection{Axioms for poke}\label{sec:axiom-poke}
+
+Thinking in terms of Hoare triples, if we have a pointer
+$\ell$ to a term $t$ known to be a single byte then
+(\IdrisFunction{poke} $\ell$)
+will return a byte $bs$ and allow us to observe that $t$ is
+equal to that byte.
+\[
+\Hoare
+    {\Pointer{\ell}{\Meaning{\text{\IdrisData{Byte}}}{cs}}{t}}
+    {\text{\IdrisFunction{poke}}\,\ell}
+    {\mathit{bs}}
+    {t = \mathit{bs} \ast \ell \mapsto t}
+\]
+Similarly, if the pointer $\ell$ is for a pair then
+(\IdrisFunction{poke} $\ell$) will
+reveal that the term $t$ can be taken apart into the pairing
+of two terms $t_1$ and $t_2$ and
+return a pointer for each of these components.
+\begin{gather*}
+\Hoare
+    {\Pointer{\ell}{\Meaning{\text{\IdrisData{Prod}}\, d_1 d_2}{cs}}{t}}
+    {\\\text{\IdrisFunction{poke}}\,\ell\\}
+    {(\ell_1,\, \ell_2)}
+    {\exists t_1.\, \exists t_2.\, t = (t_1 \,\text{\IdrisData{\#}}\, t_2)
+        \ast \ell \mapsto t \ast \Pointer{\ell_1}{\Meaning{d_1}{cs}}{t_1} \ast \Pointer{\ell_2}{\Meaning{d_2}{cs}}{t_2}}
+\end{gather*}
+Last but not least, poking a pointer with the \IdrisData{Rec}
+description will return another pointer for the same value but
+at a different type.
+\[
+\Hoare
+    {\Pointer{\ell}{\Meaning{\text{\IdrisData{Rec}}}{cs}}{t}}
+    {\text{\IdrisFunction{poke}}\,\ell}
+    {\ell_1}
+    {\Pointer{\ell_1}{\Mu{cs}}{t} \ast \Pointer{\ell}{}{t}}
+\]
+
+\subsubsection{Example of a Derived Rule for layer}
+
+Given that \IdrisFunction{layer} is defined in terms of \IdrisFunction{poke},
+we do not need to postulate any axioms to characterise it and can instead
+prove lemmas.
+%
+We will skip the proofs here but give an example of a derived rule.
+%
+Using the description (\IdrisData{Prod} \IdrisData{Rec} (\IdrisData{Prod} \IdrisData{Byte} \IdrisData{Rec}))
+of the arguments to a node in our running example of binary trees,
+\IdrisFunction{layer}'s behaviour would be characterised by the following
+statement.
+\begin{gather*}
+\Hoare
+    {\Pointer{\ell}{\Meaning{\text{\IdrisData{Prod} \IdrisData{Rec} (\IdrisData{Prod} \IdrisData{Byte} \IdrisData{Rec})}}{cs}}{t}}
+    {\\\text{\IdrisFunction{layer}}\,\ell\\}
+    {(\ell_1,\, bs,\, \ell_2)}
+    {\exists t_1.\, \exists t_2.\,
+      t = (t_1 \,\text{\IdrisData{\#}}\, bs \,\text{\IdrisData{\#}}\, t_2)
+      \ast \Pointer{\ell_1}{\Mu{cs}}{t_1}
+      \ast \Pointer{\ell_2}{\Mu{cs}}{t_2}
+      \ast \Pointer{\ell}{}{t}}
+\end{gather*}
+It states that provided a pointer to such a meaning,
+calling \IdrisFunction{layer} would
+return a triple of
+a pointer $\ell_1$ for the left subtree,
+the byte $\mathit{bs}$ stored in the node,
+and a pointer $\ell_2$ for the right subtree.
+
+\subsubsection{Axiom for out}
+
+The only other construct for our small DSL is the function \IdrisFunction{out}.
+Things are a lot simpler here as the return type
+is not defined by induction on the description.
+As a consequence we only need the following axiom.
+\[
+\Hoare
+    {\Pointer{\ell}{\Mu{cs}}{t}}
+    {\text{\IdrisFunction{out}}\,\ell}
+    {(k,\, \ell_1)}
+    {\exists t_1.\, t = (k \,\text{\IdrisData{\#}}\, t_1)
+      \ast \Pointer{\ell}{}{t} \ast \Pointer{\ell_1}{\Meaning{cs_k}{cs}}{t_1}}
+\]
+It states that under the condition that $\ell$ points to $t$,
+(\IdrisFunction{out} $\ell$) returns a pair of an index
+and a pointer to the meaning of the description associated to that index by $cs$,
+and allows us to learn that $t$ is constructed using that index
+and that meaning.
+
+By combining \IdrisFunction{out} and \IdrisFunction{layer} we could once
+more define a derived rule and prove e.g. that every tree can be taken
+apart as either a leaf or a node with a pointer to a left subtree, a byte,
+and a pointer to a right subtree i.e. what \IdrisFunction{view} does in
+our library.

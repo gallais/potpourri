@@ -1,0 +1,80 @@
+\section{Meaning as Pointers into a Buffer}\label{sec:pointers}
+
+Now that we know the serialisation format, we can give a meaning
+to constructor and data descriptions as pointers into a buffer.
+%
+For reasons that will become apparent in \Cref{sec:bufferfold}
+when we start programming over serialised data in a correct-by-construction
+manner, our types of `pointers' will be parameterised not only
+by the description of the type of the data stored but also by a
+runtime-irrelevant inductive value of that type.
+%
+For now, it is enough to think of these indices as a lightweight
+version of the `points to' assertions used in separation
+logic~\cite{DBLP:conf/lics/Reynolds02}
+when reasoning about imperative programs.
+%
+We expand on this analogy in \Cref{appendix:hoare} where we
+also discuss the connection with the combinators defined
+in \Cref{sec:poking}.
+
+\subsection{Tracking Buffer Positions}
+
+We start with the definition of the counterpart to \IdrisType{Mu}
+for serialised values.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{pointermu}
+
+A tree sitting in a buffer is represented
+by a record packing the buffer, the position at which the tree's
+root node is stored, and the size of the tree.
+%
+Note that according to our serialisation format the size is not stored
+in the file but using the size of the buffer, the stored offsets,
+and the size of the static data we will always
+be able to compute a value corresponding to it.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{elem}
+
+The counterpart to a \IdrisFunction{Meaning} stores additional information.
+%
+For a description of type (\IdrisType{Desc} \IdrisBound{r} \IdrisBound{s} \IdrisBound{o})
+on top of the buffer, the position at which the root of the meaning resides,
+and the size of the layer we additionally have a vector of \IdrisBound{o} offsets
+that allow us to efficiently access any value we want.
+
+\subsection{Writing a Tree to a File}\label{sec:writetofile}
+
+Once we have a pointer to a tree in a buffer, we can easily write it to a
+file be it for safekeeping or sending over the network.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{writeToFile}
+
+We first start by reading the size of the header stored in the buffer.
+%
+This allows us to compute both the \IdrisBound{start} of the data block
+as well as the size of the buffer (\IdrisBound{bufSize}) that will
+contain the header followed by the tree we want to write to a file.
+%
+We then check whether the position of the pointer is exactly the beginning
+of the data block.
+%
+If it is then we are pointing to the whole tree and the current buffer can
+be written to a file as is.
+%
+Otherwise we are pointing to a subtree and need to separate it from its
+surrounding context first.
+%
+To do so we allocate a new buffer of the right size and use the
+standard library's \IdrisFunction{copyData} primitive to copy the raw bytes
+corresponding to the header first, and the tree of interest second.
+%
+We can then write the buffer we have picked to a file and happily succeed.
+
+
+
+Now that we have pointers and can save the tree they are standing for,
+we are only missing the ability to look at the content they are pointing to.
+%
+But first we need to introduce some basic tools
+to be able to talk precisely about this stored content.

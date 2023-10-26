@@ -1,0 +1,49 @@
+\usepackage{stmaryrd}
+\usepackage{mathtools}
+\usepackage{etoolbox}
+\usepackage{idris2}
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{bytefield}
+
+%\usepackage{fullpage}
+
+\usepackage{todonotes}
+\setuptodonotes{inline}
+
+\usepackage{listings}
+
+\lstset{ %
+  language=C,
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=5pt,
+  breaklines=true,
+  otherkeywords={uint8_t},
+}
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.16, width=\textwidth}
+
+%%%%%%%%%%%%% SUBMISSION PROCESSES
+
+\newtoggle{BLIND}
+\newtoggle{POPL}
+
+\newcommand{\usestt}{\iftoggle{POPL}{\small}{}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\agda}{Agda}
+\newcommand{\idris}{Idris~2}
+\newcommand{\assertTotal}{\IdrisPostulate{assert\KatlaUnderscore{}total}}
+\newcommand{\believeMe}{\IdrisPostulate{believe\KatlaUnderscore{}me}}
+\newcommand{\hexadesc}[1]{\texttt{\usestt\IdrisType{#1}}}
+\newcommand{\hexadata}[1]{\texttt{\usestt\IdrisData{#1}}}
+\newcommand{\hexacons}[1]{\texttt{\usestt\IdrisFunction{#1}}}
+\newcommand{\hexaoffset}[1]{\texttt{\usestt{\color{lightgray}#1}}}
+
+\newenvironment{hexdump}{\usestt\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}

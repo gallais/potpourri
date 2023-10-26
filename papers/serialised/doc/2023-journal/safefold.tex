@@ -1,0 +1,14 @@
+\section{Safe Implementations of fold}
+\label{appendix:safefold}
+
+We include below the alternative definitions of \IdrisFunction{fold}
+(respectively processing inductive data and data stored in a buffer)
+which are seen as total by \idris{}.
+%
+Each of them is mutually defined with what is essentially
+the supercompilation of
+(\IdrisKeyword{\textbackslash} \IdrisBound{d} \IdrisKeyword{=>} \IdrisFunction{fmap} \IdrisBound{d} (\IdrisFunction{fold} \IdrisBound{alg})).
+
+\ExecuteMetaData[SafeFolds.idr.tex]{datafold}
+
+\ExecuteMetaData[SafeFolds.idr.tex]{pointerfold}
