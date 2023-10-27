@@ -2,6 +2,7 @@
 %\usepackage{inconsolata}
 \usepackage{fancyvrb}
 \usepackage[x11names]{xcolor}
+\usepackage{mdframed}
 
 \newtoggle{firstlinestart}
 \newtoggle{linestart}
@@ -87,8 +88,8 @@
 
 
 \newenvironment{code}{%
-    \medskip%
     \noindent%
+    \begin{mdframed}[backgroundcolor=yellow!5, linewidth=0pt]%
     \begin{minipage}{\linewidth}%
     \obeyspaces%
     \ttfamily%
@@ -97,4 +98,6 @@
     \toggletrue{linestart}
 }{%
     \end{minipage}%
+    \end{mdframed}%
+    \smallskip
 }

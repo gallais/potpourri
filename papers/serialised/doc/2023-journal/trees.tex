@@ -24,16 +24,7 @@ endofunctors on \IdrisType{Type} by induction on said descriptions.
 %
 \IdrisFunction{Meaning} gives us the action of the functors on objects.
 
-\iftoggle{POPL}{
-\begin{minipage}[t]{.55\textwidth}
-  \ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
-\end{minipage}
-\begin{minipage}[t]{.4\textwidth}
-  \ExecuteMetaData[Lib.idr.tex]{pair}
-\end{minipage}}
-{
-  \ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
-}
+\ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
 
 Both \IdrisData{None} and \IdrisData{Byte} are interpreted by constant
 functors (respectively the one returning the unit type, and the one returning
@@ -47,7 +38,7 @@ is interpreted as the pairing of the interpretation of
 We use our own definition of pairing rather than the
 standard library's because it gives us better syntactic sugar.
 
-\iftoggle{POPL}{}{\ExecuteMetaData[Lib.idr.tex]{pair}}
+\ExecuteMetaData[Lib.idr.tex]{pair}
 
 This gives us the action of descriptions on types, let us now
 see their action on morphisms.
@@ -106,10 +97,11 @@ We include a successful example on the left and a failing test
 on the right hand side (\IdrisKeyword{failing} blocks are only
 accepted in \idris{} if their body leads to an error).
 
-\begin{minipage}[t]{0.3\textwidth}
+\noindent
+\begin{minipage}[t]{0.35\textwidth}
   \ExecuteMetaData[Serialised/Desc.idr.tex]{indexleaf}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.5\textwidth}
+\begin{minipage}[t]{0.42\textwidth}
 \ExecuteMetaData[Serialised/Desc.idr.tex]{notindexcons}
 \end{minipage}
 
@@ -148,17 +140,13 @@ constructors.
 \idris{}'s type-directed disambiguation of constructors allows us to use
 this uniform notation for all of these pairing notions.
 
-\iftoggle{POPL}{
-  \begin{minipage}[t]{.25\textwidth}
-    \ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
-  \end{minipage}\hfill
-  \begin{minipage}[t]{.65\textwidth}
-    \ExecuteMetaData[Serialised/Desc.idr.tex]{node}
-  \end{minipage}
-}{
+\noindent
+\begin{minipage}[t]{.3\textwidth}
   \ExecuteMetaData[Serialised/Desc.idr.tex]{leaf}
+\end{minipage}\hfill
+\begin{minipage}[t]{.65\textwidth}
   \ExecuteMetaData[Serialised/Desc.idr.tex]{node}
-}
+\end{minipage}
 
 This enables us to define our running example as an inductive value:
 

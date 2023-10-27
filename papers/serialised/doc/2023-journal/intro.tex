@@ -4,12 +4,13 @@ In (typed) functional language we are used to manipulating
 structured data by pattern-matching on it.
 We include an illustrative example below.
 
-\begin{minipage}{.55\textwidth}
+\noindent
+\begin{minipage}{.45\textwidth}
   \begin{center}
     \input{binary-tree}
   \end{center}
-\end{minipage}%
-\begin{minipage}{.45\textwidth}
+\end{minipage}\hfill
+\begin{minipage}{.37\textwidth}
   \begin{center}
     \ExecuteMetaData[Motivating.idr.tex]{motivation}
   \end{center}
@@ -95,11 +96,7 @@ process the serialised data without the need to fully deserialise it.
 Even a naïve port of \IdrisFunction{sum} to C can indeed work
 directly over buffers:
 
-\begin{center}
-  \begin{minipage}{\iftoggle{POPL}{.65}{.7}\textwidth}
-    {\usestt \input{sum-at}}
-  \end{minipage}
-\end{center}
+{\usestt \input{sum-at}}
 
 This function takes a buffer of bytes, and
 a pointer currently indicating the start of a tree
@@ -155,19 +152,7 @@ Forgetting about correctness for now, this can be summed up by the
 the following code snippet in which we compute the sum of the bytes
 stored in our type of binary trees.
 
-%\noindent
-%\begin{minipage}{.4\textwidth}
-%  \ExecuteMetaData[SaferIndexed.idr.tex]{tsum}
-%\end{minipage}
-%\hfill\begin{minipage}{.55\textwidth}
-%  \ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
-%\end{minipage}
-
-\begin{center}
-  \begin{minipage}{.5\textwidth}
-    \ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
-  \end{minipage}
-\end{center}
+\ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
 
 We reserve for later our detailed explanations of the concepts
 used in this snippet
@@ -211,11 +196,7 @@ We will see that we can refine that second definition to obtain
 a correct-by-construction version of
 \IdrisFunction{sum}, with almost exactly the same code.
 
-\begin{center}
-  \begin{minipage}{.7\textwidth}
-    \ExecuteMetaData[SaferIndexed.idr.tex]{csum}
-  \end{minipage}
-\end{center}
+\ExecuteMetaData[SaferIndexed.idr.tex]{csum}
 
 In the above snippet, we can see that the \IdrisType{Pointer.Mu} is indexed
 by a phantom parameter: a runtime irrelevant \IdrisBound{t} which has type
@@ -257,11 +238,7 @@ definition of \IdrisFunction{fold} operating on data stored in a buffer
 whose type declaration can be seen below
 (we will explain how it is defined in \Cref{sec:bufferfold}).
 
-\begin{center}
-  \begin{minipage}{.7\textwidth}
-    \ExecuteMetaData[SaferIndexed.idr.tex]{foldtype}
-  \end{minipage}
-\end{center}
+\ExecuteMetaData[SaferIndexed.idr.tex]{foldtype}
 
 This data-genericity is our third contribution.
 

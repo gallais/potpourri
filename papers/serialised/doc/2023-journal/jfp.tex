@@ -6,7 +6,15 @@
 
 \input{config}
 \togglefalse{BLIND}
-\toggletrue{POPL}
+
+%%%%%%%%% Disabling ligatures for >>=
+%% disable the << and >> ligatures in typewriter type
+
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+
+\DisableLigatures[<,>]{encoding=T1,family=tt*}
+%%%%%%%%%
 
 \begin{document}
 
