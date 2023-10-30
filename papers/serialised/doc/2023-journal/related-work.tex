@@ -55,6 +55,30 @@ of the generically defined views, we ought to be able to achieve --purely in
 user code-- Monnier's vision of a representation where n-ary tuples have
 constant-time access to each of their component.
 
+Baudon, Radanne, and Gonnord~\cite{ACM:conf/icfp/Baudon23} adopted
+a radically different approach to ours: we provide users with a
+uniform representation that requires no setup on their part,
+while \textsc{RIBBIT} instead gives power users absolute freedom
+to define their own data layouts.
+%
+The project provides seamless integration: users annotate their
+data declarations with the data layout they want.
+%
+The programming experience is left unchanged: users write nested
+pattern-matching programs without ever needing to explicitly talk
+about the layout.
+%
+They cover a universe of monomorphic immutable algebraic datatypes
+fairly similar to ours, however the annotations language is expressive
+enough to talk about e.g. principled bit stealing, or word alignment.
+%
+Their approach requires modifying the whole compiler pipeline while
+ours lives purely in userland.
+%
+\todo{Finish description}
+
+\todo{Dargent}
+
 \subsubsection{Working on Serialised Data}
 
 Swierstra and van Geest~\cite{DBLP:conf/icfp/GeestS17}
