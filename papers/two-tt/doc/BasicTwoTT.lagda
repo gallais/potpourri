@@ -66,8 +66,8 @@ infixr 5 _`⇒_
 \begin{code}
 data Type : Stage ph → Set where
   `α    : Type st
-  `⇑_   : Type {src} dyn → Type sta
   _`⇒_  : (A B : Type st) → Type st
+  `⇑_   : Type {src} dyn → Type sta
 
 variable A B C : Type st
 \end{code}

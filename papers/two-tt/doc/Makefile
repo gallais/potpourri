@@ -4,12 +4,13 @@ AGDA_FILES:= \
  BasicTwoTT.lagda \
  TwoTT.lagda \
  MetaCircuit.lagda \
+ RunMetaCircuit.lagda \
  STLC.lagda
 AGDA_OUTPUT:=$(patsubst %.lagda,__build/%.tex,$(AGDA_FILES))
 
 AGDA=agda
 
-PAPER=pepm
+PAPER=slides
 
 all: $(PAPER).pdf
 

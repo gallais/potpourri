@@ -97,8 +97,14 @@ data Term : (ph : Phase) (st : Stage ph) → Type st → Context → Set where
   -- two level
   `⟨_⟩   : ∀[ Term src dyn A ⇒ Term src sta (`⇑ A) ]
   `∼_    : ∀[ Term src sta (`⇑ A) ⇒ Term src dyn A ]
+\end{code}
+%<*runtab>
+\begin{code}
   `run   : ∀[ Term src sta `⟨ i ∣ o ⟩ ⇒ Term src sta (`[ i ] `⇒ `[ o ]) ]
   `tab   : ∀[ Term src sta (`[ i ] `⇒ `[ o ]) ⇒ Term src st `⟨ i ∣ o ⟩ ]
+\end{code}
+%</runtab>
+\begin{code}
   -- booleans
   `true   : ∀[ Term src sta `Bool ]
   `false  : ∀[ Term src sta `Bool ]
