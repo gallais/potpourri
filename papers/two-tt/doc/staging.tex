@@ -1159,6 +1159,24 @@ Prior work on partial evaluation and metaprogramming
 abounds so we will only focus on the very most relevant
 works involving strong types.
 
+\paragraph{Typed Metaprogramming}
+Jang, Gélineau, Monnier, and Pientka's
+Mœbius~\cite{DBLP:journals/pacmpl/JangGMP22} defines
+a type theory with a built in notion of quasiquotations
+that can be used to generate programs in a type-safe
+manner.
+%
+The language lets metaprograms inspect the code fragments
+they are passed as arguments thus allowing e.g. the
+implementation of optimisation passes post-processing the
+result of a prior metaprogram.
+%
+This is extremely powerful, at the cost of a more complex
+underlying theory.
+%
+In Mœbius the meta and object language are essentially the
+same but it does not seem to be a necessary restriction.
+
 \paragraph{Quantum Circuits Generation}
 As already mentioned in \Cref{sec:circuits}, such two level
 systems occur naturally when defining high level languages
@@ -1175,6 +1193,10 @@ explicitly in terms of a two level type theory, effectively
 is one: quotes and splices are called boxing and unboxing,
 and a QWire-inspired partial normalisation procedure
 proven to be semantics-preserving is defined.
+%
+The formal well scoped-and-typed treatment of these languages
+can be built on top of Wood and Atkey's work on linear
+meta-theory~\cite{DBLP:conf/esop/WoodA22}.
 
 \paragraph{SMT Constraints Generation}
 In their work on compiling higher order specifications to SMT
@@ -1194,24 +1216,6 @@ correctness: the generated formula is proven to be logically
 equivalent to the high level specification.
 %
 This is an obvious avenue for future work on our part.
-
-\paragraph{Typed Metaprogramming}
-Jang, Gélineau, Monnier, and Pientka's
-Mœbius~\cite{DBLP:journals/pacmpl/JangGMP22} defines
-a type theory with a built in notion of quasiquotations
-that can be used to generate programs in a type-safe
-manner.
-%
-The language lets metaprograms inspect the code fragments
-they are passed as arguments thus allowing e.g. the
-implementation of optimisation passes post-processing the
-result of a prior metaprogram.
-%
-This is extremely powerful, at the cost of a more complex
-underlying theory.
-%
-In Mœbius the meta and object language are essentially the
-same but it does not seem to be a necessary restriction.
 
 \section{Future Work}
 
