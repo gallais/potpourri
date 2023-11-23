@@ -117,9 +117,9 @@ data Term : (ph : Phase) (st : Stage ph) → Type st → Context → Set where
 %</termcircuitpar>
 %<*termcircuitseq>
 \begin{code}
-  `seq   : ∀[  Term ph dyn `⟨ i  ∣ m  ⟩ ⇒
-               Term ph dyn `⟨ m  ∣ o  ⟩ ⇒
-               Term ph dyn `⟨ i  ∣ o  ⟩ ]
+  `seq   : ∀[  Term ph dyn `⟨ i  ∣  m       ⟩ ⇒
+               Term ph dyn `⟨       m  ∣ o  ⟩ ⇒
+               Term ph dyn `⟨ i        ∣ o  ⟩ ]
 \end{code}
 %</termcircuitseq>
 %<*termcircuitmix>

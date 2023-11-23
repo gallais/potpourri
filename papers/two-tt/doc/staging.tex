@@ -317,7 +317,7 @@ target contexts and so we use \AIC{keep} to mark it as retained.
 
 Using these results, we can define function composition
 as a pseudo constructor: provided $g$ and $f$, we form
-$λx.g\,(f\, x)$ i.e. we use $g$ and $f$ in a context extended
+$λx.g\,\left(f\, x\right)$ i.e. we use $g$ and $f$ in a context extended
 with $x$ hence the need for weakening.
 
 \label{def:composition}
@@ -465,7 +465,7 @@ The evaluation function maps terms to values provided that
 an environment assigns a value to every free variable in scope.
 It is defined by induction on the term and maps every construct
 to its semantical counterpart: variables become environment lookups,
-application become Kripke applications, and λ-abstractions become
+applications become Kripke applications, and λ-abstractions become
 Kripke functions.
 
 \begin{AgdaSuppressSpace}
@@ -485,8 +485,8 @@ a simply typed λ-calculus with explicit
 substitutions~\cite{DBLP:journals/lisp/Coquand02}.
 
 Now that we have seen how to define a small well scoped-and-typed
-language and construct an evaluation function by performing a model
-construction, we can start looking at a extending it to two level
+language and implement an evaluation function by performing a model
+construction, we can start looking at a extending it to a two level
 language.
 
 \section{Minimal Intrinsically Typed Two Level Type Theory}
@@ -518,8 +518,8 @@ fully reduced but the call to the dynamic one has been preserved.
 \subsection{Phases, Stages, and Types}
 
 We start by defining a sum type of phases denoting whether
-we are currently writing \AIC{src} code or inspecting
-\AIC{stg} code that has already been partially evaluated.
+we are currently writing source (\AIC{src}) code or inspecting
+staged (\AIC{stg}) code that has already been partially evaluated.
 
 \ExecuteMetaData[BasicTwoTT.tex]{phase}
 
@@ -923,7 +923,7 @@ We have function spaces (this time confined to the static
 layer), a lifting construct allowing the embedding of
 dynamic types in the static layer at the source stage,
 and finally a type of circuits
-\AIC{⟨}~\AB{i}~\AIC{∣}~\AB{o}~\AIC{⟩} characterised by
+\AIC{`⟨}~\AB{i}~\AIC{∣}~\AB{o}~\AIC{⟩} characterised by
 their input (\AB{i}) and output (\AB{o}) arities,
 each represented by a natural number in the host language.
 
