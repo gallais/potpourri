@@ -44,7 +44,7 @@ variable I J : Set
 %<*forall>
 \begin{code}
 ∀[_] : (I → Set) → Set
-∀[ P ] = ∀ {i} → P i
+∀[ F ] = ∀ {i} → F i
 \end{code}
 %</forall>
 \begin{code}
@@ -54,7 +54,7 @@ infixl 5 _⊢_
 %<*update>
 \begin{code}
 _⊢_ : (I → J) → (J → Set) → (I → Set)
-(f ⊢ P) i = P (f i)
+(f ⊢ F) i = F (f i)
 \end{code}
 %</update>
 \begin{code}
@@ -63,8 +63,8 @@ infixr 3 _⇒_
 \end{code}
 %<*arrow>
 \begin{code}
-_⇒_ : (P Q : I → Set) → (I → Set)
-(P ⇒ Q) i = P i → Q i
+_⇒_ : (F G : I → Set) → (I → Set)
+(F ⇒ G) i = F i → G i
 \end{code}
 %</arrow>
 \begin{code}
@@ -73,8 +73,8 @@ infixr 4 _∩_
 \end{code}
 %<*product>
 \begin{code}
-_∩_ : (P Q : I → Set) → (I → Set)
-(P ∩ Q) i = P i × Q i
+_∩_ : (F G : I → Set) → (I → Set)
+(F ∩ G) i = F i × G i
 \end{code}
 %</product>
 \begin{code}
@@ -241,9 +241,9 @@ g `∘ f  =  let Γ≤Γ,A = drop ≤-refl in
 \end{code}
 %<*box>
 \begin{code}
-record □ (A : Context → Set) (Γ : Context) : Set where
+record □ (P : Context → Set) (Γ : Context) : Set where
   constructor mk□
-  field run□ : ∀[ (Γ ≤_) ⇒ A ]
+  field run□ : ∀[ (Γ ≤_) ⇒ P ]
 \end{code}
 %</box>
 \begin{code}
