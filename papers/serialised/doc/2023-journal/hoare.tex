@@ -4,7 +4,8 @@ Some readers may feel uneasy about the fact that parts of our
 library are implemented using \idris{} escape hatches.
 %
 This section justifies this practice by drawing an analogy to
-separation logic and highlighting that this practice corresponds
+separation logic~\cite{DBLP:journals/cacm/OHearn19,DBLP:books/hal/Chargueraud23,MANUAL:book/sfoundations/Chargueraud23}
+and highlighting that this practice corresponds
 to giving an axiomatisation of the runtime behaviour of our
 library's core functions.
 
@@ -70,6 +71,16 @@ This dual status of the basic building blocks being both
 executable programs \emph{and} an axiomatic specification
 of their respective behaviour is precisely why their
 implementations in \idris{} necessarily uses unsafe features.
+
+Our pointers are not simply referring to raw memory locations
+that contain unstructured words, they come with a strong invariant
+about the underlying data that is stored.
+In that sense, they are closer to representation
+predicates~\cite{MANUAL:book/sfoundations/Chargueraud23}.
+
+Our pointers are not just referring to memory locations containing
+words but rather typed
+pointers to complex data structures.
 
 We are going to write \Pointer{\ell}{\Meaning{d}{cs}}{t} for the assumption
 that we own a pointer $\ell$ of type
