@@ -156,9 +156,22 @@ $\alpha$-equivalence instead of the default one, he was able to
 serialise large lambda terms using only
 a quarter of the bytes OCaml's standard library marshaller.
 
-\subsection{Type Theory for Data Layout}
+\subsubsection{Type Theory for Data Layout}
 
-
-
-\todo{Add content}
-\citep{DBLP:conf/popl/PetersenHCP03}
+Petersen, Robert, Crary, and Pfenning~\citeyearpar{DBLP:conf/popl/PetersenHCP03}
+design an elegant type theory based on ordered linear logic
+in which users can carefully control their data's memory
+layout.
+%
+This logic-based approach supports the explicit reservation,
+initialisation, and allocation of new memory locations all
+without needing to explicitly talk about an underlying
+heap-based memory model.
+%
+This is however only possible by requiring implementors to
+write a dedicated language implementation while our definitions
+live purely in client code, defining an embedded domain
+specific language as a library.
+%
+Lastly, their language provides no support for internally
+proving the properties of the programs one defines.
