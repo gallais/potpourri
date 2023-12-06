@@ -4,7 +4,7 @@ Some readers may feel uneasy about the fact that parts of our
 library are implemented using \idris{} escape hatches.
 %
 This section justifies this practice by drawing an analogy to
-separation logic~\cite{DBLP:journals/cacm/OHearn19,DBLP:books/hal/Chargueraud23,MANUAL:book/sfoundations/Chargueraud23}
+separation logic~\citep{DBLP:journals/cacm/OHearn19,DBLP:books/hal/Chargueraud23,MANUAL:book/sfoundations/Chargueraud23}
 and highlighting that this practice corresponds
 to giving an axiomatisation of the runtime behaviour of our
 library's core functions.
@@ -16,13 +16,13 @@ library's core functions.
 
 \subsection{Interlude: Separation Logic}
 
-A Hoare triple~\cite{DBLP:journals/cacm/Hoare69} of the form
+A Hoare triple~\citep{DBLP:journals/cacm/Hoare69} of the form
 \[ \Hoare{P}{e}{v}{Q} \]
 states that under the precondition
 $P$, and binding the result of evaluating the expression $e$ as $v$,
 we can prove that $Q$ holds.
 %
-One of the basic predicates of separation logic~\cite{DBLP:conf/lics/Reynolds02}
+One of the basic predicates of separation logic~\citep{DBLP:conf/lics/Reynolds02}
 is a `points to' assertion (\Pointer{\ell}{}{t}) stating that
 the label $\ell$ points to a memory location containing $t$.
 
@@ -57,7 +57,7 @@ effectful operation that will read the memory cell's content.
 
 We are going to explain that we can see our library as a small
 embedded Domain Specific
-Language (eDSL)~\cite{DBLP:journals/csur/Hudak96}
+Language (eDSL)~\citep{DBLP:journals/csur/Hudak96}
 that has \IdrisFunction{poke} and \IdrisFunction{out} as
 sole language constructs.
 %
@@ -76,7 +76,7 @@ Our pointers are not simply referring to raw memory locations
 that contain unstructured words, they come with a strong invariant
 about the underlying data that is stored.
 In that sense, they are closer to representation
-predicates~\cite{MANUAL:book/sfoundations/Chargueraud23}.
+predicates~\citep{MANUAL:book/sfoundations/Chargueraud23}.
 
 Our pointers are not just referring to memory locations containing
 words but rather typed

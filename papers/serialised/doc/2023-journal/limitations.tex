@@ -31,7 +31,7 @@ This opens up the opportunity for bugs if, say, we write a server in
 different descriptions in the projects.
 %
 This could be solved at the language level by equipping our dependently typed
-languages with type providers like Idris~1 had~\cite{DBLP:conf/icfp/Christiansen13}.
+languages with type providers like Idris~1 had~\citep{DBLP:conf/icfp/Christiansen13}.
 %
 This way the format could be loaded at compile time from the same file thus
 ensuring all the components are referring to the exact same specification.
@@ -55,7 +55,7 @@ the generic programs much more error prone.
 %
 A more principled approach would be to extend \idris{} with a proper
 treatment of staging e.g. by using a two-level type theory as suggested
-by Kov{\'{a}}cs~\cite{DBLP:journals/pacmpl/Kovacs22}.
+by Kov{\'{a}}cs~\citep{DBLP:journals/pacmpl/Kovacs22}.
 
 Our serialisation format has been designed to avoid pointer-chasing and
 thus ensures entire subtrees can be easily copied by using the raw bytes.
@@ -67,7 +67,7 @@ easily pick between different serialisation formats so that the library
 ends up using the one that suits their application best.
 %
 To this end, we could take inspiration from Yallop's
-definition of preprocessors generating serialisers~\cite{DBLP:conf/ml/Yallop07}.
+definition of preprocessors generating serialisers~\citep{DBLP:conf/ml/Yallop07}.
 It maintains an object map containing the already serialised nodes and uses it
 to maximally detect sharing and maintain it both when serialising and deserialising.
 
@@ -79,7 +79,7 @@ implementation.
 %
 Converting a fold to a tail recursive function in a generic manner
 is a well studied problem and the existing
-solutions~\cite{DBLP:conf/popl/McBride08,DBLP:conf/icfp/CortinasS18}
+solutions~\citep{DBLP:conf/popl/McBride08,DBLP:conf/icfp/CortinasS18}
 should be fairly straightforward, if time-consuming, to port to our setting.
 
 \subsubsection{A More Expressive Universe of Descriptions}
@@ -97,32 +97,32 @@ The storage of values smaller than a byte (here \IdrisType{Bool}) naturally
 raises the question of bit packing: why store eight booleans as eight bytes
 when they could fit in a single one?
 %
-\iftoggle{BLIND}{Allais'}{Our} recent work~\cite{DBLP:conf/esop/Allais23}
+\iftoggle{BLIND}{Allais'}{Our} recent work~\citep{DBLP:conf/esop/Allais23}
 on the efficient runtime representation of inductive families as values
 of \idris{}'s primitive types points us in the direction of a solution.
 
 A natural next candidate is a universe allowing the definition of parametrised
-types~\cite{DBLP:conf/icfp/LohM11}: we should be able to implement functions over arbitrary
+types~\citep{DBLP:conf/icfp/LohM11}: we should be able to implement functions over arbitrary
 (\IdrisType{List} \IdrisBound{a}) values stored in a buffer,
 provided that we know that \IdrisBound{a} is serialisable.
 %
-This was already an explicit need in ASN.1~\cite{MANUAL:book/larmouth1999},
+This was already an explicit need in ASN.1~\citep{MANUAL:book/larmouth1999},
 reflecting that protocols often leave `holes' where the content of
 the protocol's higher layer is to be inserted.
 
 Next, we will want to consider a universe of indexed data:
 we can currently natively model algebraic datatypes such as lists or trees,
 we can use the host language to compute the description of vectors by induction on their length,
-but we cannot model arbitrary type families~\cite{DBLP:journals/fac/Dybjer94}
+but we cannot model arbitrary type families~\citep{DBLP:journals/fac/Dybjer94}
 e.g. correct-by-construction red-black trees.
 
 Last but not least we may want to have a universe of descriptions closed
-under least fixpoints~\cite{DBLP:phd/ethos/Morris07}
+under least fixpoints~\citep{DBLP:phd/ethos/Morris07}
 in order to represent rose trees for instance.
 
 \subsubsection{A More Expressive Library}
 
-Using McBride's generalisation of one hole contexts~\cite{DBLP:conf/popl/McBride08}
+Using McBride's generalisation of one hole contexts~\citep{DBLP:conf/popl/McBride08}
 we ought to be able to give a more precise type to the combinator
 \IdrisFunction{(\#)} used to build serialisation processes.
 %
@@ -141,13 +141,13 @@ linear quantity annotation to provide users with serialised value that
 can be safely updated in place.
 %
 This would turn our ongoing metaphor involving
-Hoare triples~\cite{DBLP:journals/cacm/Hoare69},
+Hoare triples~\citep{DBLP:journals/cacm/Hoare69},
 heap pointers,
-and separation logic~\cite{DBLP:conf/lics/Reynolds02}
+and separation logic~\citep{DBLP:conf/lics/Reynolds02}
 into a bona fide shallow embedding.
 %
 Poulsen, Rouvoet, Tolmach, Krebbers, and Visser's
-pioneering work~\cite{DBLP:journals/pacmpl/PoulsenRTKV18,DBLP:phd/basesearch/Rouvoet21}
+pioneering work~\citep{DBLP:journals/pacmpl/PoulsenRTKV18,DBLP:phd/basesearch/Rouvoet21}
 on definitional interpreters for languages with references
 and the use of a shallowly embedded separation logic to
 minimise bookkeeping give us a clear set of techniques

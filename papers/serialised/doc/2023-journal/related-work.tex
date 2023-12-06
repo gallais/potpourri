@@ -13,26 +13,26 @@ at the intersection of all of these strands of research.
 \subsubsection{Data-Generic Programming}
 
 There is a long tradition of data-generic
-programming~\cite{DBLP:conf/ssdgp/Gibbons06} and we will mostly focus here
+programming~\citep{DBLP:conf/ssdgp/Gibbons06} and we will mostly focus here
 on the approach based on the careful reification of a precise universe of
 discourse as an inductive family in a host type theory,
 and the definition of generic programs by induction over this family.
 
 One early such instance is Pfeifer and Rue{\ss}'
-`polytypic proof construction'~\cite{DBLP:conf/tphol/PfeiferR99}
+`polytypic proof construction'~\citep{DBLP:conf/tphol/PfeiferR99}
 meant to replace unsafe meta-programs deriving recursors
 (be they built-in support, or user-written tactics).
 
 %\todo{See refs. in n-ary polymorphic functions}
 
-In his PhD thesis, Morris~\cite{DBLP:phd/ethos/Morris07} declares various
+In his PhD thesis, Morris~\citep{DBLP:phd/ethos/Morris07} declares various
 universes for strictly positive types and families and defines by generic
 programming
 further types (the type of one-hole contexts),
 modalities (the universal and existential predicate lifting over the functors he considers),
 and functions (map, boolean equality).
 
-L{\"{o}}h and Magalh{\~{a}}es~\cite{DBLP:conf/icfp/LohM11} define a more
+L{\"{o}}h and Magalh{\~{a}}es~\citep{DBLP:conf/icfp/LohM11} define a more
 expressive universe over indexed functors that is closed under composition
 and fixpoints.
 %
@@ -46,7 +46,7 @@ candidate universe for us to use to extend our library.
 \subsubsection{Efficient Runtime Representation of Inductive Values}
 
 Although not dealing explicitly with programming over serialised data,
-Monnier's work~\cite{DBLP:conf/icfp/Monnier19} with its focus on performance and
+Monnier's work~\citep{DBLP:conf/icfp/Monnier19} with its focus on performance and
 in particular on the layout of inductive values at runtime,
 partially motivated our endeavour.
 %
@@ -55,7 +55,7 @@ of the generically defined views, we ought to be able to achieve --purely in
 user code-- Monnier's vision of a representation where n-ary tuples have
 constant-time access to each of their component.
 
-Baudon, Radanne, and Gonnord~\cite{ACM:conf/icfp/Baudon23} adopted
+Baudon, Radanne, and Gonnord~\citep{ACM:conf/icfp/Baudon23} adopted
 a radically different approach to ours: we provide users with a
 uniform representation that requires no setup on their part,
 while \textsc{RIBBIT} instead gives power users absolute freedom
@@ -81,7 +81,7 @@ ours lives purely in userland.
 
 \subsubsection{Working on Serialised Data}
 
-Swierstra and van Geest~\cite{DBLP:conf/icfp/GeestS17}
+Swierstra and van Geest~\citep{DBLP:conf/icfp/GeestS17}
 define in \agda{} a rich universe of data descriptions
 and generically implement serialising and deserialising,
 proving that the latter is a left inverse to the former.
@@ -98,7 +98,7 @@ to avoid the need to fully deserialise the data in order
 to process it.
 
 
-LoCal~\cite{DBLP:conf/pldi/VollmerKRS0N19} is the work that originally
+LoCal~\citep{DBLP:conf/pldi/VollmerKRS0N19} is the work that originally
 motivated the design of this library.
 %
 We have demonstrated that generic programming within a dependently typed
@@ -107,7 +107,7 @@ by inventing entirely new intermediate languages and compilation schemes.
 
 LoCal was improved upon with a re-thinking of the serialisation scheme
 making the approach compatible with parallel
-programming~\cite{DBLP:journals/pacmpl/KoparkarRVKN21}.
+programming~\citep{DBLP:journals/pacmpl/KoparkarRVKN21}.
 This impressive improvement is a natural candidate for future work on our
 part: the authors demonstrate it is possible to reap the benefits of
 both programming over serialised data
@@ -116,7 +116,7 @@ with almost no additional cost in the case of a purely sequential execution.
 
 \subsubsection{Serialisation Formats}
 
-The PADS project~\cite{DBLP:conf/popl/MandelbaumFWFG07} aims to let users
+The PADS project~\citep{DBLP:conf/popl/MandelbaumFWFG07} aims to let users
 quickly, correctly, and compositionally describe existing formats they
 have no control over.
 %
@@ -132,7 +132,7 @@ But our approach to defining correct-by-construction components could
 be leveraged in that setting too and bring users strong guarantees about
 the traversals they write.
 
-ASN.1~\cite{MANUAL:book/larmouth1999} gives users the ability to define
+ASN.1~\citep{MANUAL:book/larmouth1999} gives users the ability to define
 a high-level specification of the exchange format (the `abstract syntax')
 to be used in communications without the need to concern themselves with
 the actual encoding as bit patterns (the `transfer syntax').
@@ -147,7 +147,7 @@ correct-by-construction manner over the values thus represented.
 
 
 Yallop's automatic derivation of serialisers using an OCaml
-preprocessor~\cite{DBLP:conf/ml/Yallop07} highlights the importance
+preprocessor~\citep{DBLP:conf/ml/Yallop07} highlights the importance
 of empowering domain experts to take advantage of the specifics of
 the problem they are solving to minimise the size of the encoded data.
 %
@@ -158,5 +158,7 @@ a quarter of the bytes OCaml's standard library marshaller.
 
 \subsection{Type Theory for Data Layout}
 
+
+
 \todo{Add content}
-\cite{DBLP:conf/popl/PetersenHCP03}
+\citep{DBLP:conf/popl/PetersenHCP03}

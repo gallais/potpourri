@@ -5,7 +5,7 @@ We first need to pin down the domain of our discourse.
 To talk generically about an entire class of datatypes
 without needing to modify the host language
 we have decided to perform a universe
-construction~\cite{benke-ugpp, DBLP:phd/ethos/Morris07, DBLP:conf/icfp/LohM11}.
+construction~\citep{benke-ugpp, DBLP:phd/ethos/Morris07, DBLP:conf/icfp/LohM11}.
 %
 That is to say that we are going to introduce an inductive type
 defining a set of codes together
@@ -14,10 +14,10 @@ host-language types.
 %
 We will then be able to program generically over the universe of
 datatypes by performing induction on the type of
-codes~\cite{DBLP:conf/tphol/PfeiferR99}.
+codes~\citep{DBLP:conf/tphol/PfeiferR99}.
 
 The universe we define is in the tradition of
-a sums-of-products vision of inductive types~\cite{DBLP:conf/popl/JanssonJ97}
+a sums-of-products vision of inductive types~\citep{DBLP:conf/popl/JanssonJ97}
 where the data description records additional information about
 the static and dynamic size of the data being stored.
 %
