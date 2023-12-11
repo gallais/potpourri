@@ -38,7 +38,7 @@ We obtain these staging operations by performing type-directed
 model constructions reminiscent of the ones used for normalisation
 by evaluation, hence the title of this paper.
 
-This culminates in a system that takes seriously Kov{\'{a}}cs'
+We then build a system that takes seriously Kov{\'{a}}cs'
 remark that the static and dynamic layers do not need to have
 exactly the same features. Its static layer is a higher order
 functional language while the dynamic one corresponds to
@@ -164,7 +164,8 @@ context-passing.
 
 \subsection{Intrinsically Typed Variables}
 
-Our first inductive family~\cite{DBLP:journals/fac/Dybjer94} \AD{Var} formalises
+Our first inductive family~\cite{DBLP:journals/fac/Dybjer94}
+is called \AD{Var} and formalises
 what it means for a variable of type \AB{A} to be present in context \AB{Γ}.
 It is indexed over said type and context.
 We present it side by side
@@ -328,8 +329,9 @@ with $x$ hence the need for weakening.
   space-free string of unicode characters is considered a
   single identifier.
   Correspondingly, in the example above \AB{Γ≤Γ,A} is a single
-  identifier named like this to document for the human reader
-  what its type looks like.
+  identifier whose named is meant to document for the human reader
+  what its type looks like: the embedding of a context \AB{Γ} into
+  its extension by a single free variable of type \AB{A}.
 \end{remark}
 
 \subsection{Normalisation by Evaluation}
@@ -350,7 +352,7 @@ As a consequence one of the central concepts is closure under future
 worlds, here context extensions.
 This idea is captured by the definition of the \AR{□} record: we
 can inhabit (\AR{□} \AB{P} \AB{Γ}) whenever for any extension
-\AB{Δ} of \AB{Γ} we are able to construct an (\AB{P} \AB{Δ}).
+\AB{Δ} of \AB{Γ} we are able to construct a proof of (\AB{P} \AB{Δ}).
 
 \ExecuteMetaData[STLC.tex]{box}
 
@@ -368,13 +370,16 @@ the fact that the embedding relation is a preorder.
 \begin{remark}[Copattern matching]
 The definition of \AF{duplicate} proceeds by
 copattern-matching~\cite{DBLP:conf/popl/AbelPTS13}.
-This allows us to define values of a record type
-(here \AR{□}) by defining the result of taking
-each of its projections (here the unique \ARF{run□} one).
-In this instance it is particularly useful because we have
-a type involving nested records and each projection takes
-additional arguments: an (implicit) context and a weakening
-into that context.
+This allows us to define values of a record type by defining
+the result of taking each of its projections.
+
+In this instance it is particularly useful because the
+definition's type involves nested \AR{□} records and
+the type of \AR{□}'s projection (\ARF{run□}) is itself
+a function type taking an (implicit) context and a
+weakening into that context.
+This notation allows us to alternate entering the record
+and binding extra arguments such as \AB{σ}.
 \end{remark}
 
 Kripke function spaces then correspond to functions inside a box,
@@ -757,7 +762,7 @@ and \AF{`add} is a dynamic addition function.
 Note that the dynamic call to addition was not evaluated
 away during staging.
 
-\subsection{Adding natural numbers}
+\subsection{Adding Natural Numbers}
 
 Our first extension adds the inductive type of Peano-style natural numbers,
 its two constructors, and the appropriate eliminator for it.
@@ -836,7 +841,7 @@ Let us now look at an example of the fact, highlighted in
 Kov{\'{a}}cs' original paper, that static datatypes do not
 need to have a counterpart at runtime.
 
-\subsection{Adding static pairs}\label{sec:stagingmodelprod}
+\subsection{Adding Static Pairs}\label{sec:stagingmodelprod}
 
 We now want to add pairs that are only available in the static
 layer and ensure that all traces of pairs and their projections
@@ -1159,14 +1164,48 @@ Prior work on partial evaluation and metaprogramming
 abounds so we will only focus on the very most relevant
 works involving strong types.
 
-\paragraph{Typed Metaprogramming}
+\subsection{Partial Evaluation as Code Generation}
+
+Using partial evaluation as a code generation strategy
+is not new. Despite not being stated in two-level terms,
+Scholz~\cite{DBLP:conf/pepm/Scholz14} for instance
+describes the extensive use of partial evaluation backed
+by a multi-level type system in a single assignment C
+compiler as a way to generate efficient code.
+%
+Instead of relying on expensive static analysis of e.g.
+the array shapes that are statically known to generate
+highly specialised code, they produce the most generic
+code and then use a powerful type-directed partial
+evaluation pass to residualise it.
+%
+This has the additional benefit of subsuming other
+compiler passes such as constant folding.
+
+\subsection{Typed Metaprogramming}
+
+Carette and Kiselyov~\cite{DBLP:journals/scp/CaretteK11}
+use the many Gaussian Elimination variants as a case study
+in hygienic, well typed, modular, and performant multi-stage
+programming in MetaOCaml.
+%
+They underline that MetaOCaml is purely generative i.e.
+that the staged code cannot be inspected during staging
+itself.
+%
+In contrast, and as we explain in the future works
+(\Cref{sec:computrel}), the two-level setup is not
+intrinsically tied to computationally irrelevant quotes
+and splices.
+
 Jang, Gélineau, Monnier, and Pientka's
 Mœbius~\cite{DBLP:journals/pacmpl/JangGMP22} defines
 a type theory with a built in notion of quasiquotations
 that can be used to generate programs in a type-safe
 manner.
 %
-The language lets metaprograms inspect the code fragments
+Unlike MetaOCaml, this language lets metaprograms
+inspect the code fragments
 they are passed as arguments thus allowing e.g. the
 implementation of optimisation passes post-processing the
 result of a prior metaprogram.
@@ -1177,7 +1216,7 @@ underlying theory.
 In Mœbius the meta and object language are essentially the
 same but it does not seem to be a necessary restriction.
 
-\paragraph{Quantum Circuits Generation}
+\subsection{Quantum Circuits Generation}
 As already mentioned in \Cref{sec:circuits}, such two level
 systems occur naturally when defining high level languages
 for (quantum) circuit descriptions.
@@ -1198,7 +1237,7 @@ The formal well scoped-and-typed treatment of these languages
 can be built on top of Wood and Atkey's work on linear
 meta-theory~\cite{DBLP:conf/esop/WoodA22}.
 
-\paragraph{SMT Constraints Generation}
+\subsection{SMT Constraints Generation}
 In their work on compiling higher order specifications to SMT
 constraints~\cite{DBLP:conf/cpp/DaggittAKKA23},
 Daggit, Atkey, Kokke, Komendantskaya, and Arnaboldi
@@ -1219,7 +1258,7 @@ This is an obvious avenue for future work on our part.
 
 \section{Future Work}
 
-\paragraph{Soundness and Completeness}
+\subsection{Soundness and Completeness}
 We focused here on the intrinsically typed language description,
 the corresponding model construction, and the acquisition of a
 staging-by-evaluation function as a corollary.
@@ -1230,7 +1269,34 @@ additionally introduce the appropriate logical relations to
 prove that this process is sound and complete with respect
 to a small step semantics for the static layer.
 
-\paragraph{Dependently Typed Circuit Description Language}
+\subsection{Computationally Relevant Quotes and Splices}\label{sec:computrel}
+In all of the examples we have seen, the interpretation of
+quotes and splices in the model is the identity function.
+This is not however a necessary constraint and we could
+imagine definitions of analogues to quotes and splices
+with interesting metaprogramming uses.
+%
+We have for instance a proof of concept extending our circuit
+language with vectors of booleans (\AIC{`[} \AB{i} \AIC{]} stands
+for a vector of size \AB{i}) and two additional primitives
+\AIC{`run} and \AIC{`tab} converting between circuits and static
+functions over vectors.
+%
+They have the following types and are interpreted in the model
+by symbolically evaluating the circuit for \AIC{`run}, and
+tabulating the function for \AIC{`tab}.
+
+\ExecuteMetaData[RunMetaCircuit.tex]{runtab}
+
+The circuits generated by partial evaluation are currently
+unoptimised but this demonstrates the feasibility of adding
+constructs mediating between the type theory's two levels
+which have a non-trivial semantics.
+%
+We want to identify more opportunities for such computationally
+relevant analogues to quotes and splices.
+
+\subsection{Dependently Typed Circuit Description Language}
 Our undergraduates are already being taught digital logic
 using a functional-style circuit description language.
 Extending it with a dependently typed meta-programming
@@ -1238,11 +1304,11 @@ layer would allow them to structure their understanding
 of the generic construction of arithmetic circuits for
 arbitrarily large inputs.
 
-\paragraph{Generic Two Level Construction}
+\subsection{Generic Two Level Construction}
 Even though we have seen that having two wildly different
 language layers can be extremely useful, a two-level
 construction with exactly the same features is still very
-useful: it lets programmers use their language of choice
+interesting: it lets programmers use their language of choice
 as its own metaprogramming facilities.
 %
 Correspondingly, giving a generic treatment of the construction
