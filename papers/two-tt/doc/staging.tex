@@ -825,7 +825,7 @@ terms of the \AF{iterate} function defined by pattern-matching
 in the host language and turning a natural number into its
 Church encoding. Note that we need to use \AF{wkKripke} to
 bring the \AB{succ} argument into the wider scope the \AB{zero}
-one lives int.
+one lives in.
 
 \ExecuteMetaData[TwoTT.tex]{iter}
 
@@ -851,7 +851,7 @@ will have completely disappeared after staging.
 
 We first extend the inductive definition of object types
 with a new construct for pair types. It is explicitly
-marked as \AIC{sta} only.
+marked as static (\AIC{sta}) only.
 
 \ExecuteMetaData[TwoTT.tex]{typesprod}
 
@@ -1173,8 +1173,8 @@ describes the extensive use of partial evaluation backed
 by a multi-level type system in a single assignment C
 compiler as a way to generate efficient code.
 %
-Instead of relying on expensive static analysis of e.g.
-the array shapes that are statically known to generate
+Instead of relying on expensive static analysis (of e.g.
+the array shapes that are statically known) to generate
 highly specialised code, they produce the most generic
 code and then use a powerful type-directed partial
 evaluation pass to residualise it.
