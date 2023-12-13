@@ -172,14 +172,21 @@ without needing to explicitly talk about an underlying
 heap-based memory model.
 %
 Their language's intended semantics shares our economic flat
-structure: components of a pair are stored contiguously,
-and values of the unit type are absent at runtime.
-They do not however offer support for inductive datatypes,
-let alone dynamic offset-based access to subtrees.
+structure but only for non-recursive data: components of a
+pair are stored contiguously, and values of the unit type are
+absent at runtime.
+%
+In their extended technical report~\citeyearpar{MANUAL:report/cmu/PetersenHCP03}
+they describe support for sum types, both tagged and untagged
+(through an internalised notion of distinguishable types).
+They also describe a simple scheme to support iso-recursive types
+by giving up on a flat memory representation and insisting that
+every node is behind a pointer indirection.
 %
 Their appproach requires a dedicated language implementation
 while our definitions live purely in client code, defining
 an embedded domain specific language as a library.
 %
-Lastly, their language provides no support for internally
-proving the properties of the programs one defines.
+They support destructive memory updates but do not offer any
+support for internally proving the properties of the programs
+one defines.
