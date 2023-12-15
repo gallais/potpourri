@@ -31,6 +31,17 @@ fmapId Byte f eq t = Refl
 fmapId (Prod d e) f eq (t # u) = cong2 (#) (fmapId d f eq t) (fmapId e f eq u)
 fmapId Rec f eq t = eq t
 
+export
+fmapCompose :
+  (d : Desc{}) -> (g : b -> c) -> (f : a -> b) -> (gf : a -> c) ->
+  ((x : a) -> g (f x) === gf x) ->
+  (t : Meaning d a) -> fmap d g (fmap d f t) === fmap d gf t
+fmapCompose None g f gf eq t = Refl
+fmapCompose Byte g f gf eq t = Refl
+fmapCompose (Prod d e) g f gf eq (t # u)
+  = cong2 (#) (fmapCompose d g f gf eq t) (fmapCompose e g f gf eq u)
+fmapCompose Rec g f gf eq t = eq t
+
 public export
 traverse : Monad m => (d : Desc{}) ->
            (a -> m b) -> Meaning d a -> m (Meaning d b)

@@ -4,7 +4,7 @@ We now see descriptions as functors and, correspondingly,
 datatypes as the initial objects of the associated functor-algebras.
 %
 This is a standard construction derived from Malcolm's
-work~\citep{DBLP:journals/scp/Malcolm90},
+work~\citeyearpar{DBLP:journals/scp/Malcolm90},
 itself building on Hagino's categorically-inspired
 definition of a lambda calculus
 with a generic notion of datatypes~\citep{DBLP:conf/ctcs/Hagino87}.
@@ -25,6 +25,17 @@ endofunctors on \IdrisType{Type} by induction on said descriptions.
 \IdrisFunction{Meaning} gives us the action of the functors on objects.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
+
+In the above code snippet, all of \IdrisBound{r}, \IdrisBound{s},
+and \IdrisBound{o} are implicitly universally quantified.
+
+\begin{remark}[Implicit Prenex Polymorphism]\label{rmk:prenexpoly}
+  Lowercase names that are seemingly unbound are automatically
+  quantified over in a prenex manner reminiscent of other functional
+  languages like OCaml or Haskell.
+  These variables are bound at quantity 0, meaning that they will
+  be automatically erased during compilation.
+\end{remark}
 
 Both \IdrisData{None} and \IdrisData{Byte} are interpreted by constant
 functors (respectively the one returning the unit type, and the one returning
@@ -49,8 +60,10 @@ We once again proceed by induction on the description.
 
 All cases but the one for \IdrisData{Rec} are structural.
 %
-Verifying that these definitions respect the functor laws is left as
-an exercise for the reader.
+We leave out the proofs verifying that these definitions
+respect the functor laws up to pointwise equality.
+They are included in the supplementary material
+(\suppfile{Data.Serialisable.Data}).
 
 \subsection{Data as Trees}
 
@@ -71,31 +84,60 @@ the description corresponding to a given index,
 we use this to our advantage:
 the \IdrisBound{cs} argument can be left implicit because it already
 shows up in the type of the \IdrisType{Index} and can thus be
-reconstructed by unification.
+reconstructed by unification~\citep{DBLP:conf/tlca/AbelP11}.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{description}
+
+Note that we seem to define \IdrisFunction{description}
+in terms of itself, in a manner that would create an
+infinite loop.
+%
+But the occurrence on the right-hand side is actually
+referring to the projection out of the
+\IdrisType{Constructor} record.
+
+\begin{remark}[Type-directed Disambiguation]
+  If multiple definitions in scope have the same name,
+  Idris performs type-directed disambiguation to pick
+  the only one that would work in that context.
+\end{remark}
 
 This type of indices also allows us to provide users with
 syntactic sugar enabling them to use the constructors' names
 directly rather than confusing numeric indices.
 %
-The following function runs a decision procedure
+The following function runs a semi-decision procedure
 \IdrisFunction{isConstructor} at the type level
 in order to turn any raw string \IdrisBound{str}
 into the corresponding \IdrisType{Index}.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{fromString}
 
-If the name is valid then \IdrisFunction{isConstructor} will
-return a valid \IdrisType{Index} and \idris{} will be able to
+\begin{remark}[Ad-hoc Polymorphisms for Literals]
+  String, numeric, and floating point literals are respectively
+  desugared using \IdrisFunction{fromString}, \IdrisFunction{fromInteger}, and
+  \IdrisFunction{fromDouble}.
+  Combined with the type-directed disambiguation (see above)
+  of overloaded symbols, this allows users to compute data from literals.
+\end{remark}
+
+In this instance, this allows us to use string literals as
+proxies for constructor names.
+%
+If the string literal stands for a valid name then
+\IdrisFunction{isConstructor} will
+return a valid \IdrisType{Index} and the compiler's proof
+search mechanism will be able to
 \IdrisKeyword{auto}matically fill-in the implicit proof.
 %
 If the name is not valid then \idris{} will not
 find the index and will raise a compile time error.
 %
 We include a successful example on the left and a failing test
-on the right hand side (\IdrisKeyword{failing} blocks are only
-accepted in \idris{} if their body leads to an error).
+on the right hand side where the compiler is not able to find
+a proof of (\IdrisFunction{isJust} \IdrisKeyword{(}
+\IdrisFunction{isConstructor} \IdrisData{"Cons"}
+\IdrisFunction{Tree}\IdrisKeyword{)}).
 
 \noindent
 \begin{minipage}[t]{0.35\textwidth}
@@ -104,6 +146,13 @@ accepted in \idris{} if their body leads to an error).
 \begin{minipage}[t]{0.42\textwidth}
 \ExecuteMetaData[Serialised/Desc.idr.tex]{notindexcons}
 \end{minipage}
+
+\begin{remark}[Failing Blocks]
+  A \IdrisKeyword{failing} block is a way to document (and
+  enforce) that some code leads to an error.
+  Such blocks are only accepted if their body parses but
+  leads to an error during elaboration.
+\end{remark}
 
 Once equipped with the ability to pick constructors, we can define
 the type of algebras for the functor described by a \IdrisType{Data}
@@ -117,6 +166,22 @@ algebra, defined as the following inductive type.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{mu}
 
+\begin{remark}[Escape hatches]
+  \idris provides some escape hatches to use when the author
+  knows a usage is safe but the compiler is not able to
+  determine that it is.
+
+  A function call of the form (\assertTotal{} $e$) will
+  circumvent the termination and positivity checkers in
+  the expression $e$.
+  This is only safe if the function is actually terminating
+  or the type strictly positive.
+
+  A function call of the form (\believeMe{} $e$) will be
+  usable at any type. This is only safe if $e$'s actual type
+  and the type it is being used at have the same runtime
+  representation.
+\end{remark}
 
 Note that here we are forced to use \assertTotal{} to convince \idris{}
 to accept the definition.
@@ -167,12 +232,12 @@ We first match on the term's top constructor, use \IdrisFunction{fmap}
 (defined in \Cref{def:fmap})
 to recursively apply the fold to all the node's subterms and finally
 apply the algebra to the result.
-
+%
 Here we only use \assertTotal{} because \idris{} does not see that
 \IdrisFunction{fmap} only applies its argument to strict subterms.
 This limitation could easily be bypassed by mutually defining
 an inlined and specialised version of
-(\IdrisFunction{fmap} \IdrisKeyword{\KatlaUnderscore} (\IdrisFunction{fold} \IdrisBound{alg})).
+(\IdrisFunction{fmap} \IdrisKeyword{\KatlaUnderscore} (\IdrisFunction{fold} \IdrisBound{alg}))ma
 as we demonstrate in \Cref{appendix:safefold}.
 %
 In an ideal type theory these supercompilation steps, whose sole

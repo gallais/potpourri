@@ -50,7 +50,10 @@ Third, the number of \IdrisBound{offsets} that need to be stored to
 compensate for subterms not having a statically known size.
 %
 The reader should think of \IdrisBound{rightmost} as an `input' index
-whereas \IdrisBound{static} and \IdrisBound{offsets} are `output' indices.
+(the context in which the family is used tells it whether it is in
+a rightmost branch)
+whereas \IdrisBound{static} and \IdrisBound{offsets} are `output' indices
+(the family's own constructors each determine their respective sizes).
 
 Next we define the family proper by giving its four constructors.
 
@@ -97,14 +100,21 @@ the description of its arguments (which is, by virtue of
 being used at the toplevel, in rightmost position),
 and the values of the \IdrisFunction{static} and
 \IdrisFunction{offsets} invariants.
-%
-The two invariants are stored as implicit fields
-because their value is easily reconstructed by \idris{}
-using unification and so users do not need
-to spell them out explicitly.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{constructor}
 
+\begin{remark}[Implicit Record Fields]
+  Record fields whose type declaration is surrounded by
+  curly braces are implicit: they do not need to be explicitly
+  mentioned when constructing the record, or when pattern-matching
+  on it.
+\end{remark}
+
+Here the two invariants \IdrisFunction{static} and
+\IdrisFunction{offsets} are stored as implicit fields
+because their value is easily reconstructed using
+unification.
+%
 Note that we used \IdrisData{(::)} as the name of the
 constructor for records of type \IdrisType{Constructor}.
 This allows us to define constructors by forming an
@@ -125,9 +135,11 @@ and nodes that contain a left branch, a byte, and a right branch.
 
 \subsection{Datatypes}
 
-A datatype description is given by a number of constructors together with
-a vector (also known as a length-indexed list) associating a description
-to each of these constructors.
+A datatype description is given by a vector (also known as
+a length-indexed list) of constructors.
+%
+For convenience, we store the length separately so that it
+does not need to be recomputed every time it is needed.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{data}
 

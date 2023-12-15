@@ -36,13 +36,28 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%%% Languages
+
 \newcommand{\agda}{Agda}
 \newcommand{\idris}{Idris~2}
+
+%%% Idris highlighting
+
 \newcommand{\assertTotal}{\IdrisPostulate{assert\KatlaUnderscore{}total}}
 \newcommand{\believeMe}{\IdrisPostulate{believe\KatlaUnderscore{}me}}
+
+%%% Data highlighting
+
 \newcommand{\hexadesc}[1]{\texttt{\usestt\IdrisType{#1}}}
 \newcommand{\hexadata}[1]{\texttt{\usestt\IdrisData{#1}}}
 \newcommand{\hexacons}[1]{\texttt{\usestt\IdrisFunction{#1}}}
 \newcommand{\hexaoffset}[1]{\texttt{\usestt{\color{lightgray}#1}}}
 
 \newenvironment{hexdump}{\usestt\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
+
+%%% Links to supplementary material
+\newcommand{\suppfile}[1]{File \texttt{#1}}
+
+%%% Remark environment
+\usepackage{amsthm}
+\newtheorem{remark}{Idris-ism}

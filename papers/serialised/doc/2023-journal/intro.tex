@@ -33,6 +33,19 @@ Simply by virtue of being accepted by the typechecker, we know that
 this function is covering (all the possible patterns have been handled)
 and total (all the recursive calls are performed on smaller trees).
 
+\begin{remark}[Semantic Highligthing]
+  All of the code snippets in this paper are semantically
+  highlighted using Katla~\citep{MANUAL:repo/github/Katla23}.
+  %
+  This means that they all have been successfully parsed
+  and scope-and-type checked.
+  %
+  Different colours are used for \IdrisKeyword{keywords},
+  \IdrisData{data constructors}, \IdrisFunction{function definitions},
+  \IdrisType{types}, \IdrisPostulate{unsafe postulates},
+  and \IdrisBound{bound variables}.
+\end{remark}
+
 At runtime, the tree will quite probably be represented by
 constructors-as-structs and substructures-as-pointers:
 %
@@ -56,8 +69,9 @@ Unfortunately not all data comes structured as inductive values
 abstracting over a constructors-as-structs and substructures-as-pointers
 runtime representation.
 %
-Data that is stored in a file or received over the network is typically
-represented in a contiguous format.
+Data that is stored in a file or received over the network is
+typically represented in a contiguous binary format with
+a high information density.
 
 We include below a textual representation of the above tree using
 \texttt{node} and \texttt{leaf} constructors and highlighting the
@@ -88,7 +102,7 @@ corresponding to data stored in the nodes):
 
 The idiomatic way to process such data in a functional language
 is to first deserialise it as an inductive type and then call
-the \IdrisFunction{sum} function we defined above.
+the tree-processing \IdrisFunction{sum} function we defined above.
 %
 If we were using a lower-level language however, we could directly
 process the serialised data without the need to fully deserialise it.
@@ -148,9 +162,11 @@ empowers us to do just that purely in library code.
 
 \subsection{Seamless Programming over Serialised Data}\label{sec:seamless}
 
-Forgetting about correctness for now, this can be summed up by the
-the following code snippet in which we compute the sum of the bytes
-stored in our type of binary trees.
+Forgetting about correctness for now, the seamlessness of
+our approach can be summed up by the
+the following code snippet
+in which we compute the sum of the bytes
+present in a binary tree stored in a buffer.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{rsum}
 
@@ -176,22 +192,21 @@ and a right branch \IdrisBound{r},
 then we recursively compute the sums for the left and right subtrees,
 cast the byte to a natural number and add everything up.
 %
-Crucially, the two functions look eerily similar, and the one operating on
-serialised data does not explicitly perform error-prone pointer arithmetic,
-or low-level buffer reads.
-%
-This is the first way in which our approach shines.
+Crucially, this function and its pure counterpart defined in the previous
+section look eerily similar, thanks to the fact that the one operating on
+serialised data uses high level combinators and does not explicitly
+perform error-prone pointer arithmetic, or low-level buffer reads.
 
-One major difference between the two functions is that
+This seamlessness is the first way in which our approach shines.
+
+\subsection{Correct Programming over Serialised Data}
+
+One major difference between the two functions seen above is that
 we can easily prove some of the pure function's properties by a structural
 induction on its input whereas we
 cannot prove anything about the \IdrisType{IO} process without first
 explicitly postulating the \IdrisType{IO} monad's properties.
 %
-Our second contribution tackles this issue.
-
-\subsection{Correct Programming over Serialised Data}
-
 We will see that we can refine that second definition to obtain
 a correct-by-construction version of
 \IdrisFunction{sum}, with almost exactly the same code.
@@ -214,14 +229,19 @@ The implementation itself only differs in that we had to use idiom
 brackets~\citep{DBLP:journals/jfp/McbrideP08}, something we will explain
 in \Cref{sec:datasingleton}.
 
-In other words, our approach also allows us to prove the functional
-correctness of the \IdrisType{IO} procedures processing trees stored
-in serialised format in a buffer. This is our second main contribution.
+In other words, our approach also allows us to, \emph{at the same time},
+defined and prove the functional correctness of the \IdrisType{IO}
+procedures processing trees stored in serialised format in a buffer.
+This means in particular that any intermediate computation can rely
+on the fact that the recursive calls are already known to be correct.
+
+This intrinsic correctness is our second main contribution.
 
 \subsection{Generic Programming over Serialised Data}
 
-Last but not least, as Altenkirch and McBride
-demonstrated~\citep{DBLP:conf/ifip2-1/AltenkirchM02}:
+Last but not least,
+as Altenkirch and McBride~\citeyearpar{DBLP:conf/ifip2-1/AltenkirchM02}
+demonstrated:
 ``With dependently (sic) types, generic programming is just programming:
 it is not necessary to write a new compiler each time a useful
 universe presents itself.''
@@ -236,7 +256,8 @@ We will for instance be able to implement
 a generic and correct-by-construction
 definition of \IdrisFunction{fold} operating on data stored in a buffer
 whose type declaration can be seen below
-(we will explain how it is defined in \Cref{sec:bufferfold}).
+(we will explain the pure generic fold in \Cref{sec:genericfoldinductive}
+and define its counterpart operating on buffers in \Cref{sec:bufferfold}).
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{foldtype}
 

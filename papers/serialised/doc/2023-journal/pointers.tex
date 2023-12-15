@@ -50,6 +50,12 @@ file be it for safekeeping or sending over the network.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{writeToFile}
 
+\begin{remark}[Forall Quantifier]
+  The \IdrisKeyword{forall} quantifier is sugar for an implicit
+  binder at quantity \IdrisKeyword{0}.
+\end{remark}
+
+
 We first start by reading the size of the header stored in the buffer.
 %
 This allows us to compute both the \IdrisBound{start} of the data block

@@ -14,7 +14,10 @@ containing the serialised representation of a binary tree belonging to
 the type we have been using as our running example.
 %
 The raw data is semantically highlighted:
-8-bytes-long \hexaoffset{offsets},
+8-bytes-long\footnote{This implicitly means that we assume
+that our terms occupy less than $2^{64}$ bytes,
+a very reasonable assumption in our opinion.}
+\hexaoffset{offsets} in little endian format,
 a \hexadesc{type} description of the stored data,
 some \hexacons{nodes} of the tree
 and the \hexadata{data} stored in the nodes.
@@ -43,17 +46,22 @@ In our example, the header is as follows:
 \hexaoffset{07 00 00 00 00 00 00 00} \hexadesc{02 00 02 03 02 01 03}
 \end{hexdump}
 
-The header consists of an offset allowing us to jump past it in case we do
-not care to inspect it, followed by a binary representation of the
+The header consists of an 8-bytes long offset stored in little endian
+format followed by a binary representation of the
 \IdrisType{Data} description of the value stored in the buffer.
-%
-This can be useful in a big project where different components produce
-and consume such serialised values: if we change the format in one place
-but forget to update it in another, we want the program to gracefully
+The offset allows us to jump past the description in case we do
+not care to inspect it.
+
+This description be useful in a big project where different
+components produce and consume such serialised values:
+if we change the format in one place but forget to update
+it in another, we want the program to gracefully
 fail to load the file using an unexpected format.
 %
-We detail in \Cref{sec:limitation-robust} how dependent type providers
-can help structure a software project to prevent such issues.
+We detail in \Cref{sec:limitation-robust} how dependent
+type providers~\citep{DBLP:conf/icfp/Christiansen13}
+can help structure a software project
+to prevent such issues.
 
 The encoding of a data description starts with a byte giving us the number
 of constructors, followed by these constructors' respective descriptions
@@ -81,13 +89,19 @@ According to the header, this file does contain a \IdrisFunction{Tree}.
 
 \subsection{Tree Serialisation}\label{sec:tree-serialisation}
 
-Our main focus in the definition of this format is that we should be able
-to process any of a node's subtrees without having to first traverse the
-subtrees that come before it.
+The design of this format was guided by a few simple principles:
+\begin{enumerate}
+  \item the format should be contiguous (no pointer indirections)
+  \item values of type unit should occupy no space
+  \item the nesting of pairs in a description should have no impact on the layout
+  \item the format should support the direct access to any of a node's subtrees
+\end{enumerate}
 %
-This will allow us to, for instance, implement a function looking up the
-value stored in the rightmost node in our running example type of binary
-trees in time linear in the depth of the tree rather than exponential.
+This last criterion will allow us to, for instance,
+implement a function looking up the value stored
+in the rightmost node in our running example type
+of binary trees in time linear in the depth of the tree
+rather than exponential if we had to traverse every subtree in order.
 %
 To this end each node needs to store an offset measuring the size of the
 subtrees that are to the left of any relevant information.
@@ -96,15 +110,16 @@ If a given tag is associated to a description of type
 (\IdrisType{Desc} \IdrisData{True} \IdrisBound{s} \IdrisBound{o})
 then the representation in memory of the associated node will look something
 like the following.
+%
+On the first line we have a description of the data layout and on the
+second line we have the offset of various positions in the block with
+respect to the tag's address.
 
 \label{fig:data-layout}
 \begin{center}
 \input{data-layout}
 \end{center}
 
-On the first line we have a description of the data layout and on the
-second line we have the offset of various positions in the block with
-respect to the tag's address.
 
 For the data layout,
 we start with the tag
@@ -118,12 +133,13 @@ so even though we have $o$ offsets, we actually have $(o+1)$ subtrees stored.
 
 The offsets of the tag with respect to its own address is $0$.
 The tag occupies one byte and so the offset of the block of offsets is $1$.
-Each offset occupies 8 bytes and so the constructor's arguments are stored at offset $(1+8*o)$.
+Each offset occupies 8 bytes and so the constructor's arguments
+are stored at offset $(1+8\times{}o)$.
 Finally each value's offset can be computed by adding up
 the offset of the start of the block of constructor arguments,
 the offsets corresponding to all of the subtrees that come before it,
 and the number of bytes stored before it;
-in the case of the last byte that gives $1+8*o + \Sigma_{i=1}^{o}o_i + s-1$
+in the case of the last byte that gives $1+8\times{}o + \Sigma_{i=1}^{o}o_i + s-1$
 hence the formula included in the diagram.
 
 Going back to our running example, this translates to the following
