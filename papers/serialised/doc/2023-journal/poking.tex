@@ -14,7 +14,7 @@ version of \IdrisFunction{fold} operating over trees stored in a buffer
 
 Readers may be uneasy about the unsafe implementations of the basic
 building blocks but we argue that it is a necessary evil by drawing
-an extended analogy to separation logic in \Cref{appendix:hoare}.
+an extended analogy to Hoare logic in \Cref{appendix:hoare}.
 
 \subsection{Poking the Buffer}
 
@@ -37,14 +37,14 @@ and an inductive family \IdrisType{Poke'} with interesting return indices.
 
 Poking a buffer containing \IdrisData{None} will return a value of
 the unit type as no information whatsoever is stored there.
-
+%
 If we access a \IdrisData{Byte} then we expect that inspecting the
 buffer will yield a runtime-relevant copy of the type-level byte we
 have for reference. Hence the use of \IdrisType{Singleton}.
-
+%
 If the description is \IdrisData{Rec} this means
 we have a substructure. In this case we simply demand a pointer to it.
-
+%
 Last but not least, if we access a \IdrisData{Prod} of two descriptions
 then the type-level term better be a pair
 and we better be able to obtain a \IdrisType{Pointer.Meaning}
@@ -53,7 +53,7 @@ for each of the sub-meanings.
 Because \idris{} does not currently support definitional eta equality
 for records, it will be more ergonomic for users if we introduce
 \IdrisType{Poke'} rather than yielding a \IdrisType{Tuple} of values.
-By matching on \IdrisType{Poke'} at the value level, they will see the
+By matching on \IdrisType{Poke'} at the value level, users will see the
 pair at the type level also reduced to a constructor-headed tuple.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokedatadata}
@@ -61,9 +61,10 @@ pair at the type level also reduced to a constructor-headed tuple.
 The implementation of this operation proceeds by case analysis
 on the description.
 %
-As we are going to see shortly, it is necessarily somewhat unsafe
-as we claim to be able to connect a type-level value to whatever
-it is that we read from the buffer.
+As we are going to see shortly, this implementation is necessarily
+somewhat unsafe as we claim to be able to connect a type-level value
+that will be erased at runtime to whatever it is that we read from
+the buffer.
 %
 Let us go through each case one-by-one.
 
@@ -76,15 +77,16 @@ information from the buffer and can immediately return \IdrisData{()}.
 
 If the description is \IdrisData{Byte} then we read a byte at the
 determined position. The only way we can connect this value we just
-read to the type index is to use the unsafe combinator
+read to the runtime irrelevant type index is to use the unsafe combinator
 \IdrisPostulate{unsafeMkSingleton} to manufacture a value of type
 (\IdrisType{Singleton} \IdrisBound{t}) instead of the value of type
 (\IdrisType{Singleton} \IdrisBound{bs})
 we would expect from wrapping \IdrisBound{bs} in the \IdrisData{MkSingleton} constructor.
 %
 As we explain in \Cref{sec:axiom-poke},
-in separation logic this would correspond to declaring an axiom
-about the \IdrisFunction{poke} language construct.
+in Hoare logic this would correspond to declaring an axiom
+about the \IdrisFunction{poke} language construct analogous
+to the standard axiom for dereferencing a pointer.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunProd}
 
@@ -138,6 +140,7 @@ and repeatedly calling \IdrisFunction{poke} to expose the values one by
 one.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{layerfun}
+
 
 \subsection{Exposing the top constructor}
 

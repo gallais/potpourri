@@ -53,6 +53,10 @@ file be it for safekeeping or sending over the network.
 \begin{remark}[Forall Quantifier]
   The \IdrisKeyword{forall} quantifier is sugar for an implicit
   binder at quantity \IdrisKeyword{0}.
+  %
+  It can be useful to introduce variables that cannot be automatically
+  bound in a prenex manner because they have a type dependency over an
+  explicitly bound argument.
 \end{remark}
 
 
