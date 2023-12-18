@@ -1,0 +1,41 @@
+\begin{code}
+
+%default partial
+
+e, rhs1, rhs2 : Nat
+e = 3
+rhs1 = 0
+rhs2 = 0
+
+namespace SUGAR
+
+  f : Nat -> Nat -> Nat
+\end{code}
+%<*fsugar>
+\begin{code}
+  f x y with (e)
+    _ | p = rhs1
+    _ | q = rhs2
+\end{code}
+%</fsugar>
+\begin{code}
+
+namespace DESUGAR
+
+
+  f : Nat -> Nat -> Nat
+  fAux : Nat -> Nat -> Nat -> Nat
+
+\end{code}
+%<*fdesugar>
+\begin{code}
+  fAux x y p = rhs1
+  fAux x y q = rhs2
+
+  f x y = fAux x y e
+\end{code}
+%</fdesugar>
+\begin{code}
+
+
+\end{code}

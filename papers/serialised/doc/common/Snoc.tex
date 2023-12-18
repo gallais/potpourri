@@ -18,7 +18,7 @@ data Snoc : List a -> Type where
 %<*unsnoc>
 \begin{code}
 unsnoc : (xs : List a) -> Snoc xs
-unsnoc [] = Lin
+unsnoc [] = [<]
 unsnoc (x :: xs@_) with (unsnoc xs)
   _ | [<] = [] :< x
   _ | init :< last = (x :: init) :< last

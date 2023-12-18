@@ -38,6 +38,51 @@ The function \IdrisFunction{unsnoc} demonstrates that we can always
 
 \ExecuteMetaData[Snoc.idr.tex]{unsnoc}
 
+\begin{remark}[With-Abstraction]
+  The \IdrisKeyword{with} construct allows programmers to locally
+  define an anonymous auxiliary function taking an extra argument
+  compared to its parent.
+  %
+  By writing (\IdrisKeyword{with} \IdrisKeyword{(}$e$\IdrisKeyword{)})
+  we introduce such an auxiliary function an immediately apply it to $e$.
+  %
+  The nested clauses that immediately follow each take an extra pattern
+  which matches over the possible values of $e$.
+  %
+  If the left-hand side of the auxiliary function is the same as that of
+  its parents bar the pattern for the newly added argument, we can use the
+  elision notation (\IdrisKeyword{\_} \IdrisKeyword{|}) to avoid having to
+  repeat ourselves.
+
+  In other words the following definition of \IdrisFunction{f} using a
+  \IdrisKeyword{with} construct with the elision notation
+
+  \ExecuteMetaData[With.idr.tex]{fsugar}
+
+  \noindent is equivalent to the following desugared version where
+  the auxiliary function taking an extra argument has been lifted
+  to the toplevel.
+
+  \ExecuteMetaData[With.idr.tex]{fdesugar}
+
+\end{remark}
+
+In the above code we performed a recursive call on
+(\IdrisFunction{unsnoc} \IdrisBound{xs}) and distinguished
+two cases: when the view returns the empty snoclist \IdrisData{[<]}
+and when it returns an \IdrisBound{init}ial segment together with the
+\IdrisBound{last} element.
+%
+Because we are using a view, matching on these constructors actually
+refined the shape of the parent clause's argument \IdrisBound{xs}.
+We do not need to spell out its exact shape in each branch because
+we were careful to only introduce \IdrisBound{xs} as a name alias
+using an as-pattern while letting the actual pattern be a catch-all
+pattern (\IdrisBound{xs}\IdrisKeyword{@}\IdrisKeyword{\_}).
+%
+This is a common trick to make working with views as lightweight as
+possible.
+
 Here we defined \IdrisType{Snoc} as an inductive family but it can
 sometimes be convenient to define the family recursively instead,
 in which case the \IdrisType{Singleton} inductive family can

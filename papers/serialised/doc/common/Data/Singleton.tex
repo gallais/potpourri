@@ -7,7 +7,7 @@ public export
 \end{code}
 %<*singleton>
 \begin{code}
-data Singleton : (x : a) -> Type where
+data Singleton : a -> Type where
   MkSingleton : (x : a) -> Singleton x
 \end{code}
 %</singleton>

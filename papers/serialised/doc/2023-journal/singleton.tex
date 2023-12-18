@@ -28,30 +28,40 @@ functors which will allow us to rely on \idris{}'s automatic
 desugaring of \emph{idiom brackets}~\citep{DBLP:journals/jfp/McbrideP08}
 into expressions using these combinators.
 
-\ExecuteMetaData[Data/Singleton.idr.tex]{pure}
-
 First \IdrisFunction{pure} is a simple alias for \IdrisData{MkSingleton},
 it turns a runtime-relevant value \IdrisBound{x} into a singleton for
 this value.
 
-\ExecuteMetaData[Data/Singleton.idr.tex]{fmap}
+\ExecuteMetaData[Data/Singleton.idr.tex]{pure}
 
 Next, we can `map' a function under a \IdrisType{Singleton} layer: given
 a pure function \IdrisBound{f} and a runtime copy of \IdrisBound{t} we
 can get a runtime copy of (\IdrisBound{f} \IdrisBound{t}).
 
-\ExecuteMetaData[Data/Singleton.idr.tex]{ap}
+\ExecuteMetaData[Data/Singleton.idr.tex]{fmap}
 
 Finally, we can apply a runtime copy of a function \IdrisBound{f}
 to a runtime copy of an argument \IdrisBound{t}
 to get a runtime copy of the result (\IdrisBound{f} \IdrisBound{t}).
 
+\ExecuteMetaData[Data/Singleton.idr.tex]{ap}
+
 As we mentioned earlier, \idris{} automatically desugars idiom brackets
-using these combinators. That is to say that
-\IdrisKeyword{[|} \IdrisBound{x} \IdrisKeyword{|]} will be elaborated to
-(\IdrisFunction{pure} \IdrisBound{x}) while
-\IdrisKeyword{[|} \IdrisBound{f} \IdrisBound{t1} $\cdots$ \IdrisBound{tn} \IdrisKeyword{|]}
-will become
-(\IdrisBound{f} \IdrisFunction{<\$>} \IdrisBound{t1} \IdrisFunction{<*>} $\cdots$ \IdrisFunction{<*>} \IdrisBound{tn}).
-%
-This lets us apply \IdrisType{Singleton}-wrapped values almost as seamlessly as pure values.
+using these combinators.
+
+\begin{remark}[Idiom Brackets as Sugar]
+  Idiom brackets let us use the standard whitespace-based application
+  typical of pure functions to performs computations in an \emph{Applicative}
+  contexts.
+
+  In other words, during elaboration an atomic expression
+  \IdrisKeyword{[|} \IdrisBound{x} \IdrisKeyword{|]}
+  will be desugared to (\IdrisFunction{pure} \IdrisBound{x})
+  while a compound expression
+  \IdrisKeyword{[|} \IdrisBound{f} \IdrisBound{t1} $\cdots$ \IdrisBound{tn} \IdrisKeyword{|]}
+  will become (\IdrisBound{f} \IdrisFunction{<\$>} \IdrisBound{t1} \IdrisFunction{<*>} $\cdots$ \IdrisFunction{<*>} \IdrisBound{tn}).
+\end{remark}
+
+This built-in handling of idiom brackets lets us apply
+\IdrisType{Singleton}-wrapped values almost as seamlessly
+as pure values.

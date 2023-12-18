@@ -17,6 +17,7 @@ RAW_DEPENDENCIES=\
   rightmost.tex \
   hoare.tex \
   idris2.sty \
+  With.idr.tex \
   Snoc.idr.tex \
   Lib.idr.tex \
   Data/Singleton.idr.tex \
