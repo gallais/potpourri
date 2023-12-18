@@ -4,17 +4,16 @@ In (typed) functional language we are used to manipulating
 structured data by pattern-matching on it.
 We include an illustrative example below.
 
-\noindent
+\smallskip\noindent
 \begin{minipage}{.45\textwidth}
   \begin{center}
     \input{binary-tree}
   \end{center}
 \end{minipage}\hfill
-\begin{minipage}{.37\textwidth}
-  \begin{center}
-    \ExecuteMetaData[Motivating.idr.tex]{motivation}
-  \end{center}
+\begin{minipage}{.45\textwidth}
+  \ExecuteMetaData[Motivating.idr.tex]{motivation}
 \end{minipage}
+\smallskip
 
 On the left, an example of a binary tree storing bytes in its nodes and
 nothing at its leaves.
@@ -223,8 +222,10 @@ And so the return type can mention the result of the pure computation
 \IdrisType{Singleton} is, as its name suggests, a singleton type
 (cf. \Cref{sec:view})
 i.e. the natural number we compute is now proven to be equal to the
-one computed by the pure \IdrisFunction{sum} function.
-%
+one computed by the pure \IdrisFunction{sum} function. And so we can
+transfer any property proven on the pure \IdrisFunction{sum} to the
+one operating on values residing in buffers.
+
 The implementation itself only differs in that we had to use idiom
 brackets~\citep{DBLP:journals/jfp/McbrideP08}, something we will explain
 in \Cref{sec:datasingleton}.
@@ -285,7 +286,7 @@ We will use this standard meaning in the specification layer of our work.
 %
 \Cref{sec:hexdump} explores the serialisation format we have picked
 for these trees: a depth-first, left-to-right infix traversal of the
-trees, with additional information stored to allow for the random access
+trees, with additional information stored to allow for the direct access
 of any subtree.
 %
 \Cref{sec:pointers} defines the type of pointers to trees stored in a

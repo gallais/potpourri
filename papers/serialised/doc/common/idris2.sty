@@ -88,16 +88,14 @@
 
 
 \newenvironment{code}{%
-    \noindent%
     \begin{mdframed}[backgroundcolor=yellow!5, linewidth=0pt]%
     \begin{minipage}{\linewidth}%
     \obeyspaces%
     \ttfamily%
-    \setcounter{currentcodespaces}{0}
-    \toggletrue{firstlinestart}
-    \toggletrue{linestart}
+    \setcounter{currentcodespaces}{0}%
+    \toggletrue{firstlinestart}%
+    \toggletrue{linestart}%
 }{%
     \end{minipage}%
     \end{mdframed}%
-    \smallskip
-}
+}%
