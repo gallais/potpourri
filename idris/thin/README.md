@@ -3,7 +3,8 @@
 ## Architecture of the artefact
 
 The directory `src/` contains the annotated source files whose content
-is described in the paper.
+is described in the paper
+[Builtin Types viewed as Inductive Families](https://arxiv.org/abs/2301.02194).
 
 The directory `run` contains the virtual machine as well as the support
 code to run the executable. More specifically:
