@@ -28,18 +28,18 @@
 
 \section{Goals}
 
-\begin{frame}{Different motivations}
-Generic programming:
+\begin{frame}{Motivation}
+%% Generic programming:
 
-\begin{itemize}
-  \item using the language itself
-  \item in a type-safe manner
-  \item with no abstraction cost
-\end{itemize}
+%% \begin{itemize}
+%%   \item using the language itself
+%%   \item in a type-safe manner
+%%   \item with no abstraction cost
+%% \end{itemize}
 
-\bigskip
+%% \bigskip
 
-Meta programming:
+Generic/Meta programming:
 
 \begin{itemize}
   \item in a richer language
@@ -65,12 +65,14 @@ Meta programming:
   \end{minipage}
   \bigskip
 
+  \begin{minipage}{.55\textwidth}
   \ExecuteMetaData[MetaCircuit.tex]{diag}
-
+  \end{minipage}\hfill
+  \begin{minipage}{.35\textwidth}
   \begin{minipage}{.05\textwidth}
     $c \mapsto$
-  \end{minipage}
-  \begin{minipage}{.375\textwidth}
+  \end{minipage}\hspace{.1\textwidth}
+  \begin{minipage}{.28\textwidth}
     \begin{tikzpicture}
 
       \coordinate (x) at (0,.25);
@@ -88,6 +90,7 @@ Meta programming:
       \draw (r)+(.5,0) node {} edge (r);
     \end{tikzpicture}
   \end{minipage}
+  \end{minipage}
 
   \bigskip
   \begin{minipage}[t]{.45\textwidth}
@@ -100,14 +103,14 @@ Meta programming:
 
 \section{Refresher: scoped-and-typed syntax}
 
-\begin{frame}{Types and Contexts}
+\begin{frame}{Simple Types}
 
   \ExecuteMetaData[STLC.tex]{type}
-  \ExecuteMetaData[STLC.tex]{typevariables}
+  %% \ExecuteMetaData[STLC.tex]{typevariables}
 
-  \bigskip
+  %% \bigskip
 
-  \uncover<2->{\ExecuteMetaData[STLC.tex]{context}}
+  %% \uncover<2->{\ExecuteMetaData[STLC.tex]{context}}
 \end{frame}
 
 \begin{frame}{Convention: Implicit context threading}
@@ -120,7 +123,7 @@ Meta programming:
 \end{minipage}\hfill
 \begin{minipage}{.45\textwidth}
   \begin{mathpar}
-    \inferrule{f : A → B \and t : A}{f \, t : B} \and
+    \inferrule{f : A → B \and t : A}{f \, t : B} \\
     \inferrule{x : A ⊢ b : B}{λx.b : A → B}
   \end{mathpar}
 \end{minipage}
