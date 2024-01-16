@@ -238,6 +238,18 @@ g `∘ f  =  let Γ≤Γ,A = drop ≤-refl in
 %</composition>
 \begin{code}
 
+module PRINTONLY3 where
+\end{code}
+%<*printbox>
+\begin{code}
+  record □ (P : Context → Set) (Γ : Context) : Set where
+    constructor mk□
+    field run□ : ∀ {Δ} → Γ ≤ Δ → P Δ
+\end{code}
+%</printbox>
+\begin{code}
+
+
 \end{code}
 %<*box>
 \begin{code}
@@ -300,10 +312,16 @@ wkKripke σ f = duplicate f .run□ σ
 -- application
 \end{code}
 %<*semapp>
+\begin{AgdaSuppressSpace}
+%<*semapptype>
 \begin{code}
-_$$_ : ∀[ Kripke P Q ⇒ P ⇒ Q ]
+_$$_ : ∀[ Kripke P Q ⇒ (P ⇒ Q) ]
+\end{code}
+%</semapptype>
+\begin{code}
 _$$_ = extract
 \end{code}
+\end{AgdaSuppressSpace}
 %</semapp>
 \begin{code}
 
@@ -377,11 +395,17 @@ open Env
 
 \end{code}
 %<*extend>
+\begin{AgdaSuppressSpace}
+%<*extendtype>
 \begin{code}
 extend : ∀[ Env Γ ⇒ □ (Value A ⇒ Env (Γ , A)) ]
+\end{code}
+%</extendtype>
+\begin{code}
 extend ρ .run□ σ v .get here       = v
 extend ρ .run□ σ v .get (there x)  = wkValue _ σ (ρ .get x)
 \end{code}
+\end{AgdaSuppressSpace}
 %</extend>
 \begin{code}
 
