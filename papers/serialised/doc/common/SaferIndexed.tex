@@ -30,10 +30,9 @@ namespace Data
 %<*allquant>
 \begin{code}
   All : (d : Desc r s o) -> (p : x -> Type) -> Meaning d x -> Type
-  All None p t = ()
   All Byte p t = Singleton t
   All Rec p t = p t
-  All d@(Prod _ _) p t = All' d p t
+  All d p t = All' d p t
 \end{code}
 %</allquant>
 \begin{code}
@@ -45,6 +44,7 @@ namespace Data
 \begin{code}
   data All' : (d : Desc r s o) -> (p : x -> Type) ->
               Meaning d x -> Type where
+    I : All' None p I
     (#) : All d p t -> All e p u -> All' (Prod d e) p (t # u)
 \end{code}
 %</dataallquant>
@@ -53,7 +53,7 @@ namespace Data
   export
   all : (d : Desc r s o) -> ((a : x) -> p a) ->
         (t : Meaning d x) -> All d p t
-  all None f t = t
+  all None f I = I
   all Byte f t = MkSingleton t
   all (Prod d e) f (t # u) = (all d f t # all e f u)
   all Rec f t = f t
@@ -68,7 +68,7 @@ namespace Data
   export
   curry : {0 p : x -> Type} -> (d : Desc r s o) ->
           {0 t : Meaning d x} -> (All d p t -> a) -> AllK d p t a
-  curry None f = f ()
+  curry None f = f (rewrite etaTrue t in I)
   curry Byte f = f
   curry (Prod d e) f
     = SaferIndexed.Data.curry d {a = AllK e p (snd t) a}
@@ -234,10 +234,9 @@ namespace Pointer
 \begin{code}
     Poke : (d : Desc r s o) -> (cs : Data nm) ->
            Data.Meaning d (Data.Mu cs) -> Type
-    Poke None _ t = ()
     Poke Byte cs t = Singleton t
     Poke Rec cs t = Pointer.Mu cs t
-    Poke d@(Prod _ _) cs t = Poke' d cs t
+    Poke d cs t = Poke' d cs t
 \end{code}
 %</pokedatafun>
 \begin{code}
@@ -247,6 +246,7 @@ namespace Pointer
 \begin{code}
     data Poke' : (d : Desc r s o) -> (cs : Data nm) ->
                  Data.Meaning d (Data.Mu cs) -> Type where
+      I : Poke' None cs I
       (#) : Pointer.Meaning d cs t ->
             Pointer.Meaning e cs u ->
             Poke' (Prod d e) cs (t # u)
@@ -265,7 +265,7 @@ namespace Pointer
 %</pokefun>
 %<*pokefunNone>
 \begin{code}
-    poke {d = None} el = pure ()
+    poke {d = None} el = pure (rewrite etaTrue t in I)
 \end{code}
 %</pokefunNone>
 %<*pokefunByte>
@@ -303,13 +303,13 @@ namespace Pointer
 \begin{code}
     Layer : (d : Desc r s o) -> (cs : Data nm) ->
             Data.Meaning d (Data.Mu cs) -> Type
-    Layer None _ _ = ()
     Layer Byte _ t = Singleton t
     Layer Rec cs t = Pointer.Mu cs t
-    Layer d@(Prod _ _) cs t = Layer' d cs t
+    Layer d cs t = Layer' d cs t
 
     data Layer' : (d : Desc r s o) -> (cs : Data nm) ->
                   Data.Meaning d (Data.Mu cs) -> Type where
+      I : Layer' None cs I
       (#) : Layer d cs t -> Layer e cs u -> Layer' (Prod d e) cs (t # u)
 \end{code}
 %</layerdata>
@@ -325,7 +325,7 @@ namespace Pointer
 
       go : forall r, s, o. (d : Desc r s o) ->
            forall t. Poke d cs t -> IO (Layer d cs t)
-      go None p = pure ()
+      go None I = pure I
       go Byte p = pure p
       go (Prod d e) (p # q) = [| layer p # layer q |]
       go Rec p = pure p
@@ -459,7 +459,7 @@ namespace Pointer
 
       go : (d : Desc{}) -> forall t. Poke d cs t ->
            IO (Singleton (Data.fmap d f t))
-      go None {t} v = pure byIrrelevance
+      go None I = pure [| I |]
       go Byte v = pure v
       go (Prod d e) (v # w)
         = do fv <- fmap d f act v
@@ -480,7 +480,7 @@ namespace Pointer
 
       go : (d : Desc{}) -> forall t. Poke d cs t ->
            IO (Singleton (Data.traverse d f t))
-      go None {t} v = pure (pure <$> byIrrelevance)
+      go None I = pure (pure (pure I))
       go Byte v = pure [| pure v |]
       go (Prod d e) (v # w)
         = do v <- traverse d f act v
@@ -727,7 +727,7 @@ namespace Pointer
         (ptr : Pointer.Mu Tree t) ->
         Serialising Tree (Data.map f t)
   map f ptr = case !(view ptr) of
-    "Leaf" # () => "Leaf" # ()
+    "Leaf" # I => "Leaf" # I
     "Node" # l # b # r => "Node" # map f l # [| f b |] # map f r
 \end{code}
 %</serialisedmap>
@@ -830,7 +830,7 @@ namespace Data
 
   public export
   swap : Data.Mu Tree -> Data.Mu Tree
-  swap ("Leaf" # _) = "Leaf" # ()
+  swap ("Leaf" # I) = "Leaf" # I
   swap ("Node" # l # b # r) = "Node" # r # b # l
 
 namespace Pointer
@@ -841,7 +841,7 @@ namespace Pointer
 \begin{code}
   swap : Pointer.Mu Tree t -> Serialising Tree (Data.swap t)
   swap ptr = case !(view ptr) of
-    "Leaf" # () => leaf
+    "Leaf" # I => leaf
     "Node" # l # b # r => node (copy r) b (copy l)
 \end{code}
 %</swap>

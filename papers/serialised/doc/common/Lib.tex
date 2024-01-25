@@ -27,12 +27,38 @@ record Tuple (a, b : Type) where
 \begin{code}
 
 public export
+\end{code}
+%<*true>
+\begin{code}
+record True where
+  constructor I
+\end{code}
+%</true>
+\begin{code}
+
+export
+\end{code}
+%<*etaTrue>
+\begin{code}
+etaTrue : (t : True) -> t === I
+etaTrue I = Refl
+\end{code}
+%</etaTrue>
+\begin{code}
+
+public export
 curry : (Tuple a b -> r) -> a -> b -> r
 curry f x y = f (x # y)
 
 export
+\end{code}
+%<*etaTuple>
+\begin{code}
 etaTuple : (p : Tuple a b) -> p === (fst p # snd p)
 etaTuple (t # u) = Refl
+\end{code}
+%</etaTuple>
+\begin{code}
 
 parameters (buf : Buffer)
 

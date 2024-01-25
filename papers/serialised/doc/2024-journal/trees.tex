@@ -19,15 +19,54 @@ modality i.e. to be erased during compilation.
 
 \subsection{Descs as Functors}
 
-We define the meaning of descriptions as strictly positive
-endofunctors on \IdrisType{Type} by induction on said descriptions.
+We are going to define the meaning of descriptions as
+strictly positive endofunctors on \IdrisType{Type} by
+induction on said descriptions.
 %
-\IdrisFunction{Meaning} gives us the action of the functors on objects.
+\IdrisData{None} and \IdrisData{Prod} will respectively
+be interpreted by a unit type (\IdrisType{True}) and a
+a product type (\IdrisType{Tuple}) defined below.
+%
+We do not use the unit and product from the standard
+library purely to offer better syntactic sugar to
+our users.
+
+\noindent
+\begin{minipage}[t]{.4\textwidth}
+  \ExecuteMetaData[Lib.idr.tex]{true}
+\end{minipage}\hfill
+\begin{minipage}[t]{.5\textwidth}
+  \ExecuteMetaData[Lib.idr.tex]{pair}
+\end{minipage}
+
+\begin{remark}[Lack of Eta-rules for Records]\label{rmk:etarecords}
+  \IdrisType{True} and \IdrisType{Tuple} are both defined
+  as \IdrisKeyword{record}s.
+  %
+  However in \idris{}, this is currently only syntactic sugar
+  to declare a datatype together with a projection for each
+  of the record's fields.
+  %
+  Conversion checking does not incorporate eta rules for records
+  and so we have to manually state, prove, and deploy eta rules
+  whenever necessary.
+  %
+  We include the two lemmas below as we will need them later.
+
+  \ExecuteMetaData[Lib.idr.tex]{etaTrue}
+  \ExecuteMetaData[Lib.idr.tex]{etaTuple}
+\end{remark}
+
+Now that we have these two type constructors, we can
+define \IdrisFunction{Meaning}, the function giving
+us the action on objects of the \IdrisType{Desc}-encoded
+endofunctors.
+%
+In its type, all of \IdrisBound{r}, \IdrisBound{s},
+and \IdrisBound{o} are implicitly universally quantified,
+a feature of \idris{} we explain below.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
-
-In the above code snippet, all of \IdrisBound{r}, \IdrisBound{s},
-and \IdrisBound{o} are implicitly universally quantified.
 
 \begin{remark}[Implicit Prenex Polymorphism]\label{rmk:prenexpoly}
   Lowercase names that are seemingly unbound are automatically
@@ -38,21 +77,20 @@ and \IdrisBound{o} are implicitly universally quantified.
 \end{remark}
 
 Both \IdrisData{None} and \IdrisData{Byte} are interpreted by constant
-functors (respectively the one returning the unit type, and the one returning
-the type of bytes).
+functors (respectively the one returning the unit type \IdrisType{True},
+and the one returning the type of bytes).
 %
-\IdrisData{Rec} is the identity functor.
-%
-Finally (\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e})
+(\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e})
 is interpreted as the pairing of the interpretation of
 \IdrisBound{d} and \IdrisBound{e} respectively.
-We use our own definition of pairing rather than the
-standard library's because it gives us better syntactic sugar.
+%
+Finally \IdrisData{Rec} is the identity functor.
 
-\ExecuteMetaData[Lib.idr.tex]{pair}
-
-This gives us the action of descriptions on types, let us now
-see their action on morphisms.
+Now that we have the action of descriptions on types,
+let us see their action on morphisms: provided a
+function from \IdrisBound{a} to \IdrisBound{b}, we can
+build one from the \IdrisFunction{Meaning} of \IdrisBound{d}
+at type \IdrisBound{a} to its meaning at type \IdrisBound{b}.
 %
 We once again proceed by induction on the description.
 

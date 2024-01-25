@@ -51,7 +51,7 @@ namespace Pointer
 
       go : (d : Desc{}) -> forall t. Poke d cs t ->
            IO (Singleton (fmapFold alg d t))
-      go None {t} v = rewrite etaUnit t in pure (pure ())
+      go None I = pure (pure I)
       go Byte v = pure v
       go (Prod d e) (v # w)
         = do v <- fmapFold d v

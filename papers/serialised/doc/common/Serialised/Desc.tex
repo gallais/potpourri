@@ -135,7 +135,7 @@ DecEq (Index cs) where
 
 export
 Show (Desc r s n) where
-  showPrec _ None = "()"
+  showPrec _ None = "_"
   showPrec _ Byte = "Bits8"
   showPrec p (Prod d e) =
     showParens (Open < p) $ "Tuple \{showPrec App d} \{showPrec App e}"
@@ -274,11 +274,10 @@ namespace Data
 %<*meaning>
 \begin{code}
   Meaning : Desc r s n -> Type -> Type
-  Meaning None x = ()
+  Meaning None x = True
   Meaning Byte x = Bits8
+  Meaning (Prod d e) x = Tuple (Meaning d x) (Meaning e x)
   Meaning Rec x = x
-  Meaning (Prod d e) x
-    = Tuple (Meaning d x) (Meaning e x)
 \end{code}
 %</meaning>
 \begin{code}
@@ -425,7 +424,7 @@ namespace Tree
 %<*leaf>
 \begin{code}
   leaf : Mu Tree
-  leaf = "Leaf" # ()
+  leaf = "Leaf" # I
 \end{code}
 %</leaf>
 \begin{code}

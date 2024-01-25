@@ -1,7 +1,6 @@
-
 \section{Inspecting a Buffer's Content}\label{sec:poking}
 
-We can now describe the combinators allowing our users to inspect
+Let us now describe the combinators allowing our users to inspect
 the value they have a pointer for.
 %
 We are going to define the most basic of building blocks
@@ -18,45 +17,68 @@ an extended analogy to Hoare logic in \Cref{appendix:hoare}.
 
 \subsection{Poking the Buffer}
 
-Our most basic operation consists in poking the buffer to unfold
-the description by exactly one step.
+Our most basic operation consists in poking the buffer to gain
+access to the head constructor of the underlying layer of
+\IdrisFunction{Data.Meaning} we have a pointer to.
 %
-The type of the function is as follows: provided a pointer for
-a meaning \IdrisBound{t}, we return an \IdrisType{IO} process computing
-the one step unfolding of the meaning.
+This operation is description-directed and so its result (called
+\IdrisFunction{Poke}) is defined by case analysis on the description
+associated to the pointer.
+
+Concretely, the type of the function is as follows: provided a pointer for
+a description \IdrisBound{d}, subtrees of type \IdrisBound{cs} and an
+associated meaning \IdrisBound{t} of type
+(\IdrisFunction{Meaning} \IdrisBound{cs} \IdrisBound{t})
+we return an \IdrisType{IO} process computing the one step
+unfolding of the meaning.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefun}
 
-The result type of this operation is defined by case-analysis on the
-description. In order to keep the notations user-friendly, we
-mutually define
-a recursive function \IdrisFunction{Poke} interpreting the straightforward type constructors
-and an inductive family \IdrisType{Poke'} with interesting return indices.
+As we explained, \IdrisFunction{Poke} is defined by case-analysis
+on the description.
+%
+However, in order to keep the notations user-friendly, we
+are forced by Idris' lack of eta-rules (cf. \cref{rmk:etarecords})
+to mutually define
+an inductive family \IdrisType{Poke'} with interesting return
+indices.
+%
+It will allow users to, by matching on \IdrisType{Poke'}
+constructors, automatically refine the associated meaning
+present at the type level into a term with a head constructor.
+%
+This will ensure that functions defined by pattern-matching
+can reduce in types based on observations made at the term
+level.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokedatafun}
 
-Poking a buffer containing \IdrisData{None} will return a value of
-the unit type as no information whatsoever is stored there.
-%
-If we access a \IdrisData{Byte} then we expect that inspecting the
-buffer will yield a runtime-relevant copy of the type-level byte we
-have for reference. Hence the use of \IdrisType{Singleton}.
+Poking a buffer containing a \IdrisData{Byte} will yield a
+runtime-relevant copy of the type-level byte we have for
+reference. Hence the use of \IdrisType{Singleton}.
 %
 If the description is \IdrisData{Rec} this means
-we have a substructure. In this case we simply demand a pointer to it.
+we have a substructure. In this case we simply demand
+a pointer to it.
 %
-Last but not least, if we access a \IdrisData{Prod} of two descriptions
-then the type-level term better be a pair
-and we better be able to obtain a \IdrisType{Pointer.Meaning}
-for each of the sub-meanings.
-%
-Because \idris{} does not currently support definitional eta equality
-for records, it will be more ergonomic for users if we introduce
-\IdrisType{Poke'} rather than yielding a \IdrisType{Tuple} of values.
-By matching on \IdrisType{Poke'} at the value level, users will see the
-pair at the type level also reduced to a constructor-headed tuple.
+Last but not least, if we are accessing a value of a
+record type (either \IdrisData{None} or a \IdrisData{Prod} of two descriptions)
+then we describe the resulting observation using the \IdrisType{Poke'} family.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokedatadata}
+
+\IdrisType{Poke'} has two constructors corresponding to the two
+descriptions it covers.
+%
+If the description of the buffer's content is \IdrisData{None}
+then we do not expect to get a value back, only the knowledge
+that the type-level meaning is \IdrisData{I}.
+%
+If the description is (\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e})
+then we demand to learn that the type-level term is \IdrisData{(\#)}-headed
+with two substructures \IdrisBound{t} and \IdrisBound{u} and we expect
+to be given a to each of these substructure.
+
 
 The implementation of this operation proceeds by case analysis
 on the description.
@@ -71,7 +93,9 @@ Let us go through each case one-by-one.
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunNone}
 
 If the description is \IdrisData{None} we do not need to fetch any
-information from the buffer and can immediately return \IdrisData{()}.
+information from the buffer but we do need to deploy the eta rule
+for \IdrisType{True} in order to be able to use the \IdrisType{Poke'}
+constructor \IdrisData{I}.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunByte}
 
