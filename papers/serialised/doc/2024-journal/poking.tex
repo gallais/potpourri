@@ -148,11 +148,11 @@ Lastly, when we reach a \IdrisData{Rec} description, we can discard the
 vector of offsets and return a \IdrisType{Pointer.Mu} with the same buffer,
 starting position and size as our input pointer.
 
-\subsection{Extracting one layer}
+\subsection{Extracting One Layer}
 
-By repeatedly poking the buffer, we can unfold a full layer.
+By repeatedly poking the buffer, we can unfold a full layer of term.
 This operation's result is defined by induction
-on the description. It is identical to the definition of
+on the description. It is essentially identical to the definition of
 \IdrisFunction{Poke} except for the \IdrisData{Prod} case:
 instead of being content with a pointer for each of the
 subdescriptions, we demand a \IdrisFunction{Layer} for them too.
@@ -162,15 +162,20 @@ subdescriptions, we demand a \IdrisFunction{Layer} for them too.
 This function can easily be implemented by induction on the description
 and repeatedly calling \IdrisFunction{poke} to expose the values one by
 one.
+%
+We call \IdrisFunction{poke} and use the \IdrisType{IO} monad's bind
+operator (\IdrisFunction{>>=}) to pass the result to \IdrisFunction{go},
+the auxiliary function recursively going under record constructors to
+perform further poking.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{layerfun}
 
 
-\subsection{Exposing the top constructor}
+\subsection{Exposing a Tree's Top Node}
 
 Now that we can deserialise an entire layer of \IdrisFunction{Meaning},
 the only thing we are missing to be able to generically manipulate trees
-is the ability to expose the top constructor of a tree stored at a
+is the ability to expose the top node of a tree stored at a
 \IdrisType{Pointer.Mu} position.
 %
 Remembering the data layout detailed in \Cref{fig:data-layout}, this will
@@ -194,7 +199,7 @@ the \IdrisFunction{Data.Meaning} (\IdrisBound{t}) the \IdrisType{Pointer.Meaning
 As a first step, we can get our hands on the index of the head constructor.
 We obtain a byte by calling \IdrisFunction{getBits8}, cast it to a
 natural number and then make sure that it is in the range
-$[0 \cdots \text{\IdrisFunction{consNumber} \IdrisBound{cs}}[$ using
+$[\text{\IdrisData{0}} \cdots \text{\IdrisFunction{consNumber} \IdrisBound{cs}}[$ using
 \IdrisFunction{natToFin}.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{getIndex}
@@ -203,8 +208,7 @@ The \IdrisFunction{out} function type states that given a pointer
 to a tree \IdrisBound{t} of type \IdrisBound{cs} we can get a value
 of type (\IdrisType{Out} \IdrisBound{cs} \IdrisBound{t})
 %
-i.e. we can get a view revealing what the
-index of the tree's head constructor is.
+i.e. we can get a view revealing the tree's top node.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
 
@@ -214,7 +218,7 @@ with the runtime-irrelevant tree index.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outfunbody}
 
-We start by reading the tag \IdrisBound{k}
+We start by reading the index \IdrisBound{k}
 corresponding to the constructor choice.
 %
 We then use the unsafe \IdrisPostulate{unfoldAs} postulate to step the
@@ -293,8 +297,10 @@ byte stored in a tree's rightmost node depending on whether we use
 \IdrisFunction{view} or the lower level \IdrisFunction{poke} combinator.
 
 By repeatedly calling \IdrisFunction{view}, we can define the
-correct-by-construction generic deserialisation function that
-turns a pointer to a tree into a runtime value equal to this tree.
+correct-by-construction generic deserialisation function: by
+using \IdrisType{Singleton}, its type guarantees that we turn
+a pointer to a tree \IdrisBound{t} into a runtime value known
+to be equal to \IdrisBound{t}.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{deserialise}
 

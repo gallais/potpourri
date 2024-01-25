@@ -26,7 +26,7 @@ Finally, we take a runtime-irrelevant meaning \IdrisBound{t}
 as well as a pointer to its representation in a buffer and compute
 an \IdrisType{IO} process which will return a value equal to
 (\IdrisFunction{Data.fmap} \IdrisBound{d} \IdrisBound{f} \IdrisBound{t}).
-
+%
 We can now look at the definition of \IdrisFunction{fmap}.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{fmapfun}
@@ -34,25 +34,30 @@ We can now look at the definition of \IdrisFunction{fmap}.
 We poke the buffer to reveal the value the \IdrisType{Pointer.Meaning}
 named \IdrisBound{ptr} is pointing at and then dispatch over the description
 \IdrisBound{d} using the \IdrisFunction{go} auxiliary function.
-
-If the description is \IdrisData{None} we use \IdrisFunction{byIrrelevance}
-which happily builds any (\IdrisType{Singleton} \IdrisBound{t}) provided
-that \IdrisBound{t}'s type is proof irrelevant.
-
-If the description is \IdrisData{Byte}, the value is left untouched and so
-we can simply return it immediately.
-
+%
+If the description is \IdrisData{None} we match on the constructor
+\IdrisData{I} of the \IdrisType{Poke'} which refines the type-level
+term \IdrisBound{t} to the constructor \IdrisType{I} of the record
+\IdrisType{True} and thus allows the \IdrisFunction{fmap} call to
+reduce to \IdrisData{I}. We can therefore immediately return the
+singleton wrapping the value \IdrisData{I}.
+%
+If the description is \IdrisData{Byte}, the value is left untouched
+and so we can simply return it immediately.
+%
 If we have a \IdrisData{Prod} of two descriptions, we recursively apply
 \IdrisFunction{fmap} to each of them and pair the results back.
-
+%
 Finally, if we have a \IdrisData{Rec} we apply the function operating
 on buffers that we know performs the same computation as \IdrisBound{f}.
 
 
 We can now combine \IdrisFunction{out} and \IdrisFunction{fmap} to compute
 the correct-by-construction \IdrisFunction{fold}: provided an algebra for
-a datatype \IdrisBound{cs} and a pointer to a tree of type \IdrisBound{cs}
-stored in a buffer, we return an \IdrisType{IO} process computing the fold.
+a datatype \IdrisBound{cs} and a pointer to a tree \IdrisBound{t}
+of type \IdrisBound{cs} stored in a buffer, we return an \IdrisType{IO}
+process computing the same value as the pure \IdrisFunction{fold} would
+have when applied to \IdrisBound{t}.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{foldtype}
 
