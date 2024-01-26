@@ -126,6 +126,11 @@ reconstructed by unification~\citep{DBLP:conf/tlca/AbelP11}.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{description}
 
+The \IdrisFunction{index} function is provided by the standard
+library: given a position of type (\IdrisType{Fin} \IdrisBound{n})
+and a vector of size \IdrisBound{n}, it returns the value located
+at that position.
+%
 Note that we seem to define \IdrisFunction{description}
 in terms of itself, in a manner that would create an
 infinite loop.
@@ -133,6 +138,8 @@ infinite loop.
 But the occurrence on the right-hand side is actually
 referring to the projection out of the
 \IdrisType{Constructor} record.
+%
+This is possible thanks to Idris' type-directed disambiguation.
 
 \begin{remark}[Type-directed Disambiguation]
   If multiple definitions in scope have the same name,
@@ -145,7 +152,8 @@ syntactic sugar enabling them to use the constructors' names
 directly rather than confusing numeric indices.
 %
 The following function runs a semi-decision procedure
-\IdrisFunction{isConstructor} at the type level
+\IdrisFunction{isConstructor} (whose implementation is
+not given here) at the type level
 in order to turn any raw string \IdrisBound{str}
 into the corresponding \IdrisType{Index}.
 
