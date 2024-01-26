@@ -45,8 +45,11 @@ that allow us to efficiently access any value we want.
 
 \subsection{Writing a Tree to a File}\label{sec:writetofile}
 
-Once we have a pointer to a tree in a buffer, we can easily write it to a
-file be it for safekeeping or sending over the network.
+Once we have a pointer to a tree \IdrisBound{t} of type \IdrisBound{cs}
+(\IdrisType{Pointer.Mu} \IdrisBound{cs} \IdrisBound{t} in the type below)
+in a buffer, we can easily write it to a file be it for safekeeping
+or sending over the network.
+
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{writeToFile}
 
