@@ -42,11 +42,13 @@ proof of decidable equality, various recursion schemes, and zippers.
 This work, quite similar to our own in its presentation, offers a natural
 candidate universe for us to use to extend our library.
 
+\todo{Discuss}
+\cite{DBLP:journals/pacmpl/EscotC22}
 
 \subsubsection{Efficient Runtime Representation of Inductive Values}
 
 Although not dealing explicitly with programming over serialised data,
-Monnier's work~\citep{DBLP:conf/icfp/Monnier19} with its focus on performance and
+Monnier's work~\citeyearpar{DBLP:conf/icfp/Monnier19} with its focus on performance and
 in particular on the layout of inductive values at runtime,
 partially motivated our endeavour.
 %
@@ -55,7 +57,7 @@ of the generically defined views, we ought to be able to achieve --purely in
 user code-- Monnier's vision of a representation where n-ary tuples have
 constant-time access to each of their component.
 
-Baudon, Radanne, and Gonnord~\citep{ACM:conf/icfp/Baudon23} adopted
+Baudon, Radanne, and Gonnord~\citeyearpar{ACM:conf/icfp/Baudon23} adopted
 a radically different approach to ours: we provide users with a
 uniform representation that requires no setup on their part,
 while \textsc{RIBBIT} instead gives power users absolute freedom
@@ -78,6 +80,20 @@ ours lives purely in userland.
 \todo{Finish description}
 
 \todo{Dargent}
+
+Allais~\citeyearpar{DBLP:conf/esop/Allais23}
+demonstrates how one can encode an
+invariant-rich inductive type using builtin types
+in \idris{} and recover high level programming principles
+by using views.
+%
+They rely heavily on Quantitative Type Theory to precisely
+control what parts of the encoding are to be erased during
+compilation.
+%
+Their approach, dealing with a single inductive family in a
+tutorial-style paper, is ad-hoc but complementary to ours
+and shows how to use bit packing in a certified way.
 
 \subsubsection{Working on Serialised Data}
 
