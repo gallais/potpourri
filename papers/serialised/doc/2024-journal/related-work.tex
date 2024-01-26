@@ -23,8 +23,6 @@ One early such instance is Pfeifer and Rue{\ss}'
 meant to replace unsafe meta-programs deriving recursors
 (be they built-in support, or user-written tactics).
 
-%\todo{See refs. in n-ary polymorphic functions}
-
 In his PhD thesis, Morris~\citeyearpar{DBLP:phd/ethos/Morris07} declares various
 universes for strictly positive types and families and defines by generic
 programming
@@ -54,7 +52,7 @@ partially motivated our endeavour.
 %
 Provided that we find a way to get the specialisation and partial evaluation
 of the generically defined views, we ought to be able to achieve --purely in
-user code-- Monnier's vision of a representation where n-ary tuples have
+user code-- Monnier's vision of a representation where $n$-ary tuples have
 constant-time access to each of their component.
 
 Baudon, Radanne, and Gonnord~\citeyearpar{ACM:conf/icfp/Baudon23} adopted
@@ -136,7 +134,7 @@ The PADS project~\citep{DBLP:conf/popl/MandelbaumFWFG07} aims to let users
 quickly, correctly, and compositionally describe existing formats they
 have no control over.
 %
-As they reminds us, ad-hoc serialisation formats abound be it in
+As they remind us, ad-hoc serialisation formats abound be it in
 networking, logging, billing, or as output of measurement equipments
 in e.g. gene sequencing or molecular biology.
 %
@@ -170,7 +168,8 @@ the problem they are solving to minimise the size of the encoded data.
 By detecting sharing using a custom equality function respecting
 $\alpha$-equivalence instead of the default one, he was able to
 serialise large lambda terms using only
-a quarter of the bytes OCaml's standard library marshaller.
+a quarter of the bytes required
+by the OCaml's standard library marshaller.
 
 \subsubsection{Type Theory for Data Layout}
 
