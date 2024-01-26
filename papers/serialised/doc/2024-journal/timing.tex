@@ -26,20 +26,27 @@ The \IdrisFunction{sum} function explores the entirety of the tree
 and as such the difference between the deserialisation-based and the
 pointer-based functions is minimal.
 %\todo{Measure memory footprint?}
-%
+
+\noindent
+\begin{minipage}{.45\textwidth}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{tsum}
+\end{minipage}\hfill
+\begin{minipage}{.45\textwidth}
+  \graphOf{pointer}{data}{sum}
+\end{minipage}
+
 The \IdrisFunction{rightmost} function only explores the rightmost
 branch of the tree and we correspondingly see an exponential speedup
 for the pointer-based function which is able to efficiently skip past
 every left subtree.
 
-\begin{center}
+\noindent
 \begin{minipage}{.45\textwidth}
-  \graphOf{pointer}{data}{sum}
-\end{minipage}\qquad
+  \ExecuteMetaData[SaferIndexed.idr.tex]{rightmost}
+\end{minipage}\hfill
 \begin{minipage}{.45\textwidth}
   \graphOf{pointer}{data}{rightmost}
 \end{minipage}
-\end{center}
 
 The deep \IdrisFunction{copy} is unsurprisingly also exponential in
 the depth of the tree being copied whereas the version based on the
