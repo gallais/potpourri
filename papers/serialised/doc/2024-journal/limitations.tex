@@ -8,6 +8,26 @@ across the whole project.
 
 \subsubsection{A More Robust Library}\label{sec:limitation-robust}
 
+As observed in \cref{sec:pointers} the indices used in
+\IdrisType{Pointer.Mu} and \IdrisType{Pointer.Meaning}
+are phantom indices~\citep{DBLP:conf/dsl/LeijenM99}.
+%
+This means that our arithmetic operations on pointers
+are unverified and thus part of the trusted core for
+this work.
+%
+We could move this trusted core slightly down the stack
+by defining a type of buffers indexed by a (phantom)
+list of bytes corresponding to their content together
+with trusted primitives whose behaviour is expressed
+in terms of that phantom list.
+%
+Reusing existing work on correct-by-construction
+serialisers~\citep{DBLP:conf/icfp/GeestS17} we could
+then prove that the \IdrisFunction{poke}
+and \IdrisFunction{out} implementations are indeed safe
+provided that the buffer primitives are correct.
+
 For sake of ease of presentation we have not dealt with issues necessitating
 buffer resizing: in \Cref{sec:serialising},
 we defined \IdrisFunction{execSerialising}
