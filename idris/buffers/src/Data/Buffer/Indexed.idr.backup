@@ -1,0 +1,64 @@
+module Data.Buffer.Indexed
+
+import Data.Buffer as B
+import Data.Nat
+import Data.Singleton
+
+irrelevantLTE : (p, q : m `LTE` n) -> p === q
+irrelevantLTE LTEZero LTEZero = Refl
+irrelevantLTE (LTESucc p) (LTESucc q) = cong LTESucc (irrelevantLTE p q)
+
+namespace Index
+
+  public export
+  record Index (start, end : Nat) where
+    constructor MkIndex
+    index : Nat
+    0 validLowerBound : start `LTE` index
+    0 validUpperBound : index `LT` end
+
+  public export
+  first : {start : Nat} -> (0 _ : start `LT` end) -> Index start end
+  first = MkIndex start reflexive
+
+  public export
+  next : (idx : Index start end) -> (0 _ : S idx.index `LT` end) -> Index start end
+  next (MkIndex i lb ub) = MkIndex (S i) (lteSuccRight lb)
+
+  public export
+  data View : Index start end -> Type where
+    First : {start : Nat} -> (0 prf : start `LT` end) -> View (first prf)
+    Next  : (idx : Index start end) -> (0 prf : S idx.index `LT` end) -> View (next idx prf)
+
+  export
+  view : {start : Nat} -> (idx : Index start end) -> View idx
+  view (MkIndex i lb ub) = ?a
+
+public export
+data Values : (start, end : Nat) -> Type where
+  Nil : Values start (S start)
+  (::) : Bits8 -> Values (S start) end -> Values start end
+
+public export
+lookup : Values start end -> Index start end -> Bits8
+lookup vs idx = ?a_1
+
+namespace Region
+
+  export
+  data Region : Type where
+    MkRegion : Region
+
+
+namespace ReadWrite
+
+  record Buffer (l : Region) (vs : Values start end) where
+    constructor MkBuffer
+    content : B.Buffer
+
+  getBits8 :
+    HasIO io =>
+    Buffer l {start, end} vs ->
+    (idx : Index start end) ->
+    io (Singleton (lookup vs idx))
+  getBits8 = ?ag

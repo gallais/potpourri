@@ -1,0 +1,177 @@
+module Data.Buffer.Indexed
+
+import Data.Buffer as B
+import Data.Nat
+import Data.Fin
+import Data.Vect
+import Data.Singleton
+
+import Control.Linear.LIO
+import Data.Linear.Notation
+
+namespace Region
+
+  export
+  data Region : Type where
+    MkRegion : Region
+
+
+infixl 10 !!
+public export
+(!!) : Vect size a -> Fin size -> a
+vs !! k = index k vs
+
+public export
+update : Vect size a -> Fin size -> a -> Vect size a
+update (_ :: vs) FZ w = w :: vs
+update (v :: vs) (FS k) w = v :: update vs k w
+
+%unsafe
+unsafeMkSingleton : (0 x : a) -> (val : a) -> Singleton x
+unsafeMkSingleton x val = believe_me (Val val)
+
+namespace Vect
+
+  public export
+  data View : Vect n a -> Type where
+    Nil : View []
+    (::) : (0 x : a) -> (0 xs : Vect n a) -> View (x :: xs)
+
+  public export
+  view : {n : Nat} -> (0 xs : Vect n a) -> View xs
+  view {n = 0} [] = []
+  view {n = S n} (x :: xs) = x :: xs
+
+
+namespace ReadWrite
+
+
+  ||| (Buffer l start end vs) can be understood as a proof of
+  ||| ownership of the portion of the region named `l` between
+  ||| `start` (inclusive) and `end` (exclusive) whose content is
+  ||| `vs`.
+  |||
+  ||| `copyOfStart` is a runtime copy of the index `start`
+  ||| `content`     is the underlying buffer for the (whole!) region `l`
+  |||
+  |||
+  ||| /!\ It is crucial for invariants preservation that this
+  ||| definition is not `public export`. This way users are
+  ||| forced to use our invariants-safe functions to manipulate
+  ||| buffers.
+  ||| The first invariant is that `l` is a unique label for the
+  ||| region: all the buffers indexed by the same `l` are assumed
+  ||| to have the same `content`.
+  ||| The second invariant is that the bytes stored in `content`
+  ||| between indices `start` and `end` are exactly the ones listed
+  ||| in the `vs` index.
+  export
+  record Buffer (l : Region) (start : Nat) {size : Nat} (end : Nat) (vs : Vect size Bits8) where
+    constructor MkBuffer
+    copyOfStart : Singleton start
+    content : B.Buffer
+    0 validEndpoints : start + size === end
+
+------------------------------------------------------------------------
+-- Pure operations
+
+  ||| We can split a buffer like we would split a vector:
+  ||| if it is known to contain `vs ++ ws` and we know `m`
+  ||| the size of `vs` then we can take it apart and turn
+  ||| into two proofs of ownership:
+  ||| one for the portion containing `vs`
+  ||| and one for the one containing `ws`.
+  export
+  splitAt :
+    (m : Nat) -> {0 vs : Vect m Bits8} ->
+    Buffer l start {size = m + n} end (vs ++ ws) -@
+    LPair (Buffer l start {size = m} (start + m) vs)
+          (Buffer l (start + m) {size = n} end         ws)
+  splitAt m (MkBuffer (Val start) content Refl)
+    = MkBuffer (Val start) content reflexive
+    # MkBuffer (Val (start + m)) content (symmetric (plusAssociative _ _ _))
+
+  data View : Buffer l start {size} end vs -> Type where
+    Nil : {1 buf : Buffer l start {size = 0} start []} -> View buf
+    (::) :
+      (1 _ : Buffer l start (S start) [v]) ->
+      (1 _ : Buffer l (S start) end vs) ->
+      {0 buf : Buffer l start end (v :: vs)} ->
+      View buf
+
+
+  ||| Getting rid of a proof of ownership if we do not need
+  ||| it anymore.
+  export
+  free : Buffer l start end vs -@ ()
+  free (MkBuffer _ _ _) = ()
+
+  ||| By combining `splitAt` and `free`, we can drop the
+  ||| initial segment of a buffer.
+  export
+  drop :
+    (m : Nat) -> {0 vs : Vect m Bits8} ->
+    Buffer l start {size = m + n} end (vs ++ ws) ->
+    Buffer l (start + m) {size = n} end ws
+  drop m buf
+    = let (trash # rest) = splitAt m buf in
+      let () = free trash in
+      rest
+
+  ||| By combining `splitAt` and `free`, we can drop the
+  ||| final segment of a buffer.
+  export
+  take :
+    (m : Nat) -> {0 vs : Vect m Bits8} ->
+    {0 n : Nat} -> {0 ws : Vect n Bits8} ->
+    Buffer l start {size = m + n} end (vs ++ ws) ->
+    Buffer l start {size = m} (start + m) vs
+  take m buf
+    = let (rest # trash) = splitAt m buf in
+      let () = free trash in
+      rest
+
+  ||| This definition is the first to explicitly take advantage
+  ||| of the assumption that region labels are unique. If we own
+  ||| two contiguous region segments, we can put them together
+  ||| and obtain a proof that we own the combined segments.
+  export
+  (++) :
+    Buffer l start middle vs -@
+    Buffer l middle end ws -@
+    Buffer l start end (vs ++ ws)
+  MkBuffer start content prfl ++ MkBuffer _ _ prfr
+    = MkBuffer start content ?A
+
+------------------------------------------------------------------------
+-- Read and write operations
+
+  export
+  getBits8 :
+    LinearIO io =>
+    (1 _ : Buffer l start end vs) ->
+    (idx : Fin size) ->
+    L io (LPair (Buffer l start end vs) (Singleton (vs !! idx)))
+  getBits8 (MkBuffer (Val start) content valid) idx
+    = do w <- B.getBits8 content (cast (start + cast idx))
+         pure (MkBuffer (Val start) content valid # unsafeMkSingleton (vs !! idx) w)
+
+  export
+  setBits8 :
+    LinearIO io =>
+    (1 _ : Buffer l start end vs) ->
+    (idx : Fin size) ->
+    (val : Bits8) ->
+    L io (Buffer l start end (update vs idx val))
+  setBits8 (MkBuffer (Val start) content valid) idx v
+    = do w <- B.setBits8 content (cast (start + cast idx)) v
+         pure (MkBuffer (Val start) content valid)
+
+export
+map :
+  {start, size : Nat} -> {0 vs : Vect size Bits8} ->
+  LinearIO io =>
+  (f : Bits8 -> Bits8) ->
+  (1 _ : Buffer l start end vs) ->
+  L io (Buffer l start end (map f vs))
+map f buf = ?azg
