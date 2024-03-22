@@ -2,26 +2,62 @@ module Data.Buffer.Indexed
 
 import Data.Buffer as B
 import Data.Nat
-import Data.Fin
 import Data.Vect
 import Data.Singleton
 
 import Control.Linear.LIO
 import Data.Linear.Notation
 
-public export
-after : (m : Nat) -> Fin (m + S n)
-after 0 = FZ
-after (S k) = FS (after k)
+
+lteIrrelevant : (p, q : LTE m n) -> p === q
+lteIrrelevant LTEZero LTEZero = Refl
+lteIrrelevant (LTESucc p) (LTESucc q) = cong LTESucc (lteIrrelevant p q)
+
+namespace Index
+
+  public export
+  record Index (n : Nat) where
+    constructor MkIndex
+    getIndex : Nat
+    0 validIndex : getIndex `LT` n
+
+  export
+  Uninhabited (Index 0) where
+    uninhabited (MkIndex n p) impossible
+
+  public export
+  zero : Index (S n)
+  zero = MkIndex 0 (LTESucc LTEZero)
+
+  public export
+  succ : Index n -> Index (S n)
+  succ (MkIndex k p) = MkIndex (S k) (LTESucc p)
+
+  public export
+  data View : Index n -> Type where
+    Z : View Index.zero
+    S : (k : Index n) -> View (succ k)
+
+  public export
+  view : (k : Index n) -> View k
+  view (MkIndex 0 (LTESucc p))
+    = rewrite lteIrrelevant p LTEZero in Z
+  view (MkIndex (S k) (LTESucc p))
+    = S (MkIndex k p)
 
 public export
-lookup : Vect size a -> Fin size -> a
-lookup vs k = index k vs
+lookup : Vect size a -> Index size -> a
+lookup [] k = absurd k
+lookup (v :: vs) k = case view k of
+  Z => v
+  S k => lookup vs k
 
 public export
-update : Vect size a -> Fin size -> a -> Vect size a
-update (_ :: vs) FZ w = w :: vs
-update (v :: vs) (FS k) w = v :: update vs k w
+update : Vect size a -> Index size -> a -> Vect size a
+update [] k w = absurd k
+update (v :: vs) k w = case view k of
+  Z => w :: vs
+  S k => v :: update vs k w
 
 %unsafe
 unsafeMkSingleton : (0 x : a) -> (val : a) -> Singleton x
@@ -68,24 +104,19 @@ namespace SnocVect
   mapChips f [<] xs = Refl
   mapChips f (sx :< x) xs = mapChips f sx (x :: xs)
 
+lookupChips :
+  {n : Nat} ->
+  (m, k : Nat) -> {p : (m + k) `LT` addz m n} ->
+  (pref : SnocVect m a) ->
+  (suff : Vect n a) ->
+  {q : k `LT` n} ->
+  lookup (pref <>> suff) (MkIndex (m + k) p) === lookup suff (MkIndex k q)
+lookupChips 0 k [<] suff = cong (\ p => lookup suff (MkIndex k p)) (lteIrrelevant p q)
+lookupChips (S m) k (pref :< v) suff
+  = transitive ?Agzrg
+  $ transitive (lookupChips m (S k) pref (v :: suff))
+  ?ag
 
-afterz : (m : Nat) -> {0 n : Nat} -> Fin n -> Fin (addz m n)
-afterz 0 k = k
-afterz (S m) k = afterz m (FS k)
-
-lookupAfterz :
-  (vs : SnocVect m a) -> {ws : Vect n a} ->
-  (k : Fin n) ->
-  lookup (vs <>> ws) (afterz m k) === lookup ws k
-lookupAfterz [<] k  = Refl
-lookupAfterz (vs :< v) k = lookupAfterz vs (FS k)
-
-updateAfterz :
-  (vs : SnocVect m a) -> {ws : Vect n a} ->
-  (k : Fin n) -> (v : a) ->
-  update (vs <>> ws) (afterz m k) v === (vs <>> update ws k v)
-updateAfterz [<] k v = Refl
-updateAfterz (vs :< _) k v = updateAfterz vs (FS k) v
 
 namespace Vect
 
@@ -213,10 +244,10 @@ namespace ReadWrite
     {region : Region} -> {start : Nat} ->
     LinearIO io =>
     (1 _ : Owned region start end vs) ->
-    (idx : Fin size) ->
+    (idx : Index size) ->
     L1 io (LPair (Owned region start end vs) (Singleton (lookup vs idx)))
   getBits8 (MkOwned valid) idx
-    = do w <- B.getBits8 (getBuffer region) (cast (start + cast idx))
+    = do w <- B.getBits8 (getBuffer region) (cast (start + getIndex idx))
          pure1 (MkOwned valid # unsafeMkSingleton (lookup vs idx) w)
 
   %hide B.getBits8
@@ -226,11 +257,11 @@ namespace ReadWrite
     {region : Region} -> {start : Nat} ->
     LinearIO io =>
     (1 _ : Owned region start end vs) ->
-    (idx : Fin size) ->
+    (idx : Index size) ->
     (val : Bits8) ->
     L1 io (Owned region start end (update vs idx val))
   setBits8 (MkOwned valid) idx v
-    = do B.setBits8 (getBuffer region) (cast (start + cast idx)) v
+    = do B.setBits8 (getBuffer region) (cast (start + getIndex idx)) v
          pure1 (MkOwned valid)
 
   %hide B.setBits8
@@ -254,8 +285,10 @@ map f = loop [<] (view vs) where
   loop acc [] buf
     = pure1 $ rewrite mapChips f acc [] in buf
   loop acc (v :: vs) buf
-    = do buf # val <- getBits8 buf (afterz m FZ)
-         let Val v = the (Singleton v) $ replace {p = Singleton} (lookupAfterz (map f acc) FZ) val
-         buf <- setBits8 buf (afterz m FZ) (f v)
-         let buf = replace {p = Owned _ _ _} (updateAfterz (map f acc) FZ (f v)) buf
-         loop (acc :< v) (view vs) buf
+    = do let idx : Index _; idx = MkIndex m ?a
+         buf # val <- getBits8 buf idx
+         let w := replace {p = Singleton} ?Ag val
+         buf <- the (L1 io (Owned region start end (update (map f acc <>> v :: vs) idx (f v))))
+                    ?Agzeg -- (setBits8 buf idx ?Agzg)
+         the (L1 io (Owned region start end (map f (acc <>> v :: vs))))
+             (loop (acc :< v) (view vs) ?rhg)
