@@ -5,7 +5,7 @@ module Data.Serialisable.Desc where
 open import Agda.Builtin.FromNat using (fromNat)
 open import Agda.Builtin.FromString using (IsString; fromString)
 
-open import Data.Bool.Base using (Bool; true; false; if_then_else_; _∧_)
+open import Data.Bool.Base using (Bool; true; false; T; if_then_else_; _∧_)
 open import Data.Buffer using (Buffer; getWord8)
 open import Data.Buffer.Builder using (Builder; word8; empty; _<>_)
 open import Data.Fin as Fin using (Fin)
@@ -19,7 +19,7 @@ import Data.String.Literals; instance IsStringString = Data.String.Literals.isSt
 open import Data.Unit.Base using (⊤)
 open import Data.Vec.Base as Vec using (Vec; []; _∷_)
 open import Data.Vec.Relation.Unary.Any as Any using (Any; any?)
-open import Data.Word8 as Word8 using (Word8)
+open import Data.Word8 as Word8 using (Word8; word8AsBoundedNat)
 
 open import Function.Base using (id; _∘_; _∘′_; _$_; const; case_of_)
 
@@ -81,6 +81,7 @@ module Data where
     constructor mkData
     field
       {consNumber} : ℕ
+      @0 {{fitsInBits8}} : T (consNumber ≤ᵇ 255)
       constructors : Vec (Constructor nm) consNumber
   open Data public
 
@@ -94,9 +95,9 @@ module Data where
 
 
   show : ∀ {@0 nm} → Data nm → String
-  show cs = go (constructors cs) where
+  show {nm} cs = go (constructors cs) where
 
-    go : ∀ {n} → Vec (Constructor _) n → String
+    go : ∀ {n} → Vec (Constructor nm) n → String
     go [] = "⊥"
     go (c ∷ cs) = String.concat
       $ ("μX. " ++ Desc.show (Constructor.description c))
@@ -179,10 +180,11 @@ module _ (buf : Buffer) where
 
   getData : (start : Int64) → Deserialising (Data ⊤)
   getData start
-    = do let n = Word8.toℕ (getWord8 buf start)
+    = do let i = getWord8 buf start
+         let (n , oh) = word8AsBoundedNat i
          let middle = 1 + start
          (end , cs) ← getConstructors middle n
-         pure (end , mkData cs)
+         pure (end , mkData {{oh}} cs)
 
 ------------------------------------------------------------------------
 -- Serialisation of descriptions to a Buffer

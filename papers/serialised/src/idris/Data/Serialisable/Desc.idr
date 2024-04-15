@@ -46,6 +46,7 @@ public export
 record Data (nm : Type) where
   constructor MkData
   {consNumber : Nat}
+  {auto 0 fitsInBits8 : So (consNumber <= 255)}
   constructors : Vect consNumber (Constructor nm)
 
 ||| A wrapper around fin that helps unification
@@ -175,9 +176,8 @@ parameters (buf : Buffer)
   export
   getData : Int -> IO (Data ())
   getData start = do
-    n <- getBits8 buf start
-    let Just n = ifThenElse (n < 0) Nothing (Just (cast n))
-       | Nothing => failWith "Invalid header"
+    i <- getBits8 buf start
+    let (n ** oh) = bits8AsBoundedNat i
     MkData <$> getConstructors (start + 1) n
 
 ------------------------------------------------------------------------
