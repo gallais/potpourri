@@ -1,8 +1,5 @@
 \section{Meaning as Pointers into a Buffer}\label{sec:pointers}
 
-Now that we know the serialisation format, we can give a meaning
-to constructor and data descriptions as pointers into a buffer.
-%
 For reasons that will become apparent in \Cref{sec:bufferfold}
 when we start programming over serialised data in a correct-by-construction
 manner, our types of `pointers' will be parameterised not only
@@ -10,13 +7,8 @@ by the description of the type of the data stored but also by a
 runtime-irrelevant inductive value of that type.
 %
 For now, it is enough to think of these indices as a lightweight
-version of the `points to' assertions used in separation
-logic~\citep{DBLP:conf/lics/Reynolds02}
-when reasoning about imperative programs.
-%
-We expand on this analogy in \Cref{appendix:hoare} where we
-also discuss the connection with the combinators defined
-in \Cref{sec:poking}.
+version of the `points to' assertions used in logics for imperative
+programs such as Hoare logic and separation logic.
 
 \subsection{Tracking Buffer Positions}
 

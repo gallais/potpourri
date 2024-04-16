@@ -149,5 +149,9 @@ respective data layouts and offsets for a leaf and a node.
   \input{data-layout-nodes}
 \end{center}
 
-Now that we understand the format we want, we ought to be able to implement pointers
-and the functions manipulating them.
+
+We now have a good understanding of the serialisation format we
+are going to use to represent our inductive trees.
+%
+The next step is to define what it means to have a pointer to a
+tree residing in a buffer.

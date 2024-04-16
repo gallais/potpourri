@@ -1,0 +1,147 @@
+\section{Interlude: Logics for Imperative Programs}
+
+Let us first look back at historical frameworks built to explicitly
+talk about memory locations and their contents.
+%
+Their design and properties will then inform our choices.
+
+\subsection{Hoare Logic}
+
+Hoare logic~\citeyearpar{DBLP:journals/cacm/Hoare69}  is a framework in
+which we can state and prove the properties of imperative programs.
+%
+Its central notion is that of Hoare triples. They are statements of
+the form
+\[ \Hoare{P}{e}{v}{Q} \]
+declaring that under the precondition
+$P$, and binding the result of evaluating the expression $e$ as $v$,
+we can prove that $Q$ holds.
+
+The most basic of predicates to express knowledge about the memory
+state is a `points to' assertion (\Pointer{\ell}{}{w}) stating that
+the label $\ell$ points to a memory location containing the word $w$.
+%
+This can be used for instance to specify the behaviour of a \texttt{deref}
+primitive: if $\ell$ is known to point to a value $w$ then evaluating
+the program (\texttt{deref}($\ell$)) will return a value $v$ equal to $w$.
+\[ \Hoare{\Pointer{\ell}{}{w}}{\texttt{deref}(\ell)}{v}{v = w} \]
+
+Provided that we only have read-only operations, evaluating a program cannot
+invalidate assumptions about the contents of the memory and so we enjoy a
+form of weakening: for any proposition $R$, if we can specify the behaviour
+of a program $e$ using the precondition $P$ and the postcondition $Q$,
+then the same program will also abide by the specification using the
+precondition ($P \wedge R$) and the postcondition ($Q \wedge R$).
+\[ \Hoare{P}{e}{v}{Q} \quad \Longrightarrow \quad \Hoare{P \wedge R}{e}{v}{Q \wedge R} \]
+In particular, the validity of (\Pointer{\ell}{}{w}) can be propagated even
+after having dereferenced it.
+
+Using further structural rules such as the one below for a
+\texttt{let} construct, we can combine the axioms to prove
+statements about more complex programs.
+
+\newcommand{\letin}[3]{\texttt{let}\,#1\,=\,#2~\texttt{in}~#3}
+
+\begin{gather*}
+  \Hoare{P}{e}{v}{Q} \wedge \Hoare{Q(x)}{e^{\prime}}{v}{R} \\
+  \Longrightarrow \Hoare{P}{\letin{x}{e}{e^{\prime}}}{v}{R}
+\end{gather*}
+
+We can for instance prove that we can chase pointers:
+if $\ell$ points to a value $\ell^{\prime}$ itself corresponding
+to a label pointing to $w$, nested calls to \texttt{deref}
+will return a value equal to $w$:
+\[ \Hoare
+     {\Pointer{\ell}{}{\mathit{\ell^{\prime}}} \wedge \Pointer{\ell^{\prime}}{}{\mathit{w}}}
+     {\letin{x}{\texttt{deref}(\ell)}{\texttt{deref}(x)}}{v}{v = w}
+\]
+
+Once we have these building blocks, it becomes interesting to introduce
+some abstractions. As we explained above, \Pointer{\ell}{}{w} states that
+the memory location called $\ell$ contains the word $w$.
+%
+The programs we are interested in do not however manipulate isolated words,
+they talk about full blown inductive trees.
+%
+The key idea is to use this base `points to' assertion as a building
+block to compositionally give a meaning to richly typed pointers.
+We will write (\Pointer{\ell}{\mathit{ty}}{v}) for the pointer
+to a value $v$ of type $\mathit{ty}$.
+%
+We can naturally define (\Pointer{\ell}{\text{\IdrisType{Bits8}}}{w}) as
+simply (\Pointer{\ell}{}{w}).
+%
+We can then decide that, assuming that we know the size $s_a$
+of values of type $a$, (\Pointer{\ell}{(a,~ b)}{(v_1, v_2)})
+means that $\ell$ points to two contiguous values $v_1$ and $v_2$.
+%
+In other words it is an alias for
+($\Pointer{\ell}{a}{v_1} \wedge \Pointer{\ell+s_a}{b}{v_2}$).
+
+
+These richly typed pointers are the kind of pointers we are going to
+define in the next section.
+%
+But before, let us have a look at how things get more complicated
+once we are given access to primitives that can destructively update
+the contents of a memory location.
+
+\subsection{Separation Logic}
+
+It is tempting to add a new primitive \texttt{assign} that takes a
+label $\ell$ and a word $w$ and updates the memory cell so that
+(\Pointer{\ell}{}{w}) now holds true. Its specification would be
+\[ \Hoare{\Pointer{\ell}{}{\_}}{\texttt{assign}\,(\ell,\,w)}{\_}{\Pointer{\ell}{}{w}} \]
+However with such a primitive things that were true before a program
+was run may have been invalidated in the process.
+%
+Consequently the weakening principle given above does not hold anymore.
+Otherwise the following reasoning step would be valid and the memory cell
+corresponding to the label $\ell$ would need to contain both $0$ and $1$.
+\begin{gather*}
+  \Hoare{\Pointer{\ell}{}{0}}{\texttt{assign}\,(\ell,\,1)}{\_}{\Pointer{\ell}{}{1}}
+  \\\quad \centernot\Longrightarrow \quad
+   \Hoare{\Pointer{\ell}{}{0} \wedge \Pointer{\ell}{}{0}}{\texttt{assign}\,(\ell,\,1)}{\_}{\Pointer{\ell}{}{1} \wedge \Pointer{\ell}{}{0}}
+\end{gather*}
+
+This makes Hoare logic highly non-compositional in the presence of
+destructive updates: having proven a program
+fragment's specification using predicates mentioning the memory locations
+it interacts with, this result cannot be reused when proving the specification
+of a larger program involving additional memory locations.
+
+The state-of-the-art solution is to move away from Hoare logic and use
+separation logic~\citep{DBLP:conf/lics/Reynolds02,DBLP:journals/cacm/OHearn19,DBLP:books/hal/Chargueraud23,MANUAL:book/sfoundations/Chargueraud23}
+whose core idea is to have a \emph{separating} conjunction: ($P \ast Q$)
+states that both $P$ and $Q$ hold true but that they are talking about
+\emph{separate} slices of the memory.
+%
+This allows for the safe inclusion of a similar weakening principle,
+the \emph{frame rule} which states that for an arbitrary predicate $R$
+if $e$ can be specified using precondition $P$ and postcondition $Q$
+then it also can for precondition ($P \ast R$) and postcondition ($Q \ast R$)
+precisely because $R$ is talking about memory locations not impacted by $e$.
+
+As Rouvoet\todo{cite (DBLP down atm)}
+demonstrated, it is possible to embed separation logic in
+type theory but, even with best efforts, it remains a somewhat
+heavy process. Luckily for us, we do not need to.
+
+Our goal with this work is to process data serialised in buffers
+without first deserialising it as an in-memory tree.
+To do so we only need to be able to read from the buffer to
+analyse the structure of the inductive data stored in it.
+%
+Although we may \emph{want} to have destructive updates in future
+work, for this specific task we do not actually \emph{need} them.
+%
+Correspondingly, we will happily stick to a Hoare-style logic and
+its really powerful weakening principle.
+%
+As a matter of fact, we will go even further and entirely bypass the
+usual explicit embedding of such logics in the host language.
+%
+We will use \idris{}'s abstraction facilities to introduce richly typed
+`points to' predicates as first class values that can just be passed
+around, and trusted primitives that can take these pointers and reveal
+the shape of the values they are pointing to.

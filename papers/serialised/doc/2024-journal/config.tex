@@ -61,3 +61,10 @@
 %%% Remark environment
 \usepackage{amsthm}
 \newtheorem{remark}{Idris Specifics}
+
+\usepackage{xifthen}% provides \isempty test
+%%% Hoare logic
+\newcommand{\Pointer}[3]{\ensuremath{#1 \xmapsto{~#2~} #3}}
+\newcommand{\Hoare}[4]{\ensuremath{\lbrace~ #1 ~\rbrace~ #2 ~\lbrace~ #3.\, #4 ~\rbrace}}
+\newcommand{\Meaning}[2]{\ensuremath{\llbracket \,#1\, \rrbracket\, (\Mu{#2})}}
+\newcommand{\Mu}[1]{\ensuremath{\mu \, \mathit{#1}}}

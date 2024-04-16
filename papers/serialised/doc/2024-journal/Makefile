@@ -33,6 +33,7 @@ RAW_DEPENDENCIES=\
   trees.tex \
   hexdump.tex \
   pointers.tex \
+  points-to.tex \
   poking.tex \
   bufferfold.tex \
   singleton.tex \

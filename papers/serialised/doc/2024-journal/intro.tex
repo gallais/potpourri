@@ -206,7 +206,7 @@ induction on its input whereas we
 cannot prove anything about the \IdrisType{IO} process without first
 explicitly postulating the \IdrisType{IO} monad's properties.
 %
-We will see that we can refine that second definition to obtain
+We will see that we can instead refine that second definition to obtain
 a correct-by-construction version of
 \IdrisFunction{sum}, with almost exactly the same code.
 
@@ -221,17 +221,18 @@ And so the return type can mention the result of the pure computation
 %
 \IdrisType{Singleton} is, as its name suggests, a singleton type
 (cf. \Cref{sec:view})
-i.e. the natural number we compute is now proven to be equal to the
-one computed by the pure \IdrisFunction{sum} function. And so we can
-transfer any property proven on the pure \IdrisFunction{sum} to the
-one operating on values residing in buffers.
+i.e. it is a wrapper around a natural number that is proven to be equal to
+the one computed by the pure \IdrisFunction{sum} function.
+%
+And so we can transfer any property proven on the pure \IdrisFunction{sum}
+to the one operating on values residing in buffers.
 
 The implementation itself only differs in that we had to use idiom
 brackets~\citep{DBLP:journals/jfp/McbrideP08}, something we will explain
 in \Cref{sec:datasingleton}.
 
 In other words, our approach also allows us to, \emph{at the same time},
-defined and prove the functional correctness of the \IdrisType{IO}
+define and prove the functional correctness of the \IdrisType{IO}
 procedures processing trees stored in serialised format in a buffer.
 This means in particular that any intermediate computation can rely
 on the fact that the recursive calls are already known to be correct.
