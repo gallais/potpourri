@@ -333,6 +333,14 @@ namespace Pointer
 %</layerfun>
 \begin{code}
 
+\end{code}
+%<*layerexample>
+\begin{code}
+  example : Pointer.Meaning (Prod Rec (Prod None Byte)) cs v -> IO ()
+  example p = layer p >>= \ (q # I # w) => ?hole
+\end{code}
+%</layerexample>
+\begin{code}
   public export
 \end{code}
 %<*outdata>
@@ -410,6 +418,30 @@ namespace Pointer
 %</getConstructor>
 \begin{code}
 
+  namespace Pure
+    public export
+
+
+\end{code}
+%<*pureisleaf>
+\begin{code}
+    isLeaf : Mu Tree -> Bool
+    isLeaf ("Leaf" # _) = True
+    isLeaf _  = False
+\end{code}
+%</pureisleaf>
+%<*isleaf>
+\begin{code}
+  isLeaf : Pointer.Mu Tree t ->
+           IO (Singleton (isLeaf t))
+  isLeaf p = out p >>= \case
+    "Leaf" # _ => pure [| True |]
+    "Node" # _ => pure [| False |]
+\end{code}
+%</isleaf>
+\begin{code}
+
+
   namespace View
 
     public export
@@ -423,6 +455,21 @@ namespace Pointer
 \end{code}
 %</viewdata>
 \begin{code}
+
+    namespace PRINTONLY
+
+\end{code}
+%<*view>
+\begin{code}
+      view : {cs : Data nm} -> forall t.
+             Pointer.Mu cs t -> IO (View cs t)
+      view ptr = do k # el <- out ptr
+                    vs <- layer el
+                    pure (k # vs)
+\end{code}
+%</view>
+\begin{code}
+
 
     export
 \end{code}
