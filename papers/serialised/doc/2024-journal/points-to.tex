@@ -22,8 +22,8 @@ state is a `points to' assertion (\Pointer{\ell}{}{w}) stating that
 the label $\ell$ points to a memory location containing the word $w$.
 %
 \label{sec:deref}
-This can be used for instance to specify the behaviour of a \texttt{deref}
-primitive: if $\ell$ is known to point to a value $w$ then evaluating
+This can be used for instance to specify the behaviour of a primitive
+dereferencing operator: if $\ell$ is known to point to a value $w$ then evaluating
 the program (\texttt{deref}($\ell$)) will return a value $v$ equal to $w$.
 \[ \Hoare{\Pointer{\ell}{}{w}}{\texttt{deref}(\ell)}{v}{v = w} \]
 
