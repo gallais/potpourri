@@ -262,13 +262,15 @@ to a tree \IdrisBound{t} of type \IdrisBound{cs} we can get an
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{outfun}
 
-The \IdrisType{Out} family describes formally what revealing the
+The \IdrisType{Out} family formally describes what revealing the
 top node means:
 obtaining an \IdrisType{Index} named \IdrisBound{k},
 and a \IdrisType{Pointer.Meaning} to the meaning
 \IdrisBound{t} of the description associated to \IdrisBound{k}.
 %
 The family's index (\IdrisBound{k} \IdrisData{\#} \IdrisBound{t})
+(where the overloaded \IdrisData{(\#)} is here the
+\IdrisType{Data.Mu} constructor)
 ensures that the structure of the runtime irrelevant
 tree is adequately described by this index and meaning.
 
@@ -290,11 +292,15 @@ core means that its implementation will once again need to
 use escape hatches to reconcile the buffer's observed content
 with the type-level indices.
 %
-Operationally, remembering the data layout detailed in
-\Cref{fig:data-layout}, the implementation of \IdrisFunction{out}
-will amount to inspecting the tag used by the node and
-then deserialising the offsets stored immediately after it.
-
+Let us recall the data layout detailed in \Cref{fig:data-layout}:
+\begin{center}
+\input{data-layout}
+\end{center}
+Operationally, \IdrisFunction{out}
+will amount to inspecting the tag used by the node,
+deserialising the offsets stored immediately after it,
+and forming a pointer to the start of the meaning block.
+%
 As a first step, let us get our hands on the index of the head constructor.
 \ExecuteMetaData[SaferIndexed.idr.tex]{getIndex}
 We obtain a byte by calling \IdrisFunction{getBits8}, cast it to a
@@ -315,8 +321,9 @@ type-level \IdrisBound{t} to something of the form
 (\IdrisBound{k} \IdrisData{\#} \IdrisBound{val}).
 %
 We then conclude using the \IdrisFunction{getConstructor} function
-(defined later) to put together the pointer to the meaning of
-the description associated to the index \IdrisBound{k}.
+(defined later) to gather the required offsets and put together
+the pointer to the meaning of the description associated to the
+index \IdrisBound{k}.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{unfoldAs}
 
