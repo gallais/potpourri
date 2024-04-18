@@ -43,7 +43,7 @@ constructor.
 Instead, we provide high-level, invariant-respecting combinators to safely
 construct such serialisation processes.
 
-\subsection{Building Serialisation Processes}
+\subsection{Building Serialisation Processes}\label{sec:serialnode}
 
 Our main combinator is \IdrisFunction{(\#)}: by providing
 a node's constructor index
@@ -100,7 +100,7 @@ we can for instance define the correct-by-construction generic serialisation fun
 
 We nonetheless include other combinators purely for performance reasons.
 
-\subsection{Copying Entire Trees}
+\subsection{Copying Entire Trees}\label{sec:copy}
 
 We introduce a \IdrisFunction{copy} combinator for trees that we want to
 serialise as-is and have a pointer for.
@@ -137,7 +137,7 @@ in \IdrisType{Pointer.Mu} and \IdrisType{Pointer.Meaning}.
 As we can see in \Cref{sec:timing}, this is spectacularly faster than
 a deep copying process traversing the tree.
 
-\subsection{Executing a Serialisation Action}
+\subsection{Executing a Serialisation Action}\label{sec:execserialising}
 
 Now that we can describe actions serialising a value to a buffer,
 the last basic building block we are still missing is a function actually

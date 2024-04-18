@@ -30,7 +30,7 @@ This will culminate in the implementation of a generic
 correct-by-construction version of \IdrisFunction{fold}
 operating over trees stored in a buffer (cf. \Cref{sec:bufferfold}).
 
-\subsection{Poking the Buffer}
+\subsection{Poking the Buffer}\label{sec:poke}
 
 Our most basic operation consists in poking the buffer to gain
 access to the head constructor of the underlying layer of
@@ -246,7 +246,7 @@ We have effectively managed to take \IdrisBound{v} apart in a
 type-directed manner and get a handle on its subterms.
 In that sense we have just defined a view for meanings stored in buffers!
 
-\subsection{Exposing a Tree's Top Node}
+\subsection{Exposing a Tree's Top Node}\label{sec:out}
 
 Now that we can deserialise an entire layer of \IdrisFunction{Meaning},
 the only thing we are missing to be able to generically manipulate trees
