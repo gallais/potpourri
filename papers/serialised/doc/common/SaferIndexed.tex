@@ -773,6 +773,22 @@ namespace Pointer
             Serialising Tree (Tree.node l b r)
   node = setMuK Tree 1
 
+  namespace PRINTONLY
+\end{code}
+%<*serialisedmapcompact>
+\begin{code}
+    map : (f : Bits8 -> Bits8) ->
+      (ptr : Pointer.Mu Tree t) ->
+      Serialising Tree (Data.map f t)
+    map f ptr = case !(view ptr) of
+      "Leaf" # I => "Leaf" # I
+      "Node" # l # b # r =>
+        "Node" # map f l # [| f b |]
+               # map f r
+\end{code}
+%</serialisedmapcompact>
+\begin{code}
+
   ||| Correct by construction map function.
   ||| @ f   is the function to map over the tree's nodes
   ||| @ t   is the phantom name of the tree represented by the buffer
@@ -783,8 +799,7 @@ namespace Pointer
 \end{code}
 %<*serialisedmap>
 \begin{code}
-  map : (f : Bits8 -> Bits8) ->
-        (ptr : Pointer.Mu Tree t) ->
+  map : (f : Bits8 -> Bits8) -> (ptr : Pointer.Mu Tree t) ->
         Serialising Tree (Data.map f t)
   map f ptr = case !(view ptr) of
     "Leaf" # I => "Leaf" # I

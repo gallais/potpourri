@@ -125,6 +125,7 @@ main = do
   csv "rightmost" range (dataVSpointer Data.rightmost Pointer.rightmost)
   csv "find"      range (dataVSpointer (Data.find 120) (Pointer.find 120))
   csv "swap"      range (deepVSshallow deepSwap Pointer.swap)
+  csv "map"       range (deepVSshallow (deepMap (+100)) (Pointer.map (+100)))
 
 {-
   traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]

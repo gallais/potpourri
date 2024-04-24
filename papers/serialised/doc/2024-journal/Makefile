@@ -2,6 +2,7 @@
 .PHONY: all common
 
 RAW_DEPENDENCIES=\
+  map.csv \
   sum.csv \
   find.csv \
   swap.csv \

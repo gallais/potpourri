@@ -232,6 +232,15 @@ namespace Pointer
     "Leaf" # () => "Leaf" # ()
     "Node" # l # b # r => "Node" # map f l # (f <$> b) # map f r
 
+  export
+  ||| This is an inefficient version using `deepCopy`
+  deepMap : (f : Bits8 -> Bits8) ->
+            (ptr : Pointer.Mu Tree t) ->
+            Serialising Tree (Data.map f t)
+  deepMap f ptr = do
+    MkSingleton t <- deserialise ptr
+    serialise (Data.map f t)
+
   ||| Simple printing function
   export
   display : Pointer.Mu Tree t -> IO String
