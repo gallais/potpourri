@@ -70,13 +70,18 @@ level.
 
 Poking a buffer containing a \IdrisData{Byte} will yield a
 runtime-relevant copy of the type-level byte we have for
-reference. Hence the use of \IdrisType{Singleton}.
+reference, hence the use of \IdrisType{Singleton}.
 This corresponds to adding the following Hoare-style axiom
-for \IdrisFunction{poke} (note that it looks eerily
+for \IdrisFunction{poke}. Remembering that
+(\IdrisFunction{Meaning} \IdrisData{Byte} (\IdrisType{Mu} \IdrisBound{cs}))
+computes to \IdrisType{Bits8} and so that
+(\Pointer{\ell}{\text{\IdrisFunction{Meaning} \IdrisData{Byte} (\IdrisType{Mu} \IdrisBound{cs})}}{w})
+is essentially (\Pointer{\ell}{}{w}), we
+note that this Hoare-style axiom looks eerily
 similar to the axiom for \texttt{deref} we gave in
 \Cref{sec:deref}):
 \[ \Hoare
-     {\Pointer{\ell}{\text{\IdrisFunction{Meaning} \IdrisData{Byte} \IdrisBound{x}}}{w}}
+     {\Pointer{\ell}{\text{\IdrisFunction{Meaning} \IdrisData{Byte} (\IdrisType{Mu} \IdrisBound{cs})}}{w}}
      {\text{\IdrisFunction{poke}}~\ell}
      {v}{v = w}
 \]
@@ -85,9 +90,9 @@ we have a substructure. In this case we simply demand
 a pointer to it. This amounts to adding the following
 axiom:
 \[ \Hoare
-     {\Pointer{\ell}{\text{\IdrisFunction{Meaning} \IdrisData{Rec} \IdrisBound{x}}}{t}}
+     {\Pointer{\ell}{\text{\IdrisFunction{Meaning} \IdrisData{Rec} (\IdrisType{Mu} \IdrisBound{cs})}}{t}}
      {\text{\IdrisFunction{poke}}~\ell}
-     {\ell^{\prime}}{\Pointer{\ell^{\prime}}{\text{\IdrisBound{x}}}{t}}
+     {\ell^{\prime}}{\Pointer{\ell^{\prime}}{\text{\IdrisType{Mu} \IdrisBound{cs}}}{t}}
 \]
 
 Last but not least, if we are accessing a value of a
@@ -104,7 +109,7 @@ then we do not expect to get a value back, only the knowledge
 that the type-level meaning is \IdrisData{I}. This corresponds
 to adding the following axiom.
 \[ \Hoare
-     {\Pointer{\ell}{\text{\IdrisFunction{Meaning} \IdrisData{None} \IdrisBound{x}}}{t}}
+     {\Pointer{\ell}{\text{\IdrisFunction{Meaning} \IdrisData{None} (\IdrisType{Mu} \IdrisBound{cs})}}{t}}
      {\text{\IdrisFunction{poke}}~\ell}
      {\_}{t = \text{\IdrisData{I}}}
 \]
@@ -115,13 +120,13 @@ with two substructures $t_1$ and $t_2$ and we expect
 This corresponds to the following axiom.
 \begin{gather*}
   \Hoare
-     {\Pointer{\ell}{\text{\IdrisFunction{Meaning} (\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e}) \IdrisBound{x}}}{t}}
+     {\Pointer{\ell}{\text{\IdrisFunction{Meaning} (\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e}) (\IdrisType{Mu} \IdrisBound{cs})}}{t}}
      {\\\text{\IdrisFunction{poke}}~\ell\\}
      {(\ell_1,~\ell_2)}
      {\exists t_1.~ \exists t_2.~
        t = (t_1 ~\text{\IdrisData{\#}}~ t_2)
-       \wedge \Pointer{\ell_1}{\text{\IdrisFunction{Meaning} \IdrisBound{d} \IdrisBound{x}}}{t_1}
-       \wedge \Pointer{\ell_2}{\text{\IdrisFunction{Meaning} \IdrisBound{e} \IdrisBound{x}}}{t_2}}
+       \wedge \Pointer{\ell_1}{\text{\IdrisFunction{Meaning} \IdrisBound{d} (\IdrisType{Mu} \IdrisBound{cs})}}{t_1}
+       \wedge \Pointer{\ell_2}{\text{\IdrisFunction{Meaning} \IdrisBound{e} (\IdrisType{Mu} \IdrisBound{cs})}}{t_2}}
 \end{gather*}
 
 
@@ -130,7 +135,7 @@ As we mentioned earlier, the \idris{} implementation of the
 is necessarily using escape hatches as we are essentially
 giving a computational content to the axioms listed above.
 %
-We proceeds by case analysis on the description.
+We proceed by case analysis on the description.
 %
 Let us go through each case one-by-one.
 
@@ -189,6 +194,10 @@ in order to turn \IdrisBound{t} into
 (\IdrisFunction{fst} \IdrisBound{t} \IdrisData{\#} \IdrisFunction{snd} \IdrisBound{t})
 which lets us use the \IdrisType{Poke'} constructor \IdrisData{(\#)} to return our
 pair of pointers.
+
+Although we did not need to use escape hatches here, the implementation
+is still part of the trusted core in that we are computing offsets in
+(we claim!) accordance with the serialisation format.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{pokefunRec}
 

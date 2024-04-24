@@ -808,11 +808,19 @@ namespace Serialising
     end <- runSerialising act buf middle
     pure (MkMu buf middle (end - middle))
 
-||| initFromFile creates a pointer to a datastructure stored in a file
+public export
+FilePath : Type
+FilePath = String
+
+||| readFromFile creates a pointer to a datastructure stored in a file
 ||| @ cs   is the datatype you want to use to decode the buffer's content
 ||| @ safe signals whether to check the file's header matches the declared datatype
-initFromFile : {default True safe : Bool} ->  (cs : Data nm) -> String -> IO (Exists (Pointer.Mu cs))
-initFromFile cs fp
+\end{code}
+%<*readFromFile>
+\begin{code}
+readFromFile : {default True safe : Bool} ->
+               (cs : Data nm) -> FilePath -> IO (Exists (Pointer.Mu cs))
+readFromFile cs fp
   = do Right buf <- createBufferFromFile fp
          | Left err => failWith (show err)
        skip <- getInt buf 0
@@ -820,22 +828,16 @@ initFromFile cs fp
          cs' <- getData buf 8
          unless (eqData cs cs') $ failWith $ unlines
            [ "Description mismatch:"
-           , "expected:"
-           , show cs
-           , "but got:"
-           , show cs'
-           ]
+           , "expected:", show cs, "but got:", show cs' ]
        let pos = skip + 8
        pure (Evidence t (MkMu buf pos (!(rawSize buf) - pos)))
 
   where 0 t : Data.Mu cs -- postulated as an abstract value
-
+\end{code}
+%</readFromFile>
+\begin{code}
 
 namespace Pointer
-  public export
-  FilePath : Type
-  FilePath = String
-
 
   export
 \end{code}
@@ -905,14 +907,14 @@ main : IO ()
 main = do
   -- First Tree
   writeToFile "tmp" example
-  Evidence _ tree <- initFromFile Tree "tmp"
+  Evidence _ tree <- readFromFile Tree "tmp"
   testing tree
 
   putStrLn (replicate 72 '-')
 
   -- Second Tree: mapping over the first one
   serialiseToFile "tmp2" (map (1+) tree)
-  Evidence _ tree2 <- initFromFile Tree "tmp2"
+  Evidence _ tree2 <- readFromFile Tree "tmp2"
   testing tree2
 
   putStrLn (replicate 72 '-')

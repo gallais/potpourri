@@ -6,8 +6,8 @@ they are pointing to means that inspecting the buffer's content should
 not only return runtime information but also refine the index to reflect
 that information at the type-level.
 %
-As a consequence, the functions we are going to define in the following
-subsections are views.
+As a consequence, the buffer-inspecting functions we are going to define
+will be views.
 
 \subsection{Views}
 
@@ -33,8 +33,18 @@ either that \IdrisBound{xs} is empty (\IdrisData{Lin}, nil backwards)
 or that it has an initial segment \IdrisBound{init} and a last element
 \IdrisBound{last} (\IdrisBound{init} \IdrisData{:<} \IdrisBound{last}).
 %
+Crucially (\IdrisBound{init} \IdrisFunction{++} \IdrisData{[}\IdrisBound{last}\IdrisData{]})
+is not a valid pattern because it mentions a stuck function call
+but (\IdrisBound{init} \IdrisData{:<} \IdrisBound{last}) is as
+it is only made up of constructors and binding positions.
+%
+And so by having a function that computes the (\IdrisType{Snoc} \IdrisBound{xs})
+view of any list \IdrisBound{xs}, we are able to pretend as if we were
+actually able to match on ``patterns'' of the form
+(\IdrisBound{init} \IdrisFunction{++} \IdrisData{[}\IdrisBound{last}\IdrisData{]}).
+%
 The function \IdrisFunction{unsnoc} demonstrates that we can always
-\emph{view} a \IdrisType{List} in a \IdrisType{Snoc}-manner.
+view a \IdrisType{List} in such a \IdrisType{Snoc}-manner.
 
 \ExecuteMetaData[Snoc.idr.tex]{unsnoc}
 
@@ -60,7 +70,8 @@ The function \IdrisFunction{unsnoc} demonstrates that we can always
   \ExecuteMetaData[With.idr.tex]{fsugar}
 
   \noindent is equivalent to the following desugared version where
-  the auxiliary function taking an extra argument has been lifted
+  the auxiliary function \IdrisFunction{fAux}
+  taking an extra argument has been lifted
   to the toplevel.
 
   \ExecuteMetaData[With.idr.tex]{fdesugar}

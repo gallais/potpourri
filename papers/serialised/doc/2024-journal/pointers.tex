@@ -5,10 +5,16 @@ when we start programming over serialised data in a correct-by-construction
 manner, our types of `pointers' will be parameterised not only
 by the description of the type of the data stored but also by a
 runtime-irrelevant inductive value of that type.
+
+Note that we will \emph{not} export the constructors to the various
+`pointer' types defined in the following section.
 %
-For now, it is enough to think of these indices as a lightweight
-version of the `points to' assertions used in logics for imperative
-programs such as Hoare logic and separation logic.
+Consequently, the only way for a user to get their hands on such a
+pointer is to use the library functions we provide.
+%
+By only providing invariant-respecting functions, we can ensure
+that the assumptions encoded in the phantom parameters are never
+violated.
 
 \subsection{Tracking Buffer Positions}
 
@@ -57,7 +63,6 @@ Once we have a pointer to a tree \IdrisBound{t} of type \IdrisBound{cs}
 in a buffer, we can easily write it to a file be it for safekeeping
 or sending over the network.
 
-
 \ExecuteMetaData[SaferIndexed.idr.tex]{writeToFile}
 
 \begin{remark}[Forall Quantifier]
@@ -91,9 +96,50 @@ corresponding to the header first, and the tree of interest second.
 %
 We can then write the buffer we have picked to a file and happily succeed.
 
+\subsection{Reading a Tree from a File}
+
+We can also go in the other direction: using the data description
+\IdrisBound{cs}, we can load the content of the file located at
+\IdrisBound{fp} as a pointer to the root of the tree of type
+(\IdrisType{Mu} \IdrisBound{cs}) we claim is contained in it.
+
+\ExecuteMetaData[SaferIndexed.idr.tex]{readFromFile}
+
+This function takes a default argument \IdrisBound{safe} controlling
+whether we should attempt to check that the file starts with a header
+containing a type descripton matching the one passed as an argument
+by the caller.
+
+\begin{remark}[Default Arguments]
+  An implicit argument can be assigned a \IdrisKeyword{default} value.
+  It will take this value unless explicitly overwritten by the caller.
+\end{remark}
+
+First, we create a buffer from the content of the file.
+We then read the offset giving us the size of the header.
+If we want to be \IdrisBound{safe} we then read the type description
+contained in the header using \IdrisFunction{getData} (not shown here)
+and check it for equality against the one we were passed using \IdrisFunction{eqData}
+(not shown here).
+%
+If the check fails, we emit an error and fail.
+%
+If the check succeeds, we postulate the existence of a runtime irrelevant
+tree meant to represent the file's content (this cements the user's claim
+about the file) and put together a pointer for that asbtract tree.
+%
+We return a pair of the runtime irrelevant tree and a pointer to it.
+
+Note that, in order to save space in the paper, we never checked whether
+the buffer reads we performed in both \IdrisFunction{writeToFile} and
+\IdrisFunction{readFromFile} were within bounds.
+%
+A released version of the library would naturally need to include such
+checks.
 
 
-Now that we have pointers and can save the tree they are standing for,
+Now that we have pointers,
+and use files to read and write the trees they are standing for,
 we are only missing the ability to look at the content they are pointing to.
 %
 But first we need to introduce some basic tools
