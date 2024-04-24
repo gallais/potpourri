@@ -3,6 +3,8 @@
 
 RAW_DEPENDENCIES=\
   sum.csv \
+  find.csv \
+  swap.csv \
   rightmost.csv \
   copy.csv \
   plot.tex \

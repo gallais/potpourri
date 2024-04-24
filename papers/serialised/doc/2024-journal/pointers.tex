@@ -125,10 +125,18 @@ and check it for equality against the one we were passed using \IdrisFunction{eq
 If the check fails, we emit an error and fail.
 %
 If the check succeeds, we postulate the existence of a runtime irrelevant
-tree meant to represent the file's content (this cements the user's claim
-about the file) and put together a pointer for that asbtract tree.
+tree meant to represent the file's content and put together a pointer
+for that asbtract tree.
 %
-We return a pair of the runtime irrelevant tree and a pointer to it.
+This postulate cements the user's claim about the file's content;
+naturally if the file is not in fact contain a serialised representation
+of a tree this can lead to fatal errors later on when attempting to
+inspect the buffer's content.
+%
+We return a pair of the runtime irrelevant tree and a pointer to it
+thus ensuring users cannot directly attempt to match on the inductive
+tree; they will have to use the combinators we are about to define to
+inspect it by reading into the buffer.
 
 Note that, in order to save space in the paper, we never checked whether
 the buffer reads we performed in both \IdrisFunction{writeToFile} and

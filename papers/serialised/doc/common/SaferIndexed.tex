@@ -597,6 +597,20 @@ namespace Serialising
 
 namespace Tree
 
+  ||| Find a byte
+\end{code}
+%<*tfind>
+\begin{code}
+  find : Bits8 -> Data.Mu Tree -> Bool
+  find tgt t = case t of
+    "Leaf" # _ => False
+    "Node" # l # b # r =>
+      b == tgt || find tgt l
+               || find tgt r
+\end{code}
+%</tfind>
+\begin{code}
+
   ||| Tree sum
 \end{code}
 %<*tsum>
@@ -887,10 +901,12 @@ namespace Pointer
 \end{code}
 %<*swap>
 \begin{code}
-  swap : Pointer.Mu Tree t -> Serialising Tree (Data.swap t)
+  swap : Pointer.Mu Tree t ->
+    Serialising Tree (Data.swap t)
   swap ptr = case !(view ptr) of
-    "Leaf" # I => leaf
-    "Node" # l # b # r => node (copy r) b (copy l)
+    "Leaf" # I => "Leaf" # I
+    "Node" # l # b # r =>
+      "Node" # copy r # b # copy l
 \end{code}
 %</swap>
 \begin{code}

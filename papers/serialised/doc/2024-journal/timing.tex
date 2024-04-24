@@ -8,15 +8,22 @@ over trees stored in a buffer we can run some experiments to see
 whether this allows us to gain anything over the purely functional
 programming style.
 
-For all of these tests we generate a full tree of a given depth and
-compare the time it takes to run the composition of deserialising
-the tree and applying the pure function to the time it takes to run
-its pointer-based counterpart.
-%
-Each test is run 20 times in a row, and the duration averaged.
+For all of these tests we generate full trees for each depth,
+labeling its nodes with the bytes 0, 1, etc. in a depth-first
+left-to-right manner.
+
+Each test is run 25 times in a row, and the duration averaged.
 %
 We manually run chezscheme's garbage collector before the start of
 each time measurement.
+
+\todo{Describe laptop characteristics}
+
+\subsection{Pointer vs. Data}
+
+We compare the time it takes to run the composition of deserialising
+the tree and applying the pure function to the time it takes to run
+its pointer-based counterpart.
 %
 All of our plots use a logarithmic y axis because the runtime of the
 deserialisation-based function is necessarily exponential in the depth
@@ -25,10 +32,9 @@ of the full tree.
 The \IdrisFunction{sum} function explores the entirety of the tree
 and as such the difference between the deserialisation-based and the
 pointer-based functions is minimal.
-%\todo{Measure memory footprint?}
 
 \noindent
-\begin{minipage}{.45\textwidth}
+\begin{minipage}{.5\textwidth}
   \ExecuteMetaData[SaferIndexed.idr.tex]{tsum}
 \end{minipage}\hfill
 \begin{minipage}{.45\textwidth}
@@ -41,19 +47,47 @@ for the pointer-based function which is able to efficiently skip past
 every left subtree.
 
 \noindent
-\begin{minipage}{.45\textwidth}
+\begin{minipage}{.5\textwidth}
   \ExecuteMetaData[SaferIndexed.idr.tex]{rightmost}
 \end{minipage}\hfill
 \begin{minipage}{.45\textwidth}
   \graphOf{pointer}{data}{rightmost}
 \end{minipage}
 
-The deep \IdrisFunction{copy} is unsurprisingly also exponential in
-the depth of the tree being copied whereas the version based on the
-\IdrisFunction{copyData} primitive for buffers is vastly faster.
+The \IdrisFunction{find} function looks for a given byte and stops
+as soon as it has found it. We run it using the byte 120.
+%
+Due to the way our test trees are generated, we will need to explore
+at most 121 of the tree's nodes.
+%
+Unsurprisingly we observe that the pointer-based function is
+constant time while the one operating over data is exponential
+due to the deserialisation step.
 
-\begin{center}
+\noindent
+\begin{minipage}{.5\textwidth}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{tfind}
+\end{minipage}\hfill
 \begin{minipage}{.45\textwidth}
-\graphOf{primitive}{deep}{copy}
+  \graphOf{pointer}{data}{find}
 \end{minipage}
-\end{center}
+
+%% The deep \IdrisFunction{copy} is unsurprisingly also exponential in
+%% the depth of the tree being copied whereas the version based on the
+%% \IdrisFunction{copyData} primitive for buffers is vastly faster.
+
+%% \begin{center}
+%% \begin{minipage}{.5\textwidth}
+%% \graphOf{primitive}{deep}{copy}
+%% \end{minipage}
+%% \end{center}
+
+\subsection{Serialising}
+
+\noindent
+\begin{minipage}{.5\textwidth}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{swap}
+\end{minipage}\hfill
+\begin{minipage}{.45\textwidth}
+  \graphOf{primitive}{deep}{swap}
+\end{minipage}

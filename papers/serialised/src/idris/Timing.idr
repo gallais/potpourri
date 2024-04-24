@@ -46,7 +46,7 @@ Show CSVEntry where
 
 mkCSVEntry : Nat -> IO a -> IO b -> IO CSVEntry
 mkCSVEntry n act1 act2 = do
-  let range = the Nat 20
+  let range = the Nat 25
   times1 <- for [1..range] $ const $ toNano <$> measure (ignore act1)
   times2 <- for [1..range] $ const $ toNano <$> measure (ignore act2)
   pure $ MkCSVEntry
@@ -121,15 +121,16 @@ test name f act n = do
 main : IO ()
 main = do
   let range = [5..20]
---  csv "sum"       range (dataVSpointer Data.sum Pointer.sum)
---  csv "rightmost" range (dataVSpointer Data.rightmost Pointer.rightmost)
---  csv "copy"      range (deepVSshallow deepCopy copy)
---  csv "swap"      range (deepVSshallow deepSwap Pointer.swap)
-  csv "find"     range (dataVSpointer (Data.find 120) (Pointer.find 120))
+  csv "sum"       range (dataVSpointer Data.sum Pointer.sum)
+  csv "rightmost" range (dataVSpointer Data.rightmost Pointer.rightmost)
+  csv "find"      range (dataVSpointer (Data.find 120) (Pointer.find 120))
+  csv "swap"      range (deepVSshallow deepSwap Pointer.swap)
 
 {-
   traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]
   traverse_ (test "Rightmost" Data.rightmost Pointer.rightmost) [15..20]
+
+--  csv "copy"      range (deepVSshallow deepCopy copy)
 
   putStrLn "\n\n"
   header "Copy variants: using copy vs. deepCopy vs. roundtripCopy"

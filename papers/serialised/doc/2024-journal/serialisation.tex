@@ -6,9 +6,11 @@ apart and computing a return value in the host language.
 But we may instead want to compute another value in serialised form.
 %
 We include below one such example: a \IdrisFunction{map} function which
-takes a function \IdrisBound{f} acting on bytes
-and applies it to all of the ones stored
-in the nodes of our type of \IdrisFunction{Tree}s.
+takes a function \IdrisBound{f} acting on bytes,
+a pointer to a \IdrisFunction{Tree} named \IdrisBound{t} and returns a
+serialisation process that will eventually produce another
+\IdrisFunction{Tree} equal to the one obtained by applying that function
+all of the bytes stored in \IdrisBound{t}'s nodes.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{serialisedmap}\label{fig:serialised-map}
 
@@ -22,8 +24,8 @@ to the byte \IdrisBound{b}.
 %% \subsection{Generic Traverse}
 %% \ExecuteMetaData[SaferIndexed.idr.tex]{traverse}
 
-In this section we are going to spell out how we can define high-level
-constructs allowing users to write these correct-by-construction
+In this section we are going to spell out how we can define the high-level
+constructs used above to allow users to write these correct-by-construction
 serialisers.
 
 \subsection{The Type of Serialisation Processes}
@@ -69,9 +71,6 @@ the description.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{allquant}
 
-If the description is \IdrisData{None} then there is nothing to apply
-the predicate to and so we return the unit type.
-%
 If the description is \IdrisData{Byte} we only demand that we have a runtime
 copy of the byte so that we may write it inside a buffer. This is done using
 the \IdrisType{Singleton} family discussed in \Cref{sec:datasingleton}.
@@ -79,9 +78,10 @@ the \IdrisType{Singleton} family discussed in \Cref{sec:datasingleton}.
 If the description is \IdrisData{Rec} then we demand that the
 predicate holds.
 %
-Finally, if the description is the \IdrisData{Prod} of two subdescriptions, we once
-again use an auxiliary family purely for ergonomics. It is defined mutually
-with \IdrisFunction{All} and does the expected structural operation.
+If the description is either \IdrisData{None} or \IdrisData{Prod} then we
+use once again an auxiliary family purely for ergonomics.
+It is defined mutually with \IdrisFunction{All} and does the expected structural
+operation.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{dataallquant}
 
@@ -92,7 +92,6 @@ to having already defined a serialisation process for each subtree.
 
 This very general combinator should be enough to define all the
 serialisers we may ever want.
-%
 By repeatedly pattern-matching on the input tree and using \IdrisFunction{(\#)},
 we can for instance define the correct-by-construction generic serialisation function.
 
@@ -126,6 +125,9 @@ present in \idris{}'s standard library.
 This primitive allows us to grab a slice of the source buffer
 corresponding to the tree
 and to copy the raw bytes directly into the target buffer.
+%
+This use of an unsafe primitive makes \IdrisFunction{copy} part
+of the trusted core for this library.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{copy}
 
