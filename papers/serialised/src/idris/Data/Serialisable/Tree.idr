@@ -107,6 +107,13 @@ show = showi ""
 
 namespace Data
 
+  ||| Find a byte
+  public export
+  find : Bits8 -> Data.Mu Tree -> Bool
+  find tgt t = case t of
+    "Leaf" # _ => False
+    "Node" # l # b # r => b == tgt || find tgt l || find tgt r
+
   ||| Tree sum
   public export
   sum : Data.Mu Tree -> Nat
@@ -151,6 +158,19 @@ namespace Data
 -- Correct-by-construction functions working on buffer-bound data
 
 namespace Pointer
+
+
+  orM : Singleton b -> IO (Singleton c) -> IO (Singleton (b || c))
+  orM (MkSingleton True) _ = pure [| True |]
+  orM (MkSingleton False) io = io
+
+  ||| Find a byte
+  export
+  find : (tgt : Bits8) -> Pointer.Mu Tree t -> IO (Singleton (find tgt t))
+  find tgt ptr = case !(view ptr) of
+    "Leaf" # _ => pure [| False |]
+    "Node" # l # b # r => ((== tgt) <$> b)
+      `orM` do !(find tgt l) `orM` find tgt r
 
   ||| Correct by construction sum function.
   ||| @ t   is the phantom name of the tree represented by the buffer

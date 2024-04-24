@@ -121,10 +121,11 @@ test name f act n = do
 main : IO ()
 main = do
   let range = [5..20]
-  csv "sum"       range (dataVSpointer Data.sum Pointer.sum)
-  csv "rightmost" range (dataVSpointer Data.rightmost Pointer.rightmost)
-  csv "copy"      range (deepVSshallow deepCopy copy)
+--  csv "sum"       range (dataVSpointer Data.sum Pointer.sum)
+--  csv "rightmost" range (dataVSpointer Data.rightmost Pointer.rightmost)
+--  csv "copy"      range (deepVSshallow deepCopy copy)
 --  csv "swap"      range (deepVSshallow deepSwap Pointer.swap)
+  csv "find"     range (dataVSpointer (Data.find 120) (Pointer.find 120))
 
 {-
   traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]
