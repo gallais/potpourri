@@ -1,7 +1,8 @@
 \section{Interlude: Logics for Imperative Programs}
 
-Let us first look back at historical frameworks built to explicitly
-talk about memory locations and their contents.
+Let us first look back at some logical frameworks built
+to explicitly talk about memory locations and their contents
+in order to prove the properties of imperative programs.
 %
 Their design and properties will then inform our choices.
 
@@ -37,14 +38,19 @@ precondition ($P \wedge R$) and the postcondition ($Q \wedge R$).
 In particular, the validity of (\Pointer{\ell}{}{w}) can be propagated even
 after having dereferenced it.
 
-Using further structural rules such as the one below for a
-\texttt{let} construct, we can combine the axioms to prove
-statements about more complex programs.
-
 \newcommand{\letin}[3]{\texttt{let}\,#1\,=\,#2~\texttt{in}~#3}
 
+Using further structural rules, we can combine the axioms to compositionally
+prove statements about more complex programs. We present below a structural
+rule for a \texttt{let} construct: provided that
+executing $e$ returns a value $v$ satisfying $Q$ under precondition $P$ and that
+for all $x$, executing $e^{\prime}$ returns a value $v$ satisfying $R$ under
+precondition $Q(x)$
+then executing ($\letin{x}{e}{e^{\prime}}$) will return a value $v$ satisfying $R$
+under precondition $P$.
+
 \begin{gather*}
-  \Hoare{P}{e}{v}{Q} \wedge \Hoare{Q(x)}{e^{\prime}}{v}{R} \\
+  \Hoare{P}{e}{v}{Q} \wedge \forall x. \Hoare{Q(x)}{e^{\prime}}{v}{R} \\
   \Longrightarrow \Hoare{P}{\letin{x}{e}{e^{\prime}}}{v}{R}
 \end{gather*}
 
@@ -58,7 +64,7 @@ will return a value equal to $w$:
 \]
 
 Once we have these building blocks, it becomes interesting to introduce
-some abstractions. As we explained above, \Pointer{\ell}{}{w} states that
+some abstractions. As we explained above, (\Pointer{\ell}{}{w}) states that
 the memory location called $\ell$ contains the word $w$.
 %
 The programs we are interested in do not however manipulate isolated words,
@@ -66,8 +72,8 @@ they talk about full blown inductive trees.
 %
 The key idea is to use this base `points to' assertion as a building
 block to compositionally give a meaning to richly typed pointers.
-We will write (\Pointer{\ell}{\mathit{ty}}{v}) for the pointer
-to a value $v$ of type $\mathit{ty}$.
+We will write (\Pointer{\ell}{\mathit{ty}}{v}) for the assumption that
+the label $\ell$ points to a value $v$ of type $\mathit{ty}$.
 %
 We can naturally define (\Pointer{\ell}{\text{\IdrisType{Bits8}}}{w}) as
 simply (\Pointer{\ell}{}{w}).
@@ -121,7 +127,7 @@ This allows for the safe inclusion of a similar weakening principle,
 the \emph{frame rule} which states that for an arbitrary predicate $R$
 if $e$ can be specified using precondition $P$ and postcondition $Q$
 then it also can for precondition ($P \ast R$) and postcondition ($Q \ast R$)
-precisely because $R$ is talking about memory locations not impacted by $e$.
+precisely because $R$ is only talking about memory locations not impacted by $e$.
 
 As Rouvoet~\citeyearpar{DBLP:phd/basesearch/Rouvoet21}
 demonstrated, it is possible to embed separation logic in

@@ -108,7 +108,8 @@ According to the header, this file does contain a \IdrisFunction{Tree}.
 
 \subsection{Tree Serialisation}\label{sec:tree-serialisation}
 
-The design of this format was guided by a few simple principles:
+The design of this format was guided by a few simple principles
+detailed in \Cref{sec:interludeserialisation}:
 \begin{enumerate}
   \item the format should be contiguous (no pointer indirections)
   \item values of type unit should occupy no space
@@ -116,11 +117,10 @@ The design of this format was guided by a few simple principles:
   \item the format should support the direct access to any of a node's subtrees
 \end{enumerate}
 %
-This last criterion will allow us to, for instance,
-implement a function looking up the value stored
-in the rightmost node in our running example type
-of binary trees in time linear in the depth of the tree
-rather than exponential if we had to traverse every subtree in order.
+This last criterion allows us to skip past subtrees
+that we do not need to process thus ensuring an exponential
+speedup compared to formats forcing an in-order traversal of
+a node's subtrees.
 %
 To this end each node needs to store an offset measuring the size of the
 subtrees that are to the left of any relevant information.

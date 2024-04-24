@@ -27,19 +27,28 @@ which is represented by the buffer's content.
 Neither are mentioned in the types of the record's fields, making them
 \emph{phantom types}~\citep{DBLP:conf/dsl/LeijenM99}.
 %
-Note that according to our serialisation format the size is not stored
-in the file but using the size of the buffer, the stored offsets,
-and the size of the static data we will always
-be able to compute a value corresponding to it.
+A term of type (\IdrisType{Pointer.Mu} \IdrisBound{cs} \IdrisBound{t})
+plays a double role in our library: it acts both as a label $\ell$ in
+the runtime relevant layer, and a proof that said label points to a
+buffer-bound value equal to $t$
+(i.e. \Pointer{\ell}{\text{\IdrisType{Data.Mu} \IdrisBound{cs}}}{t}).
+
+
+%% Note that according to our serialisation format the size is not stored
+%% in the file but using the size of the buffer, the stored offsets,
+%% and the size of the static data we will always
+%% be able to compute a value corresponding to it.
+
+The pointer counterpart to a \IdrisFunction{Meaning} stores
+additional information.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{elem}
 
-The counterpart to a \IdrisFunction{Meaning} stores additional information.
-%
 For a description of type (\IdrisType{Desc} \IdrisBound{r} \IdrisBound{s} \IdrisBound{o})
 on top of the buffer, the position at which the root of the meaning resides,
 and the size of the layer we additionally have a vector of \IdrisBound{o} offsets
-that allow us to efficiently access any value we want.
+corresponding to the sizes of the subtrees we may want to skip past.
+This will allow us to efficiently access any constructor argument we want.
 
 \subsection{Writing a Tree to a File}\label{sec:writetofile}
 
