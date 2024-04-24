@@ -1,10 +1,10 @@
 \begin{abstract}
 In typed functional languages, one can typically only manipulate data
 in a type-safe manner if it first has been deserialised into an in-memory
-tree represented as a graph of nodes-as-structs and subterms-as-pointers.
+tree internally represented as a graph of nodes-as-structs and subterms-as-pointers.
 %
 We demonstrate how we can use Quantitative Type Theory
-as implemented the dependently typed programming language \idris{} to define
+as implemented in the dependently typed programming language \idris{} to define
 a small universe of serialised datatypes, and provide generic programs
 allowing users to process values stored contiguously in buffers.
 %
@@ -15,4 +15,11 @@ allowing a seamless user experience.
 Our approach allows implementors to prove the full functional
 correctness by construction of the IO functions processing the
 data stored in the buffer.
+%
+We finally observe how this approach gives us a significant speedup
+for functions that do not need to explore the full tree.
+
+This work has been implemented in Idris 2 and fully ported to Agda,
+allowing programs written in the two languages to easily exchange
+data.
 \end{abstract}

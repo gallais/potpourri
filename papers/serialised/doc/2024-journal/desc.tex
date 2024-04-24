@@ -17,9 +17,7 @@ datatypes by performing induction on the type of
 codes~\citep{DBLP:conf/tphol/PfeiferR99}.
 
 The universe we define is in the tradition of
-a sums-of-products vision of inductive types~\citep{DBLP:conf/popl/JanssonJ97}
-where the data description records additional information about
-the static and dynamic size of the data being stored.
+a sums-of-products vision of inductive types~\citep{DBLP:conf/popl/JanssonJ97}.
 %
 In our setting, constructors are essentially arbitrarily nested tuples of
 values of type unit,
@@ -81,7 +79,7 @@ Based on these observations, we envision a serialisation format
 that will permit random access to all of the arguments of a node.
 Such a format will have to store an offset for all of a node's
 arguments whose size is not statically known and which we may want
-to jump past i.e. all of them except the very last argument.
+to jump past i.e. all of them except a constructor's very last argument.
 
 \subsection{Descriptions}
 
@@ -89,6 +87,13 @@ This leads us to the inductive family \IdrisType{Desc} declared below
 as the type of constructor descriptions.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{desctype}
+
+\begin{remark}[Separate Declaration and Definition]
+  \idris{} lets us declare a datatype or function first and only
+  define it later. This is convenient for blocks of mutually-defined
+  types and functions but can also be used, like here, to focus on
+  the type signature first.
+\end{remark}
 
 This family has three indices corresponding to three crucial
 invariants being tracked.
@@ -113,8 +118,9 @@ Next we define the family proper by giving its four constructors.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{desc}
 
-Each constructor can be used anywhere in a description so their return
-\IdrisBound{rightmost} index can be an arbitrary boolean.
+Each constructor can be used anywhere in a description so their index
+tracking whether we are in the rightmost branch can be an arbitrary
+boolean \IdrisBound{r}.
 
 \IdrisData{None} is the description of values of type unit. The static
 size of these values is zero as no data is stored in a value of type unit.
@@ -127,8 +133,10 @@ Their static size is precisely one byte, and they do not require an
 offset to be stored either.
 
 \IdrisData{Prod} gives us the ability to pair two descriptions together.
-Its static size and the number of offsets are the respective sums of the
-static sizes and numbers of offsets of each subdescription.
+As explained earlier pairs have a unique constructor and so their encoding
+will not consume any additional bytes.
+Consequently their static size and number of offsets are the respective
+sums of the static sizes and numbers of offsets of each subdescription.
 %
 The description of the left element of the pair will never be in the
 rightmost branch of the overall constructors description and so its
@@ -166,7 +174,8 @@ and the values of the \IdrisFunction{static} and
 
 Here the two invariants \IdrisFunction{static} and
 \IdrisFunction{offsets} are stored as implicit fields
-because their value is easily reconstructed using
+because as `output' indices of the \IdrisType{Desc} family
+their value is easily reconstructed using
 unification~\citep{DBLP:conf/tlca/AbelP11}.
 %
 Note that we used \IdrisData{(::)} as the name of the
@@ -189,15 +198,20 @@ and nodes that contain a left branch, a byte, and a right branch.
 
 \subsection{Datatypes}
 
-A datatype description is given by a vector (also known as
-a length-indexed list) of constructors.
+A datatype description \IdrisType{Data}
+is given by a vector (also known as
+a length-indexed list) named \IdrisFunction{constructors}
+and containing constructor descriptions.
 %
-For convenience, we store the number of constructors separately so
-that it does not need to be recomputed every time it is needed.
+For convenience, we store the number \IdrisFunction{consNumber}
+of constructors separately so that it does not need to be
+recomputed every time it is needed.
 %
-We additionally insist that the datatype has less than 255
-constructors which will allow us to store the corresponding
-tag in a single byte.
+We additionally insist that we have a proof \IdrisFunction{fitsInBits8}
+that the datatype has less than 255 constructors which will allow us
+to safely store the corresponding tag in a single byte.
+This is enforced using \IdrisType{So}, a type
+family ensuring the boolean check it is indexed by has succeeded.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{data}
 
@@ -213,6 +227,9 @@ tag in a single byte.
 We can then encode our running example as a simple \IdrisType{Data}
 declaration: a binary tree whose node stores bytes is described by the choice
 of either a \IdrisFunction{Leaf} or \IdrisFunction{Node}, as defined above.
+The proof \IdrisFunction{fitsInBits8} is constructed automatically:
+the boolean test (\IdrisData{2} \IdrisFunction{<=} \IdrisData{255})
+has trivially computed to \IdrisData{True}.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{treedesc}\label{fig:treedesc}
 

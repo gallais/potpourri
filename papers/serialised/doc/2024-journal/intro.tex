@@ -18,14 +18,15 @@ We include an illustrative example below.
 On the left, an example of a binary tree storing bytes in its nodes and
 nothing at its leaves.
 %
-On the right, a small \idris{} snippet defining the corresponding
-inductive type and declaring a function summing up all of the
-nodes' contents.
+On the right, a small \idris{} snippet declaring the corresponding
+inductive type \IdrisType{Tree} with two constructors \IdrisData{Leaf}
+and \IdrisData{Node} and defining a function \IdrisFunction{sum}
+adding up all of the nodes' contents.
 %
-It proceeds by pattern-matching:
+It proceeds by pattern-matching on its input \IdrisBound{t}:
 %
 if the tree is a leaf then we immediately return 0,
-otherwise we start by summing up the left and right subtrees, cast the
+otherwise we start by recursively summing up the left and right subtrees, cast the
 byte to a natural number and add everything up.
 %
 Simply by virtue of being accepted by the typechecker, we know that
@@ -62,7 +63,7 @@ tying the encoding to the inductive type.
 %
 Crucially, the functional language allows us to ignore all of these
 details and program at a higher level of abstraction where we can
-benefit from strong guarantees.
+benefit from strong static guarantees.
 
 Unfortunately not all data comes structured as inductive values
 abstracting over a constructors-as-structs and substructures-as-pointers
@@ -100,7 +101,8 @@ corresponding to data stored in the nodes):
 \end{center}
 
 The idiomatic way to process such data in a functional language
-is to first deserialise it as an inductive type and then call
+is to first deserialise it as a value of the inductive type \IdrisType{Tree}
+and then call
 the tree-processing \IdrisFunction{sum} function we defined above.
 %
 If we were using a lower-level language however, we could directly
@@ -129,7 +131,7 @@ first the left subtree,
 then the byte stored in the node,
 and finally the right subtree.
 %
-We start by summing the left subtree (line 6),
+We start by summing the left subtree recursively (line 6),
 after which the pointer has been moved past its end and is now pointing
 at the byte stored in the node.
 We can therefore dereference the byte and move the pointer past it (line 7),
