@@ -271,15 +271,19 @@ namespace Data
   ||| Meaning where subterms are interpreted using the parameter
   public export
 \end{code}
-%<*meaning>
+%<*meaningtype>
 \begin{code}
   Meaning : Desc r s n -> Type -> Type
+\end{code}
+%</meaningtype>
+%<*meaningfun>
+\begin{code}
   Meaning None x = True
   Meaning Byte x = Bits8
   Meaning (Prod d e) x = Tuple (Meaning d x) (Meaning e x)
   Meaning Rec x = x
 \end{code}
-%</meaning>
+%</meaningfun>
 \begin{code}
 
   public export
@@ -380,6 +384,12 @@ namespace Tree
   Leaf = "Leaf" :: None
 \end{code}
 %</treeleaf>
+%<*treeleafmeaning>
+\begin{code}
+  MeaningLeaf : Meaning (description Leaf) x === True
+  MeaningLeaf = Refl
+\end{code}
+%</treeleafmeaning>
 \begin{code}
 
   public export
@@ -390,6 +400,12 @@ namespace Tree
   Node = "Node" :: Prod Rec (Prod Byte Rec)
 \end{code}
 %</treenode>
+%<*treenodemeaning>
+\begin{code}
+  MeaningNode : Meaning (description Node) x === Tuple x (Tuple Bits8 x)
+  MeaningNode = Refl
+\end{code}
+%</treenodemeaning>
 \begin{code}
 
   public export
@@ -400,7 +416,6 @@ namespace Tree
   Tree = MkData [Leaf, Node]
 \end{code}
 %</treedesc>
-\begin{code}
 
 \end{code}
 %<*indexleaf>
@@ -413,9 +428,8 @@ namespace Tree
 \end{code}
 %<*notindexcons>
 \begin{code}
-  failing
-    notIndexCons : Index Tree
-    notIndexCons = "Cons"
+  failing notIndexCons : Index Tree
+          notIndexCons = "Cons"
 \end{code}
 %</notindexcons>
 \begin{code}

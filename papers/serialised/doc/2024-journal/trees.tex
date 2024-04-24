@@ -9,6 +9,16 @@ itself building on Hagino's categorically-inspired
 definition of a lambda calculus
 with a generic notion of datatypes~\citep{DBLP:conf/ctcs/Hagino87}.
 
+Intuitively, the meaning of a description is the shape of one ``layer'' of
+tree where the subtrees' meaning is left abstract. We include below two
+sketches showing what the respective meanings of the \IdrisFunction{Node}
+and \IdrisFunction{Leaf} descriptions look like.
+
+\noindent
+\begin{center}
+\scalebox{.8}{\input{trees-as-puzzles}}
+\end{center}
+
 In our work these trees will be used primarily to allow users to
 give a precise specification of the IO procedures they actually want
 to write in order to process values stored in buffers.
@@ -19,13 +29,31 @@ modality i.e. to be erased during compilation.
 
 \subsection{Descs as Functors}
 
-We are going to define the meaning of descriptions as
-strictly positive endofunctors on \IdrisType{Type} by
+We are going to define the \IdrisFunction{Meaning} of descriptions
+as strictly positive endofunctors on \IdrisType{Type} by
 induction on said descriptions.
 %
-\IdrisData{None} and \IdrisData{Prod} will respectively
-be interpreted by a unit type (\IdrisType{True}) and a
-a product type (\IdrisType{Tuple}) defined below.
+In its type, all of \IdrisBound{r}, \IdrisBound{s},
+and \IdrisBound{o} are implicitly universally quantified,
+a feature of \idris{} we explain below.
+
+\ExecuteMetaData[Serialised/Desc.idr.tex]{meaningtype}
+
+\begin{remark}[Implicit Prenex Polymorphism]\label{rmk:prenexpoly}
+  Lowercase names that are seemingly unbound are automatically
+  quantified over in a prenex manner reminiscent of other functional
+  languages like OCaml or Haskell.
+  These variables are bound at quantity 0, meaning that they will
+  be automatically erased during compilation.
+\end{remark}
+
+This function will interpret every \IdrisType{Desc} constructor
+as its obvious meaning as a type, using the parameter to give a
+meaning to \IdrisData{Rec} positions.
+%
+In particular, \IdrisData{None} and \IdrisData{Prod} will
+respectively be interpreted by a unit type (\IdrisType{True})
+and a product type (\IdrisType{Tuple}) defined below.
 %
 We do not use the unit and product from the standard
 library purely to offer better syntactic sugar to
@@ -57,34 +85,33 @@ our users.
   \ExecuteMetaData[Lib.idr.tex]{etaTuple}\label{fig:etatuple}
 \end{remark}
 
-Now that we have these two type constructors, we can
+Now that we have these two type constructors, we can explicitly
 define \IdrisFunction{Meaning}, the function giving
 us the action on objects of the \IdrisType{Desc}-encoded
 endofunctors.
-%
-In its type, all of \IdrisBound{r}, \IdrisBound{s},
-and \IdrisBound{o} are implicitly universally quantified,
-a feature of \idris{} we explain below.
 
-\ExecuteMetaData[Serialised/Desc.idr.tex]{meaning}
-
-\begin{remark}[Implicit Prenex Polymorphism]\label{rmk:prenexpoly}
-  Lowercase names that are seemingly unbound are automatically
-  quantified over in a prenex manner reminiscent of other functional
-  languages like OCaml or Haskell.
-  These variables are bound at quantity 0, meaning that they will
-  be automatically erased during compilation.
-\end{remark}
+\ExecuteMetaData[Serialised/Desc.idr.tex]{meaningfun}
 
 Both \IdrisData{None} and \IdrisData{Byte} are interpreted by constant
 functors (respectively the one returning the unit type \IdrisType{True},
 and the one returning the type of bytes).
 %
 (\IdrisData{Prod} \IdrisBound{d} \IdrisBound{e})
-is interpreted as the pairing of the interpretation of
-\IdrisBound{d} and \IdrisBound{e} respectively.
+is interpreted as a tuple grouping the respective interpretations
+of \IdrisBound{d} and \IdrisBound{e}.
 %
 Finally \IdrisData{Rec} is the identity functor.
+
+
+%% Looking back at our example of \IdrisFunction{Tree} descriptions,
+%% the meaning of the \IdrisFunction{Leaf} description is a unit type
+%% because our leaves do not store anything.
+%% \ExecuteMetaData[Serialised/Desc.idr.tex]{treeleafmeaning}
+%% Correspondingly, the meaning of the \IdrisFunction{Node} description
+%% is a nested tuple of whatever type is used to interpret subtrees,
+%% a byte, and another subtree.
+%% \ExecuteMetaData[Serialised/Desc.idr.tex]{treenodemeaning}
+
 
 Now that we have the action of descriptions on types,
 let us see their action on morphisms: provided a
@@ -108,9 +135,10 @@ They are included in the supplementary material
 Given a datatype description \IdrisBound{cs}, our first goal is
 to define what it means to pick a constructor.
 %
-The \IdrisType{Index} record is a thin wrapper around a finite
-natural number known to be smaller than the number of constructors
-this type provides.
+The \IdrisType{Index} record is a thin wrapper around a
+(\IdrisType{Fin} (\IdrisFunction{consNumber} \IdrisBound{cs}) i.e.
+a finite natural number known to be smaller than the number of
+constructors the \IdrisBound{cs} type provides.
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{index}
 
@@ -164,7 +192,8 @@ into the corresponding \IdrisType{Index}.
   desugared using \IdrisFunction{fromString}, \IdrisFunction{fromInteger}, and
   \IdrisFunction{fromDouble}.
   Combined with the type-directed disambiguation (see above)
-  of overloaded symbols, this allows users to compute data from literals.
+  of overloaded symbols, this allows users to compute potentially complex
+  data from literals in a type-directed manner.
 \end{remark}
 
 In this instance, this allows us to use string literals as
@@ -183,13 +212,15 @@ We include a successful example on the left and a failing test
 on the right hand side where the compiler is not able to find
 a proof of (\IdrisFunction{isJust} \IdrisKeyword{(}
 \IdrisFunction{isConstructor} \IdrisData{"Cons"}
-\IdrisFunction{Tree}\IdrisKeyword{)}).
+\IdrisFunction{Tree}\IdrisKeyword{)}) because it is
+simply not the case that \IdrisData{"Cons"} is the
+name of a \IdrisFunction{Tree} constructor.
 
 \noindent
 \begin{minipage}[t]{0.35\textwidth}
   \ExecuteMetaData[Serialised/Desc.idr.tex]{indexleaf}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.42\textwidth}
+\begin{minipage}[t]{0.52\textwidth}
 \ExecuteMetaData[Serialised/Desc.idr.tex]{notindexcons}
 \end{minipage}
 
@@ -237,7 +268,8 @@ arguments are used in a strictly positive manner.
 %
 Consequently the positivity checker
 is unable to see that \IdrisFunction{Meaning} uses its second
-argument in a strictly positive manner
+argument in a strictly positive manner,
+and so that \IdrisFunction{Alg} also is,
 and that this is therefore a legal definition.
 
 Now that we can build trees as fixpoints of the
@@ -259,7 +291,8 @@ this uniform notation for all of these pairing notions.
   \ExecuteMetaData[Serialised/Desc.idr.tex]{node}
 \end{minipage}
 
-This enables us to define our running example as an inductive value:
+This enables us to define our running example as an inductive value
+of type (\IdrisType{Mu} \IdrisFunction{Tree}):
 
 \ExecuteMetaData[Serialised/Desc.idr.tex]{longexample}
 
@@ -283,7 +316,7 @@ Here we only use \assertTotal{} because \idris{} does not see that
 \IdrisFunction{fmap} only applies its argument to strict subterms.
 This limitation could easily be bypassed by mutually defining
 an inlined and specialised version of
-(\IdrisFunction{fmap} \IdrisKeyword{\KatlaUnderscore} (\IdrisFunction{fold} \IdrisBound{alg}))ma
+(\IdrisFunction{fmap} \IdrisKeyword{\KatlaUnderscore} (\IdrisFunction{fold} \IdrisBound{alg}))
 as we demonstrate in \Cref{appendix:safefold}.
 %
 In an ideal type theory these supercompilation steps, whose sole
@@ -293,5 +326,6 @@ performed by the compiler~\citep{MANUAL:phd/dublin/Mendel12}.
 %\todo{Include induction example \& move \IdrisFunction{All} here?}
 
 Further generic programming can yield other useful programs e.g. a
-generic proof that tree equality is decidable or a generic definition
-of zippers~\citep{DBLP:conf/icfp/LohM11}.
+generic proof that tree equality is decidable,
+a generic definition of zippers~\citep{DBLP:conf/icfp/LohM11},
+or a tail-recursive version of fold~\citep{DBLP:conf/icfp/CortinasS18}.

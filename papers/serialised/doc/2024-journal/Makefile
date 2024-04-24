@@ -10,6 +10,7 @@ RAW_DEPENDENCIES=\
   binary-tree.tex \
   sum-at.tex \
   data-layout.tex \
+  trees-as-puzzles.tex \
   data-layout-nodes.tex \
   data-hexdump.tex \
   robust-catch.tex \

@@ -1,0 +1,51 @@
+
+\colorlet{bgcolor}{white}
+\tikzset{
+    overdraw/.style={preaction={draw,bgcolor,line width=#1}},
+    overdraw/.default=1pt
+}
+
+\newcommand{\interface}[2]{
+  \begin{scope}[xshift=-7.2+(5*5.4*#1), yshift=-7.2+(5*5.4*#2), scale=.5]
+    \piece{0}{1}{-1}{-1};
+    \draw[overdraw, color=white] (.015, 0) to (.99, 0);
+  \end{scope}
+}
+
+\newcommand{\mknode}[3]{\draw[color=gray, dashed] (#1,#2)  circle (2.5cm) node[align=center] {#3};}
+\newcommand{\mkleaf}[2]{\draw[color=gray, dashed] (#1,#2) node[align=center] {} +(-.75cm,-.75cm) rectangle +(.75cm,.75cm);}
+
+\begin{tikzpicture}
+
+  \interface{0}{0}
+  \interface{-2.5}{-5}
+  \interface{2.5}{-5}
+
+  \begin{scope}[scale=.25]
+    \draw (-1, -1) to (-20, -20);
+    \draw (1, -1) to (20, -20);
+
+    \draw (-20, -20) to (-10.5, -20);
+    \draw (-8.5, -20) to (8.5, -20);
+    \draw (10.5, -20) to (20, -20);
+
+    \draw [->, dashed, color=gray] (0, 1.5) to (0, -7.5);
+    \mknode{0}{-10}{10}
+    \draw [dashed, color=gray] (-2.5, -10) to [out=180, in=90] (-9.5, -17.5);
+    \draw [dashed, color=gray] (2.5, -10) to [out=0, in=90] (9.5, -17.5);
+  \end{scope}
+
+  \begin{scope}[xshift=180]
+  \interface{0}{0};
+
+  \begin{scope}[scale=.25]
+    \draw (-1, -1) to (-10, -10);
+    \draw (1, -1) to (10, -10);
+
+    \draw (-10, -10) to (10, -10);
+
+    \draw [->, dashed, color=gray] (0, 1.5) to (0, -6.25);
+    \mkleaf{0}{-7}
+  \end{scope}
+  \end{scope}
+\end{tikzpicture}
