@@ -1,12 +1,16 @@
 \section{Serialised Representation}\label{sec:hexdump}
 
-Before we can give a meaning to descriptions as pointers into a buffer we
-need to decide on a serialisation format.
+Before we can give a meaning to descriptions as pointers into a
+buffer we need to decide on a serialisation format.
 %
-The format we have opted for is split in two parts: a header containing
-data that can be used to check that a user's claim that a given file
-contains a serialised tree of a given type is correct, followed by the
-actual representation of the tree.
+The format we have opted for is split in two parts: a header, followed
+by the actual representation of the tree as a contiguous block of bytes.
+%
+The header contains an encoding of the description of the type of the
+tree stored in the rest of the buffer.
+%
+It can be used when loading a file to check that a user's claim about
+the presence of a serialised tree of a given type is correct.
 
 
 For instance, the following binary snippet is a hex dump of a file
@@ -29,15 +33,25 @@ and the \hexadata{data} stored in the nodes.
 More specifically, this block is the encoding of the \IdrisFunction{example}
 given in the previous section and,
 %
+accepting that the tree's representation starts at byte \texttt{FF}, and
+%
 knowing that a \IdrisFunction{leaf} is represented here by \hexacons{00}
 and a \IdrisFunction{node} is represented by \hexacons{01}
 %
-the careful reader can check
-(modulo ignoring the type description and offsets for now)
+readers can check
+(ignoring the offsets for now)
 that the data is stored in a depth-first, left-to-right traversal of the tree
-(i.e. we get exactly the bit pattern we saw in the naïve encoding
-presented in \Cref{sec:intro}).
+i.e. we get exactly the bit pattern we saw in the naïve encoding
+presented in \Cref{sec:intro}:
 
+\begin{center}
+  \usestt
+      \texttt{\IdrisFunction{01} \hexaoffset{$\cdots$} $\overbrace{\texttt{\IdrisFunction{01} \hexaoffset{$\cdots$}  $\underbrace{\texttt{\IdrisFunction{01} \hexaoffset{$\cdots$}  \IdrisFunction{00} \IdrisData{01} \IdrisFunction{00}}}_{\texttt{(\IdrisFunction{\footnotesize{node}} \IdrisFunction{\footnotesize{leaf}} \IdrisData{1} \IdrisFunction{\footnotesize{leaf}})}}$
+    \IdrisData{05} \IdrisFunction{00}}}^{\texttt{(\IdrisFunction{\footnotesize{node}} (\IdrisFunction{\footnotesize{node}} \IdrisFunction{\footnotesize{leaf}} \IdrisData{1} \IdrisFunction{\footnotesize{leaf}}) \IdrisData{5} \IdrisFunction{\footnotesize{leaf}})}}$
+    \IdrisData{0a} \IdrisFunction{01} \hexaoffset{$\cdots$}  \IdrisFunction{00} \IdrisData{14} \IdrisFunction{00}}
+\end{center}
+
+Let us now look at the format more closely.
 
 \subsection{Header}
 
@@ -47,12 +61,12 @@ In our example, the header is as follows:
 \end{hexdump}
 
 The header consists of an 8-bytes long offset stored in little endian
-format followed by a binary representation of the
+followed by a binary representation of the
 \IdrisType{Data} description of the value stored in the buffer.
 The offset allows us to jump past the description in case we do
 not care to inspect it.
 
-This description be useful in a big project where different
+This description can be useful in a big project where different
 components produce and consume such serialised values:
 if we change the format in one place but forget to update
 it in another, we want the program to gracefully
@@ -61,10 +75,15 @@ fail to load the file using an unexpected format.
 We detail in \Cref{sec:limitation-robust} how dependent
 type providers~\citep{DBLP:conf/icfp/Christiansen13}
 can help structure a software project
-to prevent such issues.
+to prevent such issues at compile time.
 
 The encoding of a data description starts with a byte giving us the number
-of constructors, followed by these constructors' respective descriptions
+of constructors\footnote{
+Remember that we enforce in the definition of the \IdrisType{Data} record
+type in \Cref{sec:datadescriptions}
+that our descriptions cannot have more than 255 constructors. So using
+a single byte here is safe.},
+followed by these constructors' respective descriptions
 serialised one after the other.
 %
 \IdrisData{None} is represented by \hexadesc{00},
