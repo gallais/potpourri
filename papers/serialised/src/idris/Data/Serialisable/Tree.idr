@@ -6,6 +6,7 @@ import Data.List1
 import Data.Singleton
 import Data.String
 import Data.Vect
+import Decidable.Equality
 
 import Lib
 
@@ -109,10 +110,30 @@ namespace Data
 
   ||| Find a byte
   public export
-  find : Bits8 -> Data.Mu Tree -> Bool
-  find tgt t = case t of
+  findB : Bits8 -> Data.Mu Tree -> Bool
+  findB tgt t = case t of
     "Leaf" # _ => False
-    "Node" # l # b # r => b == tgt || find tgt l || find tgt r
+    "Node" # l # b # r => b == tgt || findB tgt l || findB tgt r
+
+  public export
+  data Path : Bits8 -> Data.Mu Tree -> Type where
+    Here  : Path tgt (node l tgt r)
+    TurnL : Path tgt l -> Path tgt (node l b r)
+    TurnR : Path tgt r -> Path tgt (node l b r)
+
+  ||| Find a byte
+  public export
+  find : (tgt : Bits8) ->
+    (t : Data.Mu Tree) ->
+    Maybe (Path tgt t)
+  find tgt t = case t of
+    "Leaf" # _ => Nothing
+    "Node" # l # b # r => do
+      let No _ = decEq tgt b
+        | Yes Refl => pure Here
+      let Nothing = find tgt l
+        | Just p => pure (TurnL p)
+      TurnR <$> find tgt r
 
   ||| Tree sum
   public export
@@ -159,18 +180,32 @@ namespace Data
 
 namespace Pointer
 
-
   orM : Singleton b -> IO (Singleton c) -> IO (Singleton (b || c))
   orM (MkSingleton True) _ = pure [| True |]
   orM (MkSingleton False) io = io
 
   ||| Find a byte
   export
-  find : (tgt : Bits8) -> Pointer.Mu Tree t -> IO (Singleton (find tgt t))
-  find tgt ptr = case !(view ptr) of
+  findB : (tgt : Bits8) -> Pointer.Mu Tree t -> IO (Singleton (findB tgt t))
+  findB tgt ptr = case !(view ptr) of
     "Leaf" # _ => pure [| False |]
     "Node" # l # b # r => ((== tgt) <$> b)
-      `orM` do !(find tgt l) `orM` find tgt r
+      `orM` do !(findB tgt l) `orM` findB tgt r
+
+  ||| Find a byte
+  ||| Here we do not bother mentioning Data.find because the Path notion
+  ||| is already enough information for our purposes!
+  export
+  find : (tgt : Bits8) -> Pointer.Mu Tree t ->
+         IO (Maybe (Path tgt t))
+  find tgt ptr = case !(view ptr) of
+    "Leaf" # _ => pure Nothing
+    "Node" # l # MkSingleton b # r => do
+      let No _ = decEq tgt b
+        | Yes Refl => pure (Just Here)
+      Nothing <- find tgt l
+        | Just p => pure (Just (TurnL p))
+      map TurnR <$> find tgt r
 
   ||| Correct by construction sum function.
   ||| @ t   is the phantom name of the tree represented by the buffer
@@ -217,6 +252,13 @@ namespace Pointer
   deepSwap ptr = case !(view ptr) of
     "Leaf" # () => "Leaf" # ()
     "Node" # l # b # r => "Node" # deepCopy r # b # deepCopy l
+
+  export
+  ||| This is an inefficient version using `dataCopy`
+  dataSwap : Pointer.Mu Tree t -> Serialising Tree (Data.swap t)
+  dataSwap ptr = case !(view ptr) of
+    "Leaf" # () => "Leaf" # ()
+    "Node" # l # b # r => "Node" # dataCopy r # b # dataCopy l
 
   ||| Correct by construction map function.
   ||| @ f   is the function to map over the tree's nodes

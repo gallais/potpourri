@@ -5,6 +5,7 @@ RAW_DEPENDENCIES=\
   map.csv \
   sum.csv \
   find.csv \
+  findB.csv \
   swap.csv \
   rightmost.csv \
   copy.csv \

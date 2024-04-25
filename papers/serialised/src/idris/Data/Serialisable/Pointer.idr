@@ -388,7 +388,7 @@ deepCopy ptr = do
 
 export
 ||| Naïve implementation by composing deserialisation and serialisation
-roundtripCopy : {cs : Data nm} -> forall t. Pointer.Mu cs t -> Serialising cs t
-roundtripCopy ptr = do
+dataCopy : {cs : Data nm} -> forall t. Pointer.Mu cs t -> Serialising cs t
+dataCopy ptr = do
   MkSingleton t <- deserialise ptr
   serialise t

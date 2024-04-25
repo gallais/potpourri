@@ -599,14 +599,43 @@ namespace Tree
 
   ||| Find a byte
 \end{code}
-%<*tfind>
+%<*tfindB>
 \begin{code}
-  find : Bits8 -> Data.Mu Tree -> Bool
-  find tgt t = case t of
+  findB : Bits8 -> Data.Mu Tree -> Bool
+  findB tgt t = case t of
     "Leaf" # _ => False
     "Node" # l # b # r =>
-      b == tgt || find tgt l
-               || find tgt r
+      b == tgt || findB tgt l
+               || findB tgt r
+\end{code}
+%</tfindB>
+\begin{code}
+
+  public export
+\end{code}
+%<*path>
+\begin{code}
+  data Path : Bits8 -> Data.Mu Tree -> Type where
+    Here  : Path tgt (node l tgt r)
+    TurnL : Path tgt l -> Path tgt (node l b r)
+    TurnR : Path tgt r -> Path tgt (node l b r)
+\end{code}
+%</path>
+\begin{code}
+
+\end{code}
+%<*tfind>
+\begin{code}
+  find : (tgt : Bits8) ->
+    (t : Data.Mu Tree) ->
+    Maybe (Path tgt t)
+  find tgt t = case t of
+    "Leaf" # _ => Nothing
+    "Node" # l # b # r => do
+      let No _ = decEq tgt b
+        | Yes Refl => pure Here
+      TurnL <$> find tgt l
+        <|> TurnR <$> find tgt r
 \end{code}
 %</tfind>
 \begin{code}
