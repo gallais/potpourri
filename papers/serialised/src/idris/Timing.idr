@@ -1,6 +1,6 @@
 module Timing
 
-import Data.List
+import Data.Vect
 import Data.Singleton
 import Data.Serialisable.Desc
 import Data.Serialisable.Data
@@ -14,6 +14,12 @@ import Data.Maybe
 
 import System
 import System.File
+
+range : List Nat
+range = [5..20]
+
+samples : Nat
+samples = 25
 
 measure : IO () -> IO (Clock Duration)
 measure act = do
@@ -32,121 +38,104 @@ header msg = do
   putStrLn (replicate 72 '-')
   putStrLn msg
 
-record CSVEntry where
+record CSVEntry (n : Nat) where
   constructor MkCSVEntry
-  entrySize : Nat
-  entrySerialised : Clock Duration
-  entryDeserialised : Clock Duration
+  entrySize   : Nat
+  entryValues : Vect n (Clock Duration)
 
-Show CSVEntry where
-  show (MkCSVEntry si ser deser)
+Show (CSVEntry _) where
+  show (MkCSVEntry si svs)
     = joinBy "," $ ("\{show si}" ::)
     $ map (show . toNano)
-    [ ser, deser ]
+    $ toList svs
 
-mkCSVEntry : Nat -> IO a -> IO b -> IO CSVEntry
-mkCSVEntry n act1 act2 = do
-  let range = the Nat 25
-  times1 <- for [1..range] $ const $ toNano <$> measure (ignore act1)
-  times2 <- for [1..range] $ const $ toNano <$> measure (ignore act2)
+mkCSVEntry : Nat -> Vect n (IO ()) -> IO (CSVEntry n)
+mkCSVEntry size acts = do
+  timess <- for acts $ \ act =>
+              for [1..samples] $ const $ toNano <$> measure act
   pure $ MkCSVEntry
-    { entrySize = n
-    , entrySerialised = fromNano (sum times1 `div` cast range)
-    , entryDeserialised = fromNano (sum times2 `div` cast range)
+    { entrySize   = size
+    , entryValues = map (\ times => fromNano (sum times `div` cast samples)) timess
     }
 
-deepVSshallow :
-  {cs : Data nm} ->
-  {0 f : ATree -> Data.Mu cs} ->
-  (deep : forall t. Pointer.Mu _ t -> Serialising cs (f t)) ->
-  (shallow : forall t. Pointer.Mu _ t -> Serialising cs (f t)) ->
-  Nat -> IO CSVEntry
-deepVSshallow deep shallow n = do
-  t <- execSerialising (serialise $ full n)
-  mkCSVEntry n (execSerialising $ shallow t) (execSerialising $ deep t)
-
-
-dataVSpointer :
-  (f : ATree -> a) ->
-  (act : forall t. Pointer.Mu Tree t -> IO (Singleton (f t))) ->
-  (n : Nat) -> IO CSVEntry
-dataVSpointer f act n = do
-
-  let t = full n
-  st <- execSerialising (serialise t)
-
-  mkCSVEntry n (act st) $ do
-    t <- deserialise st
-    pure (f (getSingleton t))
-
 csv : (name : String) ->
-      (range : List Nat) ->
-      (test : (n : Nat) -> IO CSVEntry) ->
+      (topics : Vect n String) ->
+      (test : Nat -> IO (CSVEntry n)) ->
       IO ()
-csv name range test = do
-   entries <- for range $ test
+csv name topics test = do
+   entries <- for range test
    Right () <- writeFile "\{name}.csv" $ unlines
-                ("size,serialised,deserialised"
+                (joinBy "," ("size" :: toList topics)
                  :: map show entries)
      | Left err => die (show err)
    pure ()
 
+takeApart :
+  (name : String) ->
+  (f : ATree -> a) ->
+  (act : forall t. Pointer.Mu Tree t -> IO (Singleton (f t))) ->
+  IO ()
+takeApart name f act
+  = csv name ["data", "pointer"] $ \ n => do
 
-test : Show a =>
-       (name : String) ->
-       (f : ATree -> a) ->
-       (act : forall t. Pointer.Mu Tree t -> IO (Singleton (f t))) ->
-       (n : Nat) -> IO (Clock Duration, Clock Duration)
-test name f act n = do
-  putStrLn "\n\n"
-  header "Size \{show n}"
-  let t = full n
-  putStrLn "Data tree \{name}: \{show $ f t}"
-  st <- execSerialising (serialise t)
-  putStrLn "Pointer tree \{name}: \{show !(act st)}"
+    let t = full n
+    st <- execSerialising (serialise t)
 
-  header "Timing pointer-based operation"
-  time1 <- measure (do
-    s <- act st
-    putStrLn "\{name}: \{show s}")
+    mkCSVEntry n $ map ignore
+      [ map (f <$>) (deserialise st)
+      , act st
+      ]
 
-  header "Timing deserialisation-based operation"
-  time2 <- measure (do
-    t <- deserialise st
-    let s = f (getSingleton t)
-    putStrLn "\{name}: \{show s}")
 
-  pure (time1, time2)
+
+-- If the family a is sufficiently precise, we don't need to use
+-- the Singleton stuff to get sensible results!
+takeApart' :
+  (name : String) ->
+  (0 a : ATree -> Type) ->
+  (f : (t : ATree) -> (a t)) ->
+  (act : forall t. Pointer.Mu Tree t -> IO (a t)) ->
+  IO ()
+takeApart' name a f act
+  = csv name ["data", "pointer"] $ \ n => do
+
+      let t = full n
+      st <- execSerialising (serialise t)
+
+      mkCSVEntry n $
+        [ do t <- deserialise st
+             let _ = f (getSingleton t)
+             pure ()
+        , ignore (act st)
+        ]
+
+serialise :
+  (name : String) ->
+  {cs : Data nm} ->
+  {0 f : ATree -> Data.Mu cs} ->
+  (acts : Vect n (String, forall t. Pointer.Mu Tree t -> Serialising cs (f t))) ->
+  IO ()
+serialise name acts
+  = csv name (map fst acts) $ \ n => do
+
+      let t = full n
+      ptr <- execSerialising (serialise t)
+
+      let test : (forall t. Pointer.Mu Tree t -> Serialising cs (f t)) -> IO ()
+               := \ act => ignore (execSerialising (act ptr))
+      mkCSVEntry n (map (test . snd) acts)
 
 main : IO ()
 main = do
   let range = [5..20]
-  csv "sum"       range (dataVSpointer Data.sum Pointer.sum)
-  csv "rightmost" range (dataVSpointer Data.rightmost Pointer.rightmost)
-  csv "find"      range (dataVSpointer (Data.find 120) (Pointer.find 120))
-  csv "swap"      range (deepVSshallow deepSwap Pointer.swap)
-  csv "map"       range (deepVSshallow (deepMap (+100)) (Pointer.map (+100)))
-
-{-
-  traverse_ (test "Sum" Data.sum Pointer.sum) [15..20]
-  traverse_ (test "Rightmost" Data.rightmost Pointer.rightmost) [15..20]
-
---  csv "copy"      range (deepVSshallow deepCopy copy)
-
-  putStrLn "\n\n"
-  header "Copy variants: using copy vs. deepCopy vs. roundtripCopy"
-  for_ [10..20] $ \ n => do
-    header "Size \{show n}"
-    let t = full n
-    t <- execSerialising (serialise t)
-    () <$ measure (() <$ execSerialising (copy t))
-    () <$ measure (() <$ execSerialising (deepCopy t))
-    () <$ measure (() <$ execSerialising (roundtripCopy t))
-
-  putStrLn "\n\n"
-  header "Levels variants: using levels vs. deepLevels"
-  for_ [10..20] $ \ n => do
-    header "Size \{show n}"
-    () <$ measure (() <$ execSerialising (levels n))
-    () <$ measure (() <$ execSerialising (deepLevels n))
--}
+  takeApart "sum" Data.sum Pointer.sum
+  takeApart "rightmost" Data.rightmost Pointer.rightmost
+  takeApart' "find" (Maybe . Path 120) (Data.find 120) (Pointer.find 120)
+  serialise "map"
+    [ ("data", deepMap (+100))
+    , ("pointer", Pointer.map (+100))]
+  serialise "swap"
+    [ ("data", dataSwap)
+    , ("pointer", deepSwap)
+    , ("primitive", Pointer.swap)
+    ]

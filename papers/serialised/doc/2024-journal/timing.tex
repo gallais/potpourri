@@ -21,53 +21,66 @@ All of our plots use a logarithmic y axis because the runtime of the
 deserialisation-based functions is necessarily exponential in the depth
 of the full tree.
 
-\todo{Describe laptop characteristics}
+\todo{Describe laptop characteristics?}
 
 \subsection{Pointer vs. Data}
 
+We will first look at the runtime characteristics of various functions
+implemented using the views defined in \Cref{sec:poking}.
+%
 We compare the time it takes to run the composition of deserialising
 the tree and applying the pure function to the time it takes to run
 its pointer-based counterpart.
 
 \subsubsection{Traversing the Full Tree}
 
-The \IdrisFunction{sum} function explores the entirety of the tree
-and as such the difference between the deserialisation-based and the
-pointer-based functions is minimal.
+The \IdrisFunction{sum} function visits all of the tree's nodes to
+add up all of the bytes that are stored.
 
-\noindent
+\smallskip\noindent
 \begin{minipage}{.5\textwidth}
   \ExecuteMetaData[SaferIndexed.idr.tex]{tsum}
 \end{minipage}\hfill
 \begin{minipage}{.45\textwidth}
-  \graphOf{pointer}{data}{sum}
-\end{minipage}
+  \graphOf{data}{pointer}{sum}
+\end{minipage}\smallskip
+
+Because this function explores the entirety of the tree, the
+difference between the deserialisation-based and the pointer-based
+functions is minimal.
 
 \subsubsection{Skipping Most of the Tree}
 
-The \IdrisFunction{rightmost} function only explores the rightmost
-branch of the tree and we correspondingly see an exponential speedup
-for the pointer-based function which is able to efficiently skip past
-every left subtree.
+The \IdrisFunction{rightmost} function goes down the tree's right hand
+and returns the byte stored in its rightmost node.
 
-\noindent
+\smallskip\noindent
 \begin{minipage}{.5\textwidth}
   \ExecuteMetaData[SaferIndexed.idr.tex]{rightmost}
 \end{minipage}\hfill
 \begin{minipage}{.45\textwidth}
-  \graphOf{pointer}{data}{rightmost}
-\end{minipage}
+  \graphOf{data}{pointer}{rightmost}
+\end{minipage}\smallskip
 
-\subsubsection{Only Exploring Part of the Tree}
+Because this function only traverses the rightmost branch of the tree,
+the pointer based implementation is able to run in linear time by
+efficiently skipping past every left subtree.
+%
+This is effectively an exponential speedup compared to the implementation
+that first fully deserialises the tree.
 
-%% \noindent
+\subsubsection{Exploring a Bounded Fragment of the Tree}
+
+%% \smallskip\noindent
 %% \begin{minipage}{.5\textwidth}
 %%   \ExecuteMetaData[SaferIndexed.idr.tex]{tfindB}
 %% \end{minipage}\hfill
 %% \begin{minipage}{.45\textwidth}
-%%   \graphOf{pointer}{data}{findB}
+%%   \graphOf{data}{pointer}{findB}
 %% \end{minipage}
 
+Let us for a change look at a function returning a richly typed result.
+%
 The \IdrisFunction{find} function looks for a given byte in a tree
 and returns a path to it if it can.
 %
@@ -75,7 +88,8 @@ The notion of \IdrisType{Path} is defined inductively: if the
 \IdrisBound{tgt} byte we are looking for is in the node then
 we can use \IdrisData{Here}; otherwise we can take a turn down
 the left or right subtree using \IdrisData{TurnL} and \IdrisData{TurnR}
-respectively.
+respectively and provide a path to the target byte in the corresponding
+subtree.
 
 \ExecuteMetaData[SaferIndexed.idr.tex]{path}
 
@@ -86,6 +100,14 @@ Given that \IdrisType{Path} is a very informative type, in this test
 case the version manipulating pointers does not bother using the
 \IdrisType{Singleton} family.
 
+\smallskip\noindent
+\begin{minipage}{.5\textwidth}
+  \ExecuteMetaData[SaferIndexed.idr.tex]{tfind}
+\end{minipage}\hfill
+\begin{minipage}{.45\textwidth}
+  \graphOf{data}{pointer}{find}
+\end{minipage}\smallskip
+
 We run the test using the byte 120.
 %
 Due to the way our test trees are generated, we will only need to
@@ -94,14 +116,6 @@ explore at most 121 of the tree's nodes before finding this byte.
 Unsurprisingly we observe that the pointer-based function is
 constant time while the one operating over data is exponential
 due to the deserialisation step.
-
-\noindent
-\begin{minipage}{.5\textwidth}
-  \ExecuteMetaData[SaferIndexed.idr.tex]{tfind}
-\end{minipage}\hfill
-\begin{minipage}{.45\textwidth}
-  \graphOf{pointer}{data}{find}
-\end{minipage}
 
 %% The deep \IdrisFunction{copy} is unsurprisingly also exponential in
 %% the depth of the tree being copied whereas the version based on the
@@ -115,7 +129,9 @@ due to the deserialisation step.
 
 \subsection{Serialising}
 
-
+Let us now turn to the time characteristics of the serialisation primitives
+defined in \Cref{sec:serialising}.
+%
 We compare the time it takes to run the composition of deserialising
 the tree, applying the pure function, and serialising the result
 to the time it takes to run its pointer-based counterpart using the
@@ -128,32 +144,43 @@ to all of the bytes stored in a tree's node.
 %
 We run it using the \IdrisKeyword{(}\IdrisFunction{+} \IdrisData{100}\IdrisKeyword{)}
 function.
-%
-We can see that both approaches yield a similar runtime: everything is
-dominated by traversing the whole tree and building the resulting output.
-%
-This is where a framework allowing for destructive updates may help
-write faster functions.
 
 \noindent
 \begin{minipage}{.5\textwidth}
   \ExecuteMetaData[SaferIndexed.idr.tex]{serialisedmapcompact}
 \end{minipage}\hfill
 \begin{minipage}{.45\textwidth}
-  \graphOf{pointer}{data}{map}
+  \graphOf{data}{pointer}{map}
 \end{minipage}
+
+We can see that both approaches yield a similar runtime: everything is
+dominated by traversing the whole tree and building the resulting output.
+%
+This is where a framework allowing for destructive updates may help
+write faster functions.
+%
+This also has untapped opportunities for parallelism.
 
 \subsubsection{Using the Copy Primitive}
 
 The \IdrisFunction{swap} function takes a tree and, if it is non-empty,
-swaps its left and right subtree. For this test case we compare an
-implementation using the primitive \IdrisFunction{copy} operator we
-introduced in \todo{ref} and one using a deep copy that
+swaps its left and right subtrees.
+%
+For this test case we compare an implementation using the
+\emph{primitive} \IdrisFunction{copy} operator we introduced in \Cref{sec:copy},
+one using a \emph{pointer}-based copy that interleaves exposing the head
+constructor and serialising it,
+and a copy going via the \emph{data} representation by fully deserialising
+the tree before re-serialising it.
 
 \noindent
 \begin{minipage}{.5\textwidth}
   \ExecuteMetaData[SaferIndexed.idr.tex]{swap}
 \end{minipage}\hfill
 \begin{minipage}{.45\textwidth}
-  \graphOf{primitive}{deep}{swap}
+  \graphOfThree{data}{pointer}{primitive}{swap}
 \end{minipage}
+
+We can see that, the \emph{pointer} and \emph{data} variants yield a similar
+runtime as they need to traverse the full tree whereas the primitive
+one based on copying raw buffer slices is significantly faster.

@@ -8,15 +8,44 @@
     \addplot table
       [ grid = major
       , x = size
-      , y = serialised
+      , y = #1
       , col sep = comma
       ] {#3.csv};
     \addplot table
       [ grid = major
       , x = size
-      , y = deserialised
+      , y = #2
       , col sep = comma
       ] {#3.csv};
   \legend{#1, #2}
+  \end{axis}
+\end{tikzpicture}}
+
+\newcommand{\graphOfThree}[4]{\begin{tikzpicture}
+  \begin{axis}
+    [ xlabel = depth
+    , ylabel = #4 (ns)
+    , ymode = log
+    , legend pos = north west
+    ]
+    \addplot table
+      [ grid = major
+      , x = size
+      , y = #1
+      , col sep = comma
+      ] {#4.csv};
+    \addplot table
+      [ grid = major
+      , x = size
+      , y = #2
+      , col sep = comma
+      ] {#4.csv};
+    \addplot table
+      [ grid = major
+      , x = size
+      , y = #3
+      , col sep = comma
+      ] {#4.csv};
+  \legend{#1, #2, #3}
   \end{axis}
 \end{tikzpicture}}
