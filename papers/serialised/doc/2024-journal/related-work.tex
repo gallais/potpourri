@@ -8,7 +8,9 @@ and the design of serialisation formats.
 %
 Correspondingly, a lot of related work is worth discussing.
 In many cases the advantage of our approach is precisely that it is
-at the intersection of all of these strands of research.
+at the intersection of all of these strands of research:
+we do it generically, seamlessly, in a correct-by-construction manner,
+and use actual buffers.
 
 \subsubsection{Data-Generic Programming}
 
@@ -22,13 +24,28 @@ One early such instance is Pfeifer and Rue{\ss}'
 `polytypic proof construction'~\citeyearpar{DBLP:conf/tphol/PfeiferR99}
 meant to replace unsafe meta-programs deriving recursors
 (be they built-in support, or user-written tactics).
+%
+Their approach requires the definition of an entirely new core language
+to support polytypic function definitions while ours is completely
+non-invasive.
+%
+It would be interesting to port some of their motivating examples to our
+setting such as their generic data compression scheme for serialised
+tree representations.
 
-In his PhD thesis, Morris~\citeyearpar{DBLP:phd/ethos/Morris07} declares various
-universes for strictly positive types and families and defines by generic
-programming
-further types (the type of one-hole contexts),
-modalities (the universal and existential predicate lifting over the functors he considers),
-and functions (map, boolean equality).
+In his PhD thesis, Morris~\citeyearpar{DBLP:phd/ethos/Morris07} declares
+various universes for strictly positive types and families and defines by
+generic programming further types (the type of one-hole contexts),
+modalities (the universal and existential predicate lifting over the functors
+he considers), and functions (map, boolean equality).
+%
+We reuse some of these constructions already (e.g. the universal predicate
+lifting over functors is the \IdrisType{All} type family we used to define
+serialisation combinators in \Cref{sec:serialising}) and the other ones are
+obvious candidates for future work.
+%
+The type of one-hole contexts is in particular extremely useful to implement
+tail-recursive operations traversing a data structure.
 
 L{\"{o}}h and Magalh{\~{a}}es~\citeyearpar{DBLP:conf/icfp/LohM11} define a more
 expressive universe over indexed functors that is closed under composition
@@ -40,8 +57,16 @@ proof of decidable equality, various recursion schemes, and zippers.
 This work, quite similar to our own in its presentation, offers a natural
 candidate universe for us to use to extend our library.
 
-\todo{Discuss}
-\cite{DBLP:journals/pacmpl/EscotC22}
+Recent efforts by Escot and Cockx~\citeyearpar{DBLP:journals/pacmpl/EscotC22}
+have demonstrated that it is possible, through reflection, to offer
+a neater user interface by transporting constructions between (a subset of)
+the native Agda inductive types and their rich universe of descriptions.
+%
+This could potentially provide a more convenient way to program using
+our library: instead of having to define the functions in the specification
+layer over \IdrisType{Data.Mu} trees, users could program against bona fide
+host language datatypes while still benefiting from the proven-correct
+generic programs.
 
 \subsubsection{Efficient Runtime Representation of Inductive Values}
 
@@ -58,7 +83,7 @@ constant-time access to each of their component.
 Baudon, Radanne, and Gonnord~\citeyearpar{ACM:conf/icfp/Baudon23} adopted
 a radically different approach to ours: we provide users with a
 uniform representation that requires no setup on their part,
-while \textsc{RIBBIT} instead gives power users absolute freedom
+while \textsc{Ribbit} instead gives power users absolute freedom
 to define their own data layouts.
 %
 The project provides seamless integration: users annotate their
@@ -70,14 +95,24 @@ about the layout.
 %
 They cover a universe of monomorphic immutable algebraic datatypes
 fairly similar to ours, however the annotations language is expressive
-enough to talk about e.g. principled bit stealing, or word alignment.
+enough to talk about e.g. principled struct packing, bit stealing,
+unboxing, untagged unions, or word alignment.
 %
-Their approach requires modifying the whole compiler pipeline while
-ours lives purely in userland.
-%
-\todo{Finish description}
+Their approach is really impressive but requires modifying the
+whole compiler pipeline down to producing LLVM IR while ours
+lives purely in userland.
 
-\todo{Dargent}
+\textsc{Dargent}~\citep{DBLP:journals/pacmpl/ChenLOKMJR23} is a similar
+high-level framework empowering users to dictate the data layout
+that the generated C code shall use.
+%
+This means that, just like in our project, users do not need to
+deserialise a value before being able to process it.
+%
+This work has the added benefit, compared to \textsc{Ribbit}, that
+it automatically generates an Isabelle/HOL correctness proof that
+the generated C code is a refinement of the original program.
+
 
 Allais~\citeyearpar{DBLP:conf/esop/Allais23}
 demonstrates how one can encode an

@@ -12,3 +12,7 @@ correct, and generic manner either using low-level combinators like
 We then provided users with convenient tools to write serialisation processes
 thus allowing them to compositionally build correct-by-construction values
 stored in buffers.
+%
+Finally, we demonstrated that operating directly over serlialised data can
+yield exponential speedups for functions that do not need to explore the
+whole tree they receive as an input.
