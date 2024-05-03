@@ -162,6 +162,34 @@ namespace ReadWrite
     = MkOwned reflexive
     # MkOwned (symmetric (plusAssociative _ _ _))
 
+  ||| This definition is the first to explicitly take advantage
+  ||| of the assumption that region labels are unique. If we own
+  ||| two contiguous region segments, we can put them together
+  ||| and obtain a proof that we own the combined segments.
+  export
+  (++) :
+    Owned region start middle vs -@
+    Owned region middle end ws -@
+    Owned region start end (vs ++ ws)
+  MkOwned Refl ++ MkOwned Refl
+    = MkOwned (plusAssociative _ _ _)
+
+  export
+  curry :
+    (m : Nat) -> {0 vs : Vect m Bits8} ->
+    {0 n : Nat} -> {0 ws : Vect n Bits8} ->
+    (Owned region start end (vs ++ ws) -@ a) -@
+    (Owned region start (start + m) vs -@ Owned region (start + m) end ws -@ a)
+  curry m k ol or = k (ol ++ or)
+
+  export
+  uncurry :
+    (m : Nat) -> {0 vs : Vect m Bits8} ->
+    {0 n : Nat} -> {0 ws : Vect n Bits8} ->
+    (Owned region start (start + m) vs -@ Owned region (start + m) end ws -@ a) -@
+    (Owned region start end (vs ++ ws) -@ a)
+  uncurry m k o = let 1 olr = splitAt m o in let (ol # or) = olr in k ol or
+
   ||| Getting rid of a proof of ownership if we do not need
   ||| it anymore.
   export
@@ -192,18 +220,6 @@ namespace ReadWrite
     = let (rest # trash) = splitAt m buf in
       let () = free trash in
       rest
-
-  ||| This definition is the first to explicitly take advantage
-  ||| of the assumption that region labels are unique. If we own
-  ||| two contiguous region segments, we can put them together
-  ||| and obtain a proof that we own the combined segments.
-  export
-  (++) :
-    Owned region start middle vs -@
-    Owned region middle end ws -@
-    Owned region start end (vs ++ ws)
-  MkOwned Refl ++ MkOwned Refl
-    = MkOwned (plusAssociative _ _ _)
 
 ------------------------------------------------------------------------
 -- Read and write operations
