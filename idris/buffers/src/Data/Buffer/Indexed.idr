@@ -109,23 +109,20 @@ namespace ReadWrite
     constructor MkRegion
     getBuffer : Buffer
 
-  ||| (Buffer l start end vs) can be understood as a proof of
-  ||| ownership of the portion of the region named `l` between
+  ||| (Owner r start end vs) can be understood as a proof of
+  ||| ownership of the portion of the region named `r` between
   ||| `start` (inclusive) and `end` (exclusive) whose content is
   ||| `vs`.
-  |||
-  ||| `copyOfStart` is a runtime copy of the index `start`
-  ||| `content`     is the underlying buffer for the (whole!) region `l`
-  |||
   |||
   ||| /!\ It is crucial for invariants preservation that this
   ||| definition is not `public export`. This way users are
   ||| forced to use our invariants-safe functions to manipulate
   ||| buffers.
-  ||| The first invariant is that `l` is a unique label for the
-  ||| region: all the buffers indexed by the same `l` are assumed
-  ||| to have the same `content`.
-  ||| The second invariant is that the bytes stored in `content`
+  ||| The first invariant is that different programs can own different
+  ||| slices of the same regions but owernship proofs should always be
+  ||| unique and non-overlapping.
+  |||
+  ||| The second invariant is that the bytes stored in the region
   ||| between indices `start` and `end` are exactly the ones listed
   ||| in the `vs` index.
   export
