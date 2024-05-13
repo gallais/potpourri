@@ -1,0 +1,141 @@
+\PassOptionsToPackage{x11names}{xcolor}
+\documentclass{beamer}
+
+\usepackage{agda}
+\usepackage{graphicx}
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+\input{unicode}
+
+\beamertemplatenavigationsymbolsempty
+
+\title{A Quick Tour of Agda}
+\author{Guillaume Allais}
+\institute{Hausdorff Research Institute for Mathematics}
+\date{May 13$^{th}$ 2024}
+
+\begin{document}
+
+\begin{frame}
+    \begin{center}
+      \includegraphics[width=.5\textwidth]{agda-logo.png}
+    \end{center}
+    \maketitle
+\end{frame}
+
+\begin{frame}{First, an ad break}
+
+  {\Large Scottish PL and Verification Summer School}
+
+  {\large July 29th to August 2nd}
+
+  \bigskip
+
+  2 core courses, 1 invited lecturer, 2*3 advanced courses
+  \begin{itemize}
+    \item Category Theory (core, applied, semantics of PL)
+    \item Type Theory (core, for implicit complexity)
+    \item PL (distributed systems, effects and handlers)
+    \item Verification (protocols, syntaxes with binding)
+  \end{itemize}
+
+  \bigskip
+
+  \url{https://scottish-pl-institute.github.io/splv/2024-strathclyde/}
+
+\end{frame}
+
+\begin{frame}
+    \begin{center}
+      \includegraphics[width=.5\textwidth]{agda-logo.png}
+    \end{center}
+    \maketitle
+\end{frame}
+
+\begin{frame}{Agda -- A community}
+    \begin{itemize}
+      \item Originated in 1999, designed by Catarina Coquand
+      \item Complete rewrite in 2007 by Ulf Norell
+      \item Developped openly on Github
+      \item Two week-long hacking meetings per year
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Agda -- A programming language}
+    \begin{itemize}
+      \item Pluggable backends (the main ones are all Haskell-based)
+      \item Powerful FFI (the whole Haskell ecosystem)
+      \item Escape hatches
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Agda -- A theorem prover}
+  \begin{itemize}
+    \item Based on type \textbf{theories} (MLTT, 2 level TT, with \& without K, cubical)
+    \item A powerful and principled constraint solving machinery
+    \item Foundations à la carte through \texttt{OPTIONS}
+    \item A more conservative \texttt{--safe} mode
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Small kernel?}
+  \begin{center}
+    \Huge No!
+  \end{center}
+
+\vfill
+Well, that's not completely true but it's a hard problem:\\
+\url{https://jesper.cx/posts/agda-core.html}\\
+\url{https://github.com/jespercockx/agda-core}
+\end{frame}
+
+\begin{frame}{Automation?}
+  \begin{center}
+    \Huge No!
+  \end{center}
+
+\vfill
+Well, that's not true:
+\begin{itemize}
+  \item \textbf{Extremely} powerful elaboration machinery
+    \begin{itemize}
+      \item Dependent pattern matching
+      \item Unification to reconstruct missing information
+    \end{itemize}
+  \item A meta-programming mechanism (``typed'' tactics)
+  \item A form of dependent type providers
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Flavours}
+  \begin{itemize}
+    \item Standard Library (\url{https://github.com/agda/agda-stdlib})
+    \item Category Theory (\url{https://github.com/agda/agda-categories})
+    \item Cubical Agda (\url{https://github.com/agda/cubical})
+    \item A Logical Relation for MLTT (\url{https://github.com/mr-ohman/logrel-mltt})
+    \item Type Topology (\url{https://github.com/martinescardo/TypeTopology})
+    \item Invoking SMT solvers (\url{https://github.com/wenkokke/schmitty})
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{First, an anecdote}
+  \ExecuteMetaData[stringlytyped]{type}
+  \ExecuteMetaData[stringlytyped]{hastype}
+  \ExecuteMetaData[stringlytyped]{constructors}
+\end{frame}
+
+\begin{frame}{Why?!}
+  Agda takes seriously the idea that we should use the
+  right data structure to represent the objects of study.
+
+  \begin{itemize}
+    \item Inductive Types
+    \item Inductive Families
+    \item Induction Induction
+    \item Induction Recursion
+    \item Higher Inductive Types
+    \item Higher Inductive Inductive Types
+  \end{itemize}
+\end{frame}
+
+\end{document}

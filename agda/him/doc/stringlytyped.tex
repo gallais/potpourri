@@ -1,0 +1,1959 @@
+\documentclass[twocolumn]{article}
+
+\usepackage{fullpage}
+\usepackage{nopageno}
+\usepackage{hyperref}
+\usepackage{agda}
+\setlength{\mathindent}{5pt}
+
+\usepackage{todonotes}
+
+\usepackage[T1]{fontenc}
+\input{unicode}
+\input{commands}
+
+\bibliographystyle{abbrvnat}
+
+\title{Dependent Stringly-Typed Programming}
+\author{gallais}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+Static type systems started as a lightweight compile time check enforcing
+basic hygiene by preventing users from e.g. adding an integer to a boolean.
+Seduced by the promise of ever more guarantees computer scientists have
+invented ever more powerful type systems to the point where they could
+formalise all of mathematics as types and programs.
+
+In this paper we reclaim this power to the advantage of the honest working
+programmer by demonstrating how one can use the ivory tower concepts to
+revitalise the age old practice of stringly typed programming. We will use
+Agda~\cite{norell2009dependently} as our language of choice
+because it provides us with powerful enough
+``unsafe'' primitives to conduct our experiment.
+
+This paper is a self-contained literate Agda file so the interested reader
+should be able to independently reproduce our results.
+You can also find the content on github at
+\url{https://github.com/gallais/STRINaGda}.
+
+\section{What even is a type?}
+
+% https://medium.com/@samth/on-typed-untyped-and-uni-typed-languages-8a3b4bedf68c
+% https://semantic-domain.blogspot.com/2019/08/on-relationship-between-static-analysis.html
+% https://hal.inria.fr/hal-01399694
+
+For our purposes, we will simply say that a type is a function that, given a
+linked list of characters, tells us whether we should accept it or not as a
+value of that type.
+%
+Luckily Agda provides us with builtin notions of \AD{List}, \AD{Char},
+and \AD{Bool} so this is easily defined.
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.List}%
+\>[31]\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaDatatype{List}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.Char}%
+\>[31]\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaPostulate{Char}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.Bool}%
+\>[31]\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaDatatype{Bool}\AgdaSymbol{)}\<%
+\end{code}
+%<*type>
+\begin{code}
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaFunction{Type}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaDatatype{List}\AgdaSpace{}%
+\AgdaPostulate{Char}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Bool}\<%
+\end{code}
+%</type>
+
+Next we can define what it means to belong to a type. By definition, a
+list of characters belongs to a type if the function returns the boolean
+true when run on that list. To make this formal we need to define an Agda
+function internalising the predicate ``this boolean is true''.
+
+Agda ships with a notion of trivial truthfulness (the unit type) but
+unfortunately it does not provide us with a notion of trivial falsity.
+So we have to define the empty type ourselves as a sum type with zero
+constructor.
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.Unit}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaRecord{⊤}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaKeyword{data}\AgdaSpace{}%
+\AgdaDatatype{⊥}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\end{code}
+
+Equipped with trivial truthfulness and trivial falsity, we can internalise
+what it means for a boolean to be true by pattern matching on it and
+returning the unit type if it is \AIC{true}, or the empty one if it is
+\AIC{false}.
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.Bool}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaInductiveConstructor{true}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaFunction{IsTrue}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{Bool}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaPrimitive{Set}\<%
+\\
+\>[0]\AgdaFunction{IsTrue}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}%
+\>[14]\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaRecord{⊤}\<%
+\\
+\>[0]\AgdaFunction{IsTrue}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}%
+\>[14]\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaDatatype{⊥}\<%
+\end{code}
+
+This is precisely what we need to express what it means for a list of
+characters to belong to a given type: run the type on the
+list of characters and check it returned \AIC{true}.
+
+
+%<*hastype>
+\begin{code}%
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}∈\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{List}\AgdaSpace{}%
+\AgdaPostulate{Char}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{Type}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaPrimitive{Set}\<%
+\\
+\>[0]\AgdaBound{cs}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{IsTrue}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{A}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{)}\<%
+\end{code}
+%</hastype>
+
+We can define a convenient wrapper for elements of a given type by packing
+a list of characters together with the proof that it is accepted at that
+type. We use a dependent \AK{record} and
+%
+make the \ARF{check} field an erased instance argument, that is to say
+that we never want to have to write these proofs explicitly, expect
+Agda to just automatically pass them around without needing our help,
+and to forget about them when compiling the code.
+
+\begin{code}%
+\>[0]\AgdaKeyword{record}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{A}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Type}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{constructor}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{[\AgdaUnderscore{}]}}\<%
+\\
+%
+\>[2]\AgdaKeyword{field}%
+\>[12]\AgdaField{value}%
+\>[22]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{List}\AgdaSpace{}%
+\AgdaPostulate{Char}\<%
+\\
+%
+\>[2]\AgdaKeyword{field}\AgdaSpace{}%
+\AgdaSymbol{@}\AgdaSymbol{0}%
+\>[12]\AgdaSymbol{\{\{}\AgdaField{check}\AgdaSymbol{\}\}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaField{value}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaBound{A}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaModule{Elt}\<%
+\end{code}
+
+Agda's string literals are tied to its builtin notion of \AF{String} which
+is distinct from \AF{List Char}. We can luckily convert from one to the
+other by unpacking the string. We define a convenient helper function to,
+given a string and a type, return an element of that type by checking that
+the unpacked string is accepted at that type. This will help us write
+concrete examples and unit tests.
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.String}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaPostulate{String}\AgdaSymbol{)}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{renaming}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaPrimitive{primStringToList}\AgdaSpace{}%
+\AgdaSymbol{to}\AgdaSpace{}%
+\AgdaPrimitive{unpack}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaKeyword{infix}\AgdaSpace{}%
+\AgdaNumber{100}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}∋\AgdaUnderscore{}}}\<%
+\\
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}∋\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}%
+\>[73I]\AgdaSymbol{(}\AgdaBound{A}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Type}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{str}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPostulate{String}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+\>[.][@{}l@{}]\<[73I]%
+\>[6]\AgdaSymbol{\{\{}\AgdaPrimitive{unpack}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSymbol{\}\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaBound{A}\<%
+\\
+\>[0]\AgdaBound{A}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∋}}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaKeyword{record}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaSpace{}%
+\AgdaField{value}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaPrimitive{unpack}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaSymbol{\}}\<%
+\end{code}
+
+We now have a formal definition of what a type is, what it means for a string
+to be accepted at a given type and what an element of a type looks like.
+Let us look at a concrete example of a type.
+
+\section{Our First Type: ℕ}
+
+As is customary in any document talking about dependent types, we will start
+by defining the natural numbers. The customary presentation is that a natural
+number is either zero or the successor of a natural natural number. In terms
+of strings, we will characterise this as being either the ``Z'' string or a
+string starting with `S' and whose tail is itself a natural number.
+
+Agda, being a very inpractical programming language, does not ship with
+\AF{\_\&\&\_} and \AF{\_||\_} defined on booleans.
+The standard library does provide these definitions but has to be installed
+separately and we want this document to be self-contained so we will have
+to start by defining them ourselves.
+
+\begin{code}%
+\>[0]\AgdaKeyword{infixr}\AgdaSpace{}%
+\AgdaNumber{3}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}\&\&\AgdaUnderscore{}}}\<%
+\\
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}\&\&\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{Bool}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Bool}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Bool}\<%
+\\
+\>[0]\AgdaInductiveConstructor{true}%
+\>[7]\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{b}\<%
+\\
+\>[0]\AgdaInductiveConstructor{false}%
+\>[7]\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaKeyword{infixr}\AgdaSpace{}%
+\AgdaNumber{2}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}||\AgdaUnderscore{}}}\<%
+\\
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}||\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{Bool}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Bool}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Bool}\<%
+\\
+\>[0]\AgdaInductiveConstructor{true}%
+\>[7]\AgdaOperator{\AgdaFunction{||}}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\<%
+\\
+\>[0]\AgdaInductiveConstructor{false}%
+\>[7]\AgdaOperator{\AgdaFunction{||}}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{b}\<%
+\end{code}
+
+Next we need a way to test that a list of characters is empty.
+The builtin type \AD{List} has two constructors: \AIC{[]} for the
+empty list, and \AIC{\_∷\_} for putting together a character as the
+head of the linked list and a tail of additional characters. A list is
+empty precisely when it is \AIC{[]}.
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.List}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaInductiveConstructor{[]}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{\AgdaUnderscore{}∷\AgdaUnderscore{}}}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaFunction{isNil}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{List}\AgdaSpace{}%
+\AgdaPostulate{Char}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Bool}\<%
+\\
+\>[0]\AgdaFunction{isNil}\AgdaSpace{}%
+\AgdaInductiveConstructor{[]}%
+\>[15]\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\<%
+\\
+\>[0]\AgdaFunction{isNil}\AgdaSpace{}%
+\AgdaSymbol{(\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaSymbol{\AgdaUnderscore{})}%
+\>[15]\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\<%
+\end{code}
+
+The last piece of the puzzle is the ability to test two characters
+for equality. This is once again provided as a primitive by Agda and
+we import it and simply rename it to make the code more readable.
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.Char}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{renaming}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaPrimitive{primCharEquality}\AgdaSpace{}%
+\AgdaSymbol{to}\AgdaSpace{}%
+\AgdaPrimitive{\AgdaUnderscore{}==\AgdaUnderscore{}}\AgdaSymbol{)}\<%
+\end{code}
+
+We are now ready to define the type of natural numbers. A beautiful
+thing about stringly typed programming is that we can assign a very
+precise type to each constructor of a datatype. So we not only define
+the type \AF{ℕ} but also mutually introduce the types \AF{isZ} and
+\AF{isS} of the zero and successor constructors respectively.
+
+\begin{code}%
+\>[0]\AgdaFunction{ℕ}%
+\>[5]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Type}\<%
+\\
+\>[0]\AgdaFunction{isZ}%
+\>[5]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Type}\<%
+\\
+\>[0]\AgdaFunction{isS}%
+\>[5]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Type}\<%
+\end{code}
+
+The type of natural numbers is exactly the union of the type of zero
+and successors.
+
+\begin{code}%
+\>[0]\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{isZ}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{||}}\AgdaSpace{}%
+\AgdaFunction{isS}\AgdaSpace{}%
+\AgdaBound{cs}\<%
+\end{code}
+
+The types of zero and successor are defined by case analysis on the
+input list of characters. If the list is empty then it does not belong
+to any of these types. If it is non-empty then we check that it is
+either `Z'-headed and with an empty tail for the zero type,
+or `S'-headed and with a tail that is itself a natural number in the
+successor case.
+
+\begin{code}%
+\>[0]\AgdaFunction{isZ}\AgdaSpace{}%
+\AgdaInductiveConstructor{[]}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\<%
+\\
+\>[0]\AgdaFunction{isZ}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{==}}\AgdaSpace{}%
+\AgdaString{'Z'}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaFunction{isNil}\AgdaSpace{}%
+\AgdaBound{cs}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaFunction{isS}\AgdaSpace{}%
+\AgdaInductiveConstructor{[]}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\<%
+\\
+\>[0]\AgdaFunction{isS}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{==}}\AgdaSpace{}%
+\AgdaString{'S'}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaBound{cs}\<%
+\end{code}
+
+Unsurprisingly we can define the \AF{zero} and \AF{suc} constructors
+for \AD{ℕ}. Note that we do not need to write any proofs that the
+strings are valid: Agda takes care of the proofs for us by a mix of
+computation and implicit proof construction.
+%<*constructors>
+\begin{code}%
+\>[0]\AgdaFunction{zero}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\<%
+\\
+\>[0]\AgdaFunction{zero}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∋}}\AgdaSpace{}%
+\AgdaString{"Z"}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\<%
+\\
+\>[0]\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{[}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{]}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{[}}\AgdaSpace{}%
+\AgdaString{'S'}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{]}}\<%
+\end{code}
+%</constructors>
+
+We can define constant numbers either by using our \AF{\_∋\_} gadget or by
+using \AF{suc} and \AF{zero}, whatever feels most convenient.
+
+\label{sec:natconstant}
+\begin{code}%
+\>[0]\AgdaFunction{one}%
+\>[7]\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∋}}\AgdaSpace{}%
+\AgdaString{"SZ"}\<%
+\\
+\>[0]\AgdaFunction{two}%
+\>[7]\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaFunction{zero}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaFunction{three}%
+\>[7]\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∋}}\AgdaSpace{}%
+\AgdaString{"SSSZ"}\<%
+\\
+\>[0]\AgdaFunction{four}%
+\>[7]\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaFunction{three}\<%
+\end{code}
+
+We will use these constants again when writing unit tests for the programs
+over natural numbers we are now going to develop.
+
+Now that we have our notion of types, a working example and even some
+inhabitants, it would be nice to be able to do something with them.
+
+
+\section{Stringly Typed Programming}
+
+Being able to construct values of a given type is all well and good but
+we, as programmers, want to be able to take them apart too.
+
+Induction is the dependently typed generalisation of primitive recursion:
+for a predicate \AB{P} on values of type \AF{ℕ},
+if we can prove that {\AB{P} \AF{zero}} holds
+and that for any natural number \AB{n}, if {\AB{P} \AB{n}} holds
+then so does {\AB{P} (\AF{suc} \AB{n})}
+then we ought to be able to have a function computing from a natural
+number \AB{n} a proof of type {\AB{P} \AB{n}}.
+
+\subsection{Small Scale Reflection}
+
+The tricky part in defining induction for the natural numbers is in
+connecting the observations made by the builtin boolean-valued equality
+test on characters \AF{\_==\_} with propositional equality.
+
+We introduce a \AD{Reflects} inductive family~\cite{dybjer1994inductive}
+indexed by two \AD{Char}s and a \AD{Bool}. Inspired by the architecture of
+Coq's small scale reflection library~\cite{assia_mahboubi_2021_4457887},
+it formalises the fact that whenever the boolean is \AIC{true} then the two
+characters are equal.
+
+We name the \AD{Reflects} constructors the same as the boolean constructor
+they are respectively indexed by. This means that matching on such a proof
+looks like matching on the original boolean.
+
+\begin{code}%
+\>[0]\AgdaKeyword{data}\AgdaSpace{}%
+\AgdaDatatype{Reflects}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPostulate{Char}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPostulate{Char}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Bool}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaInductiveConstructor{true}%
+\>[8]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{Reflects}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\<%
+\\
+%
+\>[2]\AgdaInductiveConstructor{false}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{d}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Reflects}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{d}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\<%
+\end{code}
+
+We can readily prove that if \AB{a} and \AB{b} are known to be the same
+according to Agda's builtin notion of propositional equality then we have
+that {\AD{Reflects} \AB{a} \AB{b} \AIC{true}}.
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.Equality}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaDatatype{\AgdaUnderscore{}≡\AgdaUnderscore{}}}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaFunction{mkTrue}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{a}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{a}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Reflects}\AgdaSpace{}%
+\AgdaBound{a}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\<%
+\\
+\>[0]\AgdaFunction{mkTrue}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\<%
+\end{code}
+
+The only thing missing for us is a proof that whenever the boolean test
+{\AB{a} \AF{==} \AB{b}} returns \AIC{true} then the values are indeed
+propositionally equal i.e. {\AB{a} \AD{≡} \AB{b}}.
+Unfortunately Agda does not provide a primitive proof of this fact.
+We will have to use an unsafe primitive called \AF{trustMe} to build
+such a proof.
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.TrustMe}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{renaming}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{primTrustMe}\AgdaSpace{}%
+\AgdaSymbol{to}\AgdaSpace{}%
+\AgdaFunction{trustMe}\AgdaSymbol{)}\<%
+\end{code}
+
+By combining \AF{mkTrue} and \AF{trustMe} we can write a function demonstrating
+that the {(\AB{a} \AF{==} \AB{b})} test produces a boolean that reflects a test
+on propositional equality.
+
+\begin{code}%
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}≟\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{a}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPostulate{Char}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Reflects}\AgdaSpace{}%
+\AgdaBound{a}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{a}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{==}}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaBound{a}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{≟}}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaKeyword{with}\AgdaSpace{}%
+\AgdaBound{a}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{==}}\AgdaSpace{}%
+\AgdaBound{b}\<%
+\\
+\>[0]\AgdaSymbol{...}\AgdaSpace{}%
+\AgdaSymbol{|}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\<%
+\\
+\>[0]\AgdaSymbol{...}\AgdaSpace{}%
+\AgdaSymbol{|}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{mkTrue}\AgdaSpace{}%
+\AgdaFunction{trustMe}\<%
+\end{code}
+
+\subsection{Induction principle for ℕ}
+
+And with that in our backpocket we are well equipped to prove induction.
+First we use an anonymous module to parametrise all of the following definitions
+over the same predicate \AB{P}, proof of the base case \AB{P0} and proof of the
+step case \AB{PS}.
+
+\begin{code}%
+\>[0]\AgdaKeyword{module}\AgdaSpace{}%
+\AgdaModule{\AgdaUnderscore{}}%
+\>[289I]\AgdaSymbol{(}\AgdaBound{P}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSymbol{)}\<%
+\\
+\>[.][@{}l@{}]\<[289I]%
+\>[9]\AgdaSymbol{(}\AgdaBound{P0}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaBound{P}\AgdaSpace{}%
+\AgdaFunction{zero}\AgdaSymbol{)}\<%
+\\
+%
+\>[9]\AgdaSymbol{(}\AgdaBound{PS}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{P}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{P}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{))}\<%
+\\
+%
+\>[9]\AgdaKeyword{where}\<%
+\end{code}
+
+And we then prove the \AF{induction} principle stating that \AB{P} holds for
+all of the natural numbers.
+
+\begin{code}%
+\>[0][@{}l@{\AgdaIndent{1}}]%
+\>[2]\AgdaFunction{induction}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{P}\AgdaSpace{}%
+\AgdaBound{n}\<%
+\end{code}
+
+The details of the proof are not very illuminating but we include them for
+completeness' sake. We start by checking
+whether the natural number is zero, in which case we can use the base case,
+or whether it is a successor in which case we use the step case together
+with a recursive call to \AF{induction}.
+
+The stage has been set just right so that things compute where they should,
+impossible branches are self-evidently impossible and therefore the proof
+goes through. The thing to notice if we want to understand the proof is that
+the expression in the \AF{IsTrue} instance argument gets smaller as we make
+more and more observations that constrain what the input natural number may
+be like.
+
+\begin{code}%
+%
+\>[2]\AgdaFunction{induction}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{[}}\AgdaSpace{}%
+\AgdaBound{ccs}\AgdaSymbol{@(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{]}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{checkZ}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{≟}}\AgdaSpace{}%
+\AgdaString{'Z'}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaKeyword{where}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+%
+\>[4]\AgdaFunction{checkS}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{b}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Reflects}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaString{'S'}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+\>[4][@{}l@{\AgdaIndent{0}}]%
+\>[6]\AgdaSymbol{\{\{@}\AgdaSymbol{0}\AgdaSpace{}%
+\AgdaBound{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{IsTrue}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{b}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{)\}\}}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+%
+\>[6]\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{ccs}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{ccs}\AgdaSpace{}%
+\AgdaSymbol{.}\AgdaField{value}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{P}\AgdaSpace{}%
+\AgdaBound{ccs}\<%
+\\
+%
+\>[4]\AgdaFunction{checkS}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{PS}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{[}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{]}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{induction}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{[}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{]}}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+%
+\>[4]\AgdaFunction{checkZ}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{b}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Reflects}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaString{'Z'}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+\>[4][@{}l@{\AgdaIndent{0}}]%
+\>[6]\AgdaSymbol{\{\{@}\AgdaSymbol{0}\AgdaSpace{}%
+\AgdaBound{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{IsTrue}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{b}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaFunction{isNil}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{||}}\AgdaSpace{}%
+\AgdaFunction{isS}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{))\}\}}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+%
+\>[6]\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{ccs}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{ccs}\AgdaSpace{}%
+\AgdaSymbol{.}\AgdaField{value}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{P}\AgdaSpace{}%
+\AgdaBound{ccs}\<%
+\\
+%
+\>[4]\AgdaFunction{checkZ}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}%
+\>[17]\AgdaInductiveConstructor{[]}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{P0}\<%
+\\
+%
+\>[4]\AgdaFunction{checkZ}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaBound{eq}%
+\>[25]\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{checkS}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{≟}}\AgdaSpace{}%
+\AgdaString{'S'}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaBound{eq}\<%
+\end{code}
+
+An induction operator is of course not just one that has
+the right type but one that has the right computational behaviour too.
+We can readily check that our \AF{induction} function behaves exactly
+like the primitive recursor on natural numbers ought to by writing two
+unit tests.
+
+First, when applied to \AF{zero}, the recursor immediately returns
+its base case.
+
+\begin{code}%
+\>[0]\AgdaFunction{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{P}\AgdaSpace{}%
+\AgdaBound{P0}\AgdaSpace{}%
+\AgdaBound{PS}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{induction}\AgdaSpace{}%
+\AgdaBound{P}\AgdaSpace{}%
+\AgdaBound{P0}\AgdaSpace{}%
+\AgdaBound{PS}\AgdaSpace{}%
+\AgdaFunction{zero}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{P0}\<%
+\\
+\>[0]\AgdaSymbol{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\<%
+\end{code}
+
+Second, when applied to the successor of a natural number \AB{n}, the
+recursor returns its step case applied to \AB{n} and the result of the
+recursive call.
+
+\begin{code}%
+\>[0]\AgdaFunction{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{:}%
+\>[434I]\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{P}\AgdaSpace{}%
+\AgdaBound{P0}\AgdaSpace{}%
+\AgdaBound{PS}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+\>[.][@{}l@{}]\<[434I]%
+\>[4]\AgdaFunction{induction}\AgdaSpace{}%
+\AgdaBound{P}\AgdaSpace{}%
+\AgdaBound{P0}\AgdaSpace{}%
+\AgdaBound{PS}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\<%
+\\
+%
+\>[4]\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{PS}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{induction}\AgdaSpace{}%
+\AgdaBound{P}\AgdaSpace{}%
+\AgdaBound{P0}\AgdaSpace{}%
+\AgdaBound{PS}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaSymbol{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\<%
+\end{code}
+
+The fact that both of these unit tests are provable by \AIC{refl} means
+that Agda can tell by computation alone that the expressions are equal.
+
+\subsection{Example: Addition, Multiplication}
+
+As is well known, primitive recursion is enough to implement addition and
+multiplication on the natural numbers. So induction will be plenty enough
+power for us.
+
+Addition of \AB{m} to \AB{n} can be implemented by induction on \AB{m}.
+The base case, corresponding to \AF{zero} \AF{+} \AB{n}, amounts to returning
+\AB{n}. The step case amounts to taking the successor of the inductive
+hypothesis. This gives us the following definition:
+
+\begin{code}%
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}+\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\<%
+\\
+\>[0]\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{induction}\AgdaSpace{}%
+\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{m}\<%
+\end{code}
+
+We can test the function thus implemented by writing a unit test reusing
+the constants defined in Section~\ref{sec:natconstant}, checking for instance
+that $3+1$ evaluates to $4$.
+
+\begin{code}%
+\>[0]\AgdaFunction{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{three}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaFunction{one}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaFunction{four}\<%
+\\
+\>[0]\AgdaSymbol{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\<%
+\end{code}
+
+Multiplication is defined in the same way: \AF{zero} \AF{*} \AB{n}
+is equal to \AF{zero} and the step case amounts to stating that
+(\AF{suc} \AB{m}) \AF{*} \AB{n} should evaluate to
+\AB{n} \AF{+} \AB{m} \AF{*} \AB{n}.
+
+\begin{code}%
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}*\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\<%
+\\
+\>[0]\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{*}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{induction}\AgdaSpace{}%
+\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaFunction{zero}\AgdaSpace{}%
+\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+\AgdaUnderscore{}}}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{m}\<%
+\end{code}
+
+We can check with a unit test that our implementation verifies that
+$2*3$ equals $4+2$.
+
+\begin{code}%
+\>[0]\AgdaFunction{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{two}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{*}}\AgdaSpace{}%
+\AgdaFunction{three}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaFunction{four}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaFunction{two}\<%
+\\
+\>[0]\AgdaSymbol{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\<%
+\end{code}
+
+Because our \AF{induction} function has the right computational
+behaviour, the definitions we just introduced should be well
+behaved too.
+They did pass a couple of unit tests but given that we are using a
+dependently typed host language we ought to do better than that.
+
+\section{Stringly Typed Proving}
+
+This section is dedicated to proving some of the properties of the
+functions we have defined. We hope to convince the reader that they
+could pick up any proof from the standard library's
+\texttt{Data.Nat.Properties} module and reproduce it on our stringly
+typed natural numbers.
+
+\subsection{Equality combinators}
+
+Now that we are entering serious proof territory,
+we will need to introduce some basic combinators witnessing the
+fundamental properties of propositional equality.
+
+We use a block of variables Agda is authorised to implicitly quantify over
+to avoid repeating ourselves in this section.
+
+\begin{code}%
+\>[0]\AgdaKeyword{variable}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaGeneralizable{A}\AgdaSpace{}%
+\AgdaGeneralizable{B}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitive{Set}\<%
+\\
+%
+\>[2]\AgdaGeneralizable{x}\AgdaSpace{}%
+\AgdaGeneralizable{y}\AgdaSpace{}%
+\AgdaGeneralizable{z}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaGeneralizable{A}\<%
+\end{code}
+
+Propositional equality is a congruence. That is to say that if two values
+are equal, applying the same function to both will yield equal results.
+
+\begin{code}%
+\>[0]\AgdaFunction{cong}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{f}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaGeneralizable{A}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaGeneralizable{B}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaGeneralizable{x}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaGeneralizable{y}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{f}\AgdaSpace{}%
+\AgdaGeneralizable{x}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{f}\AgdaSpace{}%
+\AgdaGeneralizable{y}\<%
+\\
+\>[0]\AgdaFunction{cong}\AgdaSpace{}%
+\AgdaBound{f}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\<%
+\end{code}
+
+We already know that propositional equality is a reflexive relation as
+witnessed by its constructor \AIC{refl} and we can additionally prove that
+is is a symmetric and transitive one.
+
+\begin{code}%
+\>[0]\AgdaFunction{sym}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaGeneralizable{x}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaGeneralizable{y}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaGeneralizable{y}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaGeneralizable{x}\<%
+\\
+\>[0]\AgdaFunction{sym}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaFunction{trans}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaGeneralizable{x}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaGeneralizable{y}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaGeneralizable{y}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaGeneralizable{z}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaGeneralizable{x}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaGeneralizable{z}\<%
+\\
+\>[0]\AgdaFunction{trans}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\AgdaSpace{}%
+\AgdaBound{eq}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{eq}\<%
+\end{code}
+
+We now have the basic building blocks needed to build equality proofs.
+
+\subsection{Properties of Addition}
+
+Given our earlier observation that \AF{induction} immediately returns its
+base case when applied to the natural number \AF{zero}, it should not be
+any surprise that \AF{zero} is trivially a left neutral for
+our definition of addition.
+
+\begin{code}%
+\>[0]\AgdaFunction{zero-+}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{zero}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{m}\<%
+\\
+\>[0]\AgdaFunction{zero-+}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\<%
+\end{code}
+
+The proof that it is also a right neutral for addition requires a bit more
+work. We can use \AF{induction} itself to build such a proof. The base case
+corresponding to {\AF{zero} \AF{+} \AF{zero} \AD{≡} \AF{zero}} is trivially
+true. The step case is just a matter of using the induction hypothesis together
+with the fact that equality is a congruence to add a \AF{suc} to both sides.
+
+\begin{code}%
+\>[0]\AgdaFunction{+-zero}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaFunction{zero}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{m}\<%
+\\
+\>[0]\AgdaFunction{+-zero}\AgdaSpace{}%
+\AgdaSymbol{=}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaFunction{induction}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaFunction{zero}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSymbol{)}\<%
+\\
+%
+\>[4]\AgdaInductiveConstructor{refl}\<%
+\\
+%
+\>[4]\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{cong}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSymbol{)}\<%
+\end{code}
+
+Similarly, our previous unit test should lead us to anticipate that the
+proof that the addition of \AF{suc} \AB{m} to \AB{n} is equal to the
+successor of the addition of \AB{m} to \AB{n} is trival. This indeed holds
+true by computation alone.
+
+\begin{code}%
+\>[0]\AgdaFunction{suc-+}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaFunction{suc-+}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\<%
+\end{code}
+
+The statement stating that the addition of \AB{m} to \AF{suc} \AB{n} is
+equal to the successor of the addition of \AB{m} to \AB{n} is however a bit
+trickier to deal with. It can once again be proven by using induction on \AB{m}.
+
+\begin{code}%
+\>[0]\AgdaFunction{+-suc}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaFunction{+-suc}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{=}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaFunction{induction}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{))}\<%
+\\
+%
+\>[4]\AgdaInductiveConstructor{refl}\<%
+\\
+%
+\>[4]\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{cong}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSymbol{)}\<%
+\\
+%
+\>[4]\AgdaBound{m}\<%
+\end{code}
+
+These auxiliary lemmas are the intermediate results we need to be able to
+prove that addition is commutative. We, once again, proceed by induction
+and this time make crucial use of the fact that equality is symmetric and
+transitive.
+
+\begin{code}%
+\>[0]\AgdaFunction{+-comm}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{m}\<%
+\\
+\>[0]\AgdaFunction{+-comm}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{=}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaFunction{induction}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSymbol{)}\<%
+\\
+%
+\>[4]\AgdaSymbol{(}\AgdaFunction{sym}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{+-zero}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{))}\<%
+\\
+%
+\>[4]\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaBound{ih}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{trans}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{cong}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaBound{ih}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{sym}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{+-suc}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSymbol{)))}\<%
+\\
+%
+\>[4]\AgdaBound{m}\<%
+\end{code}
+
+Let us conclude with one last example of a property one can prove of addition
+on stringly natural numbers: addition is associative.
+
+\begin{code}%
+\>[0]\AgdaFunction{+-assoc}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaBound{p}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{p}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{p}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaFunction{+-assoc}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaBound{p}\AgdaSpace{}%
+\AgdaSymbol{=}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaFunction{induction}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaSymbol{((}\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{p}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{m}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{n}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{+}}\AgdaSpace{}%
+\AgdaBound{p}\AgdaSymbol{)))}\<%
+\\
+%
+\>[4]\AgdaInductiveConstructor{refl}\<%
+\\
+%
+\>[4]\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{m}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{cong}\AgdaSpace{}%
+\AgdaFunction{suc}\AgdaSymbol{)}\<%
+\\
+%
+\>[4]\AgdaBound{m}\<%
+\end{code}
+
+We have seen how we can define a type together with its induction principle,
+and how we can make use of this induction principle to program and prove our
+programs' properties. The next step is to use \AF{induction} on a given type
+to define new types.
+
+\section{Our First Indexed Type: Fin}
+
+Given that the only type we have defined thus far is \AF{ℕ}, we are going to
+use as the index of our type family. The natural candidate is {\AF{Fin} \AB{n}},
+the type of finite numbers strictly smaller than \AB{n}.
+
+This definition proceeds by induction on the index and as such is
+characterised by a base and a step case.
+
+\begin{code}%
+\>[0]\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{Type}\<%
+\\
+\>[0]\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{induction}\AgdaSpace{}%
+\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{Type}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaFunction{base}\AgdaSpace{}%
+\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{step}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{where}\<%
+\end{code}
+
+In the base case, corresponding to \AF{Fin} \AF{zero}, the boolean function is
+constantly \AIC{false}. The type is empty as there are no finite numbers
+strictly smaller than zero.
+
+\begin{code}%
+%
+\>[2]\AgdaFunction{base}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Type}\<%
+\\
+%
+\>[2]\AgdaFunction{base}\AgdaSpace{}%
+\AgdaSymbol{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\<%
+\end{code}
+
+In the step case, corresponding to {\AF{Fin} (\AF{suc} \AB{n})}
+we recognise a pattern similar to that used in the definition
+of \AF{ℕ}: the string of interest is
+either `Z'-headed with an empty tail
+or `S'-headed with a tail of type \AF{Fin} \AB{n} (this type is
+provided to us by the induction hypothesis called \AB{ih} here).
+
+This time we do not bother introducing separate types for each of the
+constructors but we could very well do so.
+
+\begin{code}%
+%
+\>[2]\AgdaFunction{step}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Type}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{Type}\<%
+\\
+%
+\>[2]\AgdaFunction{step}\AgdaSpace{}%
+\AgdaBound{ih}\AgdaSpace{}%
+\AgdaInductiveConstructor{[]}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\<%
+\\
+%
+\>[2]\AgdaFunction{step}\AgdaSpace{}%
+\AgdaBound{ih}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}%
+\>[765I]\AgdaBound{cs}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}%
+\>[22]\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{==}}\AgdaSpace{}%
+\AgdaString{'Z'}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaFunction{isNil}\AgdaSpace{}%
+\AgdaBound{cs}\<%
+\\
+\>[765I][@{}l@{\AgdaIndent{0}}]%
+\>[18]\AgdaOperator{\AgdaFunction{||}}%
+\>[22]\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{==}}\AgdaSpace{}%
+\AgdaString{'S'}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaBound{ih}\AgdaSpace{}%
+\AgdaBound{cs}\<%
+\end{code}
+
+We can once more define the basic constructors for this type. They
+have slightly more complex types, statically enforcing that the return
+index is \AF{suc}-headed. ``Z'' gives rise to \AF{fzero}.
+
+\begin{code}%
+\>[0]\AgdaFunction{fzero}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{))}\<%
+\\
+\>[0]\AgdaFunction{fzero}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∋}}\AgdaSpace{}%
+\AgdaString{"Z"}\<%
+\end{code}
+
+And extending an existing list of characters with `S' is enough to
+compute the successor of a \AF{Fin} \AB{n} element as witnessed by
+\AF{fsuc}.
+
+\begin{code}%
+\>[0]\AgdaFunction{fsuc}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{))}\<%
+\\
+\>[0]\AgdaFunction{fsuc}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{[}}\AgdaSpace{}%
+\AgdaBound{k}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{]}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{[}}\AgdaSpace{}%
+\AgdaString{'S'}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{k}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{]}}\<%
+\end{code}
+
+The definition of the induction principle for \AF{Fin} is left as
+an exercise to the reader. It is very similar to the definition of
+\AF{induction} for \AF{ℕ}. We will focus instead on a more interesting
+observation related to \AF{Fin}.
+
+\subsection{Subtyping: Fin n <: ℕ}
+
+The astute reader will have noticed that the definition of \AF{Fin}
+is not only similar to that of \AF{ℕ}, it should be the case that
+all of the values of type \AF{Fin} \AB{n} are also stringly natural
+number.
+
+This can actually be proven. It should be unsurprising by now that
+our tool of choice in this endeavour will be the induction principle
+for \AF{ℕ}.
+
+The key ingredient is the step case stating that, provided that
+we can already prove that elements of \AF{Fin} \AB{n} are elements
+of \AF{ℕ} then we should be able to do the same for elements of
+\AF{Fin} (\AF{suc} \AB{n}).
+
+\begin{code}%
+\>[0]\AgdaFunction{step}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}%
+\>[817I]\AgdaSymbol{(∀}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+\>[.][@{}l@{}]\<[817I]%
+\>[13]\AgdaSymbol{(∀}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{suc}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaFunction{step}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaBound{ih}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{isFin}\AgdaSpace{}%
+\AgdaSymbol{=}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaFunction{checkZ}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{≟}}\AgdaSpace{}%
+\AgdaString{'Z'}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaSymbol{\{\{}\AgdaBound{isFin}\AgdaSymbol{\}\}}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\end{code}
+
+We include the proof for completness' sake even though it may not
+be illuminating for the Agda novice. It proceeds by case analysis
+on the input string, concluding immediately if it is ``Z'' and
+utilising the induction hypothesis if it is `S'-headed instead.
+
+\begin{code}%
+%
+\>[2]\AgdaFunction{checkS}\AgdaSpace{}%
+\AgdaSymbol{:}%
+\>[854I]\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{b}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Reflects}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaString{'S'}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+\>[.][@{}l@{}]\<[854I]%
+\>[11]\AgdaSymbol{\{\{}\AgdaFunction{IsTrue}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{b}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{)\}\}}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+%
+\>[11]\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaFunction{ℕ}\<%
+\\
+%
+\>[2]\AgdaFunction{checkS}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaSymbol{\{\{}\AgdaBound{isFin}\AgdaSymbol{\}\}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{ih}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaBound{isFin}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+%
+\>[2]\AgdaFunction{checkZ}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{b}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Reflects}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaString{'Z'}\AgdaSpace{}%
+\AgdaBound{b}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaSymbol{\{\{}\AgdaFunction{IsTrue}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{b}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaFunction{isNil}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{||}}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{==}}\AgdaSpace{}%
+\AgdaString{'S'}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\&\&}}\AgdaSpace{}%
+\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{)\}\}}\AgdaSpace{}%
+\AgdaSymbol{→}\<%
+\\
+%
+\>[4]\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaFunction{ℕ}\<%
+\\
+%
+\>[2]\AgdaFunction{checkZ}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}%
+\>[15]\AgdaInductiveConstructor{[]}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaSymbol{\AgdaUnderscore{}}\<%
+\\
+%
+\>[2]\AgdaFunction{checkZ}\AgdaSpace{}%
+\AgdaInductiveConstructor{false}\AgdaSpace{}%
+\AgdaBound{cs}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{checkS}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{≟}}\AgdaSpace{}%
+\AgdaString{'S'}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{cs}\<%
+\end{code}
+
+This can be put together with a trivial base case (remember that
+\AF{Fin} \AF{zero} is the empty type so it cannot have any element
+in it) to obtain the proof \AF{sub}.
+
+\begin{code}%
+\>[0]\AgdaFunction{sub}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaFunction{ℕ}\<%
+\\
+\>[0]\AgdaFunction{sub}\AgdaSpace{}%
+\AgdaSymbol{=}%
+\>[936I]\AgdaFunction{induction}\<%
+\\
+\>[936I][@{}l@{\AgdaIndent{0}}]%
+\>[8]\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{str}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∈}}\AgdaSpace{}%
+\AgdaFunction{ℕ}\AgdaSymbol{)}\<%
+\\
+%
+\>[8]\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{\AgdaUnderscore{}}\AgdaSpace{}%
+\AgdaSymbol{())}\<%
+\\
+%
+\>[8]\AgdaFunction{step}\<%
+\end{code}
+
+This result allows us to write a \AF{cast} function converting an
+element of \AF{Fin} \AB{n} into a stringly natural number. Notice
+that the \ARF{value} part is the identity. Given that the \ARF{check}
+part of the record will be erased at compile time this means we have
+defined a \emph{zero cost coercion} from \AF{Fin} \AB{n} to \AF{ℕ}
+which is much better than most state of the art dependently typed
+programming languages, save for
+Cedille~\cite{DBLP:journals/corr/abs-1802-00787}.
+
+\begin{code}%
+\>[0]\AgdaFunction{cast}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{Fin}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaRecord{Elt}\AgdaSpace{}%
+\AgdaFunction{ℕ}\<%
+\\
+\>[0]\AgdaFunction{cast}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaBound{p}\AgdaSpace{}%
+\AgdaSymbol{.}\AgdaField{value}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{p}\AgdaSpace{}%
+\AgdaSymbol{.}\AgdaField{value}\<%
+\\
+\>[0]\AgdaFunction{cast}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaBound{p}\AgdaSpace{}%
+\AgdaSymbol{.}\AgdaField{check}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{sub}\AgdaSpace{}%
+\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{p}\AgdaSpace{}%
+\AgdaSymbol{.}\AgdaField{value}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{p}\AgdaSpace{}%
+\AgdaSymbol{.}\AgdaField{check}\AgdaSymbol{)}\<%
+\end{code}
+
+
+\section{Conclusion \& Future Work}
+
+We have seen that we can take advantage of a dependently typed
+host language to seriously consider the prospect of safe and
+proven correct stringly typed programming.
+
+We were able to define a notion of type of natural numbers carving out a
+subset of well structured strings. This type is closed under the usual
+constructors for the natural numbers \AF{zero} and \AF{suc}.
+
+We then proved an induction principle for those strings that represent
+natural numbers. This empowered us to start programming over these stringly
+typed natural numbers in a way that is guaranteed total.
+
+We demonstrated that our induction principle is strong enough to
+not only program on the stringly typed natural numbers but also to prove the
+fundamental properties of these programs.
+
+We finally showed how we can use induction to define new types,
+and how we can take advantage of the fact we are doing dependent
+stringly typed programming to obtain zero cost coercions.
+
+The definition of parametrised types such as the type of linked lists
+or binary trees with values stored at the leaves is left to future work.
+
+\bibliography{main}
+
+\end{document}
