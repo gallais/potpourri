@@ -4,6 +4,7 @@ import Data.Buffer as B
 import Data.Nat
 import Data.Fin
 import Data.Vect
+import Data.Vect
 import Data.Singleton
 
 import Control.Linear.LIO
@@ -139,6 +140,13 @@ namespace ReadWrite
       (0 _ : start + size === end) ->
       Owned region start end values
 
+  export
+  reindex :
+    (0 _ : vs === ws) ->
+    Owned region start end vs -@
+    Owned region start end ws
+  reindex Refl buf = buf
+
 ------------------------------------------------------------------------
 -- Pure operations
 
@@ -221,6 +229,8 @@ namespace ReadWrite
 ------------------------------------------------------------------------
 -- Read and write operations
 
+  -- TODO: should I just get rid of the IO nonsense?!
+
   export %inline
   getBits8 :
     {region : Region} -> {start : Nat} ->
@@ -248,13 +258,17 @@ namespace ReadWrite
 
   %hide B.setBits8
 
-export
-map :
-  {start, size : Nat} -> {region : Region} -> {0 vs : Vect size Bits8} ->
-  LinearIO io =>
+0 Map : (Type -> Type) -> Type
+Map io =
+  {region : Region} ->
+  {start, size : Nat} -> {0 end : Nat} ->
+  {0 vs : Vect size Bits8} ->
   (f : Bits8 -> Bits8) ->
   (1 _ : Owned region start end vs) ->
   L1 io (Owned region start end (map f vs))
+
+export
+map : LinearIO io => Map io
 map f = loop [<] (view vs) where
 
   loop :
@@ -272,3 +286,45 @@ map f = loop [<] (view vs) where
          buf <- setBits8 buf (afterz m FZ) (f v)
          let buf = replace {p = Owned _ _ _} (updateAfterz (map f acc) FZ (f v)) buf
          loop (acc :< v) (view vs) buf
+
+
+div2 : (n : Nat) -> (m ** p ** m + p === n)
+div2 0 = (0 ** 0 ** Refl)
+div2 1 = (1 ** 0 ** Refl)
+div2 (S (S n))
+  = let (m ** p ** eq) = div2 n in
+    (S m ** S p ** cong S (trans (sym $ plusSuccRightSucc m p) (cong S eq)))
+
+0 takeDropSplit : (m : Nat) -> (vs : Vect (m + n) a) ->
+  (take m {m = n} vs ++ drop m {m = n} vs) === vs
+takeDropSplit 0 vs = Refl
+takeDropSplit (S m) (v :: vs) = cong (v ::) (takeDropSplit m vs)
+
+0 mapTake : (f : a -> b) -> (m : Nat) -> (vs : Vect (m + n) a) ->
+  map f (take m {m = n} vs) === take m {m = n} (map f vs)
+mapTake f 0 vs = Refl
+mapTake f (S m) (v :: vs) = cong (f v ::) (mapTake f m vs)
+
+0 mapDrop : (f : a -> b) -> (m : Nat) -> (vs : Vect (m + n) a) ->
+  map f (drop m {m = n} vs) === drop m {m = n} (map f vs)
+mapDrop f 0 vs = Refl
+mapDrop f (S m) (v :: vs) = mapDrop f m vs
+
+export
+parMapRec : LinearIO io => Map io -> Map io
+parMapRec subMap f buf
+   = do let (m ** p ** Refl) = div2 size
+        let 1 buf = reindex (sym $ takeDropSplit m vs) buf
+        let 1 buf = splitAt m buf
+        let lbuf # rbuf = buf
+        lbuf <- subMap f lbuf
+        rbuf <- subMap f rbuf
+        let 1 buf = lbuf ++ rbuf
+        let 0 eq : map f (take m {m = p} vs) ++ map f (drop m {m = p} vs) === map f vs
+          := trans (cong2 (++) (mapTake f m vs) (mapDrop f m vs)) (takeDropSplit m (map f vs))
+        pure1 (reindex eq buf)
+
+export
+parMap : LinearIO io => Nat -> Map io
+parMap Z = map
+parMap (S n) = parMapRec (parMap n)
