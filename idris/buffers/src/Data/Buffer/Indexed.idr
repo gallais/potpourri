@@ -14,6 +14,8 @@ import Data.Linear.Notation
 import System.Clock
 import System
 
+
+
 public export
 after : (m : Nat) -> Fin (m + S n)
 after 0 = FZ
@@ -31,6 +33,13 @@ update (v :: vs) (FS k) w = v :: update vs k w
 %unsafe
 unsafeMkSingleton : (0 x : a) -> (val : a) -> Singleton x
 unsafeMkSingleton x val = believe_me (Val val)
+
+namespace Vect
+
+  public export
+  sum : Vect n Nat -> Nat
+  sum [] = 0
+  sum (n :: ns) = n + sum ns
 
 namespace SnocVect
 
@@ -53,6 +62,11 @@ namespace SnocVect
   Functor (SnocVect n) where
     map f [<] = [<]
     map f (xs :< x) = map f xs :< f x
+
+  public export
+  sum : SnocVect n Nat -> Nat
+  sum [<] = 0
+  sum (sn :< n) = sum sn + n
 
   public export
   (<><) : SnocVect m a -> Vect n a -> SnocVect (adds m n) a
@@ -258,10 +272,10 @@ namespace ReadWrite
     LinearIO io =>
     (1 _ : Owned region start end vs) ->
     (idx : Fin size) ->
-    L1 io (LPair (Owned region start end vs) (Singleton (lookup vs idx)))
+    L1 io (Res (Singleton (lookup vs idx)) (const $ Owned region start end vs))
   getBits8 (MkOwned region valid) idx
     = do w <- B.getBits8 (getBuffer region) (cast (start + cast idx))
-         pure1 (MkOwned region valid # unsafeMkSingleton (lookup vs idx) w)
+         pure1 (unsafeMkSingleton (lookup vs idx) w # MkOwned region valid)
 
   %hide B.getBits8
 
@@ -301,7 +315,7 @@ map f = loop [<] (view vs) where
   loop acc [] buf
     = pure1 $ rewrite mapChips f acc [] in buf
   loop acc (v :: vs) buf
-    = do buf # val <- getBits8 buf (afterz m FZ)
+    = do val # buf <- getBits8 buf (afterz m FZ)
          let Val v = the (Singleton v) $ replace {p = Singleton} (lookupAfterz (map f acc) FZ) val
          buf <- setBits8 buf (afterz m FZ) (f v)
          let buf = replace {p = Owned _ _ _} (updateAfterz (map f acc) FZ (f v)) buf
@@ -321,6 +335,34 @@ initialise :
 initialise v buf = do
   buf <- Indexed.map (const v) buf
   pure1 (reindex (mapConst v vs) buf)
+
+
+export
+sum : LinearIO io =>
+  {size : Nat} ->
+  {0 vs : Vect size Bits8} ->
+  Owned region start end vs -@
+  L1 io (Res (Singleton (Vect.sum $ map Cast.cast vs)) (const $ Owned region start end vs))
+sum buf = loop [<] (pure 0) (view vs) buf
+
+  where
+
+  loop :
+    {m : Nat} ->
+    (0 acc : SnocVect m Bits8) -> Singleton (SnocVect.sum $ map Cast.cast acc) ->
+    {0 rest : Vect n Bits8} ->
+    View rest ->
+    (1 _ : Owned region start end (acc <>> rest)) ->
+    L1 io (Res (Singleton (Vect.sum $ map Cast.cast (acc <>> rest)))
+               (const $ Owned region start end (acc <>> rest)))
+  loop acc s [] buf
+    = do let s = replace {p = Singleton} ?zeg s
+         pure1 (s # buf)
+  loop acc s (v :: vs) buf
+    = do val # buf <- getBits8 buf (afterz m FZ)
+         let val = the (Singleton v) $ replace {p = Singleton} (lookupAfterz acc FZ) val
+         loop (acc :< v) [| s + [| cast val |] |] (view vs) buf
+
 
 
 div2 : (n : Nat) -> (m ** p ** m + p === n)
@@ -374,15 +416,21 @@ measure str act = do
   pure1 ()
 
 
+
+export
+experiment : LinearIO io => String -> Nat -> Map io -> L io ()
+experiment str n theMap = do
+  Just (MkDynBuffer buf) <- allocate n
+    | Nothing => die "Oops couldn't allocate the buffer for test \{str}"
+  measure str $ do
+    buf <- theMap (const 1) buf
+    val # buf <- Indexed.sum buf
+    liftIO $ printLn val.unVal
+    pure1 (free buf)
+  pure ()
+
 export
 main : IO ()
 main = run $ do
-  Just (MkDynBuffer buf1) <- allocate 30_000
-    | Nothing => die "Oops couldn't allocate 1st buffer"
-  Just (MkDynBuffer buf2) <- allocate 30_000
-    | Nothing => do
-      let () = free buf1
-      die "Oops couldn't allocate 2nd buffer"
-  measure "sequential" (map (const 0) buf1 >>= pure1 . free)
-  measure "parallel  " (parMap 3 (const 0) buf2 >>= pure1 . free)
-  pure ()
+  experiment "parallel  " 30_000 (parMap 3)
+  experiment "sequential" 30_000 map
