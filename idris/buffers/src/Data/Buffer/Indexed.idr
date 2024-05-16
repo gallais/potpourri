@@ -1,14 +1,18 @@
 module Data.Buffer.Indexed
 
 import Data.Buffer as B
-import Data.Nat
 import Data.Fin
-import Data.Vect
-import Data.Vect
+import Data.Nat
 import Data.Singleton
+import Data.Vect
 
 import Control.Linear.LIO
+import Data.Linear.LMaybe
 import Data.Linear.Notation
+
+
+import System.Clock
+import System
 
 public export
 after : (m : Nat) -> Fin (m + S n)
@@ -135,7 +139,8 @@ namespace ReadWrite
       (vs : Vect size Bits8) ->
       Type where
     MkOwned :
-      {0 start, size, end : Nat} ->
+      (region : Region) ->
+      {start : Nat} -> {0 size, end : Nat} ->
       {0 values : Vect size Bits8} ->
       (0 _ : start + size === end) ->
       Owned region start end values
@@ -146,6 +151,23 @@ namespace ReadWrite
     Owned region start end vs -@
     Owned region start end ws
   reindex Refl buf = buf
+
+  public export
+  record DynBuffer (size : Nat) where
+    constructor MkDynBuffer
+    {0 newregion : Region}
+    {0 content : Vect size Bits8}
+    1 owned : Owned newregion 0 size content
+
+  export
+  allocate : LinearIO io => (size : Nat) -> L1 io (LMaybe (DynBuffer size))
+  allocate size = do
+    Just buf <- newBuffer (cast size)
+      | _ => pure1 Nothing
+    pure1 (Just $ MkDynBuffer {content} (MkOwned (MkRegion buf) Refl))
+      where
+        -- postulated: whatever uninitialised memory is given to us!
+        0 content : Vect size Bits8
 
 ------------------------------------------------------------------------
 -- Pure operations
@@ -163,9 +185,9 @@ namespace ReadWrite
     Owned region start {size = m + n} end (vs ++ ws) -@
     LPair (Owned region start (start + m) vs)
           (Owned region (start + m) end ws)
-  splitAt m (MkOwned Refl)
-    = MkOwned reflexive
-    # MkOwned (symmetric (plusAssociative _ _ _))
+  splitAt m (MkOwned region Refl)
+    = MkOwned region reflexive
+    # MkOwned region (symmetric (plusAssociative _ _ _))
 
   ||| This definition is the first to explicitly take advantage
   ||| of the assumption that region labels are unique. If we own
@@ -176,8 +198,8 @@ namespace ReadWrite
     Owned region start middle vs -@
     Owned region middle end ws -@
     Owned region start end (vs ++ ws)
-  MkOwned Refl ++ MkOwned Refl
-    = MkOwned (plusAssociative _ _ _)
+  MkOwned region Refl ++ MkOwned region Refl
+    = MkOwned region (plusAssociative _ _ _)
 
   export
   curry :
@@ -199,7 +221,7 @@ namespace ReadWrite
   ||| it anymore.
   export
   free : Owned region start end vs -@ ()
-  free (MkOwned _) = ()
+  free (MkOwned region _) = ()
 
   ||| By combining `splitAt` and `free`, we can drop the
   ||| initial segment of a buffer.
@@ -233,38 +255,36 @@ namespace ReadWrite
 
   export %inline
   getBits8 :
-    {region : Region} -> {start : Nat} ->
     LinearIO io =>
     (1 _ : Owned region start end vs) ->
     (idx : Fin size) ->
     L1 io (LPair (Owned region start end vs) (Singleton (lookup vs idx)))
-  getBits8 (MkOwned valid) idx
+  getBits8 (MkOwned region valid) idx
     = do w <- B.getBits8 (getBuffer region) (cast (start + cast idx))
-         pure1 (MkOwned valid # unsafeMkSingleton (lookup vs idx) w)
+         pure1 (MkOwned region valid # unsafeMkSingleton (lookup vs idx) w)
 
   %hide B.getBits8
 
   export %inline
   setBits8 :
-    {region : Region} -> {start : Nat} ->
     LinearIO io =>
     (1 _ : Owned region start end vs) ->
     (idx : Fin size) ->
     (val : Bits8) ->
     L1 io (Owned region start end (update vs idx val))
-  setBits8 (MkOwned valid) idx v
+  setBits8 (MkOwned region valid) idx v
     = do B.setBits8 (getBuffer region) (cast (start + cast idx)) v
-         pure1 (MkOwned valid)
+         pure1 (MkOwned region valid)
 
   %hide B.setBits8
 
 0 Map : (Type -> Type) -> Type
 Map io =
-  {region : Region} ->
-  {start, size : Nat} -> {0 end : Nat} ->
+  forall region, start.
+  {size : Nat} -> {0 end : Nat} ->
   {0 vs : Vect size Bits8} ->
   (f : Bits8 -> Bits8) ->
-  (1 _ : Owned region start end vs) ->
+  Owned region start end vs -@
   L1 io (Owned region start end (map f vs))
 
 export
@@ -286,6 +306,21 @@ map f = loop [<] (view vs) where
          buf <- setBits8 buf (afterz m FZ) (f v)
          let buf = replace {p = Owned _ _ _} (updateAfterz (map f acc) FZ (f v)) buf
          loop (acc :< v) (view vs) buf
+
+0 mapConst : (v : a) -> (vs : Vect m a) -> map (const v) vs === replicate _ v
+mapConst v [] = Refl
+mapConst v (_ :: vs) = cong (v ::) (mapConst v vs)
+
+export
+initialise :
+  LinearIO io =>
+  (v : Bits8) ->
+  {size : Nat} -> {0 vs : Vect size Bits8} ->
+  Owned region start {size} end vs -@
+  L1 io (Owned region {size} start end (replicate size v))
+initialise v buf = do
+  buf <- Indexed.map (const v) buf
+  pure1 (reindex (mapConst v vs) buf)
 
 
 div2 : (n : Nat) -> (m ** p ** m + p === n)
@@ -310,7 +345,6 @@ mapTake f (S m) (v :: vs) = cong (f v ::) (mapTake f m vs)
 mapDrop f 0 vs = Refl
 mapDrop f (S m) (v :: vs) = mapDrop f m vs
 
-export
 parMapRec : LinearIO io => Map io -> Map io
 parMapRec subMap f buf
    = do let (m ** p ** Refl) = div2 size
@@ -328,3 +362,27 @@ export
 parMap : LinearIO io => Nat -> Map io
 parMap Z = map
 parMap (S n) = parMapRec (parMap n)
+
+measure : LinearIO io => String -> L1 io () -@ L1 io ()
+measure str act = do
+  start <- liftIO $ clockTime Process
+  act
+  end <- liftIO $ clockTime Process
+  let time = timeDifference end start
+  let stime = showTime 2 9
+  liftIO $ putStrLn "Time \{str}: \{stime time}"
+  pure1 ()
+
+
+export
+main : IO ()
+main = run $ do
+  Just (MkDynBuffer buf1) <- allocate 30_000
+    | Nothing => die "Oops couldn't allocate 1st buffer"
+  Just (MkDynBuffer buf2) <- allocate 30_000
+    | Nothing => do
+      let () = free buf1
+      die "Oops couldn't allocate 2nd buffer"
+  measure "sequential" (map (const 0) buf1 >>= pure1 . free)
+  measure "parallel  " (parMap 3 (const 0) buf2 >>= pure1 . free)
+  pure ()
