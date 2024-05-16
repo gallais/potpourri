@@ -54,28 +54,34 @@
 
 \begin{frame}{Agda -- A community}
     \begin{itemize}
-      \item Originated in 1999, designed by Catarina Coquand
-      \item Complete rewrite in 2007 by Ulf Norell
-      \item Developped openly on Github
-      \item Two week-long hacking meetings per year
+      \item<1-> Originated in 1999, designed by Catarina Coquand
+      \item<2-> Complete rewrite in 2007 by Ulf Norell
+      \item<3-> Developped openly on Github
+      \item<4-> Core developpers in Sweden and Belgium
+      \item<5-> Two week-long hacking meetings per year
     \end{itemize}
 \end{frame}
 
 \begin{frame}{Agda -- A programming language}
     \begin{itemize}
-      \item Pluggable backends (the main ones are all Haskell-based)
-      \item Powerful FFI (the whole Haskell ecosystem)
-      \item Escape hatches
+      \item<1-> Pluggable backends (the main ones are all Haskell-based)
+      \item<2-> Powerful FFI (the whole Haskell ecosystem)
+      \item<3-> Escape hatches
     \end{itemize}
 \end{frame}
 
 \begin{frame}{Agda -- A theorem prover}
   \begin{itemize}
-    \item Based on type \textbf{theories} (MLTT, 2 level TT, with \& without K, cubical)
-    \item A powerful and principled constraint solving machinery
-    \item Foundations à la carte through \texttt{OPTIONS}
-    \item A more conservative \texttt{--safe} mode
+    \item<1-> Based on type \textbf{theories} (MLTT, 2 level TT, with \& without K, cubical, strict prop, sized types, TT in colour, ...)
+    \item<2-> Foundations à la carte through \texttt{OPTIONS}
+    \item<3-> A more conservative \texttt{--safe} mode
   \end{itemize}
+
+
+  \vfill
+  \uncover<4->{
+  Some soundness bugs, almost all outside of \texttt{--safe}:
+  \url{https://github.com/agda/agda/issues?q=is\%3Aissue+is\%3Aopen+sort\%3Aupdated-desc+label\%3Afalse}}
 \end{frame}
 
 \begin{frame}{Small kernel?}
@@ -101,6 +107,7 @@ Well, that's not true:
     \begin{itemize}
       \item Dependent pattern matching
       \item Unification to reconstruct missing information
+      \item Parametrised modules
     \end{itemize}
   \item A meta-programming mechanism (``typed'' tactics)
   \item A form of dependent type providers
@@ -129,12 +136,12 @@ Well, that's not true:
   right data structure to represent the objects of study.
 
   \begin{itemize}
-    \item Inductive Types
-    \item Inductive Families
-    \item Induction Induction
-    \item Induction Recursion
-    \item Higher Inductive Types
-    \item Higher Inductive Inductive Types
+    \item<1-> Inductive Types
+    \item<2-> Inductive Families
+    \item<3-> Induction Induction
+    \item<4-> Induction Recursion
+    \item<5-> Higher Inductive Types
+    \item<6-> Higher Inductive Inductive Types
   \end{itemize}
 \end{frame}
 
