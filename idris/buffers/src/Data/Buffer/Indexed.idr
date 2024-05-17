@@ -13,6 +13,7 @@ import Data.Linear.Notation
 
 import System.Clock
 import System
+import System.Concurrency
 
 
 
@@ -387,21 +388,46 @@ mapTake f (S m) (v :: vs) = cong (f v ::) (mapTake f m vs)
 mapDrop f 0 vs = Refl
 mapDrop f (S m) (v :: vs) = mapDrop f m vs
 
-parMapRec : LinearIO io => Map io -> Map io
+withChannel : Channel a -> L1 IO a -@ IO ()
+withChannel ch = assert_linear $ \ act => do
+  a <- LIO.run (assert_linear believe_me act)
+  channelPut ch a
+
+par : L1 IO a -@ L1 IO b -@ L1 IO (LPair a b)
+par x y
+{- Why doesn't this work?
+  = do aChan <- makeChannel
+       bChan <- makeChannel
+       aId <- assert_linear liftIO $ fork $ withChannel aChan x
+       bId <- assert_linear liftIO $ fork $ withChannel bChan y
+       a <- channelGet aChan
+       b <- channelGet bChan
+       pure1 (a # b)
+-}
+  = do x <- x
+       y <- y
+       pure1 (x # y)
+{- Why doesn't this work?
+  = do fx <- assert_linear forkIO (LIO.run $ assert_linear believe_me x)
+       fy <- assert_linear forkIO (LIO.run $ assert_linear believe_me y)
+       pure1 (await fx # await fy)
+-}
+
+parMapRec : Map IO -> Map IO
 parMapRec subMap f buf
    = do let (m ** p ** Refl) = div2 size
         let 1 buf = reindex (sym $ takeDropSplit m vs) buf
         let 1 buf = splitAt m buf
         let lbuf # rbuf = buf
-        lbuf <- subMap f lbuf
-        rbuf <- subMap f rbuf
+        bufs <- par (subMap f lbuf) (subMap f rbuf)
+        let lbuf # rbuf = bufs
         let 1 buf = lbuf ++ rbuf
         let 0 eq : map f (take m {m = p} vs) ++ map f (drop m {m = p} vs) === map f vs
           := trans (cong2 (++) (mapTake f m vs) (mapDrop f m vs)) (takeDropSplit m (map f vs))
         pure1 (reindex eq buf)
 
 export
-parMap : LinearIO io => Nat -> Map io
+parMap : Nat -> Map IO
 parMap Z = map
 parMap (S n) = parMapRec (parMap n)
 
@@ -423,7 +449,7 @@ experiment str n theMap = do
   Just (MkDynBuffer buf) <- allocate n
     | Nothing => die "Oops couldn't allocate the buffer for test \{str}"
   measure str $ do
-    buf <- theMap (const 1) buf
+    buf <- theMap (const 2) buf
     val # buf <- Indexed.sum buf
     liftIO $ printLn val.unVal
     pure1 (free buf)
@@ -432,5 +458,5 @@ experiment str n theMap = do
 export
 main : IO ()
 main = run $ do
-  experiment "parallel  " 30_000 (parMap 3)
-  experiment "sequential" 30_000 map
+  experiment "sequential" 10_000 map
+  experiment "parallel  " 10_000 (parMap 3)
