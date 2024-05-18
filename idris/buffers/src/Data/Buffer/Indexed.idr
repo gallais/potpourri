@@ -10,12 +10,11 @@ import Control.Linear.LIO
 import Data.Linear.LMaybe
 import Data.Linear.Notation
 
-
 import System.Clock
 import System
 import System.Concurrency
 
-
+%default total
 
 public export
 after : (m : Nat) -> Fin (m + S n)
@@ -388,30 +387,24 @@ mapTake f (S m) (v :: vs) = cong (f v ::) (mapTake f m vs)
 mapDrop f 0 vs = Refl
 mapDrop f (S m) (v :: vs) = mapDrop f m vs
 
-withChannel : Channel a -> L1 IO a -@ IO ()
-withChannel ch = assert_linear $ \ act => do
-  a <- LIO.run (assert_linear believe_me act)
+withChannel : String -> Channel a -> L1 IO a -@ IO ()
+withChannel str ch = assert_linear $ \ act => do
+  --putStrLn "Starting work on \{str}"
+  a <- LIO.run (act >>= assert_linear pure)
+  --putStrLn "Sending result for \{str}"
   channelPut ch a
 
 par : L1 IO a -@ L1 IO b -@ L1 IO (LPair a b)
 par x y
-{- Why doesn't this work?
   = do aChan <- makeChannel
        bChan <- makeChannel
-       aId <- assert_linear liftIO $ fork $ withChannel aChan x
-       bId <- assert_linear liftIO $ fork $ withChannel bChan y
+       --putStrLn "Created the channels"
+       aId <- assert_linear liftIO $ fork $ withChannel "a" aChan x
+       bId <- assert_linear liftIO $ fork $ withChannel "b" bChan y
+       --putStrLn "Forked the work, waiting for the results"
        a <- channelGet aChan
        b <- channelGet bChan
        pure1 (a # b)
--}
-  = do x <- x
-       y <- y
-       pure1 (x # y)
-{- Why doesn't this work?
-  = do fx <- assert_linear forkIO (LIO.run $ assert_linear believe_me x)
-       fy <- assert_linear forkIO (LIO.run $ assert_linear believe_me y)
-       pure1 (await fx # await fy)
--}
 
 parMapRec : Map IO -> Map IO
 parMapRec subMap f buf
@@ -438,7 +431,7 @@ measure str act = do
   end <- liftIO $ clockTime Process
   let time = timeDifference end start
   let stime = showTime 2 9
-  liftIO $ putStrLn "Time \{str}: \{stime time}"
+  putStrLn "Time \{str}: \{stime time}"
   pure1 ()
 
 
@@ -449,14 +442,18 @@ experiment str n theMap = do
   Just (MkDynBuffer buf) <- allocate n
     | Nothing => die "Oops couldn't allocate the buffer for test \{str}"
   measure str $ do
+    -- putStrLn "Mapping..."
     buf <- theMap (const 2) buf
-    val # buf <- Indexed.sum buf
-    liftIO $ printLn val.unVal
+    -- putStrLn "Summing..."
+    -- val # buf <- Indexed.sum buf
+    -- printLn val.unVal
     pure1 (free buf)
   pure ()
 
 export
 main : IO ()
 main = run $ do
-  experiment "sequential" 10_000 map
-  experiment "parallel  " 10_000 (parMap 3)
+  let n = 300_000
+--  experiment "sequential" n map
+  for_ [1..4] $ \ splits =>
+    experiment "parallel (2^\{show splits} threads)" n (parMap splits)
