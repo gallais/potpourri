@@ -13,6 +13,13 @@ import System.Random
 
 %default total
 
+interface LogLevel where
+  constructor MkLogLevel
+  logLevel : Nat
+
+logging : LinearIO io => LogLevel => Nat -> String -> L io ()
+logging lvl str = when (logLevel >= lvl) $ putStrLn str
+
 public export
 data Session : Type where
   Send : (ty : Type) -> (s : Session) -> Session
@@ -63,30 +70,6 @@ namespace Seen
     Recv : (ty : Type) -> Seen m n f -> Seen (S m) n (f . Recv ty)
     Send : (ty : Type) -> Seen m n f -> Seen m (S n) (f . Send ty)
 
-{-
-Types : Session -> List Type
-Types (Send ty s) = ty :: Types s
-Types (Recv ty s) = ty :: Types s
-Types End = []
-
-typesDual : (s : Session) -> Types (Dual s) === Types s
-typesDual (Send ty s) = cong (ty ::) (typesDual s)
-typesDual (Recv ty s) = cong (ty ::) (typesDual s)
-typesDual End = Refl
-
-atIndex : Seen m f ->
-          (s : Session) ->
-          AtIndex ty (Types s) n ->
-          AtIndex ty (Types (f s)) (m + n)
-atIndex None accS accAt = accAt
-atIndex (Recv ty s) accS accAt
-  = rewrite plusSuccRightSucc (pred m) n in
-    atIndex s (Recv ty accS) (S accAt)
-atIndex (Send ty s) accS accAt
-  = rewrite plusSuccRightSucc (pred m) n in
-    atIndex s (Send ty accS) (S accAt)
--}
-
 atRecvIndex : Seen m _ f ->
           (s : Session) ->
           AtIndex ty (RecvTypes s) n ->
@@ -110,7 +93,7 @@ atSendIndex (Send ty s) accS accAt
     atSendIndex s (Send ty accS) (S accAt)
 
 export
-record Channel (s : Session) where
+record Channel (src, tgt : nm) (s : Session) where
   constructor MkChannel
   {sendStep     : Nat}
   {recvStep     : Nat}
@@ -127,52 +110,58 @@ die1 err = do
   pure1 x
 
 export
-recv : LinearIO io =>
-       Channel (Recv ty s) -@
-       L1 io (Res ty (const (Channel s)))
+recv : {src, tgt : String} -> Show ty => LogLevel =>
+  LinearIO io =>
+  Channel src tgt (Recv ty s) -@
+  L1 io (Res ty (const (Channel src tgt s)))
 recv (MkChannel {recvStep} seen sendCh recvCh) = do
-  --putStrLn "Receiving a value"
   x@(Element k prf val) <- channelGet recvCh
   let Just val = prj' (recvStep + 0) (atRecvIndex seen (Recv ty s) Z) x
     | Nothing => die1 "Oops: expected \{show recvStep} but got \{show k}"
+  logging 3 "\{src}: received \{show val} from \{tgt}"
   pure1 (val # MkChannel (Recv ty seen) sendCh recvCh)
 
 export
-send : LinearIO io =>
-       (1 _ : Channel (Send ty s)) ->
-       ty ->
-       L1 io (Channel s)
+send : {src, tgt : String} -> Show ty => LogLevel =>
+  LinearIO io =>
+  (1 _ : Channel src tgt (Send ty s)) ->
+  ty ->
+  L1 io (Channel src tgt s)
 send (MkChannel {sendStep} seen sendCh recvCh) x = do
-  --putStrLn "Sending a value"
   let val = inj' (sendStep + 0) (atSendIndex seen (Send ty s) Z) x
   channelPut sendCh val
+  logging 3 "\{src}: sent \{show x} to \{tgt}"
   pure1 (MkChannel (Send ty seen) sendCh recvCh)
 
 export
-end : LinearIO io => Channel End -@ L io ()
-end (MkChannel _ _ _) = pure ()
+end : {src, tgt : String} -> LogLevel =>
+  LinearIO io => Channel src tgt End -@ L io ()
+end (MkChannel _ _ _) = do
+  logging 3 "\{src}: closing channel to \{tgt}"
+  pure ()
 
 export
-fork : (s : Session) ->
-       (Channel       s  -@ L IO a) -@
-       (Channel (Dual s) -@ L IO b) -@
+fork : (src, tgt : nm) ->
+       (s : Session) ->
+       ((me : nm) -> {them : nm} -> Channel me them       s  -@ L IO a) -@
+       ((me : nm) -> {them : nm} -> Channel me them (Dual s) -@ L IO b) -@
        L IO (a, b)
-fork s kA kB = do
+fork src tgt s kA kB = do
   sendChan <- makeChannel
   recvChan <- makeChannel
   aResChan <- makeChannel
   bResChan <- makeChannel
-  let posCh : Channel s
+  let posCh : Channel src tgt s
     := MkChannel None sendChan recvChan
-  let negCh : Channel (Dual s)
+  let negCh : Channel tgt src (Dual s)
     := MkChannel None
          (rewrite SendDualTypes s in recvChan)
          (rewrite RecvDualTypes s in sendChan)
   _ <- liftIO1 $ IO.fork $ LIO.run $
-         do x <- kA posCh
+         do x <- kA src {them = tgt} posCh
             channelPut aResChan x
   _ <- liftIO1 $ IO.fork $ LIO.run $
-         do y <- kB negCh
+         do y <- kB tgt {them = src} negCh
             channelPut bResChan y
   x <- channelGet aResChan
   y <- channelGet bResChan
@@ -180,23 +169,29 @@ fork s kA kB = do
 
 main : IO ()
 main = LIO.run $ do
-  putStrLn "0: Forking two threads"
-  res <- fork (Recv Nat $ Recv Nat $ Send Nat End)
-    (\ ch => do (m # ch) <- recv ch
-                (n # ch) <- recv ch
-                putStrLn "1: Received \{show m} and \{show n} and now summing them"
-                ch <- send ch (m + n)
-                end ch
-                pure (m, n))
-    (\ ch => do m <- cast <$> randomRIO {a = Int32} (0, 100)
-                putStrLn "2: Randomly generated \{show m} and sending it to 1"
+  let nm1 : String := "natrando"
+  let nm2 : String := "computer"
+  let lvl : LogLevel := MkLogLevel 3
+  logging 2 "main: Forking two threads \{nm1} and \{nm2}"
+  res <- fork nm1 nm2 (Send Nat $ Send Nat $ Recv Nat End)
+    (\ me, ch =>
+             do m <- cast <$> randomRIO {a = Int32} (0, 100)
+                logging 1 "\{me}: randomly generated \{show m}"
                 ch <- send ch m
                 n <- cast <$> randomRIO {a = Int32} (0, 100)
-                putStrLn "2: Randomly generated \{show n} and sending it to 1"
+                logging 1 "\{me}: randomly generated \{show n}"
                 ch <- send ch n
                 (s # ch) <- recv ch
                 end ch
+                pure (m, n))
+    (\ me, ch =>
+             do (m # ch) <- recv ch
+                (n # ch) <- recv ch
+                logging 1 "\{me}: summing \{show m} and \{show n}"
+                let s = m + n
+                ch <- send ch s
+                end ch
                 pure s)
-  let ((m, n), mplusn) = the ((Nat, Nat), Nat) res
-  putStrLn {io = L IO} "0: Threads have finished and returned (\{show m}, \{show n}) and \{show mplusn}"
- --  putStrLn {io = L IO} "\{show m} + \{show n} = \{show mplusn}"
+  let mn = fst res
+  let mplusn = snd res
+  logging {io = IO} 2 "main: Threads have finished and returned \{show mn} and \{show mplusn}"
