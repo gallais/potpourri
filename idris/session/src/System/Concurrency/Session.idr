@@ -35,13 +35,33 @@ Send ty s ++ t = Send ty (s ++ t)
 Recv ty s ++ t = Recv ty (s ++ t)
 End ++ t = t
 
+SendTypes : Session -> List Type
+SendTypes (Send ty s) = ty :: SendTypes s
+SendTypes (Recv ty s) = SendTypes s
+SendTypes End = []
+
+RecvTypes : Session -> List Type
+RecvTypes (Send ty s) = RecvTypes s
+RecvTypes (Recv ty s) = ty :: RecvTypes s
+RecvTypes End = []
+
+RecvDualTypes : (s : Session) -> RecvTypes (Dual s) === SendTypes s
+RecvDualTypes (Send ty s) = cong (ty ::) (RecvDualTypes s)
+RecvDualTypes (Recv ty s) = RecvDualTypes s
+RecvDualTypes End = Refl
+
+SendDualTypes : (s : Session) -> SendTypes (Dual s) === RecvTypes s
+SendDualTypes (Send ty s) = SendDualTypes s
+SendDualTypes (Recv ty s) = cong (ty ::) (SendDualTypes s)
+SendDualTypes End = Refl
+
 namespace Seen
 
   public export
-  data Seen : Nat -> (Session -> Session) -> Type where
-    None : Seen 0 Prelude.id
-    Recv : (ty : Type) -> Seen n f -> Seen (S n) (f . Recv ty)
-    Send : (ty : Type) -> Seen n f -> Seen (S n) (f . Send ty)
+  data Seen : Nat -> Nat -> (Session -> Session) -> Type where
+    None : Seen 0 0 Prelude.id
+    Recv : (ty : Type) -> Seen m n f -> Seen (S m) n (f . Recv ty)
+    Send : (ty : Type) -> Seen m n f -> Seen m (S n) (f . Send ty)
 
 {-
 Types : Session -> List Type
@@ -67,28 +87,39 @@ atIndex (Send ty s) accS accAt
     atIndex s (Send ty accS) (S accAt)
 -}
 
+atRecvIndex : Seen m _ f ->
+          (s : Session) ->
+          AtIndex ty (RecvTypes s) n ->
+          AtIndex ty (RecvTypes (f s)) (m + n)
+atRecvIndex None accS accAt = accAt
+atRecvIndex (Recv ty s) accS accAt
+  = rewrite plusSuccRightSucc (pred m) n in
+    atRecvIndex s (Recv ty accS) (S accAt)
+atRecvIndex (Send ty s) accS accAt
+  = atRecvIndex s (Send ty accS) accAt
 
-SendTypes : Session -> List Type
-SendTypes (Send ty s) = ty :: SendTypes s
-SendTypes (Recv ty s) = SendTypes s
-SendTypes End = []
-
-RecvTypes = SendTypes . Dual
+atSendIndex : Seen _ m f ->
+          (s : Session) ->
+          AtIndex ty (SendTypes s) n ->
+          AtIndex ty (SendTypes (f s)) (m + n)
+atSendIndex None accS accAt = accAt
+atSendIndex (Recv ty s) accS accAt
+  = atSendIndex s (Recv ty accS) accAt
+atSendIndex (Send ty s) accS accAt
+  = rewrite plusSuccRightSucc (pred m) n in
+    atSendIndex s (Send ty accS) (S accAt)
 
 export
 record Channel (s : Session) where
   constructor MkChannel
   {sendStep     : Nat}
-  {0 sendPrefix : Session -> Session}
-  0 sendSeen    : Seen seenStep seenPrefix
-  sendChan : Threads.Channel (Union Prelude.id (SendTypes (sendPrefix s)))
-
   {recvStep     : Nat}
-  {0 recvPrefix : Session -> Session}
-  0 recvSeen    : Seen recvStep recvPrefix
-  recvChan : Threads.Channel (Union Prelude.id (RecvTypes (recvPrefix s)))
+  {0 seenPrefix : Session -> Session}
+  0 seen        : Seen recvStep sendStep seenPrefix
 
-{-
+  sendChan : Threads.Channel (Union Prelude.id (SendTypes (seenPrefix s)))
+  recvChan : Threads.Channel (Union Prelude.id (RecvTypes (seenPrefix s)))
+
 export
 die1 : LinearIO io => String -> L1 io a
 die1 err = do
@@ -99,27 +130,27 @@ export
 recv : LinearIO io =>
        Channel (Recv ty s) -@
        L1 io (Res ty (const (Channel s)))
-recv (MkChannel {step} seen rawCh) = do
-  putStrLn "Receiving a value"
-  x@(Element k prf val) <- channelGet rawCh
-  let Just val = prj' (step + 0) (atIndex seen ? Z) x
-    | Nothing => die1 "Oops: expected \{show step} but got \{show k}"
-  pure1 (val # MkChannel (Recv ty seen) rawCh)
+recv (MkChannel {recvStep} seen sendCh recvCh) = do
+  --putStrLn "Receiving a value"
+  x@(Element k prf val) <- channelGet recvCh
+  let Just val = prj' (recvStep + 0) (atRecvIndex seen (Recv ty s) Z) x
+    | Nothing => die1 "Oops: expected \{show recvStep} but got \{show k}"
+  pure1 (val # MkChannel (Recv ty seen) sendCh recvCh)
 
 export
 send : LinearIO io =>
        (1 _ : Channel (Send ty s)) ->
        ty ->
        L1 io (Channel s)
-send (MkChannel {step} seen rawCh) x = do
-  putStrLn "Sending a value"
-  let val = inj' (step + 0) (atIndex seen ? Z) x
-  channelPut rawCh val
-  pure1 (MkChannel (Send ty seen) rawCh)
+send (MkChannel {sendStep} seen sendCh recvCh) x = do
+  --putStrLn "Sending a value"
+  let val = inj' (sendStep + 0) (atSendIndex seen (Send ty s) Z) x
+  channelPut sendCh val
+  pure1 (MkChannel (Send ty seen) sendCh recvCh)
 
 export
 end : LinearIO io => Channel End -@ L io ()
-end (MkChannel _ _) = pure ()
+end (MkChannel _ _ _) = pure ()
 
 export
 fork : (s : Session) ->
@@ -127,13 +158,16 @@ fork : (s : Session) ->
        (Channel (Dual s) -@ L IO b) -@
        L IO (a, b)
 fork s kA kB = do
-  commChan <- makeChannel
+  sendChan <- makeChannel
+  recvChan <- makeChannel
   aResChan <- makeChannel
   bResChan <- makeChannel
   let posCh : Channel s
-    := MkChannel None commChan
+    := MkChannel None sendChan recvChan
   let negCh : Channel (Dual s)
-    := MkChannel None (rewrite typesDual s in commChan)
+    := MkChannel None
+         (rewrite SendDualTypes s in recvChan)
+         (rewrite RecvDualTypes s in sendChan)
   _ <- liftIO1 $ IO.fork $ LIO.run $
          do x <- kA posCh
             channelPut aResChan x
@@ -146,19 +180,23 @@ fork s kA kB = do
 
 main : IO ()
 main = LIO.run $ do
+  putStrLn "0: Forking two threads"
   res <- fork (Recv Nat $ Recv Nat $ Send Nat End)
     (\ ch => do (m # ch) <- recv ch
                 (n # ch) <- recv ch
+                putStrLn "1: Received \{show m} and \{show n} and now summing them"
                 ch <- send ch (m + n)
                 end ch
                 pure (m, n))
     (\ ch => do m <- cast <$> randomRIO {a = Int32} (0, 100)
-                n <- cast <$> randomRIO {a = Int32} (0, 100)
+                putStrLn "2: Randomly generated \{show m} and sending it to 1"
                 ch <- send ch m
+                n <- cast <$> randomRIO {a = Int32} (0, 100)
+                putStrLn "2: Randomly generated \{show n} and sending it to 1"
                 ch <- send ch n
                 (s # ch) <- recv ch
                 end ch
                 pure s)
   let ((m, n), mplusn) = the ((Nat, Nat), Nat) res
-  printLn {io = L IO} "\{show m} + \{show n} = \{show mplusn}"
--}
+  putStrLn {io = L IO} "0: Threads have finished and returned (\{show m}, \{show n}) and \{show mplusn}"
+ --  putStrLn {io = L IO} "\{show m} + \{show n} = \{show mplusn}"
