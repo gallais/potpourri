@@ -1,0 +1,473 @@
+module Data.Buffer.Indexed
+
+import Data.Buffer as B
+import Data.Fin
+import Data.List
+import Data.List.HasLength
+import Data.Nat
+import Data.Singleton
+
+import Control.Linear.LIO
+import Data.Linear.LMaybe
+import Data.Linear.Notation
+
+import System.Clock
+import System
+import System.Concurrency
+import System.Concurrency.Linear
+
+import Syntax.PreorderReasoning
+
+%default total
+
+{-
+public export
+after : (m : Nat) -> Fin (m + S n)
+after 0 = FZ
+after (S k) = FS (after k)
+
+public export
+lookup : Vect size a -> Fin size -> a
+lookup vs k = index k vs
+
+public export
+update : Vect size a -> Fin size -> a -> Vect size a
+update (_ :: vs) FZ w = w :: vs
+update (v :: vs) (FS k) w = v :: update vs k w
+-}
+
+%unsafe
+unsafeMkSingleton : (0 x : a) -> (val : a) -> Singleton x
+unsafeMkSingleton x val = believe_me (Val val)
+
+{-
+namespace Vect
+
+  public export
+  sum : Vect n Nat -> Nat
+  sum [] = 0
+  sum (n :: ns) = n + sum ns
+
+namespace SnocVect
+
+  public export
+  addz : Nat -> Nat -> Nat
+  addz 0 n = n
+  addz (S m) n = addz m (S n)
+
+  public export
+  adds : Nat -> Nat -> Nat
+  adds m 0 = m
+  adds m (S n) = adds (S m) n
+
+  public export
+  data SnocVect : Nat -> Type -> Type where
+    Lin : SnocVect Z a
+    (:<) : SnocVect n a -> a -> SnocVect (S n) a
+
+  public export
+  Functor (SnocVect n) where
+    map f [<] = [<]
+    map f (xs :< x) = map f xs :< f x
+
+  public export
+  sum : SnocVect n Nat -> Nat
+  sum [<] = 0
+  sum (sn :< n) = sum sn + n
+
+  public export
+  (<><) : SnocVect m a -> Vect n a -> SnocVect (adds m n) a
+  vs <>< [] = vs
+  vs <>< (w :: ws) = (vs :< w) <>< ws
+
+  public export
+  (<>>) : SnocVect m a -> Vect n a -> Vect (addz m n) a
+  [<] <>> ws = ws
+  (vs :< v) <>> ws = vs <>> (v :: ws)
+
+  export
+  mapChips :
+    (f : a -> b) ->
+    (sx : SnocVect m a) ->
+    (xs : Vect n a) ->
+    map f (sx <>> xs) === (map f sx <>> map f xs)
+  mapChips f [<] xs = Refl
+  mapChips f (sx :< x) xs = mapChips f sx (x :: xs)
+
+
+afterz : (m : Nat) -> {0 n : Nat} -> Fin n -> Fin (addz m n)
+afterz 0 k = k
+afterz (S m) k = afterz m (FS k)
+
+lookupAfterz :
+  (vs : SnocVect m a) -> {ws : Vect n a} ->
+  (k : Fin n) ->
+  lookup (vs <>> ws) (afterz m k) === lookup ws k
+lookupAfterz [<] k  = Refl
+lookupAfterz (vs :< v) k = lookupAfterz vs (FS k)
+
+updateAfterz :
+  (vs : SnocVect m a) -> {ws : Vect n a} ->
+  (k : Fin n) -> (v : a) ->
+  update (vs <>> ws) (afterz m k) v === (vs <>> update ws k v)
+updateAfterz [<] k v = Refl
+updateAfterz (vs :< _) k v = updateAfterz vs (FS k) v
+
+namespace Vect
+
+  public export
+  data View : Vect n a -> Type where
+    Nil : View []
+    (::) : {n : Nat} -> (0 x : a) -> (0 xs : Vect n a) -> View (x :: xs)
+
+  public export
+  view : {n : Nat} -> (0 xs : Vect n a) -> View xs
+  view {n = 0} [] = []
+  view {n = S n} (x :: xs) = x :: xs
+-}
+
+namespace ReadWrite
+
+  ||| This is a wrapper for `Buffer` ensuring users do not
+  ||| get access to the raw buffer and so cannot manually
+  ||| update it using primitives bound in `Data.Buffer`.
+  export
+  record Region where
+    constructor MkRegion
+    getBuffer : Buffer
+
+  ||| (Owner r start end vs) can be understood as a proof of
+  ||| ownership of the portion of the region named `r` between
+  ||| `start` (inclusive) and `end` (exclusive) whose content is
+  ||| `vs`.
+  |||
+  ||| /!\ It is crucial for invariants preservation that this
+  ||| definition is not `public export`. This way users are
+  ||| forced to use our invariants-safe functions to manipulate
+  ||| buffers.
+  ||| The first invariant is that different programs can own different
+  ||| slices of the same regions but owernship proofs should always be
+  ||| unique and non-overlapping.
+  |||
+  ||| The second invariant is that the bytes stored in the region
+  ||| between indices `start` and `end` are exactly the ones listed
+  ||| in the `vs` index.
+  export
+  data Owned :
+      (region : Region) ->
+      (start, end : Nat) ->
+      (vs : List Bits8) ->
+      Type where
+    MkOwned :
+      (region : Region) ->
+      {start : Nat} ->
+      {0 end : Nat} ->
+      {size : Nat} ->
+      (0 _ : HasLength size values) ->
+      Owned region start end values
+
+  export
+  reindex :
+    (0 _ : vs === ws) ->
+    Owned region start end vs -@
+    Owned region start end ws
+  reindex Refl buf = buf
+
+  public export
+  record DynBuffer (size : Nat) where
+    constructor MkDynBuffer
+    {0 newregion : Region}
+    {0 content : List Bits8}
+    1 owned : Owned newregion 0 size content
+
+  export
+  allocate : LinearIO io => (size : Nat) -> L1 io (LMaybe (DynBuffer size))
+  allocate size = do
+    Just buf <- newBuffer (cast size)
+      | _ => pure1 Nothing
+    ------------------------------------------------------------
+    -- postulated: whatever uninitialised memory is given to us!
+    let 0 Values     : List Bits8
+    let 0 ValuesSize : HasLength size Values
+    ------------------------------------------------------------
+    let region : Region = MkRegion buf
+    let owned  : Owned region 0 size Values
+      := MkOwned region ValuesSize
+    pure1 $ Just $ MkDynBuffer {content = Values} owned
+
+------------------------------------------------------------------------
+-- Pure operations
+
+  record HLUnAppend (m : Nat) (xs, ys : List a) where
+    constructor MkHLUnAppend
+    {lsize : Nat}
+    {rsize : Nat}
+    haslengthxs : HasLength lsize xs
+    haslengthys : HasLength rsize ys
+    correctsum : lsize + rsize === m
+
+  hlUnAppend : {xs : List a} -> HasLength m (xs ++ ys) -> HLUnAppend m xs ys
+  hlUnAppend {xs} hl = ?a
+
+{-
+  haslengthprefix :
+    {xs : list a} ->
+    haslength n ys ->
+    haslength mn (xs ++ ys) ->
+    haslength (minus mn n) xs
+  haslengthprefix {xs = []} hr hf
+    = rewrite haslengthunique hr hf in
+      rewrite sym (minusZeroN mn) in
+      Z
+  hasLengthPrefix {xs = (x :: xs)} hr (S y) = ?a_2
+
+  hasLengthSuffix :
+    HasLength m xs ->
+    HasLength mn (xs ++ ys) ->
+    HasLength (minus mn m) ys
+  hasLengthSuffix Z Z = Z
+  hasLengthSuffix Z (S hf) = S hf
+  hasLengthSuffix (S hl) (S hf) = hasLengthSuffix hl hf
+
+
+  ||| We can split a buffer like we would split a vector:
+  ||| if it is known to contain `vs ++ ws` and we know `m`
+  ||| the size of `vs` then we can take it apart and turn
+  ||| into two proofs of ownership:
+  ||| one for the portion containing `vs`
+  ||| and one for the one containing `ws`.
+  export
+  splitAt :
+    {0 vs, ws : List Bits8} ->
+    {m : Nat} -> (0 _ : HasLength m vs) ->
+    Owned region start end (vs ++ ws) -@
+    LPair (Owned region start (start + m) vs)
+          (Owned region (start + m) end ws)
+  splitAt lvs (MkOwned region hl)
+    = MkOwned region lvs # MkOwned region ?Zeg
+
+  ||| This definition is the first to explicitly take advantage
+  ||| of the assumption that region labels are unique. If we own
+  ||| two contiguous region segments, we can put them together
+  ||| and obtain a proof that we own the combined segments.
+  export
+  (++) :
+    Owned region start middle vs -@
+    Owned region middle end ws -@
+    Owned region start end (vs ++ ws)
+  MkOwned region hll ++ MkOwned region hlr
+    = MkOwned region (hasLengthAppend hll hlr)
+
+  export
+  curry :
+    {0 vs, ws : List Bits8} ->
+    (m : Nat) -> (0 _ : length vs === m) ->
+    (Owned region start end (vs ++ ws) -@ a) -@
+    (Owned region start (start + m) vs -@ Owned region (start + m) end ws -@ a)
+  curry m lvs k ol or = k (ol ++ or)
+
+  export
+  uncurry :
+    {0 vs, ws : List Bits8} ->
+    {m : Nat} -> (0 lvs : HasLength m vs) ->
+    (Owned region start (start + m) vs -@ Owned region (start + m) end ws -@ a) -@
+    (Owned region start end (vs ++ ws) -@ a)
+  uncurry lvs k o = let 1 olr = splitAt lvs o in let (ol # or) = olr in k ol or
+
+{-
+  ||| Getting rid of a proof of ownership if we do not need
+  ||| it anymore.
+  export
+  free : Owned region start end vs -@ ()
+  free (MkOwned region) = ()
+
+------------------------------------------------------------------------
+-- Read and write operations
+
+  -- TODO: should I just get rid of the IO nonsense?!
+
+  export %inline
+  getBits8 :
+    LinearIO io =>
+    (1 _ : Owned region start end vs) ->
+    (idx : Nat) -> (0 _ : InBounds idx vs) ->
+    L1 io (Res (Singleton (index idx vs)) (const $ Owned region start end vs))
+  getBits8 (MkOwned region) idx bnds
+    = do w <- B.getBits8 (getBuffer region) (cast (start + cast idx))
+         pure1 (unsafeMkSingleton (index idx vs) w # MkOwned region)
+
+{-
+  %hide B.getBits8
+
+  export %inline
+  setBits8 :
+    LinearIO io =>
+    (1 _ : Owned region start end vs) ->
+    (idx : Fin size) ->
+    (val : Bits8) ->
+    L1 io (Owned region start end (update vs idx val))
+  setBits8 (MkOwned region valid) idx v
+    = do B.setBits8 (getBuffer region) (cast (start + cast idx)) v
+         pure1 (MkOwned region valid)
+
+  %hide B.setBits8
+
+0 Map : (Type -> Type) -> Type
+Map io =
+  forall region, start.
+  {size : Nat} -> {0 end : Nat} ->
+  {0 vs : Vect size Bits8} ->
+  (f : Bits8 -> Bits8) ->
+  Owned region start end vs -@
+  L1 io (Owned region start end (map f vs))
+
+export
+map : LinearIO io => Map io
+map f = loop [<] (view vs) where
+
+  loop :
+    {m : Nat} ->
+    (0 acc : SnocVect m Bits8) ->
+    {0 rest : Vect n Bits8} ->
+    View rest ->
+    (1 _ : Owned region start end (map f acc <>> rest)) ->
+    L1 io (Owned region start end (map f (acc <>> rest)))
+  loop acc [] buf
+    = pure1 $ rewrite mapChips f acc [] in buf
+  loop acc (v :: vs) buf
+    = do val # buf <- getBits8 buf (afterz m FZ)
+         let Val v = the (Singleton v) $ replace {p = Singleton} (lookupAfterz (map f acc) FZ) val
+         buf <- setBits8 buf (afterz m FZ) (f v)
+         let buf = replace {p = Owned _ _ _} (updateAfterz (map f acc) FZ (f v)) buf
+         loop (acc :< v) (view vs) buf
+
+0 mapConst : (v : a) -> (vs : Vect m a) -> map (const v) vs === replicate _ v
+mapConst v [] = Refl
+mapConst v (_ :: vs) = cong (v ::) (mapConst v vs)
+
+export
+initialise :
+  LinearIO io =>
+  (v : Bits8) ->
+  {size : Nat} -> {0 vs : Vect size Bits8} ->
+  Owned region start {size} end vs -@
+  L1 io (Owned region {size} start end (replicate size v))
+initialise v buf = do
+  buf <- Indexed.map (const v) buf
+  pure1 (reindex (mapConst v vs) buf)
+
+
+export
+sum : LinearIO io =>
+  {size : Nat} ->
+  {0 vs : Vect size Bits8} ->
+  Owned region start end vs -@
+  L1 io (Res (Singleton (Vect.sum $ map Cast.cast vs)) (const $ Owned region start end vs))
+sum buf = loop [<] (pure 0) (view vs) buf
+
+  where
+
+  loop :
+    {m : Nat} ->
+    (0 acc : SnocVect m Bits8) -> Singleton (SnocVect.sum $ map Cast.cast acc) ->
+    {0 rest : Vect n Bits8} ->
+    View rest ->
+    (1 _ : Owned region start end (acc <>> rest)) ->
+    L1 io (Res (Singleton (Vect.sum $ map Cast.cast (acc <>> rest)))
+               (const $ Owned region start end (acc <>> rest)))
+  loop acc s [] buf
+    = do let s = replace {p = Singleton} ?zeg s
+         pure1 (s # buf)
+  loop acc s (v :: vs) buf
+    = do val # buf <- getBits8 buf (afterz m FZ)
+         let val = the (Singleton v) $ replace {p = Singleton} (lookupAfterz acc FZ) val
+         loop (acc :< v) [| s + [| cast val |] |] (view vs) buf
+
+
+
+div2 : (n : Nat) -> (m ** p ** m + p === n)
+div2 0 = (0 ** 0 ** Refl)
+div2 1 = (1 ** 0 ** Refl)
+div2 (S (S n))
+  = let (m ** p ** eq) = div2 n in
+    (S m ** S p ** cong S (trans (sym $ plusSuccRightSucc m p) (cong S eq)))
+
+0 takeDropSplit : (m : Nat) -> (vs : Vect (m + n) a) ->
+  (take m {m = n} vs ++ drop m {m = n} vs) === vs
+takeDropSplit 0 vs = Refl
+takeDropSplit (S m) (v :: vs) = cong (v ::) (takeDropSplit m vs)
+
+0 mapTake : (f : a -> b) -> (m : Nat) -> (vs : Vect (m + n) a) ->
+  map f (take m {m = n} vs) === take m {m = n} (map f vs)
+mapTake f 0 vs = Refl
+mapTake f (S m) (v :: vs) = cong (f v ::) (mapTake f m vs)
+
+0 mapDrop : (f : a -> b) -> (m : Nat) -> (vs : Vect (m + n) a) ->
+  map f (drop m {m = n} vs) === drop m {m = n} (map f vs)
+mapDrop f 0 vs = Refl
+mapDrop f (S m) (v :: vs) = mapDrop f m vs
+
+withChannel : String -> Channel a -> L1 IO a -@ IO ()
+withChannel str ch = assert_linear $ \ act => do
+  --putStrLn "Starting work on \{str}"
+  a <- LIO.run (act >>= assert_linear pure)
+  --putStrLn "Sending result for \{str}"
+  channelPut ch a
+
+nonpar : L1 IO a -@ L1 IO b -@ L1 IO (LPair a b)
+nonpar x y = do
+  vx <- x
+  vy <- y
+  pure1 (vx # vy)
+
+parMapRec : Map IO -> Map IO
+parMapRec subMap f buf
+   = do let (m ** p ** Refl) = div2 size
+        let 1 buf = reindex (sym $ takeDropSplit m vs) buf
+        let 1 buf = splitAt m buf
+        let lbuf # rbuf = buf
+        bufs <- par1 (subMap f lbuf) (subMap f rbuf)
+        let lbuf # rbuf = bufs
+        let 1 buf = lbuf ++ rbuf
+        let 0 eq : map f (take m {m = p} vs) ++ map f (drop m {m = p} vs) === map f vs
+          := trans (cong2 (++) (mapTake f m vs) (mapDrop f m vs)) (takeDropSplit m (map f vs))
+        pure1 (reindex eq buf)
+
+export
+parMap : Nat -> Map IO
+parMap Z = map
+parMap (S n) = parMapRec (parMap n)
+
+measure : LinearIO io => String -> L1 io () -@ L1 io ()
+measure str act = do
+  start <- liftIO $ clockTime Process
+  act
+  end <- liftIO $ clockTime Process
+  let time = timeDifference end start
+  let stime = showTime 2 9
+  putStrLn "Time \{str}: \{stime time}"
+  pure1 ()
+
+
+
+export
+experiment : LinearIO io => String -> Nat -> Map io -> L io ()
+experiment str n theMap = do
+  Just (MkDynBuffer buf) <- allocate n
+    | Nothing => die "Oops couldn't allocate the buffer for test \{str}"
+  measure str $ do
+    -- putStrLn "Mapping..."
+    buf <- theMap (const 2) buf
+    -- putStrLn "Summing..."
+    -- val # buf <- Indexed.sum buf
+    -- printLn val.unVal
+    pure1 (free buf)
+  pure ()
+
+export
+main : IO ()
+main = run $ do
+  let n = 500_000
+--  experiment "sequential" n map
+  for_ [4..3] $ \ splits =>
+    experiment "parallel (2^\{show splits} threads)" n (parMap splits)

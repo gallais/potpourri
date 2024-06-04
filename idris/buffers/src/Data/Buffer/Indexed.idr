@@ -2,9 +2,12 @@ module Data.Buffer.Indexed
 
 import Data.Buffer as B
 import Data.Fin
+import Data.List
+import Data.List.HasLength
 import Data.Nat
 import Data.Singleton
-import Data.Vect
+import Data.SnocList
+import Data.SnocList.HasLength
 
 import Control.Linear.LIO
 import Data.Linear.LMaybe
@@ -13,110 +16,15 @@ import Data.Linear.Notation
 import System.Clock
 import System
 import System.Concurrency
+import System.Concurrency.Linear
+
+import Syntax.PreorderReasoning
 
 %default total
-
-public export
-after : (m : Nat) -> Fin (m + S n)
-after 0 = FZ
-after (S k) = FS (after k)
-
-public export
-lookup : Vect size a -> Fin size -> a
-lookup vs k = index k vs
-
-public export
-update : Vect size a -> Fin size -> a -> Vect size a
-update (_ :: vs) FZ w = w :: vs
-update (v :: vs) (FS k) w = v :: update vs k w
 
 %unsafe
 unsafeMkSingleton : (0 x : a) -> (val : a) -> Singleton x
 unsafeMkSingleton x val = believe_me (Val val)
-
-namespace Vect
-
-  public export
-  sum : Vect n Nat -> Nat
-  sum [] = 0
-  sum (n :: ns) = n + sum ns
-
-namespace SnocVect
-
-  public export
-  addz : Nat -> Nat -> Nat
-  addz 0 n = n
-  addz (S m) n = addz m (S n)
-
-  public export
-  adds : Nat -> Nat -> Nat
-  adds m 0 = m
-  adds m (S n) = adds (S m) n
-
-  public export
-  data SnocVect : Nat -> Type -> Type where
-    Lin : SnocVect Z a
-    (:<) : SnocVect n a -> a -> SnocVect (S n) a
-
-  public export
-  Functor (SnocVect n) where
-    map f [<] = [<]
-    map f (xs :< x) = map f xs :< f x
-
-  public export
-  sum : SnocVect n Nat -> Nat
-  sum [<] = 0
-  sum (sn :< n) = sum sn + n
-
-  public export
-  (<><) : SnocVect m a -> Vect n a -> SnocVect (adds m n) a
-  vs <>< [] = vs
-  vs <>< (w :: ws) = (vs :< w) <>< ws
-
-  public export
-  (<>>) : SnocVect m a -> Vect n a -> Vect (addz m n) a
-  [<] <>> ws = ws
-  (vs :< v) <>> ws = vs <>> (v :: ws)
-
-  export
-  mapChips :
-    (f : a -> b) ->
-    (sx : SnocVect m a) ->
-    (xs : Vect n a) ->
-    map f (sx <>> xs) === (map f sx <>> map f xs)
-  mapChips f [<] xs = Refl
-  mapChips f (sx :< x) xs = mapChips f sx (x :: xs)
-
-
-afterz : (m : Nat) -> {0 n : Nat} -> Fin n -> Fin (addz m n)
-afterz 0 k = k
-afterz (S m) k = afterz m (FS k)
-
-lookupAfterz :
-  (vs : SnocVect m a) -> {ws : Vect n a} ->
-  (k : Fin n) ->
-  lookup (vs <>> ws) (afterz m k) === lookup ws k
-lookupAfterz [<] k  = Refl
-lookupAfterz (vs :< v) k = lookupAfterz vs (FS k)
-
-updateAfterz :
-  (vs : SnocVect m a) -> {ws : Vect n a} ->
-  (k : Fin n) -> (v : a) ->
-  update (vs <>> ws) (afterz m k) v === (vs <>> update ws k v)
-updateAfterz [<] k v = Refl
-updateAfterz (vs :< _) k v = updateAfterz vs (FS k) v
-
-namespace Vect
-
-  public export
-  data View : Vect n a -> Type where
-    Nil : View []
-    (::) : {n : Nat} -> (0 x : a) -> (0 xs : Vect n a) -> View (x :: xs)
-
-  public export
-  view : {n : Nat} -> (0 xs : Vect n a) -> View xs
-  view {n = 0} [] = []
-  view {n = S n} (x :: xs) = x :: xs
 
 namespace ReadWrite
 
@@ -147,17 +55,30 @@ namespace ReadWrite
   export
   data Owned :
       (region : Region) ->
-      (start : Nat) ->
-      {size : Nat} ->
-      (end : Nat) ->
-      (vs : Vect size Bits8) ->
+      (start, end : Nat) ->
+      (vs : List Bits8) ->
       Type where
     MkOwned :
       (region : Region) ->
-      {start : Nat} -> {0 size, end : Nat} ->
-      {0 values : Vect size Bits8} ->
-      (0 _ : start + size === end) ->
+      {start : Nat} ->
+      {0 end : Nat} ->
+      (0 _ : start + length values === end) ->
       Owned region start end values
+
+  export
+  length :
+    Owned region start end vs ->
+    length vs === minus end start
+  length (MkOwned _ size) = Calc $
+    |~ length vs
+    ~~ minus (start + length vs) start ..<( minusPlus start )
+    ~~ minus end start ..>( cong (`minus` start) size )
+
+  export
+  0 hasLength :
+    Owned region start end vs ->
+    HasLength (minus end start) vs
+  hasLength buf = rewrite sym $ length buf in hasLength vs
 
   export
   reindex :
@@ -170,7 +91,7 @@ namespace ReadWrite
   record DynBuffer (size : Nat) where
     constructor MkDynBuffer
     {0 newregion : Region}
-    {0 content : Vect size Bits8}
+    {0 content : List Bits8}
     1 owned : Owned newregion 0 size content
 
   export
@@ -178,13 +99,22 @@ namespace ReadWrite
   allocate size = do
     Just buf <- newBuffer (cast size)
       | _ => pure1 Nothing
-    pure1 (Just $ MkDynBuffer {content} (MkOwned (MkRegion buf) Refl))
-      where
-        -- postulated: whatever uninitialised memory is given to us!
-        0 content : Vect size Bits8
+    ------------------------------------------------------------
+    -- postulated: whatever uninitialised memory is given to us!
+    let 0 Values     : List Bits8
+    let 0 ValuesSize : length Values === size
+    ------------------------------------------------------------
+    let region : Region = MkRegion buf
+    let owned  : Owned region 0 size Values
+      := MkOwned region ValuesSize
+    pure1 $ Just $ MkDynBuffer {content = Values} owned
 
 ------------------------------------------------------------------------
 -- Pure operations
+
+  lengthAppend : (vs, ws : List a) -> length (vs ++ ws) === length vs + length ws
+  lengthAppend [] ws = Refl
+  lengthAppend (_ :: vs) ws = cong S (lengthAppend vs ws)
 
   ||| We can split a buffer like we would split a vector:
   ||| if it is known to contain `vs ++ ws` and we know `m`
@@ -194,14 +124,32 @@ namespace ReadWrite
   ||| and one for the one containing `ws`.
   export
   splitAt :
-    (m : Nat) -> {0 vs : Vect m Bits8} ->
-    {0 n : Nat} -> {0 ws : Vect n Bits8} ->
-    Owned region start {size = m + n} end (vs ++ ws) -@
+    {0 vs, ws : List Bits8} ->
+    {m : Nat} -> (0 _ : HasLength m vs) ->
+    Owned region start end (vs ++ ws) -@
     LPair (Owned region start (start + m) vs)
           (Owned region (start + m) end ws)
-  splitAt m (MkOwned region Refl)
-    = MkOwned region reflexive
-    # MkOwned region (symmetric (plusAssociative _ _ _))
+  splitAt hlvs (MkOwned region size)
+    = MkOwned region lsize # MkOwned region rsize
+
+    where
+
+    0 lvs : length vs === m
+    lvs = hasLengthUnique (hasLength vs) hlvs
+
+    lsize : start + length vs === start + m
+    lsize = cong (start +) lvs
+
+    rsize : start + m + length ws === end
+    rsize = Calc $
+      |~ start + m + length ws
+      ~~ start + length vs + length ws
+         ..<( cong (\ m => start + m + length ws) lvs )
+      ~~ start + (length vs + length ws)
+         ..<( plusAssociative _ _ _ )
+      ~~ start + length (vs ++ ws)
+         ..<( cong (start +) (lengthAppend vs ws) )
+      ~~ end ..>( size )
 
   ||| This definition is the first to explicitly take advantage
   ||| of the assumption that region labels are unique. If we own
@@ -212,55 +160,44 @@ namespace ReadWrite
     Owned region start middle vs -@
     Owned region middle end ws -@
     Owned region start end (vs ++ ws)
-  MkOwned region Refl ++ MkOwned region Refl
-    = MkOwned region (plusAssociative _ _ _)
+  MkOwned region lsize ++ MkOwned region rsize
+    = MkOwned region size
+
+    where
+
+    size : start + length (vs ++ ws) = end
+    size = Calc $
+      |~ start + length (vs ++ ws)
+      ~~ start + (length vs + length ws)
+         ..>( cong (start +) (lengthAppend vs ws) )
+      ~~ start + length vs + length ws
+         ..>( plusAssociative _ _ _ )
+      ~~ middle + length ws
+         ..>( cong (+ length ws) lsize )
+      ~~ end
+         ..>( rsize )
 
   export
   curry :
-    (m : Nat) -> {0 vs : Vect m Bits8} ->
-    {0 n : Nat} -> {0 ws : Vect n Bits8} ->
+    {0 vs, ws : List Bits8} ->
+    (m : Nat) -> (0 _ : length vs === m) ->
     (Owned region start end (vs ++ ws) -@ a) -@
     (Owned region start (start + m) vs -@ Owned region (start + m) end ws -@ a)
-  curry m k ol or = k (ol ++ or)
+  curry m lvs k ol or = k (ol ++ or)
 
   export
   uncurry :
-    (m : Nat) -> {0 vs : Vect m Bits8} ->
-    {0 n : Nat} -> {0 ws : Vect n Bits8} ->
+    {0 vs, ws : List Bits8} ->
+    {m : Nat} -> (0 lvs : HasLength m vs) ->
     (Owned region start (start + m) vs -@ Owned region (start + m) end ws -@ a) -@
     (Owned region start end (vs ++ ws) -@ a)
-  uncurry m k o = let 1 olr = splitAt m o in let (ol # or) = olr in k ol or
+  uncurry lvs k o = let 1 olr = splitAt lvs o in let (ol # or) = olr in k ol or
 
   ||| Getting rid of a proof of ownership if we do not need
   ||| it anymore.
   export
   free : Owned region start end vs -@ ()
-  free (MkOwned region _) = ()
-
-  ||| By combining `splitAt` and `free`, we can drop the
-  ||| initial segment of a buffer.
-  export
-  drop :
-    (m : Nat) -> {0 vs : Vect m Bits8} ->
-    Owned region start {size = m + n} end (vs ++ ws) ->
-    Owned region (start + m) {size = n} end ws
-  drop m buf
-    = let (trash # rest) = splitAt m buf in
-      let () = free trash in
-      rest
-
-  ||| By combining `splitAt` and `free`, we can drop the
-  ||| final segment of a buffer.
-  export
-  take :
-    (m : Nat) -> {0 vs : Vect m Bits8} ->
-    {0 n : Nat} -> {0 ws : Vect n Bits8} ->
-    Owned region start {size = m + n} end (vs ++ ws) ->
-    Owned region start {size = m} (start + m) vs
-  take m buf
-    = let (rest # trash) = splitAt m buf in
-      let () = free trash in
-      rest
+  free (MkOwned region size) = ()
 
 ------------------------------------------------------------------------
 -- Read and write operations
@@ -271,98 +208,311 @@ namespace ReadWrite
   getBits8 :
     LinearIO io =>
     (1 _ : Owned region start end vs) ->
-    (idx : Fin size) ->
-    L1 io (Res (Singleton (lookup vs idx)) (const $ Owned region start end vs))
-  getBits8 (MkOwned region valid) idx
+    (idx : Nat) -> (0 _ : InBounds idx vs) ->
+    L1 io (Res (Singleton (index idx vs)) (const $ Owned region start end vs))
+  getBits8 (MkOwned region size) idx bnds
     = do w <- B.getBits8 (getBuffer region) (cast (start + cast idx))
-         pure1 (unsafeMkSingleton (lookup vs idx) w # MkOwned region valid)
+         pure1 (unsafeMkSingleton (index idx vs) w # MkOwned region size)
 
   %hide B.getBits8
+
+  lengthReplaceAt :
+    (idx : Nat) -> (val : a) -> (vs : List a) ->
+    {auto 0 bnds : InBounds idx vs} ->
+    length (replaceAt idx val vs) === length vs
+  lengthReplaceAt _ val [] = void $ absurd bnds
+  lengthReplaceAt 0 val (x :: xs) @{InFirst} = Refl
+  lengthReplaceAt (S k) val (x :: xs) @{InLater bnds}
+    = cong S (lengthReplaceAt k val xs)
 
   export %inline
   setBits8 :
     LinearIO io =>
     (1 _ : Owned region start end vs) ->
-    (idx : Fin size) ->
+    (idx : Nat) -> (0 _ : InBounds idx vs) ->
     (val : Bits8) ->
-    L1 io (Owned region start end (update vs idx val))
-  setBits8 (MkOwned region valid) idx v
+    L1 io (Owned region start end (replaceAt idx val vs))
+  setBits8 (MkOwned region size) idx bnds v
     = do B.setBits8 (getBuffer region) (cast (start + cast idx)) v
-         pure1 (MkOwned region valid)
+         pure1 $ MkOwned region $ Calc $
+           |~ start + length (replaceAt idx v vs)
+           ~~ start + length vs
+              ..>( cong (start +) (lengthReplaceAt idx v vs) )
+           ~~ end
+              ..>( size )
 
   %hide B.setBits8
 
 0 Map : (Type -> Type) -> Type
 Map io =
   forall region, start.
-  {size : Nat} -> {0 end : Nat} ->
-  {0 vs : Vect size Bits8} ->
+  {end : Nat} ->
+  {0 vs : List Bits8} ->
   (f : Bits8 -> Bits8) ->
   Owned region start end vs -@
   L1 io (Owned region start end (map f vs))
 
+mapChips :
+  (f : a -> b) -> (sx : SnocList a) -> (xs : List a) ->
+  map f (sx <>> xs) === (map f sx <>> map f xs)
+mapChips f [<] xs = Refl
+mapChips f (sx :< x) xs = mapChips f sx (x :: xs)
+
+mkIndexChips : HasLength m pref -> InBounds n xs -> InBounds (m + n) (pref <>> xs)
+mkIndexChips Z bnds = bnds
+mkIndexChips (S hl) bnds
+  = rewrite plusSuccRightSucc (pred m) n in
+    mkIndexChips hl (InLater bnds)
+
+inBoundsUnique : (p, q : List.InBounds idx xs) -> p === q
+inBoundsUnique InFirst InFirst = Refl
+inBoundsUnique (InLater p) (InLater q)
+  = cong InLater (inBoundsUnique p q)
+
+replaceAtAppend :
+  {0 acc, rest : List a} ->
+  HasLength pref acc ->
+  (bndsL : InBounds (pref + idx) (acc ++ rest)) ->
+  (bndsR : InBounds idx rest) ->
+  replaceAt (pref + idx) val (acc ++ rest) @{bndsL}
+    === (acc ++ replaceAt idx val rest @{bndsR})
+replaceAtAppend Z bndsL bndsR
+  = cong (\ bnds => replaceAt idx val rest @{bnds})
+  $ inBoundsUnique bndsL bndsR
+replaceAtAppend {acc = x :: xs} (S hl) (InLater bndsL) bndsR
+  = cong (x ::) (replaceAtAppend hl bndsL bndsR)
+
+replaceAtChips :
+  HasLength m acc ->
+  midx === m + idx ->
+  (bndsL : InBounds midx (acc <>> rest)) ->
+  (bndsR : InBounds idx rest) ->
+  replaceAt midx val (acc <>> rest) @{bndsL}
+    === (acc <>> replaceAt idx val rest @{bndsR})
+replaceAtChips Z Refl bndsL bndsR
+  = rewrite inBoundsUnique bndsL bndsR in Refl
+replaceAtChips (S {sa = acc} {a} hl) eq bndsL bndsR
+  = replaceAtChips hl
+      (trans eq (plusSuccRightSucc (pred m) idx))
+      bndsL
+      (InLater bndsR)
+
+indexChips :
+  HasLength m acc ->
+  midx === m + idx ->
+  (bndsL : InBounds midx (acc <>> rest)) ->
+  (bndsR : InBounds idx rest) ->
+  index midx (acc <>> rest) @{bndsL} === index idx rest @{bndsR}
+indexChips Z Refl bndsL bndsR
+  = rewrite inBoundsUnique bndsL bndsR in Refl
+indexChips (S hl) eq bndsL bndsR
+  = indexChips hl (trans eq (plusSuccRightSucc (pred m) idx)) bndsL (InLater bndsR)
+
 export
 map : LinearIO io => Map io
-map f = loop [<] (view vs) where
+map f (MkOwned region eq)
+  = let buf = MkOwned region eq in loop Z (view _ (hasLength buf)) buf where
 
   loop :
-    {m : Nat} ->
-    (0 acc : SnocVect m Bits8) ->
-    {0 rest : Vect n Bits8} ->
-    View rest ->
+    {idx : Nat} -> {0 acc : SnocList Bits8} -> (0 _ : HasLength idx acc) ->
+    {0 m : Nat} -> {0 rest : List Bits8} -> {0 hl : HasLength m rest} ->
+    View rest m hl ->
     (1 _ : Owned region start end (map f acc <>> rest)) ->
     L1 io (Owned region start end (map f (acc <>> rest)))
-  loop acc [] buf
-    = pure1 $ rewrite mapChips f acc [] in buf
-  loop acc (v :: vs) buf
-    = do val # buf <- getBits8 buf (afterz m FZ)
-         let Val v = the (Singleton v) $ replace {p = Singleton} (lookupAfterz (map f acc) FZ) val
-         buf <- setBits8 buf (afterz m FZ) (f v)
-         let buf = replace {p = Owned _ _ _} (updateAfterz (map f acc) FZ (f v)) buf
-         loop (acc :< v) (view vs) buf
+  loop hl Z buf
+    = pure1 $ reindex (sym $ mapChips f acc []) buf
+  loop hl (S {x = v} rsize hlrest) buf
+    = do let 0 bnds :=
+               rewrite sym $ plusZeroRightNeutral idx in
+               mkIndexChips (map f hl) InFirst
+         val # buf <- getBits8 buf idx bnds
+         let 0 fhl := map f hl
+         let 0 eq : idx === idx + 0 := sym $ plusZeroRightNeutral idx
+         let Val v = the (Singleton v) $ reindex (indexChips fhl eq bnds InFirst) val
+         buf <- setBits8 buf idx bnds (f v)
+         let 1 buf = reindex (replaceAtChips fhl eq bnds InFirst) buf
+         loop (S hl) (view rsize hlrest) buf
 
-0 mapConst : (v : a) -> (vs : Vect m a) -> map (const v) vs === replicate _ v
-mapConst v [] = Refl
-mapConst v (_ :: vs) = cong (v ::) (mapConst v vs)
+
+0 mapConst : HasLength m vs -> (v : a) -> map (const v) vs === replicate m v
+mapConst Z v = Refl
+mapConst (S hl) v = cong (v ::) (mapConst hl v)
 
 export
 initialise :
   LinearIO io =>
   (v : Bits8) ->
-  {size : Nat} -> {0 vs : Vect size Bits8} ->
-  Owned region start {size} end vs -@
-  L1 io (Owned region {size} start end (replicate size v))
+  {start, end : Nat} ->
+  {0 vs : List Bits8} ->
+  Owned region start end vs -@
+  L1 io (Owned region start end (replicate (minus end start) v))
 initialise v buf = do
+  let 0 hl = hasLength buf
   buf <- Indexed.map (const v) buf
-  pure1 (reindex (mapConst v vs) buf)
+  pure1 (reindex (mapConst hl v) buf)
 
+public export
+interface Monoid m => VerifiedMonoid (m : Type) where
+  constructor MkVerifiedMonoid
+  leftNeutral   : (x : m) -> Interfaces.neutral <+> x === x
+  rightNeutral  : (x : m) -> x <+> Interfaces.neutral === x
+  opAssociative : (x, y, z : m) -> x <+> (y <+> z) === (x <+> y) <+> z
+
+namespace Additive
+
+  export
+  VerifiedMonoid Nat using Monoid.Additive where
+    leftNeutral = plusZeroLeftNeutral
+    rightNeutral = plusZeroRightNeutral
+    opAssociative = plusAssociative
+
+0 FoldMap : (Type -> Type) -> Type -> Type
+FoldMap io m =
+  VerifiedMonoid m => (f : Bits8 -> m) ->
+  forall region, start.
+  {end : Nat} ->
+  {0 vs : List Bits8} ->
+  Owned region start end vs -@
+  L1 io (LPair (Owned region start end vs)
+               (Singleton (foldMap f vs)))
+foldlOpInit :
+  VerifiedMonoid m =>
+  (f : a -> m) ->
+  (lval, rval : m) ->
+  (xs : List a) ->
+  foldl (\acc, v => acc <+> f v) (lval <+> rval) xs
+  === lval <+> foldl (\acc, v => acc <+> f v) rval xs
+foldlOpInit f lval rval [] = Refl
+foldlOpInit f lval rval (x :: xs) = Calc $
+  |~ foldl _ (lval <+> rval) (x :: xs)
+  ~~ foldl _ (lval <+> rval <+> f x) xs
+     ..>( Refl )
+  ~~ foldl _ (lval <+> (rval <+> f x)) xs
+     ..<( cong (\ v => foldl (\acc, v => acc <+> f v) v xs)
+               (opAssociative lval rval (f x)) )
+  ~~ lval <+> foldl _ (rval <+> f x) xs
+     ..>( foldlOpInit f lval (rval <+> f x) xs )
+  ~~ lval <+> foldl _ rval (x :: xs)
+     ..>( Refl )
+
+foldrOpInit :
+  VerifiedMonoid m =>
+  (f : a -> m) ->
+  (lval, rval : m) ->
+  (sx : SnocList a) ->
+  foldr (\v, acc => f v <+> acc) (lval <+> rval) sx
+  === foldr (\v, acc => f v <+> acc) lval sx <+> rval
+foldrOpInit f lval rval [<] = Refl
+foldrOpInit f lval rval (sx :< x) = Calc $
+  |~ foldr _ (lval <+> rval) (sx :< x)
+  ~~ foldr _ (f x <+> (lval <+> rval)) sx
+     ..>( Refl )
+  ~~ foldr _ ((f x <+> lval) <+> rval) sx
+     ..>( cong (\ v => foldr (\v, acc => f v <+> acc) v sx)
+               (opAssociative (f x) lval rval) )
+  ~~ foldr _ (f x <+> lval) sx <+> rval
+     ..>( foldrOpInit f (f x <+> lval) rval sx )
+  ~~ foldr _ lval (sx :< x) <+> rval
+     ..>( Refl )
+
+foldMapCons : VerifiedMonoid m =>
+  (f : a -> m) ->
+  (x : a) -> (xs : List a) ->
+  foldMap f (x :: xs) === f x <+> foldMap f xs
+foldMapCons f x xs = Calc $
+  |~ foldMap f (x :: xs)
+  ~~ foldl _ neutral (x :: xs) ..>( Refl )
+  ~~ foldl _ (neutral <+> f x) xs ..> ( Refl )
+  ~~ foldl _ (f x) xs
+     ..> ( cong (\ v => foldl (\ acc, v => acc <+> f v) v xs)
+                (leftNeutral (f x)) )
+  ~~ foldl _ (f x <+> neutral) xs
+     ..< ( cong (\ v => foldl (\ acc, v => acc <+> f v) v xs)
+                (rightNeutral (f x)) )
+  ~~ f x <+> foldl _ neutral xs
+     ..> ( foldlOpInit f (f x) neutral xs )
+  ~~ f x <+> foldMap f xs ..> ( Refl )
+
+foldMapSnoc : VerifiedMonoid m =>
+  (f : a -> m) ->
+  (sx : SnocList a) -> (x : a) ->
+  foldMap f (sx :< x) === foldMap f sx <+> f x
+foldMapSnoc f sx x = Calc $
+  |~ foldMap f (sx :< x)
+  ~~ foldr _ neutral (sx :< x) ..>( Refl )
+  ~~ foldr _ (f x <+> neutral) sx ..>( Refl )
+  ~~ foldr _ (f x) sx
+     ..>( cong (\ v => foldr (\ v, acc => f v <+> acc) v sx)
+                (rightNeutral (f x)) )
+  ~~ foldr _ (neutral <+> f x) sx
+     ..<( cong (\ v => foldr (\ v, acc => f v <+> acc) v sx)
+                (leftNeutral (f x)) )
+  ~~ foldr _ neutral sx <+> f x
+     ..>( foldrOpInit f neutral (f x) sx )
+  ~~ foldMap f sx <+> f x ..>( Refl )
+
+foldMapChips :
+  VerifiedMonoid m =>
+  (f : a -> m) -> (sx : SnocList a) -> (xs : List a) ->
+  foldMap f (sx <>> xs) === foldMap f sx <+> foldMap f xs
+foldMapChips f [<] xs = sym $ leftNeutral (foldMap f xs)
+foldMapChips f (sx :< x) xs = Calc $
+  |~ foldMap f (sx :< x <>> xs)
+  ~~ foldMap f (sx <>> x :: xs)
+     ..>( Refl )
+  ~~ foldMap f sx <+> foldMap f (x :: xs)
+     ..>( foldMapChips f sx (x :: xs) )
+  ~~ foldMap f sx <+> (f x <+> foldMap f xs)
+     ..>( cong (foldMap f sx <+>) (foldMapCons f x xs) )
+  ~~ (foldMap f sx <+> f x) <+> foldMap f xs
+     ..>( opAssociative (foldMap f sx) (f x) (foldMap f xs) )
+  ~~ foldMap f (sx :< x) <+> foldMap f xs
+     ..<( cong (<+> foldMap f xs) (foldMapSnoc f sx x) )
+
+foldMapCast :
+  VerifiedMonoid m =>
+  (f : a -> m) -> (sx : SnocList a) ->
+  foldMap f sx === foldMap f (sx <>> [])
+foldMapCast f sx = Calc $
+  |~ foldMap f sx
+  ~~ foldMap f sx <+> neutral      ..<( rightNeutral (foldMap f sx) )
+  ~~ foldMap f sx <+> foldMap f [] ..<( Refl )
+  ~~ foldMap f (sx <>> [])         ..<( foldMapChips f sx [] )
+
+foldMap : LinearIO io => FoldMap io m
+foldMap f (MkOwned region eq)
+  = let buf = MkOwned region eq in
+    loop Z (view _ (hasLength buf)) buf (pure neutral) where
+
+  loop :
+    {idx : Nat} -> {0 acc : SnocList Bits8} -> (0 _ : HasLength idx acc) ->
+    {0 m : Nat} -> {0 rest : List Bits8} -> {0 hl : HasLength m rest} ->
+    View rest m hl ->
+    (1 _ : Owned region start end (acc <>> rest)) ->
+    Singleton (foldMap f acc) ->
+    L1 io (LPair (Owned region start end (acc <>> rest))
+                 (Singleton (foldMap f (acc <>> rest))))
+  loop hl Z buf val
+    = pure1 (buf # reindex (foldMapCast f acc) val)
+  loop hl (S {x = v} rsize hlrest) buf val
+    = do let 0 bnds :=
+               rewrite sym $ plusZeroRightNeutral idx in
+               mkIndexChips hl InFirst
+         got # buf <- getBits8 buf idx bnds
+         let 0 eq : idx === idx + 0 := sym $ plusZeroRightNeutral idx
+         let got = reindex (indexChips hl eq bnds InFirst) got
+         loop (S hl) (view rsize hlrest) buf
+           $ reindex (sym $ foldMapSnoc f acc v) [| val <+> [| f got |] |]
 
 export
 sum : LinearIO io =>
-  {size : Nat} ->
-  {0 vs : Vect size Bits8} ->
+  {end : Nat} -> {0 vs : List Bits8} ->
   Owned region start end vs -@
-  L1 io (Res (Singleton (Vect.sum $ map Cast.cast vs)) (const $ Owned region start end vs))
-sum buf = loop [<] (pure 0) (view vs) buf
+  L1 io (LPair (Owned region start end vs) (Singleton (foldMap {m = Nat} Prelude.cast vs)))
+sum = foldMap {m = Nat} cast where
 
-  where
 
-  loop :
-    {m : Nat} ->
-    (0 acc : SnocVect m Bits8) -> Singleton (SnocVect.sum $ map Cast.cast acc) ->
-    {0 rest : Vect n Bits8} ->
-    View rest ->
-    (1 _ : Owned region start end (acc <>> rest)) ->
-    L1 io (Res (Singleton (Vect.sum $ map Cast.cast (acc <>> rest)))
-               (const $ Owned region start end (acc <>> rest)))
-  loop acc s [] buf
-    = do let s = replace {p = Singleton} ?zeg s
-         pure1 (s # buf)
-  loop acc s (v :: vs) buf
-    = do val # buf <- getBits8 buf (afterz m FZ)
-         let val = the (Singleton v) $ replace {p = Singleton} (lookupAfterz acc FZ) val
-         loop (acc :< v) [| s + [| cast val |] |] (view vs) buf
-
+{-
 
 
 div2 : (n : Nat) -> (m ** p ** m + p === n)
@@ -394,17 +544,11 @@ withChannel str ch = assert_linear $ \ act => do
   --putStrLn "Sending result for \{str}"
   channelPut ch a
 
-par : L1 IO a -@ L1 IO b -@ L1 IO (LPair a b)
-par x y
-  = do aChan <- makeChannel
-       bChan <- makeChannel
-       --putStrLn "Created the channels"
-       aId <- assert_linear liftIO $ fork $ withChannel "a" aChan x
-       bId <- assert_linear liftIO $ fork $ withChannel "b" bChan y
-       --putStrLn "Forked the work, waiting for the results"
-       a <- channelGet aChan
-       b <- channelGet bChan
-       pure1 (a # b)
+nonpar : L1 IO a -@ L1 IO b -@ L1 IO (LPair a b)
+nonpar x y = do
+  vx <- x
+  vy <- y
+  pure1 (vx # vy)
 
 parMapRec : Map IO -> Map IO
 parMapRec subMap f buf
@@ -412,7 +556,7 @@ parMapRec subMap f buf
         let 1 buf = reindex (sym $ takeDropSplit m vs) buf
         let 1 buf = splitAt m buf
         let lbuf # rbuf = buf
-        bufs <- par (subMap f lbuf) (subMap f rbuf)
+        bufs <- par1 (subMap f lbuf) (subMap f rbuf)
         let lbuf # rbuf = bufs
         let 1 buf = lbuf ++ rbuf
         let 0 eq : map f (take m {m = p} vs) ++ map f (drop m {m = p} vs) === map f vs
