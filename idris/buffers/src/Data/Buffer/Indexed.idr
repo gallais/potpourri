@@ -660,7 +660,7 @@ experiment str n theMap theFold = do
 export
 main : IO ()
 main = LIO.run $ do
-  let n = 50_000_000
+  let n = 100_000_000
 --  experiment "sequential" n map
-  for_ [4..1] $ \ splits =>
+  for_ [3..4] $ \ splits =>
     experiment "parallel (2^\{show splits} threads)" n (parMap splits) (parFoldMap splits)
