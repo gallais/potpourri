@@ -552,12 +552,12 @@ div2 : (n : Nat) -> (m ** p ** m + p === n)
 div2 n =
   -- This is unsafe just so that we can get a fast division by two...
   let i   : Integer = cast n in                 -- n
-  let i0  : Bool= testBit i 0 in                -- i[0]
+  let i0  : Bool = testBit i 0 in               -- i[0]
   let i2  : Integer = i `shiftR` 1 in           -- n / 2
   let ln2 : Nat = cast i2 in                    -- ⌊ n / 2 ⌋
   let un2 : Nat = ifThenElse i0 (S ln2) ln2 in  -- ⌈ n / 2 ⌉
   -- postulate correctness as we currently cannot prove it
-  let 0 correct : ln2 + un2 === n in            -- ⌊ n / 2 ⌋ + ⌈ n / 2 ⌉ === 0
+  let 0 correct : ln2 + un2 === n in            -- ⌊ n / 2 ⌋ + ⌈ n / 2 ⌉ === n
   (ln2 ** un2 ** irrelevantEq correct)
 
 0 takeDropSplit : (m : Nat) -> (vs : List a) ->
