@@ -1,10 +1,12 @@
 module Data.Buffer.Indexed
 
+import Data.Bits
 import Data.Buffer as B
 import Data.Fin
 import Data.List
 import Data.List.HasLength
 import Data.Nat
+import Data.DPair
 import Data.Singleton
 import Data.SnocList
 import Data.SnocList.HasLength
@@ -25,6 +27,11 @@ import Syntax.PreorderReasoning
 %unsafe
 unsafeMkSingleton : (0 x : a) -> (val : a) -> Singleton x
 unsafeMkSingleton x val = believe_me (Val val)
+
+record WithVal (a, b : Type) where
+  constructor (#)
+  1 fst : a
+  snd : b
 
 namespace ReadWrite
 
@@ -61,15 +68,15 @@ namespace ReadWrite
     MkOwned :
       (region : Region) ->
       {start : Nat} ->
-      {0 end : Nat} ->
+      {end : Nat} ->
       (0 _ : start + length values === end) ->
       Owned region start end values
 
   export
-  length :
+  lengthValue :
     Owned region start end vs ->
     length vs === minus end start
-  length (MkOwned _ size) = Calc $
+  lengthValue (MkOwned _ size) = Calc $
     |~ length vs
     ~~ minus (start + length vs) start ..<( minusPlus start )
     ~~ minus end start ..>( cong (`minus` start) size )
@@ -78,7 +85,15 @@ namespace ReadWrite
   0 hasLength :
     Owned region start end vs ->
     HasLength (minus end start) vs
-  hasLength buf = rewrite sym $ length buf in hasLength vs
+  hasLength buf = rewrite sym $ lengthValue buf in hasLength vs
+
+  export
+  length : Owned region start end vs -@
+           LPair (Subset Nat (\ n => HasLength n vs)) (Owned region start end vs)
+  length (MkOwned region size)
+    = Element (minus end start) (hasLength (MkOwned region size))
+    # MkOwned region size
+
 
   export
   reindex :
@@ -209,10 +224,10 @@ namespace ReadWrite
     LinearIO io =>
     (1 _ : Owned region start end vs) ->
     (idx : Nat) -> (0 _ : InBounds idx vs) ->
-    L1 io (Res (Singleton (index idx vs)) (const $ Owned region start end vs))
+    L1 io (WithVal (Owned region start end vs) (Singleton (index idx vs)))
   getBits8 (MkOwned region size) idx bnds
     = do w <- B.getBits8 (getBuffer region) (cast (start + cast idx))
-         pure1 (unsafeMkSingleton (index idx vs) w # MkOwned region size)
+         pure1 (MkOwned region size # unsafeMkSingleton (index idx vs) w)
 
   %hide B.getBits8
 
@@ -245,8 +260,7 @@ namespace ReadWrite
 
 0 Map : (Type -> Type) -> Type
 Map io =
-  forall region, start.
-  {end : Nat} ->
+  forall region, start, end.
   {0 vs : List Bits8} ->
   (f : Bits8 -> Bits8) ->
   Owned region start end vs -@
@@ -325,7 +339,7 @@ map f (MkOwned region eq)
     = do let 0 bnds :=
                rewrite sym $ plusZeroRightNeutral idx in
                mkIndexChips (map f hl) InFirst
-         val # buf <- getBits8 buf idx bnds
+         buf # val <- getBits8 buf idx bnds
          let 0 fhl := map f hl
          let 0 eq : idx === idx + 0 := sym $ plusZeroRightNeutral idx
          let Val v = the (Singleton v) $ reindex (indexChips fhl eq bnds InFirst) val
@@ -358,23 +372,20 @@ interface Monoid m => VerifiedMonoid (m : Type) where
   rightNeutral  : (x : m) -> x <+> Interfaces.neutral === x
   opAssociative : (x, y, z : m) -> x <+> (y <+> z) === (x <+> y) <+> z
 
-namespace Additive
-
-  export
-  VerifiedMonoid Nat using Monoid.Additive where
-    leftNeutral = plusZeroLeftNeutral
-    rightNeutral = plusZeroRightNeutral
-    opAssociative = plusAssociative
+export
+[Additive] VerifiedMonoid Nat using Monoid.Additive where
+  leftNeutral = plusZeroLeftNeutral
+  rightNeutral = plusZeroRightNeutral
+  opAssociative = plusAssociative
 
 0 FoldMap : (Type -> Type) -> Type -> Type
 FoldMap io m =
   VerifiedMonoid m => (f : Bits8 -> m) ->
-  forall region, start.
-  {end : Nat} ->
+  forall region, start, end.
   {0 vs : List Bits8} ->
   Owned region start end vs -@
-  L1 io (LPair (Owned region start end vs)
-               (Singleton (foldMap f vs)))
+  L1 io (WithVal (Owned region start end vs)
+                 (Singleton (foldMap f vs)))
 foldlOpInit :
   VerifiedMonoid m =>
   (f : a -> m) ->
@@ -433,6 +444,22 @@ foldMapCons f x xs = Calc $
      ..> ( foldlOpInit f (f x) neutral xs )
   ~~ f x <+> foldMap f xs ..> ( Refl )
 
+foldMapAppend : VerifiedMonoid m =>
+  (f : a -> m) ->
+  (xs, ys : List a) ->
+  foldMap f (xs ++ ys) === foldMap f xs <+> foldMap f ys
+foldMapAppend f [] ys = sym $ leftNeutral (foldMap f ys)
+foldMapAppend f (x :: xs) ys = Calc $
+  |~ foldMap f (x :: xs ++ ys)
+  ~~ f x <+> foldMap f (xs ++ ys)
+     ..>( foldMapCons f x (xs ++ ys) )
+  ~~ f x <+> (foldMap f xs <+> foldMap f ys)
+     ..>( cong (f x <+>) (foldMapAppend f xs ys) )
+  ~~ (f x <+> foldMap f xs) <+> foldMap f ys
+     ..>( opAssociative (f x) (foldMap f xs) (foldMap f ys) )
+  ~~ foldMap f (x :: xs) <+> foldMap f ys
+     ..<( cong (<+> foldMap f ys) (foldMapCons f x xs) )
+
 foldMapSnoc : VerifiedMonoid m =>
   (f : a -> m) ->
   (sx : SnocList a) -> (x : a) ->
@@ -490,59 +517,66 @@ foldMap f (MkOwned region eq)
     View rest m hl ->
     (1 _ : Owned region start end (acc <>> rest)) ->
     Singleton (foldMap f acc) ->
-    L1 io (LPair (Owned region start end (acc <>> rest))
-                 (Singleton (foldMap f (acc <>> rest))))
+    L1 io (WithVal (Owned region start end (acc <>> rest))
+                   (Singleton (foldMap f (acc <>> rest))))
   loop hl Z buf val
     = pure1 (buf # reindex (foldMapCast f acc) val)
   loop hl (S {x = v} rsize hlrest) buf val
     = do let 0 bnds :=
                rewrite sym $ plusZeroRightNeutral idx in
                mkIndexChips hl InFirst
-         got # buf <- getBits8 buf idx bnds
+         buf # got <- getBits8 buf idx bnds
          let 0 eq : idx === idx + 0 := sym $ plusZeroRightNeutral idx
          let got = reindex (indexChips hl eq bnds InFirst) got
          loop (S hl) (view rsize hlrest) buf
            $ reindex (sym $ foldMapSnoc f acc v) [| val <+> [| f got |] |]
 
-export
-sum : LinearIO io =>
-  {end : Nat} -> {0 vs : List Bits8} ->
-  Owned region start end vs -@
-  L1 io (LPair (Owned region start end vs) (Singleton (foldMap {m = Nat} Prelude.cast vs)))
-sum = foldMap {m = Nat} cast where
+namespace Sum
 
+  %hint
+  additive : VerifiedMonoid Nat
+  additive = Additive
 
-{-
+  public export
+  0 Sum : (Type -> Type) -> Type
+  Sum io =
+    forall region, start, end, vs.
+    Owned region start end vs -@
+    L1 io (WithVal (Owned region start end vs) (Singleton (foldMap {m = Nat} Prelude.cast vs)))
 
+  export
+  sum : LinearIO io => Sum io
+  sum = foldMap {m = Nat} cast
 
 div2 : (n : Nat) -> (m ** p ** m + p === n)
-div2 0 = (0 ** 0 ** Refl)
-div2 1 = (1 ** 0 ** Refl)
-div2 (S (S n))
-  = let (m ** p ** eq) = div2 n in
-    (S m ** S p ** cong S (trans (sym $ plusSuccRightSucc m p) (cong S eq)))
+div2 n =
+  -- This is unsafe just so that we can get a fast division by two...
+  let i   : Integer = cast n in                 -- n
+  let i0  : Bool= testBit i 0 in                -- i[0]
+  let i2  : Integer = i `shiftR` 1 in           -- n / 2
+  let ln2 : Nat = cast i2 in                    -- ⌊ n / 2 ⌋
+  let un2 : Nat = ifThenElse i0 (S ln2) ln2 in  -- ⌈ n / 2 ⌉
+  -- postulate correctness as we currently cannot prove it
+  let 0 correct : ln2 + un2 === n in            -- ⌊ n / 2 ⌋ + ⌈ n / 2 ⌉ === 0
+  (ln2 ** un2 ** irrelevantEq correct)
 
-0 takeDropSplit : (m : Nat) -> (vs : Vect (m + n) a) ->
-  (take m {m = n} vs ++ drop m {m = n} vs) === vs
+0 takeDropSplit : (m : Nat) -> (vs : List a) ->
+  (take m vs ++ drop m vs) === vs
 takeDropSplit 0 vs = Refl
+takeDropSplit (S m) [] = Refl
 takeDropSplit (S m) (v :: vs) = cong (v ::) (takeDropSplit m vs)
 
-0 mapTake : (f : a -> b) -> (m : Nat) -> (vs : Vect (m + n) a) ->
-  map f (take m {m = n} vs) === take m {m = n} (map f vs)
+0 mapTake : (f : a -> b) -> (m : Nat) -> (vs : List a) ->
+  map f (take m vs) === take m (map f vs)
 mapTake f 0 vs = Refl
+mapTake f (S m) [] = Refl
 mapTake f (S m) (v :: vs) = cong (f v ::) (mapTake f m vs)
 
-0 mapDrop : (f : a -> b) -> (m : Nat) -> (vs : Vect (m + n) a) ->
-  map f (drop m {m = n} vs) === drop m {m = n} (map f vs)
+0 mapDrop : (f : a -> b) -> (m : Nat) -> (vs : List a) ->
+  map f (drop m vs) === drop m (map f vs)
 mapDrop f 0 vs = Refl
+mapDrop f (S m) [] = Refl
 mapDrop f (S m) (v :: vs) = mapDrop f m vs
-
-withChannel : String -> Channel a -> L1 IO a -@ IO ()
-withChannel str ch = assert_linear $ \ act => do
-  --putStrLn "Starting work on \{str}"
-  a <- LIO.run (act >>= assert_linear pure)
-  --putStrLn "Sending result for \{str}"
-  channelPut ch a
 
 nonpar : L1 IO a -@ L1 IO b -@ L1 IO (LPair a b)
 nonpar x y = do
@@ -550,23 +584,53 @@ nonpar x y = do
   vy <- y
   pure1 (vx # vy)
 
+takeHasLength :
+  {m : Nat} -> {vs : List Bits8} ->
+  HasLength (m + p) vs -> HasLength m (take m vs)
+takeHasLength {m = 0} hl = Z
+takeHasLength {m = S m} (S hl) = S (takeHasLength hl)
+
 parMapRec : Map IO -> Map IO
 parMapRec subMap f buf
-   = do let (m ** p ** Refl) = div2 size
+   = do let 1 res = length buf
+        let Element n hl # buf = res
+        let (m ** p ** Refl) = div2 n
         let 1 buf = reindex (sym $ takeDropSplit m vs) buf
-        let 1 buf = splitAt m buf
+        let 1 buf = splitAt (takeHasLength hl) buf
         let lbuf # rbuf = buf
         bufs <- par1 (subMap f lbuf) (subMap f rbuf)
         let lbuf # rbuf = bufs
         let 1 buf = lbuf ++ rbuf
-        let 0 eq : map f (take m {m = p} vs) ++ map f (drop m {m = p} vs) === map f vs
+        let 0 eq : map f (take m vs) ++ map f (drop m vs) === map f vs
           := trans (cong2 (++) (mapTake f m vs) (mapDrop f m vs)) (takeDropSplit m (map f vs))
         pure1 (reindex eq buf)
+
+parFoldMapRec : FoldMap IO m -> FoldMap IO m
+parFoldMapRec subFoldMap f buf
+   = do let 1 res = length buf
+        let Element n hl # buf = res
+        let (m ** p ** Refl) = div2 n
+        let 1 buf = reindex (sym $ takeDropSplit m vs) buf
+        let 1 buf = splitAt (takeHasLength hl) buf
+        let lbuf # rbuf = buf
+        res <- par1 (subFoldMap f lbuf) (subFoldMap f rbuf)
+        let (lbuf # lres) # (rbuf # rres) = res
+        let 1 buf = lbuf ++ rbuf
+        let 0 eq : foldMap f (take m vs) <+> foldMap f (drop m vs) === foldMap f vs
+          := trans (sym $ foldMapAppend f (take m vs) (drop m vs))
+                   (cong (foldMap f) (takeDropSplit m vs))
+        pure1 $ reindex (takeDropSplit m vs) buf
+              # reindex eq [| lres <+> rres |]
 
 export
 parMap : Nat -> Map IO
 parMap Z = map
 parMap (S n) = parMapRec (parMap n)
+
+export
+parFoldMap : Nat -> FoldMap IO m
+parFoldMap 0 = foldMap
+parFoldMap (S n) = parFoldMapRec (parFoldMap n @{_})
 
 measure : LinearIO io => String -> L1 io () -@ L1 io ()
 measure str act = do
@@ -579,25 +643,24 @@ measure str act = do
   pure1 ()
 
 
-
 export
-experiment : LinearIO io => String -> Nat -> Map io -> L io ()
-experiment str n theMap = do
+experiment : LinearIO io => String -> Nat -> Map io -> FoldMap io Nat -> L io ()
+experiment str n theMap theFold = do
   Just (MkDynBuffer buf) <- allocate n
     | Nothing => die "Oops couldn't allocate the buffer for test \{str}"
   measure str $ do
-    -- putStrLn "Mapping..."
+    putStrLn "Mapping..."
     buf <- theMap (const 2) buf
-    -- putStrLn "Summing..."
-    -- val # buf <- Indexed.sum buf
-    -- printLn val.unVal
+    putStrLn "Summing..."
+    buf # val <- theFold @{Additive} cast buf
+    printLn val.unVal
     pure1 (free buf)
   pure ()
 
 export
 main : IO ()
-main = run $ do
-  let n = 300_000
+main = LIO.run $ do
+  let n = 50_000_000
 --  experiment "sequential" n map
-  for_ [1..4] $ \ splits =>
-    experiment "parallel (2^\{show splits} threads)" n (parMap splits)
+  for_ [4..1] $ \ splits =>
+    experiment "parallel (2^\{show splits} threads)" n (parMap splits) (parFoldMap splits)
