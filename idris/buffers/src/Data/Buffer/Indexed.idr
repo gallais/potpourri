@@ -623,14 +623,17 @@ parFoldMapRec subFoldMap f buf
               # reindex eq [| lres <+> rres |]
 
 export
+iterate : Nat -> (a -> a) -> (a -> a)
+iterate 0 f x = x
+iterate (S k) f x = f (iterate k f x)
+
+export
 parMap : Nat -> Map IO
-parMap Z = map
-parMap (S n) = parMapRec (parMap n)
+parMap n = iterate n parMapRec map
 
 export
 parFoldMap : Nat -> FoldMap IO m
-parFoldMap 0 = foldMap
-parFoldMap (S n) = parFoldMapRec (parFoldMap n @{_})
+parFoldMap n = iterate n parFoldMapRec (foldMap @{%search} @{_})
 
 measure : LinearIO io => String -> L1 io () -@ L1 io ()
 measure str act = do
