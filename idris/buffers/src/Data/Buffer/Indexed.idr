@@ -634,9 +634,9 @@ parFoldMap (S n) = parFoldMapRec (parFoldMap n @{_})
 
 measure : LinearIO io => String -> L1 io () -@ L1 io ()
 measure str act = do
-  start <- liftIO $ clockTime Process
+  start <- liftIO $ clockTime Monotonic
   act
-  end <- liftIO $ clockTime Process
+  end <- liftIO $ clockTime Monotonic
   let time = timeDifference end start
   let stime = showTime 2 9
   putStrLn "Time \{str}: \{stime time}"
