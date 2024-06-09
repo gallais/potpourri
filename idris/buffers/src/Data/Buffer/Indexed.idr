@@ -67,8 +67,7 @@ namespace ReadWrite
       Type where
     MkOwned :
       (region : Region) ->
-      {start : Nat} ->
-      {end : Nat} ->
+      {0 start, end : Nat} ->
       (0 _ : start + length values === end) ->
       Owned region start end values
 
@@ -88,7 +87,8 @@ namespace ReadWrite
   hasLength buf = rewrite sym $ lengthValue buf in hasLength vs
 
   export
-  length : Owned region start end vs -@
+  length : {start, end : Nat} ->
+           Owned region start end vs -@
            LPair (Subset Nat (\ n => HasLength n vs)) (Owned region start end vs)
   length (MkOwned region size)
     = Element (minus end start) (hasLength (MkOwned region size))
@@ -222,6 +222,7 @@ namespace ReadWrite
   export %inline
   getBits8 :
     LinearIO io =>
+    {start, end : Nat} ->
     (1 _ : Owned region start end vs) ->
     (idx : Nat) -> (0 _ : InBounds idx vs) ->
     L1 io (WithVal (Owned region start end vs) (Singleton (index idx vs)))
@@ -243,6 +244,7 @@ namespace ReadWrite
   export %inline
   setBits8 :
     LinearIO io =>
+    {start : Nat} ->
     (1 _ : Owned region start end vs) ->
     (idx : Nat) -> (0 _ : InBounds idx vs) ->
     (val : Bits8) ->
@@ -260,7 +262,8 @@ namespace ReadWrite
 
 0 Map : (Type -> Type) -> Type
 Map io =
-  forall region, start, end.
+  forall region.
+  {start, end : Nat} ->
   {0 vs : List Bits8} ->
   (f : Bits8 -> Bits8) ->
   Owned region start end vs -@
@@ -381,7 +384,8 @@ export
 0 FoldMap : (Type -> Type) -> Type -> Type
 FoldMap io m =
   VerifiedMonoid m => (f : Bits8 -> m) ->
-  forall region, start, end.
+  forall region.
+  {start, end : Nat} ->
   {0 vs : List Bits8} ->
   Owned region start end vs -@
   L1 io (WithVal (Owned region start end vs)
@@ -540,7 +544,9 @@ namespace Sum
   public export
   0 Sum : (Type -> Type) -> Type
   Sum io =
-    forall region, start, end, vs.
+    forall region.
+    {start, end : Nat} ->
+    forall vs.
     Owned region start end vs -@
     L1 io (WithVal (Owned region start end vs) (Singleton (foldMap {m = Nat} Prelude.cast vs)))
 
