@@ -339,7 +339,7 @@ _ = tested
 asm : ASM → ACTION -- ASM = List INSTR
 
 -- If the list of instructions is empty, we are done.
-asm []       itsy = (itsy , [])
+asm [] (mkITSY [ _ , ov , zf , cf ] ac mem) = (mkITSY [ I , ov , zf , cf ] ac mem , [])
 
 -- Otherwise we have an instruction i and a list of instruction is.
 -- We start by running the instruction on the initial ITSY configuration
@@ -359,7 +359,7 @@ asm (i ∷ is) itsy =
 -- to asm.
 
 _ : asm (swap 1 3) itsy
-  ≡ (mkITSY 0 3 [ 0 , 3 , 2 , 1 , 4 , 5 , 6 , 7 , 8 , 9 , A , B , C , D , E , F ]
+  ≡ (mkITSY 8 3 [ 0 , 3 , 2 , 1 , 4 , 5 , 6 , 7 , 8 , 9 , A , B , C , D , E , F ]
   , [])
 _ = tested
 
