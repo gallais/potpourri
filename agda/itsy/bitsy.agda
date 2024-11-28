@@ -253,6 +253,7 @@ data INSTR : Set where
   ADC : ADDR → INSTR
   XOR : ADDR → INSTR
   PUT : INSTR
+  HLT : INSTR
 
 -- A program written in ITSY assembly (ASM) is a list of instructions.
 
@@ -322,6 +323,7 @@ instr (XOR l) (mkITSY fr ac mem)
 -- nothing else is modified.
 instr (PUT  ) (mkITSY fr ac mem) = mkITSY fr ac mem , ac ∷ []
 
+instr (HLT  ) (mkITSY [ _ , ov , zf , cf ] ac mem) = (mkITSY [ I , ov , zf , cf ] ac mem , [])
 
 -- Just like we did for lookup and update, we can run this function
 -- on individual instruction and prove what their behaviour is.
@@ -339,7 +341,7 @@ _ = tested
 asm : ASM → ACTION -- ASM = List INSTR
 
 -- If the list of instructions is empty, we are done.
-asm [] (mkITSY [ _ , ov , zf , cf ] ac mem) = (mkITSY [ I , ov , zf , cf ] ac mem , [])
+asm [] itsy = itsy , []
 
 -- Otherwise we have an instruction i and a list of instruction is.
 -- We start by running the instruction on the initial ITSY configuration
@@ -349,8 +351,9 @@ asm [] (mkITSY [ _ , ov , zf , cf ] ac mem) = (mkITSY [ I , ov , zf , cf ] ac me
 -- We return the final configuration and append (++) the two lists of
 -- outputs.
 asm (i ∷ is) itsy =
-  let (itsy₁ , ns₁) = instr i itsy
-      (itsy₂ , ns₂) = asm is itsy₁
+  let (itsy₁@(mkITSY [ hf , _ , _ , _ ] _ _) , ns₁) = instr i itsy in
+  if hf then itsy₁ , ns₁ else
+  let (itsy₂ , ns₂) = asm is itsy₁
   in (itsy₂ , ns₁ ++ ns₂)
 
 -- We can once more use our so-defined functions to run actual programs.
@@ -359,7 +362,7 @@ asm (i ∷ is) itsy =
 -- to asm.
 
 _ : asm (swap 1 3) itsy
-  ≡ (mkITSY 8 3 [ 0 , 3 , 2 , 1 , 4 , 5 , 6 , 7 , 8 , 9 , A , B , C , D , E , F ]
+  ≡ (mkITSY 0 3 [ 0 , 3 , 2 , 1 , 4 , 5 , 6 , 7 , 8 , 9 , A , B , C , D , E , F ]
   , [])
 _ = tested
 
@@ -424,8 +427,8 @@ lift4-identityʳ f v f-identityʳ [ x8 , x4 , x2 , x1 ]
   rewrite f-identityʳ x8 | f-identityʳ x4 | f-identityʳ x2 | f-identityʳ x1
   = tested
 
-swap-correct : ∀ a b {fr ac rest} →
-  let (mkITSY _ _ final , _) = asm (swap 0 1) (mkITSY fr ac (a , b , rest)) in
+swap-correct : ∀ a b {of zf cf ac rest} →
+  let (mkITSY _ _ final , _) = asm (swap 0 1) (mkITSY [ O , of , zf , cf ] ac (a , b , rest)) in
   final ≡ (b , a , rest)
 swap-correct a b {rest = rest}
 
