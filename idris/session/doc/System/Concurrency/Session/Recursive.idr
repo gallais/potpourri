@@ -1,4 +1,4 @@
-module System.Concurrency.Session.Recursive2
+module System.Concurrency.Session.Recursive
 
 import Control.Linear.LIO
 
@@ -206,6 +206,54 @@ Recv ty (Pumping {p, q, m, n} pref loop)
     rewrite plusCommutative 0 n in
     Pumping pref (loop :< Recv ty)
 
+sendHeaded :
+  Headed m n s s' ->
+  AtIndex ty (SendTypes s') i ->
+  AtIndex ty (SendTypes s) (n + i)
+sendHeaded (Recv _) idx = idx
+sendHeaded (Send _) idx = S idx
+
+sendPrefix :
+  Prefix m n start s ->
+  AtIndex ty (SendTypes s) i ->
+  AtIndex ty (SendTypes start) (n + i)
+sendPrefix [<] idx = idx
+sendPrefix ((:<) {n, q} pref s) idx
+  = rewrite sym $ plusAssociative q n i in
+    sendPrefix pref (sendHeaded s idx)
+
+sendLoop :
+  Loop o m n s ->
+  AtIndex ty (SendTypes s) i ->
+  AtIndex ty (SendTypes o) (n + i)
+sendLoop [<] idx = idx
+sendLoop ((:<) {q, n} loop s) idx
+  = rewrite sym $ plusAssociative q n i in
+    sendLoop loop (sendHeaded s idx)
+
+0 sendContext :
+  Context m n start s e ->
+  AtIndex ty (SendTypes s) i ->
+  AtIndex ty (SendTypes start) (n + i)
+sendContext (InPrefix pref) idx = sendPrefix pref idx
+sendContext (Pumping {q, n} pref loop) idx
+  = rewrite sym $ plusAssociative q n i in
+    sendPrefix pref (sendLoop loop idx)
+
+Send :
+  (0 ty : Type) ->
+  Context m n s (Send ty s') e ->
+  Context m (S n) s s' e
+Send ty (InPrefix pref)
+  = rewrite plusCommutative 1 n in
+    rewrite plusCommutative 0 m in
+    InPrefix (pref :< Send ty)
+Send ty (Pumping {p, q, m, n} pref loop)
+  = rewrite plusSuccRightSucc q n in
+    rewrite plusCommutative 1 n in
+    rewrite plusCommutative 0 m in
+    Pumping pref (loop :< Send ty)
+
 Enter :
   {m, n : Nat} ->
   Context m n s (Fix o) e ->
@@ -242,9 +290,22 @@ recv (MkChannel {recvStep} ctxt sendCh recvCh) = do
   -- Here we check that we got the right message by projecting out of
   -- the union type using the current `recvStep`. Both ends should be
   -- in sync because of the `RecvDualTypes` and `SendDualTypes` lemmas.
-  let Just val = prj (recvStep + 0) (recvContext ctxt Z) x
+  let Just val = prj recvStep (rewrite plusCommutative 0 recvStep in recvContext ctxt Z) x
     | Nothing => die1 "Error: invalid recv expected \{show recvStep} but got \{show k}"
   pure1 (val # MkChannel (Recv ty ctxt) sendCh recvCh)
+
+export
+send : LinearIO io =>
+  (1 _ : Channel (Send ty s) e) ->
+  ty ->
+  L1 io (Channel s e)
+send (MkChannel {sendStep} ctxt sendCh recvCh) v = do
+  let val = inj sendStep (rewrite plusCommutative 0 sendStep in sendContext ctxt Z) v
+  channelPut sendCh val
+  -- Here we check that we got the right message by projecting out of
+  -- the union type using the current `recvStep`. Both ends should be
+  -- in sync because of the `RecvDualTypes` and `SendDualTypes` lemmas.
+  pure1 (MkChannel (Send ty ctxt) sendCh recvCh)
 
 export
 enter : LinearIO io =>
