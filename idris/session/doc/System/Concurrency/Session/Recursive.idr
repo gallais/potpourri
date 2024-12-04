@@ -335,9 +335,22 @@ NatsSession = Fix (Recv Nat Rec)
 
 covering export
 getNats : LinearIO io =>
-  (1 _ : Channel NatsSession Nothing) -> L1 io ()
+  (1 _ : Channel NatsSession Nothing) ->
+  L1 io ()
 getNats ch = do
   ch <- enter ch
   (n # ch) <- recv ch
+  putStrLn "Got \{show n}, asking for some more"
   ch <- fold ch
   getNats ch
+
+covering export
+allNatsFrom : LinearIO io =>
+  Nat ->
+  (1 _ : Channel (Dual NatsSession) Nothing) ->
+  L1 io ()
+allNatsFrom k ch = do
+  ch <- enter ch
+  ch <- send ch k
+  ch <- fold ch
+  allNatsFrom (S k) ch
