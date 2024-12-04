@@ -111,7 +111,8 @@ Number.fromNat number = fromℕ<16
 
 instance bit4Lit = number
 
-rca2 : < Bit ^ 2 > × < Bit ^ 2 > × < Bit > → < Bit > × < Bit ^ 2 >
+rca2 : < Bit ^ 2 > × < Bit ^ 2 > × < Bit >
+     → < Bit > × < Bit ^ 2 >
 rca2 ([ x2 , x1 ] , [ y2 , y1 ] , c1)
   = let (c2 , z1) = fadd (x1 , y1 , c1) in
     let (c4 , z2) = fadd (x2 , y2 , c2) in
@@ -139,12 +140,15 @@ lift4 f ([ x8 , x4 , x2 , x1 ] , [ y8 , y4 , y2 , y1 ])
 
 
 xor4 = lift4 xor
+or4  = lift4 (λ (x , y) → x ∣ y)
+and4 = lift4 (λ (x , y) → x & y)
+eq4  = lift4 eq
 
 ----------------------------------------------------------------
--- The state of an ITSY machine
+-- The state of an BITSY machine
 ----------------------------------------------------------------
 
--- We model the state of the ITSY machine as a record (i.e. a
+-- We model the state of the BITSY machine as a record (i.e. a
 -- collection of different values labelled by a name) containing:
 --
 -- * AC   the value of its accumulator
@@ -156,24 +160,24 @@ xor4 = lift4 xor
 MEM : Set
 MEM = < Bit ^ 4 > ^ 16
 
-record ITSY : Set where
-  constructor mkITSY
+record BITSY : Set where
+  constructor mkBITSY
   field FR    : < Bit ^ 4 >
         AC    : < Bit ^ 4 >
-        CELLS : MEM
-open ITSY
+        CELLS : < MEM >
+open BITSY
 
--- We can give some examples of memory and ITSY configurations
+-- We can give some examples of memory and BITSY configurations
 
 mem : < Bit ^ 4 > ^ 16
 mem = [ 0 , 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 , A , B , C , D , E , F ]
 
-itsy : ITSY
-itsy = mkITSY 0 0 mem
+itsy : BITSY
+itsy = mkBITSY 0 0 mem
 
--- NB: the constructor mkITSY was declared in the definition of ITSY,
+-- NB: the constructor mkBITSY was declared in the definition of BITSY,
 -- it takes a value for the flag register, one for the accumulator and
--- a memory configuration and builds an ITSY machine configuration.
+-- a memory configuration and builds an BITSY machine configuration.
 
 -- To refer to memory locations, we need a notion of addresses.
 -- We have 16 memory locations and so ADDR is just 4 bits
@@ -188,8 +192,8 @@ ADDR = < Bit ^ 4 >
 
 _!!_ : MEM → ADDR → < Bit ^ 4 >
 mem16 !! [ a8 , a4 , a2 , a1 ]
-  = let (m08 , m8F) = split 8 mem16 in
-    let mem8 = mux (a8 , m08 , m8F) in
+  = let (m07 , m8F) = split 8 mem16 in
+    let mem8 = mux (a8 , m07 , m8F) in
     let (mem8l , mem8h) = split 4 mem8 in
     let mem4 = mux (a4 , mem8l , mem8h) in
     let (mem4l , mem4h) = split 2 mem4 in
@@ -238,7 +242,7 @@ _ : mem [ A ]:= 0
 _ = tested
 
 ----------------------------------------------------------------
--- The INSTRuction set of an ITSY machine
+-- The INSTRuction set of an BITSY machine
 ----------------------------------------------------------------
 
 -- We only have 4 operations; we can:
@@ -255,7 +259,7 @@ data INSTR : Set where
   PUT : INSTR
   HLT : INSTR
 
--- A program written in ITSY assembly (ASM) is a list of instructions.
+-- A program written in BITSY assembly (ASM) is a list of instructions.
 
 ASM : Set
 ASM = List INSTR
@@ -290,7 +294,7 @@ swap l1 l2
 --   have been printed to the output queue
 
 ACTION : Set
-ACTION = ITSY → (ITSY × List < Bit ^ 4 >)
+ACTION = BITSY → (BITSY × List < Bit ^ 4 >)
 
 -- Looking at each INSTR in isolation, we can translate its meaning
 -- as an ACTION. I have interleaved the definition with comments to
@@ -300,30 +304,31 @@ instr : INSTR → ACTION
 
 -- LOAD loads the new ac from the memory at the given location,
 -- the memory is left unchanged and there are no outputs
-instr (LDA l) (mkITSY ([ hf , of , zf , cf ]) ac mem)
+instr (LDA l) (mkBITSY ([ hf , of , zf , cf ]) ac mem)
   = let ac′ = mem !! l in
-    mkITSY [ hf , of , is0 ac′ , cf ] ac′ mem , []
+    mkBITSY [ hf , of , is0 ac′ , cf ] ac′ mem , []
 
 -- STORE stores the current ac in the memory at the given location,
 -- the accumulator is not modified and there are no ouputs.
-instr (STA l) (mkITSY fr ac mem)
-  = mkITSY fr ac (mem [ l ]:= ac) , []
+instr (STA l) (mkBITSY fr ac mem)
+  = mkBITSY fr ac (mem [ l ]:= ac) , []
 
 -- ADD adds the content of the memory at the given location to the
 -- accumulator, the content of the memory is not changed and there are
 -- no outputs.
-instr (ADC l) (mkITSY ([ hf , _ , zf , cf ]) ac mem)
+instr (ADC l) (mkBITSY ([ hf , _ , zf , cf ]) ac mem)
   = let (of , co , sum) = adc (ac , mem !! l , cf) in
-    mkITSY ([ hf , of , is0 sum , co ]) sum mem , []
+    mkBITSY ([ hf , of , is0 sum , co ]) sum mem , []
 
-instr (XOR l) (mkITSY fr ac mem)
-  = mkITSY fr (xor4 (ac , mem !! l)) mem , []
+instr (XOR l) (mkBITSY fr ac mem)
+  = mkBITSY fr (xor4 (ac , mem !! l)) mem , []
 
 -- PRINT puts the content of the accumulator in the input queue,
 -- nothing else is modified.
-instr (PUT  ) (mkITSY fr ac mem) = mkITSY fr ac mem , ac ∷ []
+instr (PUT  ) (mkBITSY fr ac mem) = mkBITSY fr ac mem , ac ∷ []
 
-instr (HLT  ) (mkITSY [ _ , ov , zf , cf ] ac mem) = (mkITSY [ I , ov , zf , cf ] ac mem , [])
+instr (HLT  ) (mkBITSY [ _ , ov , zf , cf ] ac mem)
+  = (mkBITSY [ I , ov , zf , cf ] ac mem , [])
 
 -- Just like we did for lookup and update, we can run this function
 -- on individual instruction and prove what their behaviour is.
@@ -332,7 +337,7 @@ instr (HLT  ) (mkITSY [ _ , ov , zf , cf ] ac mem) = (mkITSY [ I , ov , zf , cf 
 _ : instr PUT itsy ≡ (itsy , 0 ∷ [])
 _ = tested
 
-_ : instr (LDA 2) itsy ≡ (mkITSY 0 2 mem , [])
+_ : instr (LDA 2) itsy ≡ (mkBITSY 0 2 mem , [])
 _ = tested
 
 -- Once we know how to run one instruction, running a list of instruction
@@ -344,14 +349,14 @@ asm : ASM → ACTION -- ASM = List INSTR
 asm [] itsy = itsy , []
 
 -- Otherwise we have an instruction i and a list of instruction is.
--- We start by running the instruction on the initial ITSY configuration
+-- We start by running the instruction on the initial BITSY configuration
 -- using instr. We get back a new configuration and some outputs.
 -- We then run the rest of the instruction on this new configuration and
 -- obtain a final configuration together with some more outputs.
 -- We return the final configuration and append (++) the two lists of
 -- outputs.
 asm (i ∷ is) itsy =
-  let (itsy₁@(mkITSY [ hf , _ , _ , _ ] _ _) , ns₁) = instr i itsy in
+  let (itsy₁@(mkBITSY [ hf , _ , _ , _ ] _ _) , ns₁) = instr i itsy in
   if hf then itsy₁ , ns₁ else
   let (itsy₂ , ns₂) = asm is itsy₁
   in (itsy₂ , ns₁ ++ ns₂)
@@ -362,7 +367,7 @@ asm (i ∷ is) itsy =
 -- to asm.
 
 _ : asm (swap 1 3) itsy
-  ≡ (mkITSY 0 3 [ 0 , 3 , 2 , 1 , 4 , 5 , 6 , 7 , 8 , 9 , A , B , C , D , E , F ]
+  ≡ (mkBITSY 0 3 [ 0 , 3 , 2 , 1 , 4 , 5 , 6 , 7 , 8 , 9 , A , B , C , D , E , F ]
   , [])
 _ = tested
 
@@ -428,7 +433,7 @@ lift4-identityʳ f v f-identityʳ [ x8 , x4 , x2 , x1 ]
   = tested
 
 swap-correct : ∀ a b {of zf cf ac rest} →
-  let (mkITSY _ _ final , _) = asm (swap 0 1) (mkITSY [ O , of , zf , cf ] ac (a , b , rest)) in
+  let (mkBITSY _ _ final , _) = asm (swap 0 1) (mkBITSY [ O , of , zf , cf ] ac (a , b , rest)) in
   final ≡ (b , a , rest)
 swap-correct a b {rest = rest}
 
