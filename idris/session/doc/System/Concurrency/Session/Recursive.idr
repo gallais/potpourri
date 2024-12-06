@@ -330,7 +330,7 @@ fold (MkChannel ctxt sendCh recvCh) = do
   let (p ** q ** ctxt) = Fold ctxt
   pure1 (MkChannel ctxt sendCh recvCh)
 
-NatsSession : Session ? ?
+NatsSession : Session Closed Expr
 NatsSession = Fix (Recv Nat Rec)
 
 covering export
