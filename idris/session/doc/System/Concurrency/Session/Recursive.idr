@@ -32,12 +32,16 @@ namespace Session
   public export
   data Session : Kind -> Norm -> Type where
     -- Recursive parts
-    Fix  : (s : Session Open Head) -> Session Closed Expr
-    Rec  : Session Open Expr
+    Fix : (s : Session Open Head) -> Session Closed Expr
+    Rec : Session Open Expr
     -- Usual operations
     Send : (ty : Type) -> (s : Session k n) -> Session k Head
     Recv : (ty : Type) -> (s : Session k n) -> Session k Head
-    End  : Session k Head
+    -- End a session
+    End : Session k Head
+    -- Choice
+    Offer : (s : Session k m1) -> (t : Session k m2) -> Session k Head
+    Select : (s : Session k m1) -> (t : Session k m2) -> Session k Head
 
   ||| Dual describes how the other party to the communication sees the
   ||| interactions: our sends become their receives and vice-versa.
@@ -48,6 +52,8 @@ namespace Session
   Dual (Send ty s) = Recv ty (Dual s)
   Dual (Recv ty s) = Send ty (Dual s)
   Dual End = End
+  Dual (Offer s t) = Select (Dual s) (Dual t)
+  Dual (Select s t) = Offer (Dual s) (Dual t)
 
   ||| Duality is involutive: the dual of my dual is me
   export
@@ -57,21 +63,9 @@ namespace Session
   dualInvolutive (Send ty s) = cong (Send ty) (dualInvolutive s)
   dualInvolutive (Recv ty s) = cong (Recv ty) (dualInvolutive s)
   dualInvolutive End = Refl
+  dualInvolutive (Offer s t) = cong2 Offer (dualInvolutive s) (dualInvolutive t)
+  dualInvolutive (Select s t) = cong2 Select (dualInvolutive s) (dualInvolutive t)
 
-  export
-  plug : Session Closed Expr -> Session Open m -> Session Closed m
-  plug t Rec = t
-  plug t (Send ty s) = Send ty (plug t s)
-  plug t (Recv ty s) = Recv ty (plug t s)
-  plug t End = End
-
-  ||| Head normalise a session to expose a constructor
-  export
-  norm : Session Closed m -> Session Closed Head
-  norm t@(Fix s) = plug t s
-  norm t@(Send ty s) = t
-  norm t@(Recv ty s) = t
-  norm t@End = t
 
 ||| We can collect the list of types that will be sent over the
 ||| course of a session by walking down its description
@@ -83,6 +77,8 @@ SendTypes Rec = []
 SendTypes (Send ty s) = ty :: SendTypes s
 SendTypes (Recv ty s) = SendTypes s
 SendTypes End = []
+SendTypes (Offer s1 s2) = SendTypes s1 ++ SendTypes s2
+SendTypes (Select s1 s2) = SendTypes s1 ++ SendTypes s2
 
 ||| We can collect the list of types that will be received over
 ||| the course of a session by walking down its description
@@ -94,6 +90,10 @@ RecvTypes Rec = []
 RecvTypes (Send ty s) = RecvTypes s
 RecvTypes (Recv ty s) = ty :: RecvTypes s
 RecvTypes End = []
+RecvTypes (Offer s1 s2) = RecvTypes s1 ++ RecvTypes s2
+RecvTypes (Select s1 s2) = RecvTypes s1 ++ RecvTypes s2
+
+
 
 ||| The types received by my dual are exactly the ones I am sending
 ||| This definition is purely internal and will not show up in
@@ -104,6 +104,8 @@ RecvDualTypes Rec = Refl
 RecvDualTypes (Send ty s) = cong (ty ::) (RecvDualTypes s)
 RecvDualTypes (Recv ty s) = RecvDualTypes s
 RecvDualTypes End = Refl
+RecvDualTypes (Offer s1 s2) = cong2 (++) (RecvDualTypes s1) (RecvDualTypes s2)
+RecvDualTypes (Select s1 s2) = cong2 (++) (RecvDualTypes s1) (RecvDualTypes s2)
 
 ||| The types sent by my dual are exactly the ones I receive
 ||| This definition is purely internal and will not show up in
@@ -114,13 +116,19 @@ SendDualTypes Rec = Refl
 SendDualTypes (Send ty s) = SendDualTypes s
 SendDualTypes (Recv ty s) = cong (ty ::) (SendDualTypes s)
 SendDualTypes End = Refl
+SendDualTypes (Offer s1 s2) = cong2 (++) (SendDualTypes s1) (SendDualTypes s2)
+SendDualTypes (Select s1 s2) = cong2 (++) (SendDualTypes s1) (SendDualTypes s2)
 
 namespace Headed
 
   public export
   data Headed : Nat -> Nat -> Session m1 Head -> Session m2 k2 -> Type where
-    Recv : (ty : Type) -> {s : Session m2 k2} -> Headed 1 0 (Recv ty s) s
-    Send : (ty : Type) -> {s : Session m2 k2} -> Headed 0 1 (Send ty s) s
+    Recv    : (ty : Type) -> {s : Session m2 k2} -> Headed 1 0 (Recv ty s) s
+    Send    : (ty : Type) -> {s : Session m2 k2} -> Headed 0 1 (Send ty s) s
+    OfferL  : {s1, s2 : _} -> Headed 0 0 (Offer s1 s2) s1
+    OfferR  : {s1, s2 : _} -> Headed (length (RecvTypes s1)) (length (SendTypes s1)) (Offer s1 s2) s2
+    SelectL : {s1, s2 : _} -> Headed 0 0 (Select s1 s2) s1
+    SelectR : {s1, s2 : _} -> Headed (length (RecvTypes s1)) (length (SendTypes s1)) (Select s1 s2) s2
 
 namespace Prefix
 
@@ -129,12 +137,28 @@ namespace Prefix
     Lin  : Prefix 0 0 s s
     (:<) : Prefix p q s s' -> Headed m n s' s'' -> Prefix (p + m) (q + n) s s''
 
+  public export infixl 6 :<!
+
+  export
+  (:<!) : Prefix p q s s' -> Headed m n s' s'' -> Prefix (m + p) (n + q) s s''
+  pref :<! hd
+    = rewrite plusCommutative m p in
+      rewrite plusCommutative n q in
+      pref :< hd
+
 namespace Loop
 
   public export
   data Loop : Session Open Head -> Nat -> Nat -> Session m2 k2 -> Type where
     Lin  : Loop o 0 0 o
     (:<) : Loop o p q s' -> Headed m n s' s'' -> Loop o (p + m) (q + n) s''
+
+  export
+  (:<!) : Loop o p q s' -> Headed m n s' s'' -> Loop o (m + p) (n + q) s''
+  pref :<! hd
+    = rewrite plusCommutative m p in
+      rewrite plusCommutative n q in
+      pref :< hd
 
 data Env : Kind -> Type where
   Nothing : Env Closed
@@ -155,8 +179,10 @@ record Channel (s : Session m2 k2) (e : Env m2) where
   {0 ogSession : Session Closed Head}
   context      : Context recvStep sendStep ogSession s e
 
-  sendChan : Threads.Channel (Union (SendTypes ogSession))
-  recvChan : Threads.Channel (Union (RecvTypes ogSession))
+  -- we throw in Bool for Offer & Select
+  sendChan : Threads.Channel (Union (Bool :: SendTypes ogSession))
+  recvChan : Threads.Channel (Union (Bool :: RecvTypes ogSession))
+
 
 recvHeaded :
   Headed m n s s' ->
@@ -164,6 +190,16 @@ recvHeaded :
   AtIndex ty (RecvTypes s) (m + i)
 recvHeaded (Recv _) idx = S idx
 recvHeaded (Send _) idx = idx
+recvHeaded OfferL idx = weakenR idx
+recvHeaded (OfferR {s1, s2}) idx
+  = let idx : AtIndex ty (RecvTypes (Offer s1 s2)) (?recvofferr + i)
+         := weakenL ?prfrecvofferr idx
+    in ?castrecvofferr
+recvHeaded SelectL idx = weakenR idx
+recvHeaded (SelectR {s1, s2}) idx
+  = let idx : AtIndex ty (RecvTypes (Select s1 s2)) (?recvselectr + i)
+         := weakenL ?prfrecvselectr idx
+    in ?castrecvselectr
 
 recvPrefix :
   Prefix m n start s ->
@@ -197,14 +233,10 @@ Recv :
   Context m n s (Recv ty s') e ->
   Context (S m) n s s' e
 Recv ty (InPrefix pref)
-  = rewrite plusCommutative 1 m in
-    rewrite plusCommutative 0 n in
-    InPrefix (pref :< Recv ty)
+  = InPrefix (pref :<! Recv ty)
 Recv ty (Pumping {p, q, m, n} pref loop)
   = rewrite plusSuccRightSucc p m in
-    rewrite plusCommutative 1 m in
-    rewrite plusCommutative 0 n in
-    Pumping pref (loop :< Recv ty)
+    Pumping pref (loop :<! Recv ty)
 
 sendHeaded :
   Headed m n s s' ->
@@ -212,6 +244,17 @@ sendHeaded :
   AtIndex ty (SendTypes s) (n + i)
 sendHeaded (Recv _) idx = idx
 sendHeaded (Send _) idx = S idx
+sendHeaded OfferL idx = weakenR idx
+sendHeaded (OfferR {s1, s2}) idx
+  = let idx : AtIndex ty (SendTypes (Offer s1 s2)) (?sendofferr + i)
+         := weakenL ?prfsendofferr idx
+    in ?castsendofferr
+sendHeaded SelectL idx = weakenR idx
+sendHeaded (SelectR {s1, s2}) idx
+  = let idx : AtIndex ty (SendTypes (Select s1 s2)) (?sendselectr + i)
+         := weakenL ?prfsendselectr idx
+    in ?castsendselectr
+
 
 sendPrefix :
   Prefix m n start s ->
@@ -245,14 +288,10 @@ Send :
   Context m n s (Send ty s') e ->
   Context m (S n) s s' e
 Send ty (InPrefix pref)
-  = rewrite plusCommutative 1 n in
-    rewrite plusCommutative 0 m in
-    InPrefix (pref :< Send ty)
+  = InPrefix (pref :<! Send ty)
 Send ty (Pumping {p, q, m, n} pref loop)
   = rewrite plusSuccRightSucc q n in
-    rewrite plusCommutative 1 n in
-    rewrite plusCommutative 0 m in
-    Pumping pref (loop :< Send ty)
+    Pumping pref (loop :<! Send ty)
 
 Enter :
   {m, n : Nat} ->
@@ -290,9 +329,67 @@ recv (MkChannel {recvStep} ctxt sendCh recvCh) = do
   -- Here we check that we got the right message by projecting out of
   -- the union type using the current `recvStep`. Both ends should be
   -- in sync because of the `RecvDualTypes` and `SendDualTypes` lemmas.
-  let Just val = prj recvStep (rewrite plusCommutative 0 recvStep in recvContext ctxt Z) x
+  let Just val = prj (S recvStep) (rewrite plusCommutative 0 recvStep in S (recvContext ctxt Z)) x
     | Nothing => die1 "Error: invalid recv expected \{show recvStep} but got \{show k}"
   pure1 (val # MkChannel (Recv ty ctxt) sendCh recvCh)
+
+OfferL :
+  Context m n s (Offer s1 s2) e ->
+  Context m n s s1 e
+OfferL (InPrefix pref) = InPrefix (pref :<! OfferL)
+OfferL (Pumping pref loop) = Pumping pref (loop :<! OfferL)
+
+-- TODO:
+OfferR :
+  Context m n s (Offer s1 s2) e ->
+  (m : Nat ** n : Nat ** Context m n s s2 e)
+
+export
+offer : LinearIO io =>
+  {0 s1, s2 : _} ->
+  Channel (Offer s1 s2) e -@
+  ((b : Bool) -> ifThenElse b (Channel s1 e) (Channel s2 e) -@ L1 io a) -@
+  L1 io a
+offer (MkChannel ctxt sendCh recvCh) k = do
+  x@(Element idx prf val) <- channelGet recvCh
+  -- Here we check that we got the right message by projecting out of
+  -- the union type using the current `recvStep`. Both ends should be
+  -- in sync because of the `RecvDualTypes` and `SendDualTypes` lemmas.
+  let Just val = prj 0 Z x
+    | Nothing => do
+      assert_linear (const (pure ())) k -- disgusting
+      die1 "Error: invalid recv expected (Offer selection) but got \{show idx}"
+  k val $ if val
+    then MkChannel (OfferL ctxt) sendCh recvCh
+    else let (_ ** _ ** ctxt) = OfferR ctxt in MkChannel ctxt sendCh recvCh
+
+
+SelectL :
+  Context m n s (Select s1 s2) e ->
+  Context m n s s1 e
+SelectL (InPrefix pref) = InPrefix (pref :<! SelectL)
+SelectL (Pumping pref loop) = Pumping pref (loop :<! SelectL)
+
+-- TODO:
+SelectR :
+  Context m n s (Select s1 s2) e ->
+  (m : Nat ** n : Nat ** Context m n s s2 e)
+
+export
+select : LinearIO io =>
+  {0 s1, s2 : _} ->
+  (1 ch : Channel (Select s1 s2) e) ->
+  (b : Bool) ->
+  L1 io (ifThenElse b (Channel s1 e) (Channel s2 e))
+select (MkChannel ctxt sendCh recvCh) b = do
+  let val = inj 0 Z b
+  channelPut sendCh val
+  -- Here we check that we got the right message by projecting out of
+  -- the union type using the current `recvStep`. Both ends should be
+  -- in sync because of the `RecvDualTypes` and `SendDualTypes` lemmas.
+  pure1 $ if b
+    then MkChannel (SelectL ctxt) sendCh recvCh
+    else let (_ ** _ ** ctxt) := SelectR ctxt in MkChannel ctxt sendCh recvCh
 
 export
 send : LinearIO io =>
@@ -300,7 +397,7 @@ send : LinearIO io =>
   ty ->
   L1 io (Channel s e)
 send (MkChannel {sendStep} ctxt sendCh recvCh) v = do
-  let val = inj sendStep (rewrite plusCommutative 0 sendStep in sendContext ctxt Z) v
+  let val = inj (S sendStep) (rewrite plusCommutative 0 sendStep in S (sendContext ctxt Z)) v
   channelPut sendCh val
   -- Here we check that we got the right message by projecting out of
   -- the union type using the current `recvStep`. Both ends should be
@@ -330,27 +427,25 @@ fold (MkChannel ctxt sendCh recvCh) = do
   let (p ** q ** ctxt) = Fold ctxt
   pure1 (MkChannel ctxt sendCh recvCh)
 
-NatsSession : Session Closed Expr
-NatsSession = Fix (Recv Nat Rec)
+export
+close : LinearIO io =>
+  Channel End e -@
+  L io ()
+close (MkChannel{}) = pure ()
 
-covering export
-getNats : LinearIO io =>
-  (1 _ : Channel NatsSession Nothing) ->
-  L1 io ()
-getNats ch = do
+Sum : Session Closed Expr
+Sum = Fix (Select (Recv Nat End) $ Send Nat Rec)
+
+sumNats : LinearIO io => List Nat -> Channel Sum Nothing -@ L io Nat
+sumNats [] ch = do
   ch <- enter ch
+  ch <- select ch True
   (n # ch) <- recv ch
-  putStrLn "Got \{show n}, asking for some more"
-  ch <- fold ch
-  getNats ch
-
-covering export
-allNatsFrom : LinearIO io =>
-  Nat ->
-  (1 _ : Channel (Dual NatsSession) Nothing) ->
-  L1 io ()
-allNatsFrom k ch = do
+  close ch
+  pure n
+sumNats (n :: ns) ch = do
   ch <- enter ch
-  ch <- send ch k
+  ch <- select ch False
+  ch <- send ch n
   ch <- fold ch
-  allNatsFrom (S k) ch
+  sumNats ns ch
