@@ -2,6 +2,8 @@ module System.Concurrency.Session.Recursive
 
 import Control.Linear.LIO
 
+import Data.DPair
+import Data.List.HasLength
 import Data.List.AtIndex
 import Data.Nat
 
@@ -14,6 +16,15 @@ import System.Concurrency.Linear
 import Language.Reflection
 
 %default total
+
+
+interface Logging io where
+  logging : LinearIO io => String -> L io ()
+
+[LOG] Logging io where
+  logging = putStrLn
+[QUIET] Logging io where
+  logging str = pure ()
 
 ------------------------------------------------------------------------
 -- Session types
@@ -65,7 +76,6 @@ namespace Session
   dualInvolutive End = Refl
   dualInvolutive (Offer s t) = cong2 Offer (dualInvolutive s) (dualInvolutive t)
   dualInvolutive (Select s t) = cong2 Select (dualInvolutive s) (dualInvolutive t)
-
 
 ||| We can collect the list of types that will be sent over the
 ||| course of a session by walking down its description
@@ -133,7 +143,7 @@ namespace Headed
 namespace Prefix
 
   public export
-  data Prefix : Nat -> Nat -> Session m1 Head -> Session m2 k2 -> Type where
+  data Prefix : Nat -> Nat -> Session m1 k1 -> Session m2 k2 -> Type where
     Lin  : Prefix 0 0 s s
     (:<) : Prefix p q s s' -> Headed m n s' s'' -> Prefix (p + m) (q + n) s s''
 
@@ -165,18 +175,20 @@ data Env : Kind -> Type where
   Just    : Session Open Head -> Env Open
 
 public export
-data Context : Nat -> Nat -> Session Closed Head -> Session m2 k2 -> Env m2 -> Type where
-  InPrefix : (0 _ : Prefix p q s s') ->
+data Context : Nat -> Nat -> Session m1 k1 -> Session m2 k2 -> Env m2 -> Type where
+  InPrefix : {p, q : Nat} -> (0 _ : Prefix p q s s') ->
              Context p q s s' Nothing
-  Pumping  : {p, q : Nat} -> (0 _ : Prefix p q s (Fix o)) -> (0 _ : Loop o m n s') ->
+  Pumping  : {m, n, p, q : Nat} -> (0 _ : Prefix p q s (Fix o)) -> (0 _ : Loop o m n s') ->
              Context (p + m) (q + n) s s' (Just o)
 
 export
-record Channel (s : Session m2 k2) (e : Env m2) where
+record Channel (me, them : String) (s : Session m2 k2) (e : Env m2) where
   constructor MkChannel
   {sendStep    : Nat}
   {recvStep    : Nat}
-  {0 ogSession : Session Closed Head}
+  {0 ogNorm    : Norm}
+  {0 ogKind    : Kind}
+  {0 ogSession : Session ogKind ogNorm}
   context      : Context recvStep sendStep ogSession s e
 
   -- we throw in Bool for Offer & Select
@@ -184,7 +196,7 @@ record Channel (s : Session m2 k2) (e : Env m2) where
   recvChan : Threads.Channel (Union (Bool :: RecvTypes ogSession))
 
 
-recvHeaded :
+0 recvHeaded :
   Headed m n s s' ->
   AtIndex ty (RecvTypes s') i ->
   AtIndex ty (RecvTypes s) (m + i)
@@ -192,16 +204,12 @@ recvHeaded (Recv _) idx = S idx
 recvHeaded (Send _) idx = idx
 recvHeaded OfferL idx = weakenR idx
 recvHeaded (OfferR {s1, s2}) idx
-  = let idx : AtIndex ty (RecvTypes (Offer s1 s2)) (?recvofferr + i)
-         := weakenL ?prfrecvofferr idx
-    in ?castrecvofferr
+  = weakenL (Element _ (hasLength _)) idx
 recvHeaded SelectL idx = weakenR idx
 recvHeaded (SelectR {s1, s2}) idx
-  = let idx : AtIndex ty (RecvTypes (Select s1 s2)) (?recvselectr + i)
-         := weakenL ?prfrecvselectr idx
-    in ?castrecvselectr
+  = weakenL (Element _ (hasLength _)) idx
 
-recvPrefix :
+0 recvPrefix :
   Prefix m n start s ->
   AtIndex ty (RecvTypes s) i ->
   AtIndex ty (RecvTypes start) (m + i)
@@ -210,7 +218,7 @@ recvPrefix ((:<) {m, p} pref s) idx
   = rewrite sym $ plusAssociative p m i in
     recvPrefix pref (recvHeaded s idx)
 
-recvLoop :
+0 recvLoop :
   Loop o m n s ->
   AtIndex ty (RecvTypes s) i ->
   AtIndex ty (RecvTypes o) (m + i)
@@ -246,14 +254,10 @@ sendHeaded (Recv _) idx = idx
 sendHeaded (Send _) idx = S idx
 sendHeaded OfferL idx = weakenR idx
 sendHeaded (OfferR {s1, s2}) idx
-  = let idx : AtIndex ty (SendTypes (Offer s1 s2)) (?sendofferr + i)
-         := weakenL ?prfsendofferr idx
-    in ?castsendofferr
+  = weakenL (Element _ (hasLength _)) idx
 sendHeaded SelectL idx = weakenR idx
 sendHeaded (SelectR {s1, s2}) idx
-  = let idx : AtIndex ty (SendTypes (Select s1 s2)) (?sendselectr + i)
-         := weakenL ?prfsendselectr idx
-    in ?castsendselectr
+  = weakenL (Element _ (hasLength _)) idx
 
 
 sendPrefix :
@@ -321,9 +325,10 @@ Fold (Pumping {p, q} pref loop)
   $ InPrefix pref
 
 export
-recv : LinearIO io =>
-  Channel (Recv ty s) e -@
-  L1 io (Res ty (const (Channel s e)))
+recv : Logging io => Show ty => LinearIO io =>
+  {me : String} ->
+  Channel me them (Recv ty s) e -@
+  L1 io (Res ty (const (Channel me them s e)))
 recv (MkChannel {recvStep} ctxt sendCh recvCh) = do
   x@(Element k prf val) <- channelGet recvCh
   -- Here we check that we got the right message by projecting out of
@@ -331,6 +336,7 @@ recv (MkChannel {recvStep} ctxt sendCh recvCh) = do
   -- in sync because of the `RecvDualTypes` and `SendDualTypes` lemmas.
   let Just val = prj (S recvStep) (rewrite plusCommutative 0 recvStep in S (recvContext ctxt Z)) x
     | Nothing => die1 "Error: invalid recv expected \{show recvStep} but got \{show k}"
+  logging "\{me} just received \{show val} (at index \{show k})"
   pure1 (val # MkChannel (Recv ty ctxt) sendCh recvCh)
 
 OfferL :
@@ -339,30 +345,29 @@ OfferL :
 OfferL (InPrefix pref) = InPrefix (pref :<! OfferL)
 OfferL (Pumping pref loop) = Pumping pref (loop :<! OfferL)
 
--- TODO:
 OfferR :
+  {s1 : _} ->
   Context m n s (Offer s1 s2) e ->
   (m : Nat ** n : Nat ** Context m n s s2 e)
+OfferR (InPrefix pref) = (_ ** _ ** InPrefix (pref :<! OfferR))
+OfferR (Pumping pref loop) = (_ ** _ ** Pumping pref (loop :<! OfferR))
 
 export
 offer : LinearIO io =>
-  {0 s1, s2 : _} ->
-  Channel (Offer s1 s2) e -@
-  ((b : Bool) -> ifThenElse b (Channel s1 e) (Channel s2 e) -@ L1 io a) -@
-  L1 io a
-offer (MkChannel ctxt sendCh recvCh) k = do
+  {s1, s2 : _} ->
+  Channel me them (Offer s1 s2) e -@
+  L1 io (Res Bool $ \ b => ifThenElse b (Channel me them s1 e) (Channel me them s2 e))
+offer (MkChannel ctxt sendCh recvCh) = do
   x@(Element idx prf val) <- channelGet recvCh
   -- Here we check that we got the right message by projecting out of
   -- the union type using the current `recvStep`. Both ends should be
   -- in sync because of the `RecvDualTypes` and `SendDualTypes` lemmas.
   let Just val = prj 0 Z x
     | Nothing => do
-      assert_linear (const (pure ())) k -- disgusting
       die1 "Error: invalid recv expected (Offer selection) but got \{show idx}"
-  k val $ if val
+  pure1 $ val # if val
     then MkChannel (OfferL ctxt) sendCh recvCh
     else let (_ ** _ ** ctxt) = OfferR ctxt in MkChannel ctxt sendCh recvCh
-
 
 SelectL :
   Context m n s (Select s1 s2) e ->
@@ -370,17 +375,19 @@ SelectL :
 SelectL (InPrefix pref) = InPrefix (pref :<! SelectL)
 SelectL (Pumping pref loop) = Pumping pref (loop :<! SelectL)
 
--- TODO:
 SelectR :
+  {s1 : _} ->
   Context m n s (Select s1 s2) e ->
   (m : Nat ** n : Nat ** Context m n s s2 e)
+SelectR (InPrefix pref) = (_ ** _ ** InPrefix (pref :<! SelectR))
+SelectR (Pumping pref loop) = (_ ** _ ** Pumping pref (loop :<! SelectR))
 
 export
 select : LinearIO io =>
-  {0 s1, s2 : _} ->
-  (1 ch : Channel (Select s1 s2) e) ->
+  {s1, s2 : _} ->
+  (1 ch : Channel me them (Select s1 s2) e) ->
   (b : Bool) ->
-  L1 io (ifThenElse b (Channel s1 e) (Channel s2 e))
+  L1 io (ifThenElse b (Channel me them s1 e) (Channel me them s2 e))
 select (MkChannel ctxt sendCh recvCh) b = do
   let val = inj 0 Z b
   channelPut sendCh val
@@ -392,13 +399,15 @@ select (MkChannel ctxt sendCh recvCh) b = do
     else let (_ ** _ ** ctxt) := SelectR ctxt in MkChannel ctxt sendCh recvCh
 
 export
-send : LinearIO io =>
-  (1 _ : Channel (Send ty s) e) ->
+send : Logging io => Show ty => LinearIO io =>
+  {me : String} ->
+  (1 _ : Channel me them (Send ty s) e) ->
   ty ->
-  L1 io (Channel s e)
+  L1 io (Channel me them s e)
 send (MkChannel {sendStep} ctxt sendCh recvCh) v = do
   let val = inj (S sendStep) (rewrite plusCommutative 0 sendStep in S (sendContext ctxt Z)) v
   channelPut sendCh val
+  logging "\{me} just sent \{show v} (at index \{show (1+ sendStep)})"
   -- Here we check that we got the right message by projecting out of
   -- the union type using the current `recvStep`. Both ends should be
   -- in sync because of the `RecvDualTypes` and `SendDualTypes` lemmas.
@@ -406,37 +415,87 @@ send (MkChannel {sendStep} ctxt sendCh recvCh) v = do
 
 export
 enter : LinearIO io =>
-  Channel (Fix s) e -@
-  L1 io (Channel s (Just s))
+  Channel me them (Fix s) e -@
+  L1 io (Channel me them s (Just s))
 enter (MkChannel ctxt sendCh recvCh) = do
   pure1 (MkChannel (Enter ctxt) sendCh recvCh)
 
 export
 unfold : LinearIO io =>
-  Channel Rec (Just s) -@
-  L1 io (Channel s (Just s))
+  Channel me them Rec (Just s) -@
+  L1 io (Channel me them s (Just s))
 unfold (MkChannel ctxt sendCh recvCh) = do
   let (p ** q ** ctxt) = Unfold ctxt
   pure1 (MkChannel ctxt sendCh recvCh)
 
 export
 fold : LinearIO io =>
-  Channel Rec (Just s) -@
-  L1 io (Channel (Fix s) Nothing)
+  Channel me them Rec (Just s) -@
+  L1 io (Channel me them (Fix s) Nothing)
 fold (MkChannel ctxt sendCh recvCh) = do
   let (p ** q ** ctxt) = Fold ctxt
   pure1 (MkChannel ctxt sendCh recvCh)
 
 export
 close : LinearIO io =>
-  Channel End e -@
+  Channel me them End e -@
   L io ()
 close (MkChannel{}) = pure ()
+
+||| Given a session, create a bidirectional communiaction channel and
+||| return its two endpoints
+export
+makeChannel :
+  LinearIO io =>
+  (0 s : Session Closed m) ->
+  L1 io (LPair (Channel me them s Nothing) (Channel them me (Dual s) Nothing))
+makeChannel s = do
+  sendChan <- Threads.makeChannel
+  recvChan <- Threads.makeChannel
+  let 1 posCh : Channel me them s Nothing
+    := MkChannel (InPrefix [<]) sendChan recvChan
+  let 1 negCh : Channel them me (Dual s) Nothing
+    := MkChannel (InPrefix [<])
+         (rewrite SendDualTypes s in recvChan)
+         (rewrite RecvDualTypes s in sendChan)
+  pure1 (posCh # negCh)
+
+
+||| Given a session and two functions communicating according to that
+||| sesion, we can run the two programs concurrently and collect their
+||| final results.
+||| The `src` and `tgt` names are purely for logging purposes.
+export
+fork : (0 s : Session Closed m) ->
+       (me, them : String) ->
+       (Channel me them s        Nothing -@ L IO a) -@
+       (Channel them me (Dual s) Nothing -@ L IO b) -@
+       L IO (a, b)
+fork s me them kA kB = do
+  (posCh # negCh) <- Recursive.makeChannel s
+  -- Forked threads cannot return anything so we grab a couple of
+  -- low-level channels just to get the results back out
+  aResChan <- Threads.makeChannel
+  bResChan <- Threads.makeChannel
+  -- Fork the two processes, send the results back along the appropriate channel
+  _ <- liftIO1 $ IO.fork $ LIO.run $ kA posCh >>= channelPut aResChan
+  _ <- liftIO1 $ IO.fork $ LIO.run $ kB negCh >>= channelPut bResChan
+  -- Wait for both to finish and send their results
+  x <- channelGet aResChan
+  y <- channelGet bResChan
+  pure (x, y)
+
+
+------------------------------------------------------------------------
+-- Example
+------------------------------------------------------------------------
 
 Sum : Session Closed Expr
 Sum = Fix (Select (Recv Nat End) $ Send Nat Rec)
 
-sumNats : LinearIO io => List Nat -> Channel Sum Nothing -@ L io Nat
+sumNats : Logging io => LinearIO io => {me : String} ->
+  List Nat -> -- list of arguments
+  Channel me them Sum Nothing -@ L io Nat
 sumNats [] ch = do
   ch <- enter ch
   ch <- select ch True
@@ -449,3 +508,27 @@ sumNats (n :: ns) ch = do
   ch <- send ch n
   ch <- fold ch
   sumNats ns ch
+
+covering
+natsSum : Logging io => LinearIO io =>
+  {me : String} ->
+  Nat -> -- accumulator
+  Channel me them (Dual Sum) Nothing -@ L io ()
+natsSum acc ch = do
+  ch <- enter ch
+  b # ch <- offer ch
+  if b
+    then do
+      ch <- send ch acc
+      close ch
+    else do
+      (n # ch) <- recv ch
+      ch <- fold ch
+      natsSum (acc + n) ch
+
+covering
+main : IO ()
+main = do
+  let %hint loggingIO : Logging IO; loggingIO = QUIET
+  (sum, _) <- LIO.run $ fork Sum "A" "B" (sumNats [1..5]) (natsSum 0)
+  putStrLn "Sum of [1..5] is \{show sum}"
