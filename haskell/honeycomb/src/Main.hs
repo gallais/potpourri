@@ -3,13 +3,30 @@
 module Main where
 
 import Codec.Picture
-import System.Environment
-import System.Exit
+import System.Environment (getArgs)
+import System.Exit (die)
+import Data.Foldable (for_)
+import Text.Read (readMaybe)
 
-inputFile :: IO String
-inputFile = getArgs >>= \case
-  [fp] -> pure fp
-  _ -> die "Invalid arguments: expected a single filename"
+data Config = Config
+  { radius :: Int
+  , files  :: [FilePath]
+  }
+
+parseConfig :: Config -> [String] -> Either String Config
+parseConfig cfg [] = pure cfg
+parseConfig cfg ("-r" : r : rest) = case readMaybe r of
+  Nothing -> Left ("Invalid radius argument: " ++ r ++ ".")
+  Just r -> parseConfig (cfg { radius = r }) rest
+parseConfig cfg ("-r" : []) = Left "Missing radius argument."
+parseConfig cfg (fp : rest) = parseConfig (cfg { files = fp : files cfg }) rest
+
+getConfig :: IO Config
+getConfig = do
+  args <- getArgs
+  case parseConfig (Config 80 []) args of
+    Left err -> die err
+    Right cfg -> pure cfg
 
 averaging :: [PixelYCbCr8] -> PixelYCbCr8
 averaging [] =  PixelYCbCr8 0 0 0
@@ -24,9 +41,6 @@ averaging pxs = PixelYCbCr8 (finalise x) (finalise y) (finalise z)
     loop x y z (PixelYCbCr8 x' y' z' : pxs)
       = loop (combine x x') (combine y y') (combine z z') pxs
 
-radius :: Int
-radius = 80
-
 pixelsAt :: Pixel x => Image x -> [(Int, Int)] -> [x]
 pixelsAt img ijs = uncurry (pixelAt img) <$> filter inRange ijs
   where
@@ -34,8 +48,8 @@ pixelsAt img ijs = uncurry (pixelAt img) <$> filter inRange ijs
     h = imageHeight img
     inRange (x, y) = (0 <= x && 0 <= y && x < w && y < h)
 
-neighbourhood :: Pixel x => Image x -> Int -> Int -> [x]
-neighbourhood img i j
+neighbourhood :: Pixel x => Int -> Image x -> Int -> Int -> [x]
+neighbourhood r img i j
   = pixelsAt img
   [ (x, y)
   | offx <- range
@@ -44,10 +58,10 @@ neighbourhood img i j
   , let y = j + offy
   ]
   where
-    range = [-radius..radius]
+    range = [-r..r]
 
-square :: Pixel x => Image x -> Int -> Int -> [x]
-square img i j
+square :: Pixel x => Int -> Image x -> Int -> Int -> [x]
+square r img i j
   = pixelsAt img
   [ (x, y)
   | offx <- range
@@ -56,50 +70,50 @@ square img i j
   , let y = j + offy
   ]
   where
-    range = [0..2*radius-1]
+    range = [0..2*r-1]
 
-losange :: Pixel x => Image x -> Int -> Int -> [x]
-losange img i j = pixelsAt img
+losange :: Pixel x => Int -> Image x -> Int -> Int -> [x]
+losange r img i j = pixelsAt img
   [ (x, y)
   | offx <- range
   , offy <- range
   , let x = i + offx
   , let y = j + offy
-  , abs offx + abs offy <= radius
+  , abs offx + abs offy <= r
   ]
   where
-    range = [-radius..radius]
+    range = [-r..r]
 
-blur :: Image PixelYCbCr8 -> Image PixelYCbCr8
-blur img = generateImage f (imageWidth img) (imageHeight img)
+blur :: Int -> Image PixelYCbCr8 -> Image PixelYCbCr8
+blur r img = generateImage f (imageWidth img) (imageHeight img)
 
   where
-    f i j = averaging (neighbourhood img i j)
+    f i j = averaging (neighbourhood r img i j)
 
-grid :: Image PixelYCbCr8 -> Image PixelYCbCr8
-grid img = generateImage blowup (w - w `mod` k) (h - h `mod` k)
+grid :: Int -> Image PixelYCbCr8 -> Image PixelYCbCr8
+grid r img = generateImage blowup (w - w `mod` k) (h - h `mod` k)
 
   where
    w = imageWidth img
    h = imageHeight img
-   k = 2 * radius
+   k = 2 * r
    resize x = x `div` k
    sampled = generateImage sample (resize w) (resize h)
-   sample i j = averaging (square img (i * k) (j * k))
+   sample i j = averaging (square r img (i * k) (j * k))
    blowup i j = pixelAt sampled (i `div` k) (j `div` k)
 
-pave :: Image PixelYCbCr8 -> Image PixelYCbCr8
-pave img = generateImage blowup w' h'
+pave :: Int -> Image PixelYCbCr8 -> Image PixelYCbCr8
+pave r img = generateImage blowup w' h'
 
   where
    w = imageWidth img
    h = imageHeight img
    w' = (w - w `mod` k) `div` 2
    h' = (h - h `mod` k) `div` 2
-   k = radius
+   k = r
    resize x = 2 * (1 + x `div` k)
    sampled = generateImage sample (resize w) (resize h)
-   sample i j = averaging (square img (i * k) (j * k))
+   sample i j = averaging (square r img (i * k) (j * k))
    blowup i j =
      let x = 1 + 2 * (i `div` k) in
      let y = 1 + 2 * (j `div` k) in
@@ -117,9 +131,9 @@ pave img = generateImage blowup w' h'
 
 main :: IO ()
 main = do
-  fp <- inputFile
-  readImage fp >>= \case
+  cfg <- getConfig
+  for_ (files cfg) $ \ fp -> readImage fp >>= \case
     Left err -> die err
     Right (ImageYCbCr8 img) ->
-      saveJpgImage 100 "output.jpg" (ImageYCbCr8 (pave img))
+      saveJpgImage 100 "output.jpg" (ImageYCbCr8 (pave (radius cfg) img))
     _ -> die "Wrong filetype"
