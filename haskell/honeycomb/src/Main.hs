@@ -135,5 +135,5 @@ main = do
   for_ (files cfg) $ \ fp -> readImage fp >>= \case
     Left err -> die err
     Right (ImageYCbCr8 img) ->
-      saveJpgImage 100 "output.jpg" (ImageYCbCr8 (pave (radius cfg) img))
+      saveJpgImage 100 ("modified-" ++ fp) (ImageYCbCr8 (pave (radius cfg) img))
     _ -> die "Wrong filetype"
