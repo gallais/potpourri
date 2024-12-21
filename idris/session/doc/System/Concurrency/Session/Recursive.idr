@@ -399,8 +399,8 @@ select (MkChannel ctxt sendCh recvCh) b = do
     else let (_ ** _ ** ctxt) := SelectR ctxt in MkChannel ctxt sendCh recvCh
 
 export
-send : Logging io => Show ty => LinearIO io =>
-  {me : String} ->
+send : LinearIO io =>
+  Logging io => {me : String} -> Show ty =>
   (1 _ : Channel me them (Send ty s) e) ->
   ty ->
   L1 io (Channel me them s e)
@@ -491,9 +491,10 @@ fork s me them kA kB = do
 ------------------------------------------------------------------------
 
 Sum : Session Closed Expr
-Sum = Fix (Select (Recv Nat End) $ Send Nat Rec)
+Sum = Fix (Select (Recv Nat End) (Send Nat Rec))
 
-sumNats : Logging io => LinearIO io => {me : String} ->
+sumNats : LinearIO io =>
+  Logging io => {me : String} ->
   List Nat -> -- list of arguments
   Channel me them Sum Nothing -@ L io Nat
 sumNats [] ch = do
@@ -510,8 +511,8 @@ sumNats (n :: ns) ch = do
   sumNats ns ch
 
 covering
-natsSum : Logging io => LinearIO io =>
-  {me : String} ->
+natsSum : LinearIO io =>
+  Logging io => {me : String} ->
   Nat -> -- accumulator
   Channel me them (Dual Sum) Nothing -@ L io ()
 natsSum acc ch = do
@@ -525,6 +526,70 @@ natsSum acc ch = do
       (n # ch) <- recv ch
       ch <- fold ch
       natsSum (acc + n) ch
+
+ATM : Session Closed Expr
+ATM = Fix $ Select
+  -- check balance
+  (Recv Nat (Select End Rec))
+  (Select
+     -- withdraw (may fail)
+     (Send Nat (Send String (Offer Rec (Select End Rec))))
+     -- quit
+     End)
+
+-- There's a single account
+Bank : Type
+Bank = (String, Nat)
+
+covering
+machine : LinearIO io =>
+  Logging io => {atm : String} ->
+  Bank -@
+  Channel atm client (Dual ATM) Nothing -@
+  L1 io Bank
+
+covering
+eject : LinearIO io =>
+  Logging io => {atm : String} ->
+  Bank -@
+  Channel atm client (Offer End Rec) (Just ?) -@
+  L1 io Bank
+
+
+eject bnk ch = do
+  (b # ch) <- offer ch
+  if b
+    then do
+      close ch
+      pure1 bnk
+    else do
+      ch <- fold ch
+      machine bnk ch
+
+machine (pwd, bal) ch = do
+  ch <- enter ch
+  (b # ch) <- offer ch
+  if b
+    then do
+      ch <- send ch bal
+      eject (pwd, bal) ch
+    else do
+      (b # ch) <- offer ch
+      if b
+        then do
+          (n # ch) <- recv ch
+          (p # ch) <- recv ch
+          if n <= bal && p == pwd
+            then do
+              ch <- select ch False
+              eject (pwd, bal) ch
+            else do
+              ch <- select ch True
+              ch <- fold ch
+              machine (pwd, bal) ch
+        else do
+          close ch
+          pure1 (pwd, bal)
 
 covering
 main : IO ()
