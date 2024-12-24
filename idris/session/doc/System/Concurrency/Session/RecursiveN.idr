@@ -229,23 +229,25 @@ data Context : Nat -> Nat -> Session m1 k1 -> Session m2 k2 -> Env m2 -> Type wh
 Sumer : Session [] Head
 Sumer
   = Fix "serve"
+  $ Offer End
   $ Send String
   $ Fix "getNs"
   $ Offer
-      (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"]))
       (Send Nat $ Rec (MkFocus [<"getNs"] "serve" []))
+      (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"]))
 
 sumerCtx
-  : Context 1 1 Sumer (Rec (MkFocus [<] "getNs" ["serve"]))
+  : Context 1 2 Sumer (Rec (MkFocus [<] "getNs" ["serve"]))
        [ Offer
-          (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"]))
           (Send Nat $ Rec (MkFocus [<"getNs"] "serve" []))
-       , Send String $ Fix "getNs" $ Offer
           (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"]))
-          (Send Nat $ Rec (MkFocus [<"getNs"] "serve" []))]
+       , Offer End $ Send String $ Fix "getNs" $ Offer
+          (Send Nat $ Rec (MkFocus [<"getNs"] "serve" []))
+          (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"]))
+       ]
 sumerCtx
-  = Pumping (Pumping (InPrefix [<]) [<Send String])
-  $ [< OfferL, Recv Nat]
+  = Pumping (Pumping (InPrefix [<]) [<OfferR, Send String])
+  $ [< OfferR, Recv Nat]
 
 export
 record Channel (me, them : String) (s : Session nms k) (e : Env nms) where
@@ -583,115 +585,109 @@ fork s me them kA kB = do
   y <- channelGet bResChan
   pure (x, y)
 
-{-
 ------------------------------------------------------------------------
 -- Example
 ------------------------------------------------------------------------
 
-Sum : Session Closed Expr
-Sum = Fix (Select (Recv Nat End) (Send Nat Rec))
+
+sumNatss : LinearIO io =>
+  Logging io => {me : String} ->
+  List (List Nat) -> -- list of arguments
+  SnocList Nat -> -- accumulator of results
+  Channel me them (Dual Sumer) [] -@ L io (List Nat)
 
 sumNats : LinearIO io =>
   Logging io => {me : String} ->
   List Nat -> -- list of arguments
-  Channel me them Sum Nothing -@ L io Nat
-sumNats [] ch = do
+  List (List Nat) -> -- list of list arguments
+  SnocList Nat -> -- accumulator of results
+  Channel me them (Dual $ Offer
+        (Send Nat $ Rec (MkFocus [<"getNs"] "serve" []))
+        (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"])))
+    [ Dual $ Offer
+        (Send Nat $ Rec (MkFocus [<"getNs"] "serve" []))
+        (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"]))
+    , Dual $ Offer End $ Send String $ Fix "getNs" $ Offer
+        (Send Nat $ Rec (MkFocus [<"getNs"] "serve" []))
+        (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"]))
+    ]
+ -@ L io (List Nat)
+
+sumNatss [] acc ch = do
   ch <- enter ch
   ch <- select ch True
-  (n # ch) <- recv ch
   close ch
-  pure n
-sumNats (n :: ns) ch = do
+  pure (acc <>> [])
+sumNatss (ns :: nss) acc ch = do
   ch <- enter ch
   ch <- select ch False
-  ch <- send ch n
+  (msg # ch) <- recv ch
+  putStrLn msg
+  ch <- enter ch
+  sumNats ns nss acc ch
+
+sumNats [] nss acc ch = do
+  ch <- select ch True
+  (n # ch) <- recv ch
   ch <- fold ch
-  sumNats ns ch
+  sumNatss nss (acc :< n) ch
+sumNats (n :: ns) nss acc ch = do
+  ch <- select ch False
+  ch <- send ch n
+  ch <- unfold ch
+  sumNats ns nss acc ch
+
+covering
+natssSum : LinearIO io =>
+  Logging io => {me : String} ->
+  Nat -> -- ID
+  Channel me them Sumer [] -@ L io ()
 
 covering
 natsSum : LinearIO io =>
   Logging io => {me : String} ->
   Nat -> -- accumulator
-  Channel me them (Dual Sum) Nothing -@ L io ()
-natsSum acc ch = do
+  Channel me them (Offer
+        (Send Nat $ Rec (MkFocus [<"getNs"] "serve" []))
+        (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"])))
+    [ Offer
+        (Send Nat $ Rec (MkFocus [<"getNs"] "serve" []))
+        (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"]))
+    , Offer End $ Send String $ Fix "getNs" $ Offer
+        (Send Nat $ Rec (MkFocus [<"getNs"] "serve" []))
+        (Recv Nat $ Rec (MkFocus [<] "getNs" ["serve"]))
+    ] -@
+    L1 io (Channel me them Sumer [])
+
+
+natssSum id ch = do
   ch <- enter ch
   b # ch <- offer ch
   if b
     then do
-      ch <- send ch acc
       close ch
+    else do
+      ch <- send ch "Welcome, you are our client n°\{show id}"
+      ch <- enter ch
+      ch <- natsSum 0 ch
+      natssSum (S id) ch
+
+natsSum acc ch = do
+  b # ch <- offer ch
+  if b
+    then do
+      ch <- send ch acc
+      ch <- fold ch
+      pure1 ch
     else do
       (n # ch) <- recv ch
-      ch <- fold ch
+      ch <- unfold ch
       natsSum (acc + n) ch
 
-ATM : Session Closed Expr
-ATM = Fix $ Select
-  -- check balance
-  (Recv Nat (Select End Rec))
-  (Select
-     -- withdraw (may fail)
-     (Send Nat (Send String (Offer (Rec pos) (Select End Rec))))
-     -- quit
-     End)
-
--- There's a single account
-Bank : Type
-Bank = (String, Nat)
-
-covering
-machine : LinearIO io =>
-  Logging io => {atm : String} ->
-  Bank -@
-  Channel atm client (Dual ATM) Nothing -@
-  L1 io Bank
-
-covering
-eject : LinearIO io =>
-  Logging io => {atm : String} ->
-  Bank -@
-  Channel atm client (Offer End Rec) (Just ?) -@
-  L1 io Bank
-
-
-eject bnk ch = do
-  (b # ch) <- offer ch
-  if b
-    then do
-      close ch
-      pure1 bnk
-    else do
-      ch <- fold ch
-      machine bnk ch
-
-machine (pwd, bal) ch = do
-  ch <- enter ch
-  (b # ch) <- offer ch
-  if b
-    then do
-      ch <- send ch bal
-      eject (pwd, bal) ch
-    else do
-      (b # ch) <- offer ch
-      if b
-        then do
-          (n # ch) <- recv ch
-          (p # ch) <- recv ch
-          if n <= bal && p == pwd
-            then do
-              ch <- select ch False
-              eject (pwd, bal) ch
-            else do
-              ch <- select ch True
-              ch <- fold ch
-              machine (pwd, bal) ch
-        else do
-          close ch
-          pure1 (pwd, bal)
 
 covering
 main : IO ()
 main = do
   let %hint loggingIO : Logging IO; loggingIO = QUIET
-  (sum, _) <- LIO.run $ fork Sum "A" "B" (sumNats [1..5]) (natsSum 0)
-  putStrLn "Sum of [1..5] is \{show sum}"
+  (_, sums) <- LIO.run $ fork Sumer "A" "B" (natssSum 0) (sumNatss [[1..5], [5..10]] [<])
+  putStrLn "Results are \{show sums}"
