@@ -568,7 +568,7 @@ namespace Guard
   Guard (Mu _) a = a
   Guard (Nu _) a = Guarded a
 
-  export %tcinline
+  public export %tcinline
   callGuarded1 : ((1 _ : a) -> b) -> (1 _ : Guarded a) -> b
   callGuarded1 f x = assert_total (f (runGuarded x))
 
@@ -723,7 +723,7 @@ natsSum acc ch = do
       ch <- fold ch
       callGuarded1 (natsSum (acc + n)) ch
 
-covering
+
 main : IO ()
 main = do
   let %hint loggingIO : Logging IO; loggingIO = QUIET
