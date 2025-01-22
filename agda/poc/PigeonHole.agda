@@ -1,9 +1,9 @@
 module PigeonHole where
 
 open import Data.Empty
-open import Data.Sum
-open import Data.Nat
-open import Data.List
+open import Data.Sum.Base using (_⊎_; inj₁; inj₂)
+open import Data.Nat.Base using (ℕ; zero; suc)
+open import Data.List.Base using (List; []; _∷_)
 open import Function
 
 open import Relation.Binary.PropositionalEquality
