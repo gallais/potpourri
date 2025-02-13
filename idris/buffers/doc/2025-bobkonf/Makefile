@@ -1,5 +1,7 @@
 BUILDDIR=__build
-DEPENDENCIES=../common/data-layout.tex
+DEPENDENCIES=\
+  motivation.tex\
+  hoarelogic.tex
 
 all: slides.pdf
 

@@ -2,7 +2,7 @@
 
 \begin{frame}[fragile]{Sequential work}
 
-One worker mapping the \saw{} transformation on a given array.
+One worker mapping the \saw{} transformation on an array.
 
 \bigskip
 
@@ -49,11 +49,16 @@ One worker mapping the \saw{} transformation on a given array.
   & \bitbox[tbr]{1}{\source}
 \end{bytefield}
 
+\bigskip
+\bigskip
+
+\uncover<11>{\sweaty{} Can we maybe share the load?}
+
 \end{frame}
 
 \begin{frame}[fragile]{Concurrent work}
 
-Three concurrent workers mapping the \saw{} transformation on a shared array.
+Three workers mapping the \saw{} transformation on a \textbf{shared} array.
 
 \bigskip
 
@@ -98,5 +103,10 @@ Three concurrent workers mapping the \saw{} transformation on a shared array.
   & \bitbox[tb]{1}{\alt<1-5>{\source}{\target}}
   & \bitbox[tbr]{1}{\alt<1-6>{\source}{\target}}
 \end{bytefield}
+
+\bigskip
+\bigskip
+
+\uncover<8>{\scream{} Faster... but wronger!}
 
 \end{frame}
