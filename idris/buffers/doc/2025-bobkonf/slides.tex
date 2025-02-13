@@ -1,9 +1,10 @@
 \PassOptionsToPackage{x11names}{xcolor}
-\documentclass{beamer}
+\documentclass[3to2]{beamer}
 
 \beamertemplatenavigationsymbolsempty
 
 \usepackage{bytefield}
+\usetheme{jambro}
 
 % \usepackage{tikz}
 % \usetikzlibrary{shapes.geometric}
@@ -29,18 +30,19 @@
 \newcommand{\saw}{\includegraphics[scale=.1]{assets/saw.png}}
 
 
-\title{Correct by Construction Concurrent Programs in Idris 2}
+\title{Correct by Construction Concurrent Programs \newline in Idris 2}
 \author{Guillaume Allais}
 \institute{University of Strathclyde \\ Glasgow, UK}
-\date{2025}
+  \titlegraphic{BOB2025}
+\date{March 14$^{th}$ 2025}
 
-\AtBeginSection[]
-{
-    \begin{frame}
-        \frametitle{Table of Contents}
-        \tableofcontents[currentsection]
-    \end{frame}
-}
+%% \AtBeginSection[]
+%% {
+%%     \begin{frame}
+%%         \frametitle{Table of Contents}
+%%         \tableofcontents[currentsection]
+%%     \end{frame}
+%% }
 
 \begin{document}
 
