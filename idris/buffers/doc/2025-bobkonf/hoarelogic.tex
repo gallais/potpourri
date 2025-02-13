@@ -11,7 +11,7 @@ A memory model.
 
 \end{frame}
 
-\begin{frame}{Assignment Rule}
+\begin{frame}{Assignment Axiom}
 \begin{center}
     \huge
     \tikz[tstyle]{\node[nstyle](precondition){$\lbrace \ell \mapsto \text{\_} \rbrace$}}
@@ -31,32 +31,55 @@ A memory model.
 \end{tikzpicture}
 \end{frame}
 
-\begin{frame}{A proof: swap with no allocation}
 
+\begin{frame}{Sequential Execution Axiom}
 
-\begin{gather*}
-\intertext{\uncover<2-9>{$\lbrace \addra \mapsto a \wedge \addrb \mapsto b \rbrace$}}
-    \addra \mathbin{:=} xor(\addra, \addrb)\\
-\intertext{\uncover<3->{$\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto b \rbrace$}}
-\addrb \mathbin{:=} xor(\addra, \addrb)\\
-\intertext{\uncover<4->{
-   \alt<4-5>
-   {$\lbrace \addra \mapsto xor(a, b)
-        \wedge \addrb \mapsto \tikz[tstyle]{\node[nstyle](xorabb){$xor(xor(a,b),b)$}} \rbrace$}
-   {$\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto a \rbrace$}}}
-\addra \mathbin{:=} xor(\addra, \addrb)\\
-\intertext{\uncover<7->{
-   \alt<7-8>
-   {$\lbrace \addra \mapsto \tikz[tstyle]{\node[nstyle](xoraba){$xor(xor(a, b), a)$}}
-        \wedge \addrb \mapsto a \rbrace$}
-   {$\lbrace \addra \mapsto b \wedge \addrb \mapsto a \rbrace$}}}
-\end{gather*}
-
+{
+  \huge
+\begin{mathpar}
+ \inferrule{
+      \tikz[tstyle]{\node[nstyle](premise1){$\lbrace P \rbrace c_1 \lbrace Q \rbrace$}}
+      \and \tikz[tstyle]{\node[nstyle](premise2){$\lbrace Q \rbrace c_2 \lbrace R \rbrace$}}
+    }{\tikz[tstyle]{\node[nstyle](conclusion){$\lbrace P \rbrace c_1; c_2 \lbrace R \rbrace$}}}
+\end{mathpar}}
 
 \begin{tikzpicture}[tpstyle]
-  \draw<5>[arrow,->] ([yshift=-2pt, xshift=-20pt]xorabb.south) to[bend right] +(+1,-2.5) node[anchor=west]
+  \draw<2->[arrow,->] ([yshift=2pt]premise1.north) to[bend left] +(+0,+2) node[anchor=south]
+       {\hand If $c_1$ takes us from $P$ to $Q$};
+  \draw<3->[arrow,->] ([yshift=2pt]premise2.north) to[bend right] +(0,+1) node[anchor=south]
+       {\hand And $c_2$ takes us from $Q$ to $R$};
+  \draw<4->[arrow,->] ([yshift=-2pt]conclusion.south) to[bend left] +(+0,-1) node[anchor=north]
+       {\hand Then the composition $c_1; c_2$ takes us from $P$ to $R$};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{A proof: swap with no allocation}
+  \Large
+\[
+\begin{array}{lr}
+  & \uncover<2-9>{\lbrace \addra \mapsto a \wedge \addrb \mapsto b \rbrace}\\
+  \addra \mathbin{:=} xor(\addra, \addrb);\\
+  & \uncover<3->{\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto b \rbrace}\\
+  \addrb \mathbin{:=} xor(\addra, \addrb);\\
+  & \uncover<4->{
+   \alt<4-5>
+   {\lbrace \addra \mapsto xor(a, b)
+        \wedge \addrb \mapsto \tikz[tstyle]{\node[nstyle](xorabb){$xor(xor(a,b),b)$}} \rbrace}
+   {\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto a \rbrace}}\\
+  \addra \mathbin{:=} xor(\addra, \addrb);\\
+  & \uncover<7->{
+   \alt<7-8>
+   {\lbrace \addra \mapsto \tikz[tstyle]{\node[nstyle](xoraba){$xor(xor(a, b), a)$}}
+        \wedge \addrb \mapsto a \rbrace}
+   {\lbrace \addra \mapsto b \wedge \addrb \mapsto a \rbrace}}\\
+ & \hphantom{\hphantom{\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto xor(xor(a,b),b) \rbrace}}
+\end{array}
+\]
+
+\begin{tikzpicture}[tpstyle]
+  \draw<5>[arrow,->] ([yshift=2pt]xorabb.south) to[bend left=10] +(-2.5,-1) node[anchor=north]
        {\hand $xor(xor(a,b),b)$ equals $a$};
-  \draw<8>[arrow,->] ([yshift=-2pt]xoraba.south) to[bend right] +(+2.5,-1) node[anchor=west]
+  \draw<8>[arrow,->] ([yshift=-2pt]xoraba.south) to[bend left=10] +(-2.5,-1) node[anchor=north]
        {\hand $xor(xor(a,b),a)$ equals $b$};
 \end{tikzpicture}
 \end{frame}

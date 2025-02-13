@@ -6,8 +6,9 @@ One worker mapping the \saw{} transformation on an array.
 
 \bigskip
 
+\hspace*{.1\textwidth}
 \begin{bytefield}[bitwidth=6mm, bitheight=8mm]{4}
- \\ \bitbox[]{1}{\alt<2>{\smiley}{}}
+    \bitbox[]{1}{\alt<2>{\smiley}{}}
   & \bitbox[]{1}{\alt<3>{\smiley}{}}
   & \bitbox[]{1}{\alt<4>{\smiley}{}}
   & \bitbox[]{1}{\alt<5>{\smiley}{}}
@@ -49,6 +50,7 @@ One worker mapping the \saw{} transformation on an array.
   & \bitbox[tbr]{1}{\source}
 \end{bytefield}
 
+
 \bigskip
 \bigskip
 
@@ -62,8 +64,9 @@ Three workers mapping the \saw{} transformation on a \textbf{shared} array.
 
 \bigskip
 
+\hspace{.1\textwidth}
 \begin{bytefield}[bitwidth=6mm, bitheight=8mm]{4}
- \\ \bitbox[]{1}{\alt<2>{\smiley}{}}
+    \bitbox[]{1}{\alt<2>{\smiley}{}}
   & \bitbox[]{1}{\alt<3>{\smiley}{}}
   & \bitbox[]{1}{\alt<4>{\smiley}{}}
   & \bitbox[]{1}{\alt<5>{\smiley}{}}
@@ -88,14 +91,12 @@ Three workers mapping the \saw{} transformation on a \textbf{shared} array.
   & \bitbox[tb]{1}{\alt<1-4>{\source}{\target}}
   & \bitbox[tb]{1}{\alt<1-5>{\source}{\target}}
   & \bitbox[tb]{1}{\alt<1-6>{\source}{\target}}
-
   & \bitbox[tb]{1}{\alt<1>{\source}{\alt<8>{\beyond}{\target}}}
   & \bitbox[tb]{1}{\alt<1-2>{\source}{\target}}
   & \bitbox[tb]{1}{\alt<1-3>{\source}{\target}}
   & \bitbox[tb]{1}{\alt<1-4>{\source}{\target}}
   & \bitbox[tb]{1}{\alt<1-5>{\source}{\target}}
   & \bitbox[tb]{1}{\alt<1-6>{\source}{\target}}
-
   & \bitbox[tb]{1}{\alt<1>{\source}{\alt<8>{\beyond}{\target}}}
   & \bitbox[tb]{1}{\alt<1-2>{\source}{\target}}
   & \bitbox[tb]{1}{\alt<1-3>{\source}{\target}}
@@ -103,6 +104,8 @@ Three workers mapping the \saw{} transformation on a \textbf{shared} array.
   & \bitbox[tb]{1}{\alt<1-5>{\source}{\target}}
   & \bitbox[tbr]{1}{\alt<1-6>{\source}{\target}}
 \end{bytefield}
+
+
 
 \bigskip
 \bigskip
