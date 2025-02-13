@@ -22,11 +22,11 @@ A memory model.
 \end{center}
 
 \begin{tikzpicture}[tpstyle]
-  \draw<2->[arrow,->] ([yshift=2pt]precondition.north) to[bend right] +(-.7,+1) node[anchor=south]
+  \draw<2->[arrow,->] ([yshift=2pt]precondition.north) to[bend left] +(+.5,+2) node[anchor=south]
        {\hand Assuming that $\ell$ is a valid location};
   \draw<3->[arrow,->] ([yshift=2pt]command.north) to[bend left] +(1.6,+1) node[anchor=west]
        {\hand Assigning $0$ to $\ell$};
-  \draw<4->[arrow,->] ([yshift=-2pt]postcondition.south) to[bend left] +(-1.6,-1) node[anchor=east]
+  \draw<4->[arrow,->] ([yshift=-2pt]postcondition.south) to[bend left] +(-1.6,-2) node[anchor=east]
        {\hand Ensures that $\ell$ points to $0$};
 \end{tikzpicture}
 \end{frame}
@@ -48,15 +48,15 @@ A memory model.
 \intertext{\uncover<7->{
    \alt<7-8>
    {$\lbrace \addra \mapsto \tikz[tstyle]{\node[nstyle](xoraba){$xor(xor(a, b), a)$}}
-        \wedge \addrb a \rbrace$}
+        \wedge \addrb \mapsto a \rbrace$}
    {$\lbrace \addra \mapsto b \wedge \addrb \mapsto a \rbrace$}}}
 \end{gather*}
 
 
 \begin{tikzpicture}[tpstyle]
-  \draw<5>[arrow,->] ([yshift=-2pt]xorabb.south west) to[bend right] +(+2,-2.5) node[anchor=west]
+  \draw<5>[arrow,->] ([yshift=-2pt, xshift=-20pt]xorabb.south) to[bend right] +(+1,-2.5) node[anchor=west]
        {\hand $xor(xor(a,b),b)$ equals $a$};
-  \draw<8>[arrow,->] ([yshift=-2pt]xoraba.south east) to[bend right] +(+2.5,-1) node[anchor=west]
+  \draw<8>[arrow,->] ([yshift=-2pt]xoraba.south) to[bend right] +(+2.5,-1) node[anchor=west]
        {\hand $xor(xor(a,b),a)$ equals $b$};
 \end{tikzpicture}
 \end{frame}
