@@ -196,6 +196,16 @@ data _≤_ : Context → Context → Set where
 ≤-refl {Γ , x} = keep ≤-refl
 \end{code}
 
+\end{code}
+%<*leunder>
+\begin{code}
+≤-under : Γ ≤ Γ , A
+\end{code}
+%</leunder>
+\begin{code}
+≤-under = drop ≤-refl
+\end{code}
+
 %<*weaken>
 \begin{code}
 Weaken : (Context → Set) → Set
@@ -206,8 +216,12 @@ Weaken P = ∀ {Γ Δ} → Γ ≤ Δ → P Γ → P Δ
 
 \end{code}
 %<*weakVar>
+%<*weakVarType>
 \begin{code}
 wkVar : Weaken (Var A)
+\end{code}
+%</weakVarType>
+\begin{code}
 wkVar (drop σ)  v          = there (wkVar σ v)
 wkVar (keep σ)  here       = here
 wkVar (keep σ)  (there v)  = there (wkVar σ v)
@@ -217,8 +231,12 @@ wkVar (keep σ)  (there v)  = there (wkVar σ v)
 
 \end{code}
 %<*weakTerm>
+%<*weakTermType>
 \begin{code}
 wkTerm : Weaken (Term A)
+\end{code}
+%</weakTermType>
+\begin{code}
 wkTerm σ (`var v)    = `var (wkVar σ v)
 wkTerm σ (`app f t)  = `app (wkTerm σ f) (wkTerm σ t)
 wkTerm σ (`lam b)    = `lam (wkTerm (keep σ) b)
@@ -231,7 +249,7 @@ infixr 3 _`∘_
 %<*composition>
 \begin{code}
 _`∘_    : ∀[ Term (B `⇒ C) ⇒ Term (A `⇒ B) ⇒ Term (A `⇒ C) ]
-g `∘ f  =  let Γ≤Γ,A = drop ≤-refl in
+g `∘ f  =  let Γ≤Γ,A = ≤-under in
            `lam (`app (wkTerm Γ≤Γ,A g)
                       (`app (wkTerm Γ≤Γ,A f) (`var here)))
 \end{code}
@@ -373,7 +391,7 @@ interleaved mutual
   reflect  `α t = t
 
   reify    (A `⇒ B) T = `lam
-    let  f  = wkKripke (drop ≤-refl) T
+    let  f  = wkKripke ≤-under T
          v  = reflect A (`var here)
     in reify B (f $$ v)
   reflect  (A `⇒ B) t = λλ[ σ , V ]

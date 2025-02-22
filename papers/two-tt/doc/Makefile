@@ -10,7 +10,7 @@ AGDA_OUTPUT:=$(patsubst %.lagda,__build/%.tex,$(AGDA_FILES))
 
 AGDA=agda
 
-PAPER=pepm
+PAPER=slides-tuples-long
 
 all: $(PAPER).pdf
 
