@@ -128,6 +128,7 @@ A memory model.
        {\hand Then $R$ remains true};
 \end{tikzpicture}
 
+\vfill
 \uncover<4->{In a sense $R$ is {\bf independent} from $P$ \& $Q$}
 \end{frame}
 
@@ -136,7 +137,7 @@ A memory model.
     \uncover<2->{We have: $P = \ell \mapsto 1$ and $Q = \ell \mapsto 0$}
 
     \uncover<3->{We pick: $R = \ell \mapsto 1$}
-
+    {\huge
     $$
     \left\lbrace \begin{array}{c@{\,}l}
       & \ell \mapsto 1 \only<2->{\\
@@ -150,7 +151,7 @@ A memory model.
       & \ell \mapsto 0 \only<2->{\\
       \wedge & \only<3->{\ell \mapsto \tikz[tstyle]{\node[nstyle](node){$1$}}}}
     \end{array} \right\rbrace
-    $$
+    $$}
   \end{minipage}
 
 \begin{tikzpicture}[remember picture, overlay]
@@ -166,10 +167,14 @@ A memory model.
 \end{tikzpicture}
 
 \begin{tikzpicture}[tpstyle]
-  \node<4->[pencil,ultra thick,draw, minimum width=.75cm, minimum height=1.75cm, yshift=.4cm, ellipse] (box1) at (node) {};
+  \node<4->[pencil,ultra thick,draw, minimum width=.8cm, minimum height=1.9cm, xshift=.1cm, yshift=.5cm, ellipse] (box1) at (node) {};
   \draw<4->[arrow,->] (box1.south) to[bend left] +(-2,-1) node[anchor=east]
-       {\hand $0$ is equal to $1$?!};
+       {\hand \raisebox{-2pt}{\scream{}} $0$ is equal to $1$?!};
 
 \end{tikzpicture}
+
+\vfill
+
+\uncover<5>{Nothing actually enforces that $R$ is {\bf independent} from $P$ \& $Q$!}
 
 \end{frame}
