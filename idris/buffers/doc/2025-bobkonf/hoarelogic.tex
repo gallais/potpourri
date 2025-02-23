@@ -83,3 +83,93 @@ A memory model.
        {\hand $xor(xor(a,b),a)$ equals $b$};
 \end{tikzpicture}
 \end{frame}
+
+\begin{frame}{Combining proofs}
+{
+  \huge
+\begin{mathpar}
+ \inferrule{
+   \lbrace \tikz[tstyle]{\node[nstyle](nodeP0){$P$}} \rbrace c_1
+   \lbrace \tikz[tstyle]{\node[nstyle](nodeQ0){$Q$}} \rbrace
+ \and
+   \lbrace \tikz[tstyle]{\node[nstyle](nodeQ1){$Q$}} \rbrace c_2
+   \lbrace \tikz[tstyle]{\node[nstyle](nodeR0){$R$}} \rbrace
+ }{\lbrace \tikz[tstyle]{\node[nstyle](nodeP1){$P$}} \rbrace c_1; c_2
+   \lbrace \tikz[tstyle]{\node[nstyle](nodeR1){$R$}} \rbrace}
+\end{mathpar}
+\begin{tikzpicture}[tpstyle]
+  \node<2->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box0) at (nodeP0) {};
+  \node<2->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box1) at (nodeP1) {};
+  \node<3->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box2) at (nodeQ0) {};
+  \node<3->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box3) at (nodeQ1) {};
+  \node<4->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box4) at (nodeR0) {};
+  \node<4->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box5) at (nodeR1) {};
+\end{tikzpicture}
+}
+
+  The sequential composition rule is, ironically, anti-compositional:
+  each subprogram needs to talk about
+  the {\bf entire} world no matter what they {\bf actually} use!
+\end{frame}
+
+\begin{frame}{What we {\bf want}: lifting results}
+{\huge
+\begin{mathpar}
+ \inferrule{
+   \lbrace P \rbrace c \lbrace Q \rbrace
+ }{\lbrace \tikz[tstyle]{\node[nstyle](premise){$P \wedge R$}} \rbrace c
+   \lbrace \tikz[tstyle]{\node[nstyle](conclusion){$Q \wedge R$}} \rbrace}
+\end{mathpar}
+}
+\begin{tikzpicture}[tpstyle]
+    \draw<2->[arrow,->] ([xshift=-4pt,yshift=-2pt]premise.south east) to[bend left] +(-2.5,-1) node[anchor=east]
+       {\hand If $R$ is also true};
+  \draw<3->[arrow,->] ([xshift=-4pt,yshift=-2pt]conclusion.south east) to[bend left] +(-1,-2) node[anchor=north]
+       {\hand Then $R$ remains true};
+\end{tikzpicture}
+
+\uncover<4->{In a sense $R$ is {\bf independent} from $P$ \& $Q$}
+\end{frame}
+
+\begin{frame}{What we {\bf get}: nonsense!}
+  \begin{minipage}{.7\textwidth}
+    \uncover<2->{We have: $P = \ell \mapsto 1$ and $Q = \ell \mapsto 0$}
+
+    \uncover<3->{We pick: $R = \ell \mapsto 1$}
+
+    $$
+    \left\lbrace \begin{array}{c@{\,}l}
+      & \ell \mapsto 1 \only<2->{\\
+      \wedge & \only<3->{\ell \mapsto 1}}
+    \end{array} \right\rbrace \,
+    \begin{array}{c}
+      \ell \mathbin{:=} 0 \, \only<2->{\\
+      \\}
+    \end{array}
+    \left\lbrace \begin{array}{c@{\,}l}
+      & \ell \mapsto 0 \only<2->{\\
+      \wedge & \only<3->{\ell \mapsto \tikz[tstyle]{\node[nstyle](node){$1$}}}}
+    \end{array} \right\rbrace
+    $$
+  \end{minipage}
+
+\begin{tikzpicture}[remember picture, overlay]
+  \node[anchor=north east] at ($(current page.north east)-(.15,.15)$){
+    \begin{minipage}{.3\textwidth}\NB{
+      \large%
+              \begin{mathpar}
+                \inferrule{
+                  \lbrace P \rbrace c \lbrace Q \rbrace
+                }{\lbrace P \wedge R \rbrace c \lbrace Q \wedge R \rbrace}
+            \end{mathpar}}
+  \end{minipage}};
+\end{tikzpicture}
+
+\begin{tikzpicture}[tpstyle]
+  \node<4->[pencil,ultra thick,draw, minimum width=.75cm, minimum height=1.75cm, yshift=.4cm, ellipse] (box1) at (node) {};
+  \draw<4->[arrow,->] (box1.south) to[bend left] +(-2,-1) node[anchor=east]
+       {\hand $0$ is equal to $1$?!};
+
+\end{tikzpicture}
+
+\end{frame}
