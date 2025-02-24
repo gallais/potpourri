@@ -1,9 +1,199 @@
+\newcommand{\sepconj}{\ensuremath{\mathrel{*}}}
+
 \section{Separation logic}
 
-\begin{frame}{$(\wedge)$ is the WRONG notion of ``and''}
 
-  The separating conjunction $\mathrel{*}$ ensures that the
-  predicates it combines are talking about non-overlapping
-  parts of the memory.
+\newcommand{\centered}[1]{\begin{tabular}{l} #1 \end{tabular}}
 
+\begin{frame}{What we need: a {\bf separating} conjunction}
+
+\newcommand{\Pointssupport}{{
+  \begin{bytefield}[bitwidth=3mm, bitheight=3mm]{4}
+    \\
+    \bitbox[lt]{1}[bgcolor=white]{ }
+    \bitbox[t]{1}[bgcolor=white]{ }
+    \bitbox[t]{1}[bgcolor=white]{ }
+    \bitbox[t]{1}[bgcolor=white]{ }
+    \bitbox[rt]{1}[bgcolor=white]{ }
+    \vspace{-1.5mm}\\
+    \bitbox[l]{1}[bgcolor=white]{ }
+    \bitbox[]{1}[bgcolor=white]{ }
+    \bitbox[]{1}[bgcolor=white]{ }
+    \bitbox[]{1}[bgcolor=blue]{ }
+    \bitbox[r]{1}[bgcolor=white]{ }
+    \vspace{-1.5mm}\\
+    \bitbox[lb]{1}[bgcolor=white]{ }
+    \bitbox[b]{1}[bgcolor=white]{ }
+    \bitbox[b]{1}[bgcolor=white]{ }
+    \bitbox[b]{1}[bgcolor=white]{ }
+    \bitbox[rb]{1}[bgcolor=white]{ }
+  \end{bytefield}}}
+
+\newcommand{\Propsupport}{{
+  \begin{bytefield}[bitwidth=3mm, bitheight=3mm]{4}
+    \\
+    \bitbox[lt]{1}[bgcolor=white]{ }
+    \bitbox[t]{1}[bgcolor=white]{ }
+    \bitbox[t]{1}[bgcolor=white]{ }
+    \bitbox[t]{1}[bgcolor=white]{ }
+    \bitbox[rt]{1}[bgcolor=white]{ }
+    \vspace{-1.5mm}\\
+    \bitbox[l]{1}[bgcolor=white]{ }
+    \bitbox[]{1}[bgcolor=white]{ }
+    \bitbox[]{1}[bgcolor=white]{ }
+    \bitbox[]{1}[bgcolor=white]{ }
+    \bitbox[r]{1}[bgcolor=white]{ }
+    \vspace{-1.5mm}\\
+    \bitbox[lb]{1}[bgcolor=white]{ }
+    \bitbox[b]{1}[bgcolor=white]{ }
+    \bitbox[b]{1}[bgcolor=white]{ }
+    \bitbox[b]{1}[bgcolor=white]{ }
+    \bitbox[rb]{1}[bgcolor=white]{ }
+  \end{bytefield}}
+}
+
+\begin{center}
+\begin{tabular}{l|ll}
+    & \centered{Predicate}
+    & \centered{Support} \\\hline
+  \uncover<2->{\centered{Purely logical}
+    & \centered{$m + n = 3$}
+    & \centered{\Propsupport{}}} \\
+  \uncover<3->{\centered{Points to}
+    & \centered{$\ell \mapsto v$}
+    & \centered{\Pointssupport{}}} \\
+  \uncover<4->{\centered{Conjunction}
+    & \centered{$P \sepconj Q$}
+    & \centered{?}}
+\end{tabular}
+\end{center}
+\end{frame}
+
+\begin{frame}{What we need: a {\bf separating} conjunction}
+
+\newcommand{\Psupport}{
+\begin{bytefield}[bitwidth=3mm, bitheight=3mm]{4}
+  \bitbox[lt]{1}[bgcolor=blue]{ }
+  \bitbox[t]{1}[bgcolor=blue]{ }
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[rt]{1}[bgcolor=blue]{ }
+  \vspace{-1.5mm}\\
+  \bitbox[l]{1}[bgcolor=white]{ }
+  \bitbox[]{1}[bgcolor=white]{ }
+  \bitbox[]{1}[bgcolor=white]{ }
+  \bitbox[]{1}[bgcolor=blue]{ }
+  \bitbox[r]{1}[bgcolor=white]{ }
+  \vspace{-1.5mm}\\
+  \bitbox[lb]{1}[bgcolor=white]{ }
+  \bitbox[b]{1}[bgcolor=blue]{ }
+  \bitbox[b]{1}[bgcolor=blue]{ }
+  \bitbox[b]{1}[bgcolor=white]{ }
+  \bitbox[rb]{1}[bgcolor=white]{ }
+\end{bytefield}}
+
+\newcommand{\Qsupport}{\begin{bytefield}[bitwidth=3mm, bitheight=3mm]{4}
+  \bitbox[lt]{1}[bgcolor=white]{ }
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[rt]{1}[bgcolor=white]{ }
+  \vspace{-1.5mm}\\
+  \bitbox[l]{1}[bgcolor=carandache]{ }
+  \bitbox[]{1}[bgcolor=carandache]{ }
+  \bitbox[]{1}[bgcolor=white]{ }
+  \bitbox[]{1}[bgcolor=white]{ }
+  \bitbox[r]{1}[bgcolor=carandache]{ }
+  \vspace{-1.5mm}\\
+  \bitbox[lb]{1}[bgcolor=white]{ }
+  \bitbox[b]{1}[bgcolor=white]{ }
+  \bitbox[b]{1}[bgcolor=white]{ }
+  \bitbox[b]{1}[bgcolor=carandache]{ }
+  \bitbox[rb]{1}[bgcolor=carandache]{ }
+\end{bytefield}}
+
+\newcommand{\BadQsupport}{\begin{bytefield}[bitwidth=3mm, bitheight=3mm]{4}
+  \bitbox[lt]{1}[bgcolor=carandache]{ }
+  \bitbox[t]{1}[bgcolor=carandache]{ }
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[rt]{1}[bgcolor=white]{ }
+  \vspace{-1.5mm}\\
+  \bitbox[l]{1}[bgcolor=carandache]{ }
+  \bitbox[]{1}[bgcolor=carandache]{ }
+  \bitbox[]{1}[bgcolor=white]{ }
+  \bitbox[]{1}[bgcolor=white]{ }
+  \bitbox[r]{1}[bgcolor=carandache]{ }
+  \vspace{-1.5mm}\\
+  \bitbox[lb]{1}[bgcolor=white]{ }
+  \bitbox[b]{1}[bgcolor=white]{ }
+  \bitbox[b]{1}[bgcolor=white]{ }
+  \bitbox[b]{1}[bgcolor=carandache]{ }
+  \bitbox[rb]{1}[bgcolor=carandache]{ }
+\end{bytefield}}
+
+\newcommand{\PQsupport}{\begin{bytefield}[bitwidth=3mm, bitheight=3mm]{4}
+  \bitbox[lt]{1}[bgcolor=blue]{ }
+  \bitbox[t]{1}[bgcolor=blue]{ }
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[rt]{1}[bgcolor=blue]{ }
+  \vspace{-1.5mm}\\
+  \bitbox[l]{1}[bgcolor=carandache]{ }
+  \bitbox[]{1}[bgcolor=carandache]{ }
+  \bitbox[]{1}[bgcolor=white]{ }
+  \bitbox[]{1}[bgcolor=blue]{ }
+  \bitbox[r]{1}[bgcolor=carandache]{ }
+  \vspace{-1.5mm}\\
+  \bitbox[lb]{1}[bgcolor=white]{ }
+  \bitbox[b]{1}[bgcolor=blue]{ }
+  \bitbox[b]{1}[bgcolor=blue]{ }
+  \bitbox[b]{1}[bgcolor=carandache]{ }
+  \bitbox[rb]{1}[bgcolor=carandache]{ }
+\end{bytefield}}
+
+\begin{itemize}
+  \item Non-overlapping:
+
+\begin{center}
+\begin{minipage}{.5\textwidth}
+\tikz[tstyle]{\node[nstyle](psupport){\Psupport{}}}
+\raisebox{2mm}{\scalebox{2}{$\sepconj$}}
+\tikz[tstyle]{\node[nstyle](qsupport){\Qsupport{}}}
+\raisebox{1mm}{\scalebox{2.5}{\,=\,}}
+\uncover<4->{\tikz[tstyle]{\node[nstyle](pqsupport){\PQsupport{}}}}
+\end{minipage}
+\end{center}
+
+  \vfill
+
+  \item<5-> Overlapping
+
+\begin{center}
+\begin{minipage}{.5\textwidth}
+\tikz[tstyle]{\node[nstyle](badpsupport){\Psupport{}}}
+\raisebox{2mm}{\scalebox{2}{$\sepconj$}}
+\tikz[tstyle]{\node[nstyle](badqsupport){\BadQsupport{}}}
+\raisebox{1mm}{\scalebox{2.5}{\,=\,}}
+\uncover<7>{\tikz[tstyle]{\node[nstyle](empty){\scalebox{2.5}{$\bot$}}}}
+\end{minipage}
+\end{center}
+\end{itemize}
+
+\begin{tikzpicture}[tpstyle]
+  \draw<2-4>[arrow,->] ([yshift=2pt]psupport.north) to[bend left] +(+.5,+1) node[anchor=south]
+       {\hand If this is $P$'s support};
+  \draw<3-4>[arrow,->] ([yshift=2pt]qsupport.north) to[bend left] +(1.8,+1) node[anchor=west]
+       {\hand and this $Q$'s support};
+  \draw<4>[arrow,->] ([yshift=-2pt]pqsupport.south) to[bend left] +(-1.6,-1)
+       node[anchor=north, align=center]
+           {\hand Then $P \sepconj Q$ is defined and has this support};
+  \draw<5->[arrow,->] ([yshift=2pt]badpsupport.north) to[bend left] +(+.5,+1) node[anchor=south]
+       {\hand If this is $P$'s support};
+  \draw<6->[arrow,->] ([yshift=2pt]badqsupport.north) to[bend left] +(1.8,+1) node[anchor=west]
+       {\hand and this $Q$'s support};
+  \draw<7>[arrow,->] ([yshift=-2pt]empty.south) to[bend left] +(-1.6,-1)
+       node[anchor=north, align=center]
+           {\hand Then $P \sepconj Q$ is the absurd predicate};
+\end{tikzpicture}
 \end{frame}
