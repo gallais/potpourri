@@ -37,8 +37,10 @@
 
 \begin{frame}{Ownership Type}
 
-  $$\ell[i,j[ \mapsto [v_i,\dots,v_{j-1}]$$
-  $$\ell[i] \mapsto v_i \sepconj \dots \sepconj \ell[j-1] \mapsto v_{j-1}$$
+
+  $$\mathit{region}[\mathit{start}, \mathit{end}] \mapsto \mathit{vs}$$
+
+  \ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{owned}
 
 \end{frame}
 
