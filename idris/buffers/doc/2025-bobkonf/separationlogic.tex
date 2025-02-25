@@ -5,7 +5,15 @@
 
 \newcommand{\centered}[1]{\begin{tabular}{l} #1 \end{tabular}}
 
-\begin{frame}{What we need: a {\bf separating} conjunction}
+\begin{frame}{What we \textit{build}: a {\bf separating} conjunction}
+
+  \begin{itemize}
+    \item Make predicates support-aware
+    \item Disallow claims over overlapping memory regions
+  \end{itemize}
+
+  \vfill
+
 
 \newcommand{\Pointssupport}{{
   \begin{bytefield}[bitwidth=3mm, bitheight=3mm]{4}
@@ -69,7 +77,7 @@
 \end{center}
 \end{frame}
 
-\begin{frame}{What we need: a {\bf separating} conjunction}
+\begin{frame}{What we \textit{build}: a {\bf separating} conjunction}
 
 \newcommand{\Psupport}{
 \begin{bytefield}[bitwidth=3mm, bitheight=3mm]{4}
@@ -175,7 +183,7 @@
 \raisebox{2mm}{\scalebox{2}{$\sepconj$}}
 \tikz[tstyle]{\node[nstyle](badqsupport){\BadQsupport{}}}
 \raisebox{1mm}{\scalebox{2.5}{\,=\,}}
-\uncover<7>{\tikz[tstyle]{\node[nstyle](empty){\scalebox{2.5}{$\bot$}}}}
+\uncover<8->{\tikz[tstyle]{\node[nstyle](empty){\scalebox{2.5}{$\bot$}}}}
 \end{minipage}
 \end{center}
 \end{itemize}
@@ -188,12 +196,106 @@
   \draw<4>[arrow,->] ([yshift=-2pt]pqsupport.south) to[bend left] +(-1.6,-1)
        node[anchor=north, align=center]
            {\hand Then $P \sepconj Q$ is defined and has this support};
-  \draw<5->[arrow,->] ([yshift=2pt]badpsupport.north) to[bend left] +(+.5,+1) node[anchor=south]
+  \draw<6->[arrow,->] ([yshift=2pt]badpsupport.north) to[bend left] +(+.5,+1) node[anchor=south]
        {\hand If this is $P$'s support};
-  \draw<6->[arrow,->] ([yshift=2pt]badqsupport.north) to[bend left] +(1.8,+1) node[anchor=west]
+  \draw<7->[arrow,->] ([yshift=2pt]badqsupport.north) to[bend left] +(1.8,+1) node[anchor=west]
        {\hand and this $Q$'s support};
-  \draw<7>[arrow,->] ([yshift=-2pt]empty.south) to[bend left] +(-1.6,-1)
+  \draw<8>[arrow,->] ([yshift=-2pt]empty.south) to[bend left] +(-1.6,-1)
        node[anchor=north, align=center]
            {\hand Then $P \sepconj Q$ is the absurd predicate};
 \end{tikzpicture}
+\end{frame}
+
+
+\begin{frame}{What we \textit{obtain}: the frame rule}
+{\huge
+\begin{mathpar}
+ \inferrule{
+   \lbrace P \rbrace c \lbrace Q \rbrace
+ }{\lbrace \tikz[tstyle]{\node[nstyle](premise){$P \sepconj R$}} \rbrace c
+   \lbrace \tikz[tstyle]{\node[nstyle](conclusion){$Q \sepconj R$}} \rbrace}
+\end{mathpar}
+}
+\begin{tikzpicture}[tpstyle]
+    \draw<2->[arrow,->] ([xshift=-4pt,yshift=-2pt]premise.south east) to[bend left] +(-1.5,-1) node[anchor=north]
+       {\hand If $R$ is true and non-overlapping};
+  \draw<3->[arrow,->] ([xshift=-4pt,yshift=-2pt]conclusion.south east) to[bend left] +(-1,-2.5) node[anchor=north]
+       {\hand Then $R$ remains true and non-overlapping};
+\end{tikzpicture}
+
+\end{frame}
+
+\begin{frame}{Revisiting our footgun}
+  \begin{minipage}{.7\textwidth}
+    \uncover<2->{We have: $P = \ell \mapsto 1$ and $Q = \ell \mapsto 0$}
+
+    \uncover<3->{We pick: $R = \ell \mapsto 1$}
+
+    \bigskip
+
+    {\huge
+    $$
+    \left\lbrace \begin{array}{c@{\,}l}
+      \alt<-4>{& \ell \mapsto 1 \only<2->{\\
+          \sepconj & \only<3->{\tikz[tstyle]{\node[nstyle](node){$\ell$}} \mapsto 1}}
+      }{\bot \\ \\}
+    \end{array} \right\rbrace \,
+    \begin{array}{c}
+      \ell \mathbin{:=} 0 \, \only<2-5>{\\
+      \\}
+    \end{array}
+    \left\lbrace \begin{array}{c@{\,}l}
+      & \ell \mapsto 0 \only<2->{\\
+      \sepconj & \only<3->{\ell \mapsto 1}}
+    \end{array} \right\rbrace
+    $$}
+  \end{minipage}
+
+\begin{tikzpicture}[remember picture, overlay]
+  \node[anchor=north east] at ($(current page.north east)-(.15,.15)$){
+    \begin{minipage}{.3\textwidth}\NB{
+      \large%
+              \begin{mathpar}
+                \inferrule{
+                  \lbrace P \rbrace c \lbrace Q \rbrace
+                }{\lbrace P \sepconj R \rbrace c \lbrace Q \sepconj R \rbrace}
+            \end{mathpar}}
+  \end{minipage}};
+\end{tikzpicture}
+
+\begin{tikzpicture}[tpstyle]
+  \node<4>[pencil,ultra thick,draw, minimum width=.8cm, minimum height=1.9cm, xshift=-.1cm, yshift=.5cm, ellipse] (box1) at (node) {};
+  \draw<4>[arrow,->] (box1.south) to[bend right] +(1,-1) node[anchor=west]
+       {\hand Overlapping! $P \sepconj{} R$ equals $\bot$};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{From Points-to to Ownership}
+  {\Huge
+    $$\ell \mapsto v$$
+  }
+
+  Meaning:
+  \begin{itemize}
+    \item used to be ``$\ell$ points to $v$''
+    \item now is ``I {\bf own} $\ell$ and it points to $v$''
+  \end{itemize}
+
+  \vfill
+
+  \uncover<2->{
+  Ownership:
+  \begin{itemize}
+    \item is \tikz[tstyle]{\node[nstyle](paradox){globally}} unique
+    \item is transferrable
+    \item allows destructive updates
+  \end{itemize}}
+
+  \begin{tikzpicture}[tpstyle]
+    \draw<3>[arrow,->] ([xshift=5pt, yshift=2pt]paradox.north) to[bend left] +(1.5,+.5) node[anchor=west]
+       {\hand Somewhat paradoxically, this allows {\bf local} reasoning};
+  \end{tikzpicture}
+
+  \uncover<4>{All of this is implicitly enforced by the rules of the logic}
+
 \end{frame}

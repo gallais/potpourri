@@ -112,7 +112,7 @@ A memory model.
   the {\bf entire} world no matter what they {\bf actually} use!
 \end{frame}
 
-\begin{frame}{What we {\bf want}: lifting results}
+\begin{frame}{What we \textit{want}: lifting results}
 {\huge
 \begin{mathpar}
  \inferrule{
@@ -132,11 +132,14 @@ A memory model.
 \uncover<4->{In a sense $R$ is {\bf independent} from $P$ \& $Q$}
 \end{frame}
 
-\begin{frame}{What we {\bf get}: nonsense!}
+\begin{frame}{What we \textit{get}: nonsense!}
   \begin{minipage}{.7\textwidth}
     \uncover<2->{We have: $P = \ell \mapsto 1$ and $Q = \ell \mapsto 0$}
 
     \uncover<3->{We pick: $R = \ell \mapsto 1$}
+
+    \bigskip
+
     {\huge
     $$
     \left\lbrace \begin{array}{c@{\,}l}

@@ -2,7 +2,8 @@ BUILDDIR=__build
 DEPENDENCIES=\
   motivation.tex\
   hoarelogic.tex\
-  separationlogic.tex
+  separationlogic.tex\
+  writingprograms.tex
 
 all: slides.pdf
 

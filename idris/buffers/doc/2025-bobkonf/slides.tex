@@ -4,7 +4,6 @@
 \beamertemplatenavigationsymbolsempty
 
 
-
 \usepackage{mathpartir}
 \usepackage{bytefield}
 \usepackage{tcolorbox}
@@ -49,6 +48,12 @@
 %%     \end{frame}
 %% }
 
+\usepackage{listings}
+\lstset{language=Fortran,
+  basicstyle=\ttfamily,
+  keywordstyle=\color{red},
+}
+
 \begin{document}
 
 \begin{frame}
@@ -59,5 +64,6 @@
 \input{motivation}
 \input{hoarelogic}
 \input{separationlogic}
+\input{writingprograms}
 
 \end{document}
