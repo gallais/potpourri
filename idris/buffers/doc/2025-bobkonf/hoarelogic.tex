@@ -9,6 +9,28 @@ A logic for imperative programs.
 
 A memory model.
 
+
+Statements of the form
+\vfill
+
+{\huge
+  $$
+  \lbrace \tikz[tstyle]{\node[nstyle](precondition){$P$}} \rbrace
+  \tikz[tstyle]{\node[nstyle](command){$c$}}
+  \lbrace \tikz[tstyle]{\node[nstyle](postcondition){$Q$}} \rbrace
+  $$
+}
+
+\begin{tikzpicture}[tpstyle]
+  \draw<2->[arrow,->] ([yshift=2pt]precondition.north) to[bend left] +(-2,+1.5) node[anchor=south]
+       {\hand Assuming that initially $P$ holds};
+  \draw<3->[arrow,->] ([yshift=2pt]command.north) to[bend left] +(.,+1)
+       node[anchor=south, xshift=2cm]
+       {\hand After executing the command $c$};
+  \draw<4->[arrow,->] ([yshift=-2pt]postcondition.south) to[bend left] +(-1.6,-1) node[anchor=north]
+       {\hand We can guarantee that $Q$ will hold};
+\end{tikzpicture}
+
 \end{frame}
 
 \begin{frame}{Assignment Axiom}

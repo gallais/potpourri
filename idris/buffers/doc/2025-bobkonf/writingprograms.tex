@@ -11,3 +11,54 @@
 \end{lstlisting}
 
 \end{frame}
+
+\begin{frame}{Idris 2}
+  \begin{itemize}
+    \item Functional
+    \item Typed
+    \item First class types
+    \item Resource-aware
+    \item Compiled to ChezScheme
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}{Idea}
+  Define a Domain Specific Language internalising
+  Separation logic ideas
+
+  \begin{itemize}
+    \item Linearity (ab)used to ensure global uniqueness
+    \item Ownership proofs instead of raw pointers
+    \item Relying on erasure to distinguish specification vs. runtime
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Ownership Type}
+
+  $$\ell[i,j[ \mapsto [v_i,\dots,v_{j-1}]$$
+  $$\ell[i] \mapsto v_i \sepconj \dots \sepconj \ell[j-1] \mapsto v_{j-1}$$
+
+\end{frame}
+
+
+\begin{frame}{Read}
+\end{frame}
+
+\begin{frame}{Write}
+\end{frame}
+
+\begin{frame}{Split}
+\end{frame}
+
+\begin{frame}{Combine}
+\end{frame}
+
+
+\begin{frame}{Sequential Map}
+\end{frame}
+
+
+\begin{frame}{Parallel Map}
+\end{frame}
