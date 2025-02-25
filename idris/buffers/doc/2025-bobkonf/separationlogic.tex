@@ -235,19 +235,19 @@
 
     {\huge
     $$
-    \left\lbrace \begin{array}{c@{\,}l}
-      \alt<-4>{& \ell \mapsto 1 \only<2->{\\
-          \sepconj & \only<3->{\tikz[tstyle]{\node[nstyle](node){$\ell$}} \mapsto 1}}
-      }{\bot \\ \\}
-    \end{array} \right\rbrace \,
+    \left\lbrace \alt<-4>{\begin{array}{c@{\,}l}
+      & \ell \mapsto 1 \only<2->{\\
+          \sepconj & \only<3->{\tikz[tstyle]{\node[nstyle](lnode){$\ell$}} \mapsto 1}}
+
+    \end{array}}{\bot \\ \\} \right\rbrace \,
     \begin{array}{c}
-      \ell \mathbin{:=} 0 \, \only<2-5>{\\
+      \ell \mathbin{:=} 0 \, \only<2-4>{\\
       \\}
     \end{array}
-    \left\lbrace \begin{array}{c@{\,}l}
+    \left\lbrace \alt<-4>{\begin{array}{c@{\,}l}
       & \ell \mapsto 0 \only<2->{\\
-      \sepconj & \only<3->{\ell \mapsto 1}}
-    \end{array} \right\rbrace
+      \sepconj & \only<3->{\tikz[tstyle]{\node[nstyle](rnode){$\ell$}} \mapsto 1}}
+    \end{array}}{\bot \\ \\} \right\rbrace
     $$}
   \end{minipage}
 
@@ -264,10 +264,16 @@
 \end{tikzpicture}
 
 \begin{tikzpicture}[tpstyle]
-  \node<4>[pencil,ultra thick,draw, minimum width=.8cm, minimum height=1.9cm, xshift=-.1cm, yshift=.5cm, ellipse] (box1) at (node) {};
-  \draw<4>[arrow,->] (box1.south) to[bend right] +(1,-1) node[anchor=west]
-       {\hand Overlapping! $P \sepconj{} R$ equals $\bot$};
+  \node<4>[pencil,ultra thick,draw, minimum width=.8cm, minimum height=1.9cm, xshift=-.1cm, yshift=.5cm, ellipse] (box1) at (lnode) {};
+  \node<4>[pencil,ultra thick,draw, minimum width=.8cm, minimum height=1.9cm, xshift=-.1cm, yshift=.5cm, ellipse] (box2) at (rnode) {};
+  \node<4>[pencil] (speech) at ($(lnode) +(3,-2)$)
+          {\hand Overlapping! $P \sepconj{} R$ and $Q \sepconj{} R$ both equal $\bot$};
+  \draw<4>[arrow,->] (box1.south) to[bend right] ([xshift=-1.5cm]speech.north);
+  \draw<4>[arrow,->] (box2.south) to[bend left] ([xshift=1.5cm]speech.north);
+
 \end{tikzpicture}
+
+\uncover<6>{\raisebox{-2pt}{\smiley{}} Garbage in; garbage out}
 \end{frame}
 
 \begin{frame}{From Points-to to Ownership}
