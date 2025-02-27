@@ -44,21 +44,82 @@
 
 \end{frame}
 
+\newcommand{\listappend}{\mathop{+\!\!\!+}}
 
 \begin{frame}{Read}
+  $$\left\lbrace
+    \uncover<2->{\begin{array}{cl}
+      & \mathit{region}[\mathit{start}, \mathit{end}] \mapsto \mathit{vs}\\
+      \uncover<3->{\sepconj & 0 \le \mathit{idx} < | \mathit{vs} |}
+    \end{array}}
+    \right\rbrace$$
+  $$v = \mathtt{getBits8}(\mathit{idx});$$
+  $$\left\lbrace
+    \uncover<4->{\begin{array}{cl}
+      & \mathit{region}[\mathit{start}, \mathit{end}] \mapsto \mathit{vs}\\
+      \sepconj & v = \mathit{vs}[\mathit{idx}]
+    \end{array}}
+    \right\rbrace$$
+
+  \uncover<5->{\ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{read}}
 \end{frame}
 
 \begin{frame}{Write}
+  $$\left\lbrace
+    \uncover<2->{\begin{array}{cl}
+      & \mathit{region}[\mathit{start}, \mathit{end}] \mapsto \mathit{vs}\\
+      \uncover<3->{\sepconj & 0 \le \mathit{idx} < | \mathit{vs} |}
+    \end{array}}
+    \right\rbrace$$
+  $$\mathtt{setBits8}(\mathit{idx}, \mathit{val});$$
+  $$\left\lbrace
+    \uncover<4->{\begin{array}{cl}
+      & \mathit{region}[\mathit{start}, \mathit{end}] \mapsto \mathit{vs}[\mathit{idx} := \mathit{val}]\\
+    \end{array}}
+    \right\rbrace$$
+
+  \uncover<5->{\ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{write}}
 \end{frame}
 
 \begin{frame}{Split}
+  $$\left\lbrace
+    \uncover<2->{\begin{array}{cl}
+      & \mathit{region}[\mathit{start}, \mathit{end}] \mapsto \mathit{vs} \listappend{} \mathit{ws}\\
+      \uncover<3->{\sepconj & | \mathit{vs} | = \mathit{m}}
+    \end{array}}
+    \right\rbrace$$
+  $$\mathtt{splitAt}(\mathit{m});$$
+  $$\left\lbrace
+    \uncover<4->{\begin{array}{cl}
+        & \mathit{region}[\mathit{start}, \mathit{start} + \mathit{m}] \mapsto \mathit{vs}\\
+        \sepconj & \mathit{region}[\mathit{start} + \mathit{m}, \mathit{end}] \mapsto \mathit{ws}
+    \end{array}}
+    \right\rbrace$$
+
+    \uncover<5->{\ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{split}}
 \end{frame}
 
 \begin{frame}{Combine}
+  $$\left\lbrace
+    \uncover<2->{\begin{array}{cl}
+      & \mathit{region}[\mathit{start}, \mathit{middle}] \mapsto \mathit{vs}\\
+      \sepconj & \uncover<3->{\mathit{region}[\mathit{middle}, \mathit{end}] \mapsto \mathit{ws}}
+    \end{array}}
+    \right\rbrace$$
+  $$\mathtt{combine}();$$
+  $$\left\lbrace
+    \uncover<4->{\begin{array}{cl}
+      & \mathit{region}[\mathit{start}, \mathit{end}] \mapsto \mathit{vs} \mathop{+\!\!\!+} \mathit{ws}
+    \end{array}}
+    \right\rbrace$$
+
+    \uncover<5->{\ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{combine}}
 \end{frame}
 
 
 \begin{frame}{Sequential Map}
+  \ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{mapType}
+  \ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{loop}
 \end{frame}
 
 

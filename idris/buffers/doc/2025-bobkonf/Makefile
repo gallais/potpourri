@@ -1,7 +1,5 @@
 BUILDDIR=__build
 
-.PRECIOUS: $(BUILDDIR)/%.idr.tex
-
 LATEX_DEPENDENCIES=\
   motivation.tex\
   hoarelogic.tex\
@@ -17,11 +15,9 @@ DEPENDENCIES=\
 
 all: slides.pdf
 
-../build/ttc/*/%.ttm ../build/ttc/*/%.ttc: ../%.tex
-	cd ..; idris2 -p linear -c $*.tex
-
-__build/%.idr.tex: ../%.tex ../build/ttc/*/%.ttm ../build/ttc/*/%.ttc
+$(BUILDDIR)/%.idr.tex: ../%.tex
 	mkdir -p $(dir $@)
+	cd ..; idris2 -p linear -c $*.tex
 	katla literate ../$*.tex ../build/ttc/*/$*.ttm > $@
 	perl -0777 -i -pe 's/\\Katlanewline{}\n\\end{code}/\n\\end{code}/igs' $@
 	sed -i 's/{code}/{IDRIScode}/g' $@
