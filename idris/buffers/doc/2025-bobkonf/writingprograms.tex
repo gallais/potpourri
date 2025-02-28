@@ -1,5 +1,7 @@
 \section{Correct by Construction}
 
+\newcommand{\mathidris}[1]{{\bf{\mathtt{#1}}}}
+
 \begin{frame}[fragile]{Workflow: Write, Test, Fix loop}
 
 \begin{lstlisting}{Fortran}
@@ -53,7 +55,7 @@
       \uncover<3->{\sepconj & 0 \le \mathit{idx} < | \mathit{vs} |}
     \end{array}}
     \right\rbrace$$
-  $$v = \mathtt{getBits8}(\mathit{idx});$$
+  $$v = \mathidris{getBits8}(\mathit{idx});$$
   $$\left\lbrace
     \uncover<4->{\begin{array}{cl}
       & \mathit{region}[\mathit{start}, \mathit{end}] \mapsto \mathit{vs}\\
@@ -71,7 +73,7 @@
       \uncover<3->{\sepconj & 0 \le \mathit{idx} < | \mathit{vs} |}
     \end{array}}
     \right\rbrace$$
-  $$\mathtt{setBits8}(\mathit{idx}, \mathit{val});$$
+  $$\mathidris{setBits8}(\mathit{idx}, \mathit{val});$$
   $$\left\lbrace
     \uncover<4->{\begin{array}{cl}
       & \mathit{region}[\mathit{start}, \mathit{end}] \mapsto \mathit{vs}[\mathit{idx} := \mathit{val}]\\
@@ -88,7 +90,7 @@
       \uncover<3->{\sepconj & | \mathit{vs} | = \mathit{m}}
     \end{array}}
     \right\rbrace$$
-  $$\mathtt{splitAt}(\mathit{m});$$
+  $$\mathidris{splitAt}(\mathit{m});$$
   $$\left\lbrace
     \uncover<4->{\begin{array}{cl}
         & \mathit{region}[\mathit{start}, \mathit{start} + \mathit{m}] \mapsto \mathit{vs}\\
@@ -103,25 +105,91 @@
   $$\left\lbrace
     \uncover<2->{\begin{array}{cl}
       & \mathit{region}[\mathit{start}, \mathit{middle}] \mapsto \mathit{vs}\\
-      \sepconj & \uncover<3->{\mathit{region}[\mathit{middle}, \mathit{end}] \mapsto \mathit{ws}}
+      \sepconj & \mathit{region}[\mathit{middle}, \mathit{end}] \mapsto \mathit{ws}
     \end{array}}
     \right\rbrace$$
-  $$\mathtt{combine}();$$
+  $$\mathidris{combine}();$$
   $$\left\lbrace
-    \uncover<4->{\begin{array}{cl}
+    \uncover<3->{\begin{array}{cl}
       & \mathit{region}[\mathit{start}, \mathit{end}] \mapsto \mathit{vs} \mathop{+\!\!\!+} \mathit{ws}
     \end{array}}
     \right\rbrace$$
 
-    \uncover<5->{\ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{combine}}
+    \uncover<4->{\ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{combine}}
 \end{frame}
 
 
-\begin{frame}{Sequential Map}
+\begin{frame}{Map Type}
   \ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{mapType}
-  \ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{loop}
 \end{frame}
 
+\begin{frame}{Sequential Map - Loop Type}
+\hspace*{.1\textwidth}
+\begin{bytefield}[bitwidth=6mm, bitheight=8mm]{4}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{\smiley}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+    \bitbox[]{1}{}
+
+ \\ \bitbox[tbl]{1}{\tikz[tstyle]{\node[nstyle](target){\target}}}
+    \bitbox[tb]{1}{\target}
+    \bitbox[tb]{1}{\target}
+    \bitbox[tb]{1}{\target}
+    \bitbox[tb]{1}{\target}
+    \bitbox[tb]{1}{\target}
+    \bitbox[tb]{1}{\tikz[tstyle]{\node[nstyle](source){\source}}}
+    \bitbox[tb]{1}{\source}
+    \bitbox[tb]{1}{\source}
+    \bitbox[tb]{1}{\source}
+    \bitbox[tb]{1}{\source}
+    \bitbox[tb]{1}{\source}
+    \bitbox[tb]{1}{\source}
+    \bitbox[tb]{1}{\source}
+    \bitbox[tb]{1}{\source}
+    \bitbox[tb]{1}{\source}
+    \bitbox[tb]{1}{\source}
+    \bitbox[tbr]{1}{\source}
+\end{bytefield}
+
+\vfill
+
+\uncover<2->{
+  \tikz[tstyle]{\node[nstyle](codepos){}}
+  \ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{loopty}
+}
+
+\begin{tikzpicture}[tpstyle]
+  \node<3>[pencil,ultra thick,draw, minimum width=3.75cm, xshift=1.5cm, minimum height=.8cm, ellipse] (boxtarget) at (target) {};
+  \node<4>[pencil,ultra thick,draw, minimum width=7.25cm, xshift=3.4cm, minimum height=.8cm, ellipse] (boxsource) at (source) {};
+  \node<3>[pencil,ultra thick,draw, minimum width=3.5cm, xshift=8.5cm, yshift=-.65cm, minimum height=.8cm, ellipse] (codeboxtarget) at (codepos) {};
+  \node<4>[pencil,ultra thick,draw, minimum width=1.55cm, xshift=11.9cm, yshift=-.65cm, minimum height=.8cm, ellipse] (codeboxsource) at (codepos) {};
+\end{tikzpicture}
+
+\end{frame}
 
 \begin{frame}{Parallel Map}
+
+{
+    \uncover<2->{\ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{halve}}
+    \uncover<3->{\ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{par1}}
+    \uncover<4->{\ExecuteMetaData[Data/Buffer/Indexed.idr.tex]{parmaprec}}
+}
+
 \end{frame}

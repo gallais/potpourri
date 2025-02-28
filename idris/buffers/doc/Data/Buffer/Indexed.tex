@@ -290,17 +290,17 @@ namespace ReadWrite
 
   %hide B.setBits8
 
-0 Map : (Type -> Type) -> Type
-Map io =
+0
 \end{code}
 %<*mapType>
 \begin{code}
-  forall region.
-  {start, end : Nat} ->
-  {0 vs : List Bits8} ->
-  (f : Bits8 -> Bits8) ->
-  Owned region start end vs -@
-  L1 io (Owned region start end (map f vs))
+Map : (Type -> Type) -> Type
+Map io =
+  forall region. {start, end : Nat} ->
+  {0 trees : List Bits8} ->
+  (saw : Bits8 -> Bits8) ->
+  (1 _ : Owned region start end          trees) ->
+  L1 io (Owned region start end (map saw trees))
 \end{code}
 %</mapType>
 \begin{code}
@@ -363,32 +363,32 @@ indexChips (S hl) eq bndsL bndsR
 
 export
 map : LinearIO io => Map io
-map f (MkOwned region eq)
+map saw (MkOwned region eq)
   = let buf = MkOwned region eq in loop Z (view _ (hasLength buf)) buf where
 
   loop :
-    {idx : Nat} -> {0 acc : SnocList Bits8} -> (0 _ : HasLength idx acc) ->
-    {0 m : Nat} -> {0 rest : List Bits8} -> {0 hl : HasLength m rest} ->
-    View rest m hl ->
+    {  done : Nat} -> (0 _ : HasLength done treesL) ->
+    {0 todo : Nat} -> {0 p : HasLength todo treesR} ->
+    View treesR todo p ->
 \end{code}
-%<*loop>
+%<*loopty>
 \begin{code}
-    (1 _ : Owned region start end ((map f acc) <>> rest)) ->
-    L1 io (Owned region start end (map f (acc <>> rest)))
+    (1 _ : Owned region start end ((map saw treesL) <>> treesR)) ->
+    L1 io (Owned region start end (map saw (treesL <>> treesR)))
 \end{code}
-%</loop>
+%</loopty>
 \begin{code}
   loop hl Z buf
-    = pure1 $ reindex (sym $ mapChips f acc []) buf
+    = pure1 $ reindex (sym $ mapChips saw treesL []) buf
   loop hl (S {x = v} rsize hlrest) buf
     = do let 0 bnds :=
-               rewrite sym $ plusZeroRightNeutral idx in
-               mkIndexChips (map f hl) InFirst
-         buf # val <- getBits8 buf idx bnds
-         let 0 fhl := map f hl
-         let 0 eq : idx === idx + 0 := sym $ plusZeroRightNeutral idx
+               rewrite sym $ plusZeroRightNeutral done in
+               mkIndexChips (map saw hl) InFirst
+         buf # val <- getBits8 buf done bnds
+         let 0 fhl := map saw hl
+         let 0 eq : done === done + 0 := sym $ plusZeroRightNeutral done
          let Val v = the (Singleton v) $ reindex (indexChips fhl eq bnds InFirst) val
-         buf <- setBits8 buf idx bnds (f v)
+         buf <- setBits8 buf done bnds (saw v)
          let 1 buf = reindex (replaceAtChips fhl eq bnds InFirst) buf
          loop (S hl) (view rsize hlrest) buf
 
@@ -638,20 +638,58 @@ takeHasLength :
 takeHasLength {m = 0} hl = Z
 takeHasLength {m = S m} (S hl) = S (takeHasLength hl)
 
+\end{code}
+%<*halve>
+\begin{code}
+halve :
+  {start, end : Nat} ->
+  (1 _ : Owned region start end trees) ->
+  Res Nat (\ m =>
+  LPair (Owned region start       (start + m) (take m trees))
+        (Owned region (start + m) end         (drop m trees)))
+\end{code}
+%</halve>
+\begin{code}
+halve buf = do
+  let 1 res = length buf
+  let Element n hl # buf = res
+  let (m ** p ** Refl) = div2 n
+  let 1 buf = reindex (sym $ takeDropSplit m trees) buf
+  m # splitAt (takeHasLength hl) buf
+
+mapTakeDrop :
+  (f : a -> b) -> (m : Nat) -> (trees : List a) ->
+  map f (take m trees) ++ map f (drop m trees) === map f trees
+mapTakeDrop f m trees =
+  trans
+    (cong2 (++) (mapTake f m trees) (mapDrop f m trees))
+    (takeDropSplit m (map f trees))
+
+namespace DISPLAYONLY
+
+\end{code}
+%<*par1>
+\begin{code}
+  par1 : L1 IO a -@ L1 IO b -@ L1 IO (LPair a b)
+\end{code}
+%</par1>
+\begin{code}
+  par1 = Linear.par1
+
+%hide DISPLAYONLY.par1
+
+\end{code}
+%<*parmaprec>
+\begin{code}
 parMapRec : Map IO -> Map IO
-parMapRec subMap f buf
-   = do let 1 res = length buf
-        let Element n hl # buf = res
-        let (m ** p ** Refl) = div2 n
-        let 1 buf = reindex (sym $ takeDropSplit m vs) buf
-        let 1 buf = splitAt (takeHasLength hl) buf
-        let lbuf # rbuf = buf
-        bufs <- par1 (subMap f lbuf) (subMap f rbuf)
-        let lbuf # rbuf = bufs
+parMapRec subMap saw buf
+   = do let (m # lbuf # rbuf) = halve buf
+        (lbuf # rbuf) <- par1 (subMap saw lbuf) (subMap saw rbuf)
         let 1 buf = lbuf ++ rbuf
-        let 0 eq : map f (take m vs) ++ map f (drop m vs) === map f vs
-          := trans (cong2 (++) (mapTake f m vs) (mapDrop f m vs)) (takeDropSplit m (map f vs))
-        pure1 (reindex eq buf)
+        pure1 (reindex (mapTakeDrop saw m trees) buf)
+\end{code}
+%</parmaprec>
+\begin{code}
 
 parFoldMapRec : FoldMap IO m -> FoldMap IO m
 parFoldMapRec subFoldMap f buf

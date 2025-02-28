@@ -596,20 +596,33 @@ takeHasLength :
 takeHasLength {m = 0} hl = Z
 takeHasLength {m = S m} (S hl) = S (takeHasLength hl)
 
+halve :
+  {start, end : Nat} ->
+  (1 _ : Owned region start end vs) ->
+  Res Nat (\ m =>
+  LPair (Owned region start       (start + m) (take m vs))
+        (Owned region (start + m) end         (drop m vs)))
+halve buf = do
+  let 1 res = length buf
+  let Element n hl # buf = res
+  let (m ** p ** Refl) = div2 n
+  let 1 buf = reindex (sym $ takeDropSplit m vs) buf
+  m # splitAt (takeHasLength hl) buf
+
+mapTakeDrop :
+  (f : a -> b) -> (m : Nat) -> (vs : List a) ->
+  map f (take m vs) ++ map f (drop m vs) === map f vs
+mapTakeDrop f m vs =
+  trans
+    (cong2 (++) (mapTake f m vs) (mapDrop f m vs))
+    (takeDropSplit m (map f vs))
+
 parMapRec : Map IO -> Map IO
-parMapRec subMap f buf
-   = do let 1 res = length buf
-        let Element n hl # buf = res
-        let (m ** p ** Refl) = div2 n
-        let 1 buf = reindex (sym $ takeDropSplit m vs) buf
-        let 1 buf = splitAt (takeHasLength hl) buf
-        let lbuf # rbuf = buf
-        bufs <- par1 (subMap f lbuf) (subMap f rbuf)
-        let lbuf # rbuf = bufs
+parMapRec subMap saw buf
+   = do let (m # lbuf # rbuf) = halve buf
+        (lbuf # rbuf) <- par1 (subMap saw lbuf) (subMap saw rbuf)
         let 1 buf = lbuf ++ rbuf
-        let 0 eq : map f (take m vs) ++ map f (drop m vs) === map f vs
-          := trans (cong2 (++) (mapTake f m vs) (mapDrop f m vs)) (takeDropSplit m (map f vs))
-        pure1 (reindex eq buf)
+        pure1 (reindex (mapTakeDrop saw m vs) buf)
 
 parFoldMapRec : FoldMap IO m -> FoldMap IO m
 parFoldMapRec subFoldMap f buf
