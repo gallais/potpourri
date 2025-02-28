@@ -38,8 +38,9 @@ simplify f = fgo module Simplify where
   go _ (`add m n) = `add (fgo _ m) (fgo _ n)
   go _ (`mul m n) = `mul (fgo _ m) (fgo _ n)
 
-Correct : Rule → Set
-Correct r = ∀ ty (e : Expr ty) → ⟦ r ty e ⟧ ≡ ⟦ e ⟧
+record Correct (r : Rule) : Set where
+  field runCorrect : ∀ {ty} (e : Expr ty) → ⟦ r ty e ⟧ ≡ ⟦ e ⟧
+open Correct
 
 simplifyᶜ : (r : Rule) → Correct r → Correct (simplify r)
 simplifyᶜ r rᶜ = fgoᶜ where
@@ -49,15 +50,15 @@ simplifyᶜ r rᶜ = fgoᶜ where
 
   open ≡-Reasoning
 
-  fgoᶜ _ t = begin
+  fgoᶜ .runCorrect t = begin
     ⟦ Simplify.fgo r _ t ⟧      ≡⟨⟩
-    ⟦ r _ (Simplify.go r _ t) ⟧ ≡⟨ rᶜ _ (Simplify.go r _ t) ⟩
-    ⟦ Simplify.go r _ t ⟧       ≡⟨ goᶜ _ t ⟩
+    ⟦ r _ (Simplify.go r _ t) ⟧ ≡⟨ rᶜ .runCorrect (Simplify.go r _ t) ⟩
+    ⟦ Simplify.go r _ t ⟧       ≡⟨ goᶜ .runCorrect t ⟩
     ⟦ t ⟧ ∎
 
-  goᶜ _ (`lit t)   = refl
-  goᶜ _ (`add m n) = cong₂ _+_ (fgoᶜ _ m) (fgoᶜ _ n)
-  goᶜ _ (`mul m n) = cong₂ _*_ (fgoᶜ _ m) (fgoᶜ _ n)
+  goᶜ .runCorrect (`lit t)   = refl
+  goᶜ .runCorrect (`add m n) = cong₂ _+_ (fgoᶜ .runCorrect m) (fgoᶜ .runCorrect n)
+  goᶜ .runCorrect (`mul m n) = cong₂ _*_ (fgoᶜ .runCorrect m) (fgoᶜ .runCorrect n)
 
 infixr 0 _and_
 
@@ -68,9 +69,39 @@ f and g = λ _ t → f _ (g _ t)
 0+ _ (`add (`lit 0) n) = n
 0+ _ t = t
 
+
+0+ᶜ : Correct 0+
+0+ᶜ .runCorrect (`lit l) = refl
+0+ᶜ .runCorrect (`add (`lit zero) n) = refl
+0+ᶜ .runCorrect (`add (`lit (suc l)) n) = refl
+0+ᶜ .runCorrect (`add (`add m n) p) = refl
+0+ᶜ .runCorrect (`add (`mul m n) p) = refl
+0+ᶜ .runCorrect (`mul m n) = refl
+
 0* : Rule
 0* _ (`mul (`lit 0) n) = `lit 0
 0* _ t = t
 
-_ : ∀ {a b} → simplify (0* and 0+) _ (`add (`mul (`lit 0) (`lit a)) (`lit b)) ≡ (`lit b)
+0*ᶜ : Correct 0*
+0*ᶜ .runCorrect (`lit l) = refl
+0*ᶜ .runCorrect (`add m n) = refl
+0*ᶜ .runCorrect (`mul (`lit 0) n) = refl
+0*ᶜ .runCorrect (`mul (`lit (suc _)) n) = refl
+0*ᶜ .runCorrect (`mul (`add m n) p) = refl
+0*ᶜ .runCorrect (`mul (`mul m n) p) = refl
+
+_andᶜ_ : ∀ {f g} → Correct f → Correct g → Correct (f and g)
+_andᶜ_ {f} {g} fᶜ gᶜ .runCorrect e = let open ≡-Reasoning in begin
+  ⟦ (f and g) _ e ⟧ ≡⟨⟩
+  ⟦ f _ (g _ e) ⟧  ≡⟨ fᶜ .runCorrect (g _ e) ⟩
+  ⟦ g _ e ⟧         ≡⟨ gᶜ .runCorrect e ⟩
+  ⟦ e ⟧              ∎
+
+cleanup : Rule
+cleanup = simplify (0* and 0+)
+
+cleanupᶜ : Correct cleanup
+cleanupᶜ = simplifyᶜ (0* and 0+) (0*ᶜ andᶜ 0+ᶜ)
+
+_ : ∀ {a b} → cleanup _ (`add (`mul (`lit 0) (`lit a)) (`lit b)) ≡ (`lit b)
 _ = refl
