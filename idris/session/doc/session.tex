@@ -22,15 +22,17 @@
 % \usepackage{rotating}
 % \usepackage{pdflscape}
 
-% Some of our commands for this guide.
-%
-\newcommand{\easychair}{\textsf{easychair}}
-\newcommand{\miktex}{MiK{\TeX}}
-\newcommand{\texniccenter}{{\TeX}nicCenter}
-\newcommand{\makefile}{\texttt{Makefile}}
-\newcommand{\latexeditor}{LEd}
+\usepackage{amsfonts}
 
-%\makeindex
+\usepackage{tikz}
+\usetikzlibrary{automata, positioning, arrows}
+\tikzset{
+  ->, % makes the edges directed
+  >=stealth', % makes the arrow heads bold
+  node distance=2cm, % specifies the minimum distance between two nodes. Change if necessary.
+  every state/.style={thick, fill=gray!10}, % sets the properties for each ’state’ node
+  initial text=$ $, % sets the text that appears on the start arrow
+}
 
 %% Front Matter
 %%
@@ -67,9 +69,12 @@
 \maketitle
 
 %------------------------------------------------------------------------------
+\subsubsection*{Introduction}
 
-Session types are a channel typing discipline ensuring that the communication
-patterns of concurrent programs abide by a shared protocol.
+Session types are a kind of channel typing discipline ensuring that the
+communication patterns of concurrent programs abide by a shared protocol.
+%
+From t
 
 Limiting ourselves to two communicating parties, we demonstrate how to give a
 type-safe implementation of bidirectional channels typed using protocols closed
@@ -82,16 +87,36 @@ under sends, receives, branching, and smallest and largest fixpoints.
 
 \[
 p,~ q,~ \dots
-  \quad ::= \quad \send{A}{p}
-  \quad | \quad \recv{A}{p}
-  \quad | \quad \mathtt{end}
-  \quad | \quad \offer{p}{q}
-  \quad | \quad \select{p}{q}
+  \; ::= \; x
+  \; | \; \mu x.~p
+  \; | \; \nu x.~p
+  \; | \; \send{A}{p}
+  \; | \; \recv{A}{p}
+  \; | \; \mathtt{end}
+  \; | \; \offer{p}{q}
+  \; | \; \select{p}{q}
 \]
 
-%------------------------------------------------------------------------------
+$
+\mu \mathit{x}.~
+  (\offer{(\send{\mathbb{N}}{\mathit{x}})}{(\recv{\mathbb{N}}{\mathtt{end}})})
+$
 
-\paragraph{Implementation}
+\begin{tikzpicture}
+  \node[state, initial]                  (q1)  {ready};
+  \node[state, below of=q1]              (q2l) {addee};
+  \node[state, right of=q1]              (q2r) {value};
+  \node[state, accepting, right of=q2r]  (q3)  {end};
+  \draw
+   (q1) edge[bend left, right] node{more} (q2l)
+   (q1) edge[above]             node{eval} (q2r)
+  (q2l) edge[bend left, left]   node{send} (q1)
+  (q2r) edge[above]             node{recv} (q3);
+\end{tikzpicture}
+
+%------------------------------------------------------------------------------
+\subsubsection*{Implementation}
+
 Our implementation is based on a type safe realisation of
 Kiselyov and Sabry's open union type~\cite{DBLP:conf/haskell/KiselyovSS13}
 using the encoding of scope-safe
@@ -106,19 +131,39 @@ state machine describing the protocol, we do not bother recording
 loops.
 
 %------------------------------------------------------------------------------
+\subsubsection*{Limitations and Future Work}
 
-\paragraph{Current Limitations}
-
+\paragraph{Encoding Uniqueness via Linear Types}
 Unlike Brady's prior work in Idris 1~\cite{DBLP:journals/aghcs/Brady17},
 we are using Idris 2 which does not currently have uniqueness types.
 We are forced to use the linearity granted to us by
-Quantitative Type Theory~\cite{DBLP:conf/birthday/McBride16,DBLP:conf/lics/Atkey18}
+Quantitative Type Theory (QTT)~\cite{DBLP:conf/birthday/McBride16,DBLP:conf/lics/Atkey18}
 to emulate uniquess which adds a degree of noise to the implementation.
 We would ideally want a system combining both to benefit from enhanced
 expressivity and efficiency as described by Marshall, Vollmer,
 and Orchard~\cite{DBLP:conf/esop/MarshallVO22}.
 
-In this work do not consider multi-party session types
+\paragraph{Small Runtime Overhead}
+In the most expressive version of our library, we compute a handful
+of key offset values by induction over the protocol. Correspondingly
+the protocol is not marked as erased anymore and, if compilation does
+not specialise the relevant combinators agressively, then we may very
+well be evaluating these relatively small computations at runtime.
+%
+As far as we understand, directly adding typed staging to Idris 2
+through the use of a two-level type theory à la
+Kov{\'{a}}cs~\cite{DBLP:journals/pacmpl/Kovacs22} would not be
+enough to solve our issue: the protocol does need to persist
+through staging, but merely move from QTT's unrestricted to its
+erased modality.
+
+\paragraph{Ergonomics}
+We found writing the types of inner loops of programs with non-trivial
+communication patterns to be tedious as they expose quite a lot of the
+powerful but noisy encoding of syntaxes with binding we use.
+
+
+
 
 %------------------------------------------------------------------------------
 %% BIBLIOGRAPHY
