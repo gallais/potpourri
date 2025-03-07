@@ -1,0 +1,132 @@
+% easychair.tex,v 3.5 2017/03/15
+
+\documentclass{easychair}
+%\documentclass[EPiC]{easychair}
+%\documentclass[EPiCempty]{easychair}
+%\documentclass[debug]{easychair}
+%\documentclass[verbose]{easychair}
+%\documentclass[notimes]{easychair}
+%\documentclass[withtimes]{easychair}
+%\documentclass[a4paper]{easychair}
+%\documentclass[letterpaper]{easychair}
+
+\usepackage{doc}
+
+% use this if you have a long article and want to create an index
+% \usepackage{makeidx}
+
+% In order to save space or manage large tables or figures in a
+% landcape-like text, you can use the rotating and pdflscape
+% packages. Uncomment the desired from the below.
+%
+% \usepackage{rotating}
+% \usepackage{pdflscape}
+
+% Some of our commands for this guide.
+%
+\newcommand{\easychair}{\textsf{easychair}}
+\newcommand{\miktex}{MiK{\TeX}}
+\newcommand{\texniccenter}{{\TeX}nicCenter}
+\newcommand{\makefile}{\texttt{Makefile}}
+\newcommand{\latexeditor}{LEd}
+
+%\makeindex
+
+%% Front Matter
+%%
+% Regular title as in the article class.
+%
+\title{Type-safe Bidirectional Channels in Idris 2}
+
+% Authors are joined by \and. Their affiliations are given by \inst, which indexes
+% into the list defined using \institute
+%
+\author{Guillaume Allais\inst{1}}
+
+% Institutes for affiliations are also joined by \and,
+\institute{
+  University of Strathclyde,
+  Glasgow, Scotland, United Kingdom\\
+  \email{guillaume.allais@strath.ac.uk}}
+
+%  \authorrunning{} has to be set for the shorter version of the authors' names;
+% otherwise a warning will be rendered in the running heads. When processed by
+% EasyChair, this command is mandatory: a document without \authorrunning
+% will be rejected by EasyChair
+
+\authorrunning{Guillaume Allais}
+
+% \titlerunning{} has to be set to either the main title or its shorter
+% version for the running heads. When processed by
+% EasyChair, this command is mandatory: a document without \titlerunning
+% will be rejected by EasyChair
+\titlerunning{Type-safe Bidirectional Channels in Idris 2}
+
+\begin{document}
+
+\maketitle
+
+%------------------------------------------------------------------------------
+
+Session types are a channel typing discipline ensuring that the communication
+patterns of concurrent programs abide by a shared protocol.
+
+Limiting ourselves to two communicating parties, we demonstrate how to give a
+type-safe implementation of bidirectional channels typed using protocols closed
+under sends, receives, branching, and smallest and largest fixpoints.
+
+\newcommand{\send}[2]{!#1.~#2}
+\newcommand{\recv}[2]{?#1.~#2}
+\newcommand{\select}[2]{#1 \mathop{\oplus} #2}
+\newcommand{\offer}[2]{#1 \mathop{\&} #2}
+
+\[
+p,~ q,~ \dots
+  \quad ::= \quad \send{A}{p}
+  \quad | \quad \recv{A}{p}
+  \quad | \quad \mathtt{end}
+  \quad | \quad \offer{p}{q}
+  \quad | \quad \select{p}{q}
+\]
+
+%------------------------------------------------------------------------------
+
+\paragraph{Implementation}
+Our implementation is based on a type safe realisation of
+Kiselyov and Sabry's open union type~\cite{DBLP:conf/haskell/KiselyovSS13}
+using the encoding of scope-safe
+De Bruijn indices~\cite{MANUAL:journals/math/debruijn72}
+introduced by Brady in the implementation of
+Idris 2~\cite{DBLP:conf/ecoop/Brady21}.
+
+Our offset correctness gadget can be seen as a cut down version of
+McBride's one hole contexts~\cite{DBLP:conf/popl/McBride08}. Instead
+of recording the full path followed by our programs in the finite
+state machine describing the protocol, we do not bother recording
+loops.
+
+%------------------------------------------------------------------------------
+
+\paragraph{Current Limitations}
+
+Unlike Brady's prior work in Idris 1~\cite{DBLP:journals/aghcs/Brady17},
+we are using Idris 2 which does not currently have uniqueness types.
+We are forced to use the linearity granted to us by
+Quantitative Type Theory~\cite{DBLP:conf/birthday/McBride16,DBLP:conf/lics/Atkey18}
+to emulate uniquess which adds a degree of noise to the implementation.
+We would ideally want a system combining both to benefit from enhanced
+expressivity and efficiency as described by Marshall, Vollmer,
+and Orchard~\cite{DBLP:conf/esop/MarshallVO22}.
+
+In this work do not consider multi-party session types
+
+%------------------------------------------------------------------------------
+%% BIBLIOGRAPHY
+
+\bibliographystyle{plain}
+%\bibliographystyle{alpha}
+%\bibliographystyle{unsrt}
+%\bibliographystyle{abbrv}
+\bibliography{session}
+
+\end{document}
