@@ -11,6 +11,7 @@
 %\documentclass[letterpaper]{easychair}
 
 \usepackage{doc}
+\usepackage{wrapfig}
 
 % use this if you have a long article and want to create an index
 % \usepackage{makeidx}
@@ -29,7 +30,7 @@
 \tikzset{
   ->, % makes the edges directed
   >=stealth', % makes the arrow heads bold
-  node distance=2cm, % specifies the minimum distance between two nodes. Change if necessary.
+  node distance=2.5cm, % specifies the minimum distance between two nodes. Change if necessary.
   every state/.style={thick, fill=gray!10}, % sets the properties for each ’state’ node
   initial text=$ $, % sets the text that appears on the start arrow
 }
@@ -73,62 +74,102 @@
 
 Session types are a kind of channel typing discipline ensuring that the
 communication patterns of concurrent programs abide by a shared protocol.
-%
-From t
+
+\newcommand{\nat}{\ensuremath{\mathbb{N}}}
+\newcommand{\recvar}[1]{\ensuremath{\mathit{x}}}
+\newcommand{\send}[2]{\ensuremath{!#1.~#2}}
+\newcommand{\recv}[2]{\ensuremath{?#1.~#2}}
+\newcommand{\select}[2]{\ensuremath{#1 \mathop{\oplus} #2}}
+\newcommand{\offer}[2]{\ensuremath{#1 \mathop{\&} #2}}
+\newcommand{\smallest}[2]{\ensuremath{\mu #1.~#2}}
+\newcommand{\largest}[2]{\ensuremath{\nu #1.~#2}}
+\newcommand{\stopsesh}{\ensuremath{\mathtt{end}}}
 
 Limiting ourselves to two communicating parties, we demonstrate how to give a
 type-safe implementation of bidirectional channels typed using protocols closed
-under sends, receives, branching, and smallest and largest fixpoints.
-
-\newcommand{\send}[2]{!#1.~#2}
-\newcommand{\recv}[2]{?#1.~#2}
-\newcommand{\select}[2]{#1 \mathop{\oplus} #2}
-\newcommand{\offer}[2]{#1 \mathop{\&} #2}
+under typed sends (\send{A}{\cdot}),
+typed receives (\recv{A}{\cdot}),
+branch offerings (\offer{\cdot}{\cdot}),
+branch selections (\select{\cdot}{\cdot}),
+and smallest (\smallest{x}{\cdot})
+and largest (\largest{x}{\cdot}) fixpoints.
 
 \[
 p,~ q,~ \dots
-  \; ::= \; x
-  \; | \; \mu x.~p
-  \; | \; \nu x.~p
+  \; ::= \; \recvar{x}
+  \; | \; \smallest{x}{p}
+  \; | \; \largest{x}{p}
   \; | \; \send{A}{p}
   \; | \; \recv{A}{p}
-  \; | \; \mathtt{end}
+  \; | \; \stopsesh{}
   \; | \; \offer{p}{q}
   \; | \; \select{p}{q}
 \]
 
+\noindent
+\begin{wrapfigure}{r}{.5\textwidth}
+  \begin{tikzpicture}
+    \node[state, initial]                  (q1)  {ready};
+    \node[state, right of=q1, yshift=1.25cm]              (q2r) {value};
+    \node[state, below of=q2r]              (q2l) {addee};
+    \node[state, accepting, right of=q2r]  (q3)  {end};
+    \draw
+      (q1) edge[bend left, right] node{more} (q2l)
+      (q1) edge[above]             node{eval} (q2r)
+      (q2l) edge[bend left, left]   node{send \nat} (q1)
+      (q2r) edge[above]             node{recv \nat} (q3);
+  \end{tikzpicture}
+  \caption{The ``adder'' protocol}
+\end{wrapfigure}
+The session
 $
-\mu \mathit{x}.~
-  (\offer{(\send{\mathbb{N}}{\mathit{x}})}{(\recv{\mathbb{N}}{\mathtt{end}})})
+\largest{x}{(\offer
+  {(\overbrace{\recv{\nat}{\recvar{x}}}^{\text{more}})}
+  {(\overbrace{\send{\nat}{\stopsesh}}^{\text{eval}})})}
 $
+types a server for the ``adder'' protocol: it accepts an
+arbitrary sequence of natural numbers (sent by repeatedly
+selecting the \emph{more} branch) before sending back their
+sum as a single number (when the \emph{eval} branch is
+ultimately selected) and terminating.
 
-\begin{tikzpicture}
-  \node[state, initial]                  (q1)  {ready};
-  \node[state, below of=q1]              (q2l) {addee};
-  \node[state, right of=q1]              (q2r) {value};
-  \node[state, accepting, right of=q2r]  (q3)  {end};
-  \draw
-   (q1) edge[bend left, right] node{more} (q2l)
-   (q1) edge[above]             node{eval} (q2r)
-  (q2l) edge[bend left, left]   node{send} (q1)
-  (q2r) edge[above]             node{recv} (q3);
-\end{tikzpicture}
+The encoding of the protocol uses a largest fixpoint to
+describe the server because the client is the one responsible
+for ensuring the process terminates by eventually selecting
+the \emph{eval} branhc.
 
 %------------------------------------------------------------------------------
 \subsubsection*{Implementation}
 
-Our implementation is based on a type safe realisation of
+The key idea behind this safe implementation is to collect all of the sent
+and received types used in a protocol and to manufacture a big sum type
+in which we can inject all of these values.
+%
+Our implementation of this sum type is based on a type safe realisation of
 Kiselyov and Sabry's open union type~\cite{DBLP:conf/haskell/KiselyovSS13}
 using the encoding of scope-safe
 De Bruijn indices~\cite{MANUAL:journals/math/debruijn72}
 introduced by Brady in the implementation of
 Idris 2~\cite{DBLP:conf/ecoop/Brady21}.
+%
+This gives us an encoding that has constant time injections and
+(potentially failing) projections in and out of the shared sum type.
 
-Our offset correctness gadget can be seen as a cut down version of
-McBride's one hole contexts~\cite{DBLP:conf/popl/McBride08}. Instead
+
+One challenge comes from the fact that the session type, by design,
+changes afer communications.
+%
+The solution is to record an offset remembering where we currently
+are in the protocol and thus allowing us to keep injecting values to
+be sent into the initial shared sum type.
+%
+Our offsets are proven correct using a gadget that can be understood
+as a cut down version of McBride's one hole
+contexts~\cite{DBLP:conf/popl/McBride08}. Instead
 of recording the full path followed by our programs in the finite
-state machine describing the protocol, we do not bother recording
-loops.
+state machine describing the protocol, we record a de-looped version
+of the path which is sufficient for our purpose.
+
 
 %------------------------------------------------------------------------------
 \subsubsection*{Limitations and Future Work}
