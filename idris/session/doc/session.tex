@@ -10,6 +10,15 @@
 %\documentclass[a4paper]{easychair}
 %\documentclass[letterpaper]{easychair}
 
+%------------------------------------------------------------------------------
+%% DRAFT options
+\usepackage{lineno}
+\linenumbers
+
+\usepackage{todonotes}
+\setuptodonotes{inline}
+%------------------------------------------------------------------------------
+
 \usepackage{doc}
 \usepackage{wrapfig}
 
@@ -24,6 +33,7 @@
 % \usepackage{pdflscape}
 
 \usepackage{amsfonts}
+
 
 \usepackage{tikz}
 \usetikzlibrary{automata, positioning, arrows}
@@ -70,13 +80,27 @@
 \maketitle
 
 %------------------------------------------------------------------------------
-\subsubsection*{Introduction}
+\subsection*{Introduction}
 
-Session types are a kind of channel typing discipline ensuring that the
-communication patterns of concurrent programs abide by a shared protocol.
+Session types are a channel typing discipline ensuring that the
+communication patterns of concurrent programs abide by a shared
+protocol.
+%
+A meta-theoretical analysis of the typing discipline can then
+ensure that the communicating processes will have good properties
+e.g. deadlock-freedom.
+%
+We show how to use a linear dependently typed programming language
+to define a direct and type-safe embedding of expressive binary
+session types.
+
+\todo{Finite state machines?}
+
+%------------------------------------------------------------------------------
+\subsection*{Expressive Session Types}
 
 \newcommand{\nat}{\ensuremath{\mathbb{N}}}
-\newcommand{\recvar}[1]{\ensuremath{\mathit{x}}}
+\newcommand{\recvar}[1]{\ensuremath{\mathit{#1}}}
 \newcommand{\send}[2]{\ensuremath{!#1.~#2}}
 \newcommand{\recv}[2]{\ensuremath{?#1.~#2}}
 \newcommand{\select}[2]{\ensuremath{#1 \mathop{\oplus} #2}}
@@ -85,8 +109,51 @@ communication patterns of concurrent programs abide by a shared protocol.
 \newcommand{\largest}[2]{\ensuremath{\nu #1.~#2}}
 \newcommand{\stopsesh}{\ensuremath{\mathtt{end}}}
 
-Limiting ourselves to two communicating parties, we demonstrate how to give a
-type-safe implementation of bidirectional channels typed using protocols closed
+\noindent
+\begin{wrapfigure}{r}{.5\textwidth}\centering%
+  \vspace{-1cm}%
+  \begin{align*}%
+  p,~ q,~ \dots &
+    \; ::= \; \recvar{x}
+    \; | \; \smallest{x}{p}
+    \; | \; \largest{x}{p} \\
+    &
+    \; | \; \send{A}{p}
+    \; | \; \recv{A}{p}
+    \; | \; \stopsesh{} \\
+    &
+    \; | \; \offer{p}{q}
+    \; | \; \select{p}{q}
+  \end{align*}
+
+  \vspace{.5cm}
+
+  \begin{tikzpicture}
+    \node[state, initial]                     (q1)  {init};
+    \node[state, right of=q1, yshift=-1.25cm] (q2r) {eval};
+    \node[state, above of=q2r]                (q2l) {more};
+    \node[state, accepting, right of=q2r]     (q3)  {stop};
+    \draw
+      (q1) edge[bend left, above]  node{fst}       (q2l)
+      (q1) edge[above, below]      node{snd}       (q2r)
+      (q2l) edge[bend left, right] node{recv \nat} (q1)
+      (q2r) edge[above]            node{send \nat} (q3);
+  \end{tikzpicture}
+
+  \vspace{1cm}
+
+  \begin{tikzpicture}
+    \node[state, initial]                      (o1)  {ready};
+    \node[state, right of=o1, , yshift=-1.25cm, accepting] (o2)  {done!};
+    \node[state, shape=rectangle, above of=o2] (q1)  {adder};
+    \draw
+      (o1) edge[bend left, above] node{fst} (q1)
+      (o1) edge[below]            node{snd} (o2)
+      (q1) edge[bend left] (o1);
+  \end{tikzpicture}
+\end{wrapfigure}
+%
+Our session types are closed
 under typed sends (\send{A}{\cdot}),
 typed receives (\recv{A}{\cdot}),
 branch offerings (\offer{\cdot}{\cdot}),
@@ -94,70 +161,70 @@ branch selections (\select{\cdot}{\cdot}),
 and smallest (\smallest{x}{\cdot})
 and largest (\largest{x}{\cdot}) fixpoints.
 
-\[
-p,~ q,~ \dots
-  \; ::= \; \recvar{x}
-  \; | \; \smallest{x}{p}
-  \; | \; \largest{x}{p}
-  \; | \; \send{A}{p}
-  \; | \; \recv{A}{p}
-  \; | \; \stopsesh{}
-  \; | \; \offer{p}{q}
-  \; | \; \select{p}{q}
-\]
-
-\noindent
-\begin{wrapfigure}{r}{.5\textwidth}
-  \begin{tikzpicture}
-    \node[state, initial]                     (q1)  {init};
-    \node[state, right of=q1, yshift=-1.25cm] (q2r) {eval};
-    \node[state, above of=q2r]                (q2l) {more};
-    \node[state, accepting, right of=q2r]     (q3)  {stop};
-    \draw
-      (q1) edge[bend left, above]  node{snd}       (q2l)
-      (q1) edge[above, below]      node{fst}       (q2r)
-      (q2l) edge[bend left, right] node{recv \nat} (q1)
-      (q2r) edge[above]            node{send \nat} (q3);
-  \end{tikzpicture}
-  \caption{The ``adder'' protocol}
-\end{wrapfigure}
 The session
 $
 \largest{x}{(\offer
-  {(\overbrace{\recv{\nat}{\recvar{x}}}^{\text{more}})}
-  {(\overbrace{\send{\nat}{\stopsesh}}^{\text{eval}})})}
+  {(\recv{\nat}{\recvar{x}})}
+  {(\send{\nat}{\stopsesh})})}
 $
-types a server for the ``adder'' protocol: it accepts an
-arbitrary sequence of natural numbers (sent by a client repeatedly
-selecting the \emph{more} branch) before sending back their
-sum as a single number (when the \emph{eval} branch is
-ultimately selected) and terminating.
-
-The encoding of the protocol uses a largest fixpoint to
-describe the server because the client is the one responsible
+types a server for the ``adder'' protocol represented as
+a finite state machine on the right hand side.
+%
+The server accepts an arbitrarily long sequence of natural numbers
+(sent by a client repeatedly selecting the
+\emph{more} = (\recv{\nat}{\recvar{x}}) branch)
+before sending back their sum as a single number
+(when the \emph{eval} = (\send{\nat}{\stopsesh}) branch is ultimately selected)
+and terminating.
+%
+The encoding of the server's type uses a largest fixpoint
+because the client is the one responsible
 for ensuring the process terminates by eventually selecting
 the \emph{eval} branch.
 
-%------------------------------------------------------------------------------
-\subsubsection*{Implementation}
+We can use nested fixpoint to describe more complex
+protocols. For instance,
+$
+\largest{o}{(\offer{
+  (\largest{x}{(\offer
+    {(\recv{\nat}{\recvar{x}})}
+    {(\send{\nat}{\recvar{o}})})}
+  )}{\stopsesh})}
+$
+informally corresponds to the finite state machine
+shown on the right hand side.
+It types a server repeatedly offering to handle the adder
+protocol described above (we replaced \stopsesh{} with
+\recvar{o} to allow for the repetition) before stopping
+when the client is done.
 
+
+%------------------------------------------------------------------------------
+\subsection*{Type-safe Implementation}
+
+\paragraph{Pairs of Unityped Channels}
+Our implementation represents a bidirectional channel
+parametrised by a session type as a pair of unityped
+and unidirectional channels.
+%
 The key idea behind this safe implementation is to collect all of the sent
 and received types used in a protocol and to manufacture a big sum type
-in which we can inject all of these values.
+in which we can inject all of the values that need to be exchanged.
 %
 Our implementation of this sum type is based on a type safe realisation of
 Kiselyov and Sabry's open union type~\cite{DBLP:conf/haskell/KiselyovSS13}
 using the encoding of scope-safe
 De Bruijn indices~\cite{MANUAL:journals/math/debruijn72}
-introduced by Brady in the implementation of
+introduced by Brady in the core representation
 Idris 2~\cite{DBLP:conf/ecoop/Brady21}.
 %
 This gives us an encoding that has constant time injections and
-(potentially failing) projections in and out of the shared sum type.
+(partial) projections in and out of the big sum type.
 
-
+\paragraph{Dealing with Changing Sessions}
 One challenge comes from the fact that the session type, by design,
-changes afer communications.
+changes afer communications but the big sum type used when communicating
+across the unityped channels needs to stay the same.
 %
 The solution is to record an offset remembering where we currently
 are in the protocol and thus allowing us to keep injecting values to
@@ -169,23 +236,27 @@ contexts~\cite{DBLP:conf/popl/McBride08}. Instead
 of recording the full path followed by our programs in the finite
 state machine describing the protocol, we record a de-looped version
 of the path which is sufficient for our purpose.
-
+%
+Going back to our intuition in terms of finite state machines,
+this can be seen as an application of the pumping lemma.
 
 %------------------------------------------------------------------------------
-\subsubsection*{Limitations and Future Work}
+\subsection*{Limitations and Future Work}
 
 \paragraph{Encoding Uniqueness via Linear Types}
 Unlike Brady's prior work in Idris 1~\cite{DBLP:journals/aghcs/Brady17},
 we are using Idris 2 which does not currently have uniqueness types.
 We are forced to use the linearity granted to us by
 Quantitative Type Theory (QTT)~\cite{DBLP:conf/birthday/McBride16,DBLP:conf/lics/Atkey18}
-to emulate uniquess which adds a degree of noise to the implementation.
-We would ideally want a system combining both to benefit from enhanced
-expressivity and efficiency as described by Marshall, Vollmer,
-and Orchard~\cite{DBLP:conf/esop/MarshallVO22}.
+to emulate uniquess via a library-wide invariant.
+%
+This adds a degree of noise to the implementation.
+We would ideally want a system combining both linearity and uniqueness
+to benefit from enhanced expressivity and efficiency as described
+by Marshall, Vollmer, and Orchard~\cite{DBLP:conf/esop/MarshallVO22}.
 
 \paragraph{Small Runtime Overhead}
-In the most expressive version of our library, we compute a handful
+In the current version of our library, we compute a handful
 of key offset values by induction over the protocol. Correspondingly
 the protocol is not marked as erased anymore and, if compilation does
 not specialise the relevant combinators agressively, then we may very
@@ -194,9 +265,9 @@ well be evaluating these relatively small computations at runtime.
 As far as we understand, directly adding typed staging to Idris 2
 through the use of a two-level type theory à la
 Kov{\'{a}}cs~\cite{DBLP:journals/pacmpl/Kovacs22} would not be
-enough to solve our issue: the protocol does need to persist
-through staging, but merely move from QTT's unrestricted to its
-erased modality.
+enough to solve our issue: for typing purposes, the protocol does need
+to persist through staging. But it should be possible to move it
+from QTT's unrestricted to its erased modality.
 
 \paragraph{Ergonomics}
 We found writing the types of inner loops of programs with non-trivial
@@ -206,9 +277,11 @@ powerful but noisy encoding of syntaxes with binding we use.
 
 
 
+
 %------------------------------------------------------------------------------
 %% BIBLIOGRAPHY
 
+\newpage
 \bibliographystyle{plain}
 %\bibliographystyle{alpha}
 %\bibliographystyle{unsrt}
