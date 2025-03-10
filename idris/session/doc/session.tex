@@ -31,7 +31,7 @@
   ->, % makes the edges directed
   >=stealth', % makes the arrow heads bold
   node distance=2.5cm, % specifies the minimum distance between two nodes. Change if necessary.
-  every state/.style={thick, fill=gray!10}, % sets the properties for each ’state’ node
+  every state/.style={thick, fill=gray!10, minimum size=1cm}, % sets the properties for each ’state’ node
   initial text=$ $, % sets the text that appears on the start arrow
 }
 
@@ -109,15 +109,15 @@ p,~ q,~ \dots
 \noindent
 \begin{wrapfigure}{r}{.5\textwidth}
   \begin{tikzpicture}
-    \node[state, initial]                  (q1)  {ready};
-    \node[state, right of=q1, yshift=1.25cm]              (q2r) {value};
-    \node[state, below of=q2r]              (q2l) {addee};
-    \node[state, accepting, right of=q2r]  (q3)  {end};
+    \node[state, initial]                     (q1)  {init};
+    \node[state, right of=q1, yshift=-1.25cm] (q2r) {eval};
+    \node[state, above of=q2r]                (q2l) {more};
+    \node[state, accepting, right of=q2r]     (q3)  {stop};
     \draw
-      (q1) edge[bend left, right] node{more} (q2l)
-      (q1) edge[above]             node{eval} (q2r)
-      (q2l) edge[bend left, left]   node{send \nat} (q1)
-      (q2r) edge[above]             node{recv \nat} (q3);
+      (q1) edge[bend left, above]  node{snd}       (q2l)
+      (q1) edge[above, below]      node{fst}       (q2r)
+      (q2l) edge[bend left, right] node{recv \nat} (q1)
+      (q2r) edge[above]            node{send \nat} (q3);
   \end{tikzpicture}
   \caption{The ``adder'' protocol}
 \end{wrapfigure}
@@ -128,7 +128,7 @@ $
   {(\overbrace{\send{\nat}{\stopsesh}}^{\text{eval}})})}
 $
 types a server for the ``adder'' protocol: it accepts an
-arbitrary sequence of natural numbers (sent by repeatedly
+arbitrary sequence of natural numbers (sent by a client repeatedly
 selecting the \emph{more} branch) before sending back their
 sum as a single number (when the \emph{eval} branch is
 ultimately selected) and terminating.
@@ -136,7 +136,7 @@ ultimately selected) and terminating.
 The encoding of the protocol uses a largest fixpoint to
 describe the server because the client is the one responsible
 for ensuring the process terminates by eventually selecting
-the \emph{eval} branhc.
+the \emph{eval} branch.
 
 %------------------------------------------------------------------------------
 \subsubsection*{Implementation}
