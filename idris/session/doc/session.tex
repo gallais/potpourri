@@ -1,4 +1,5 @@
 % easychair.tex,v 3.5 2017/03/15
+\PassOptionsToPackage{x11names}{xcolor}
 
 \documentclass{easychair}
 %\documentclass[EPiC]{easychair}
@@ -15,9 +16,13 @@
 \usepackage{lineno}
 \linenumbers
 
-\usepackage{todonotes}
-\setuptodonotes{inline}
+%% \usepackage{todonotes}
+%% \setuptodonotes{inline}
 %------------------------------------------------------------------------------
+
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+\usepackage{idris2}
 
 \usepackage{doc}
 \usepackage{wrapfig}
@@ -93,8 +98,6 @@ e.g. deadlock-freedom.
 We show how to use a linear dependently typed programming language
 to define a direct and type-safe embedding of expressive binary
 session types.
-
-\todo{Finite state machines?}
 
 %------------------------------------------------------------------------------
 \subsection*{Expressive Session Types}
@@ -203,30 +206,30 @@ when the client is done.
 \subsection*{Type-safe Implementation}
 
 \paragraph{Pairs of Unityped Channels}
-Our implementation represents a bidirectional channel
+We represent a bidirectional channel
 parametrised by a session type as a pair of unityped
-and unidirectional channels.
+unidirectional channels.
 %
-The key idea behind this safe implementation is to collect all of the sent
-and received types used in a protocol and to manufacture a big sum type
-in which we can inject all of the values that need to be exchanged.
+The key idea behind this safe implementation is to collect
+all the types used in a protocol and to manufacture a big
+sum type in which we can inject all of the values that need
+to be exchanged.
 %
-Our implementation of this sum type is based on a type safe realisation of
+The definition of this sum type is a type safe realisation of
 Kiselyov and Sabry's open union type~\cite{DBLP:conf/haskell/KiselyovSS13}
 using the encoding of scope-safe
 De Bruijn indices~\cite{MANUAL:journals/math/debruijn72}
-introduced by Brady in the core representation
-Idris 2~\cite{DBLP:conf/ecoop/Brady21}.
+introduced by Brady in Idris 2's core~\cite{DBLP:conf/ecoop/Brady21}.
 %
 This gives us an encoding that has constant time injections and
 (partial) projections in and out of the big sum type.
 
 \paragraph{Dealing with Changing Sessions}
-One challenge comes from the fact that the session type, by design,
-changes afer communications but the big sum type used when communicating
-across the unityped channels needs to stay the same.
+The session type, by design, changes afer each communication
+but the big sum type used when communicating across the
+unityped channels needs to stay the same.
 %
-The solution is to record an offset remembering where we currently
+Our solution is to record an offset remembering where we currently
 are in the protocol and thus allowing us to keep injecting values to
 be sent into the initial shared sum type.
 %
@@ -234,11 +237,21 @@ Our offsets are proven correct using a gadget that can be understood
 as a cut down version of McBride's one hole
 contexts~\cite{DBLP:conf/popl/McBride08}. Instead
 of recording the full path followed by our programs in the finite
-state machine describing the protocol, we record a de-looped version
-of the path which is sufficient for our purpose.
+state machine describing the protocol,
+we merely record a de-looped version.
+
+\paragraph{Code Samples} We include code snippets showing the
+types of \IdrisFunction{offer} and \IdrisFunction{select}
+the dual primitives allowing branching.
 %
-Going back to our intuition in terms of finite state machines,
-this can be seen as an application of the pumping lemma.
+Both are linear in their channel input; both involve a choice in the
+form of a \IdrisType{Bool} value: \IdrisFunction{offer} gets it from
+the other thread while \IdrisFunction{select} requires the caller to
+pass it. In both cases, an appropriately stepped channel is return to
+continue communicating.
+%
+\ExecuteMetaData[System/Concurrency/Session/RecursiveN.idr.tex]{offer}
+\ExecuteMetaData[System/Concurrency/Session/RecursiveN.idr.tex]{select}
 
 %------------------------------------------------------------------------------
 \subsection*{Limitations and Future Work}
@@ -250,7 +263,7 @@ We are forced to use the linearity granted to us by
 Quantitative Type Theory (QTT)~\cite{DBLP:conf/birthday/McBride16,DBLP:conf/lics/Atkey18}
 to emulate uniquess via a library-wide invariant.
 %
-This adds a degree of noise to the implementation.
+This adds a degree of noise and trust to the implementation.
 We would ideally want a system combining both linearity and uniqueness
 to benefit from enhanced expressivity and efficiency as described
 by Marshall, Vollmer, and Orchard~\cite{DBLP:conf/esop/MarshallVO22}.
@@ -273,7 +286,8 @@ from QTT's unrestricted to its erased modality.
 We found writing the types of inner loops of programs with non-trivial
 communication patterns to be tedious as they expose quite a lot of the
 powerful but noisy encoding of syntaxes with binding we use.
-
+Figuring out a more user-friendly surface syntax for our protocols is
+left as future work.
 
 
 
