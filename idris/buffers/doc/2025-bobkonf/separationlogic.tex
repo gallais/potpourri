@@ -134,7 +134,7 @@
   \bitbox[r]{1}[bgcolor=carandache]{ }
   \vspace{-1.5mm}\\
   \bitbox[lb]{1}[bgcolor=white]{ }
-  \bitbox[b]{1}[bgcolor=white]{ }
+  \bitbox[b]{1}[bgcolor=carandache]{ }
   \bitbox[b]{1}[bgcolor=white]{ }
   \bitbox[b]{1}[bgcolor=carandache]{ }
   \bitbox[rb]{1}[bgcolor=carandache]{ }
@@ -160,6 +160,33 @@
   \bitbox[rb]{1}[bgcolor=carandache]{ }
 \end{bytefield}}
 
+\newcommand{\halfandhalf}{\tikz{
+    \fill[fill=blue](0,0)--(3.1mm,0)--(0,3mm)--cycle;
+    \fill[fill=carandache](3.1mm,0)--(3mm,3mm)--(0,3mm)--cycle;
+}}
+
+\newcommand{\BadPQsupport}{\begin{bytefield}[bitwidth=3mm, bitheight=3mm]{4}
+  \bitbox[lt]{1}{\halfandhalf}
+  \bitbox[t]{1}{\halfandhalf}
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[t]{1}[bgcolor=white]{ }
+  \bitbox[rt]{1}[bgcolor=blue]{ }
+  \vspace{-1.5mm}\\
+  \bitbox[l]{1}[bgcolor=carandache]{ }
+  \bitbox[]{1}[bgcolor=carandache]{ }
+  \bitbox[]{1}[bgcolor=white]{ }
+  \bitbox[]{1}[bgcolor=blue]{ }
+  \bitbox[r]{1}[bgcolor=carandache]{ }
+  \vspace{-1.5mm}\\
+  \bitbox[lb]{1}[bgcolor=white]{ }
+  \bitbox[b]{1}{\halfandhalf}
+  \bitbox[b]{1}[bgcolor=blue]{ }
+  \bitbox[b]{1}[bgcolor=carandache]{ }
+  \bitbox[rb]{1}[bgcolor=carandache]{ }
+\end{bytefield}}
+
+
+
 \begin{itemize}
   \item Non-overlapping:
 
@@ -183,7 +210,7 @@
 \raisebox{2mm}{\scalebox{2}{$\sepconj$}}
 \tikz[tstyle]{\node[nstyle](badqsupport){\BadQsupport{}}}
 \raisebox{1mm}{\scalebox{2.5}{\,=\,}}
-\uncover<8->{\tikz[tstyle]{\node[nstyle](empty){\scalebox{2.5}{$\bot$}}}}
+\uncover<8->{\tikz[tstyle]{\node[nstyle](empty){\BadPQsupport{}}}} %%\scalebox{2.5}{$\bot$}}}}
 \end{minipage}
 \end{center}
 \end{itemize}
@@ -195,14 +222,14 @@
        {\hand and this $Q$'s support};
   \draw<4>[arrow,->] ([yshift=-2pt]pqsupport.south) to[bend left] +(-1.6,-1)
        node[anchor=north, align=center]
-           {\hand Then $P \sepconj Q$ is defined and has this support};
+           {\hand Then $P \sepconj Q$ is defined as $P \wedge Q$ and has this support};
   \draw<6->[arrow,->] ([yshift=2pt]badpsupport.north) to[bend left] +(+.5,+1) node[anchor=south]
        {\hand If this is $P$'s support};
   \draw<7->[arrow,->] ([yshift=2pt]badqsupport.north) to[bend left] +(1.8,+1) node[anchor=west]
        {\hand and this $Q$'s support};
   \draw<8>[arrow,->] ([yshift=-2pt]empty.south) to[bend left] +(-1.6,-1)
        node[anchor=north, align=center]
-           {\hand Then $P \sepconj Q$ is the absurd predicate};
+           {\hand Then $P \sepconj Q$ collapses to the absurd predicate $\bot$};
 \end{tikzpicture}
 \end{frame}
 

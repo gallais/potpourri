@@ -24,7 +24,7 @@ Statements of the form
 \begin{tikzpicture}[tpstyle]
   \draw<2->[arrow,->] ([yshift=2pt]precondition.north) to[bend left] +(-2,+1.5) node[anchor=south]
        {\hand Assuming that initially $P$ holds};
-  \draw<3->[arrow,->] ([yshift=2pt]command.north) to[bend left] +(.,+1)
+  \draw<3->[arrow,->] ([yshift=2pt]command.north) to[bend left] +(1.5,+1)
        node[anchor=south, xshift=2cm]
        {\hand After executing the command $c$};
   \draw<4->[arrow,->] ([yshift=-2pt]postcondition.south) to[bend left] +(-1.6,-1) node[anchor=north]
