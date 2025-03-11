@@ -13,18 +13,9 @@
 \input{robust-catch}
 \usepackage{idris2}
 
-% \usepackage{tikz}
-% \usetikzlibrary{shapes.geometric}
-
-% \usepackage{listings}
-
-% \usepackage{idris2}
-% \usepackage{catchfilebetweentags}
-% \input{robust-catch}
-
-% \newenvironment{hexdump}{\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
-
 \newcommand{\bobhead}{\includegraphics[scale=.2]{assets/bob.png}}
+\newcommand{\mastodon}{\includegraphics[scale=.2]{assets/mastodon-logo-purple.png}}
+\newcommand{\globe}{\includegraphics[scale=.1]{assets/globe.png}}
 
 \newcommand{\smiley}{\includegraphics[scale=.025]{assets/robot-smiley.png}}
 \newcommand{\sweaty}{\includegraphics[scale=.025]{assets/robot-sweaty.png}}
@@ -100,9 +91,9 @@
 Separation logic has a lot more to offer!
 
   \begin{itemize}
-    \item Partial ownership
-    \item Locks
-    \item Ghost states
+    \item Partial ownership (shared reads, owned writes)
+    \item Locks (non-deterministic access to shared resources)
+    \item Ghost states (stateful specification data)
   \end{itemize}
 
 \vfill
@@ -110,10 +101,20 @@ Separation logic has a lot more to offer!
 Use these building blocks!
 
   \begin{itemize}
+    \item Richly typed parallel skeletons
     \item Reintroduce layers of abstractions (e.g. inductive types)
     \item Seamless programming over serialised data
     \item Concurrent programs
   \end{itemize}
+\end{frame}
+
+\begin{frame}{Happy to Chat!}
+  \Large\centering
+  \renewcommand\UrlFont{}
+  \begin{tabular}{ll}
+    \raisebox{-2pt}{\globe} &  \url{https://gallais.github.io} \\
+    \raisebox{-4pt}{\mastodon} & \url{https://mamot.fr/@gallais}
+  \end{tabular}
 \end{frame}
 
 \end{document}
