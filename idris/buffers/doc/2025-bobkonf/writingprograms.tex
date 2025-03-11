@@ -2,8 +2,7 @@
 
 \newcommand{\mathidris}[1]{{\bf{\mathtt{#1}}}}
 
-\begin{frame}[fragile]{Workflow: Write, Test, Fix loop}
-
+\begin{frame}[fragile]{Old School Verification: Write, Test, Fix loop}
 \begin{lstlisting}{Fortran}
   10 WRITE CODE
   20 DO FORMALISATION
@@ -11,28 +10,31 @@
   40   GOTO 10
   50 END IF
 \end{lstlisting}
-
 \end{frame}
 
-\begin{frame}{Idris 2}
+\begin{frame}{Correct by Construction: Specify, Implement Correctly, Keep}
+\end{frame}
+
+\begin{frame}{In This Talk: Idris 2}
   \begin{itemize}
-    \item Functional
-    \item Typed
-    \item First class types
-    \item Resource-aware
-    \item Compiled to ChezScheme
+    \item<1-> Functional (lambdas, pure functions, inductive types)
+    \item<2-> First class types (i.e. types are standard values)
+    \item<3-> Resource-aware (separation of specification vs. runtime)
+    \item<4-> Strict
+    \item<5-> Compiled to ChezScheme (great target for a functional language)
+    \item<6-> Self-hosted (reasonably fast!)
   \end{itemize}
 \end{frame}
 
 
-\begin{frame}{Idea}
+\begin{frame}{Core Idea}
   Define a Domain Specific Language internalising
   Separation logic ideas
 
   \begin{itemize}
-    \item Linearity (ab)used to ensure global uniqueness
-    \item Ownership proofs instead of raw pointers
-    \item Relying on erasure to distinguish specification vs. runtime
+    \item<2-> Linearity (ab)used to ensure global uniqueness
+    \item<3-> Ownership proofs instead of raw pointers
+    \item<4-> Erasure to get rid of specification data
   \end{itemize}
 
 \end{frame}

@@ -24,7 +24,7 @@
 
 % \newenvironment{hexdump}{\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
 
-\newcommand{\bobhead}{\includegraphics[scale=.5]{assets/bob.png}}
+\newcommand{\bobhead}{\includegraphics[scale=.2]{assets/bob.png}}
 
 \newcommand{\smiley}{\includegraphics[scale=.025]{assets/robot-smiley.png}}
 \newcommand{\sweaty}{\includegraphics[scale=.025]{assets/robot-sweaty.png}}
@@ -55,7 +55,7 @@
 
 \usepackage{listings}
 \lstset{language=Fortran,
-  basicstyle=\ttfamily,
+  basicstyle=\ttfamily\bf,
   keywordstyle=\color{red},
 }
 
@@ -68,14 +68,52 @@
 \begin{frame}
   \maketitle
 \begin{tikzpicture}[remember picture, overlay]
-  \node[anchor=south east] at ($(current page.south east)+(0,.21)$){\bobhead};
+  \node[anchor=south east] at ($(current page.south east)+(0,.16)$){\bobhead};
 \end{tikzpicture}
 \end{frame}
 
+{
+\usebackgroundtemplate{%
+  {\tikz{\node[opacity=0.2]{
+    \includegraphics[width=\paperwidth]{assets/beinn_each.jpg}};}}}
+\begin{frame}{About Me}
+  Lecturer at the University of Strathclyde (Glasgow, Scotland)
+  \vfill
+  Interested in:
+  \begin{itemize}
+    \item Generic Programming and Proving
+    \item Meta Programming and Proof Search
+    \item Type-Directed Partial Evaluation
+    \item Implementations of Type Theory
+    \item Interactive Developer Tooling
+  \end{itemize}
+  \vfill
+  Overarching Theme: Correctness by Construction
+\end{frame}}
 
 \input{motivation}
 \input{hoarelogic}
 \input{separationlogic}
 \input{writingprograms}
+
+\begin{frame}{What's next?}
+Separation logic has a lot more to offer!
+
+  \begin{itemize}
+    \item Partial ownership
+    \item Locks
+    \item Ghost states
+  \end{itemize}
+
+\vfill
+
+Use these building blocks!
+
+  \begin{itemize}
+    \item Reintroduce layers of abstractions (e.g. inductive types)
+    \item Seamless programming over serialised data
+    \item Concurrent programs
+  \end{itemize}
+\end{frame}
 
 \end{document}
