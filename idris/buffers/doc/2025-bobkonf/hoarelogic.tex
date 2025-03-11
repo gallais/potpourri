@@ -79,17 +79,17 @@ Statements of the form
   \Large
 \[
 \begin{array}{lr}
-  & \uncover<2-9>{\lbrace \addra \mapsto a \wedge \addrb \mapsto b \rbrace}\\
+  & \uncover<2-10>{\lbrace \addra \mapsto a \wedge \addrb \mapsto b \rbrace}\\
   \addra \mathbin{:=} xor(\addra, \addrb);\\
-  & \uncover<3->{\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto b \rbrace}\\
+  & \uncover<3-9>{\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto b \rbrace}\\
   \addrb \mathbin{:=} xor(\addra, \addrb);\\
-  & \uncover<4->{
+  & \uncover<4-9>{
    \alt<4-5>
    {\lbrace \addra \mapsto xor(a, b)
         \wedge \addrb \mapsto \tikz[tstyle]{\node[nstyle](xorabb){$xor(xor(a,b),b)$}} \rbrace}
    {\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto a \rbrace}}\\
   \addra \mathbin{:=} xor(\addra, \addrb);\\
-  & \uncover<7->{
+  & \uncover<7-10>{
    \alt<7-8>
    {\lbrace \addra \mapsto \tikz[tstyle]{\node[nstyle](xoraba){$xor(xor(a, b), a)$}}
         \wedge \addrb \mapsto a \rbrace}
