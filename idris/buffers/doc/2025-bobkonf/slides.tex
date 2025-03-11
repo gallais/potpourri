@@ -24,6 +24,8 @@
 
 % \newenvironment{hexdump}{\medskip\ttfamily\obeyspaces\obeylines\noindent}{\medskip}
 
+\newcommand{\bobhead}{\includegraphics[scale=.5]{assets/bob.png}}
+
 \newcommand{\smiley}{\includegraphics[scale=.025]{assets/robot-smiley.png}}
 \newcommand{\sweaty}{\includegraphics[scale=.025]{assets/robot-sweaty.png}}
 \newcommand{\stress}{\includegraphics[scale=.025]{assets/robot-stress.png}}
@@ -65,6 +67,9 @@
 
 \begin{frame}
   \maketitle
+\begin{tikzpicture}[remember picture, overlay]
+  \node[anchor=south east] at ($(current page.south east)+(0,.21)$){\bobhead};
+\end{tikzpicture}
 \end{frame}
 
 
