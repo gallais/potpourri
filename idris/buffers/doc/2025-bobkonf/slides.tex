@@ -12,6 +12,8 @@
 \usepackage{catchfilebetweentags}
 \input{robust-catch}
 \usepackage{idris2}
+\usepackage{transparent}
+\usepackage{multirow}
 
 \newcommand{\bobhead}{\includegraphics[scale=.2]{assets/bob.png}}
 \newcommand{\mastodon}{\includegraphics[scale=.2]{assets/mastodon-logo-purple.png}}
@@ -36,13 +38,14 @@
   \titlegraphic{BOB2025}
 \date{March 14$^{th}$ 2025}
 
-%% \AtBeginSection[]
-%% {
-%%     \begin{frame}
-%%         \frametitle{Table of Contents}
-%%         \tableofcontents[currentsection]
-%%     \end{frame}
-%% }
+\setbeamertemplate{section in toc}{\inserttocsection}
+\AtBeginSection[]
+{
+    \begin{frame}
+        \frametitle{Table of Contents}
+        \tableofcontents[currentsection]
+    \end{frame}
+}
 
 \usepackage{listings}
 \lstset{language=Fortran,
@@ -64,9 +67,9 @@
 \end{frame}
 
 {
-\usebackgroundtemplate{%
-  {\tikz{\node[opacity=0.2]{
-    \includegraphics[width=\paperwidth]{assets/beinn_each.jpg}};}}}
+\setbeamertemplate{background canvas}{%%
+  \transparent{0.35}%
+  \includegraphics[width=\paperwidth]{assets/beinn_each.jpg}}
 \begin{frame}{About Me}
   Lecturer at the University of Strathclyde (Glasgow, Scotland)
   \vfill
