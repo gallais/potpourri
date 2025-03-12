@@ -1,0 +1,54 @@
+\begin{code}
+
+\end{code}
+%<*swap>
+\begin{code}
+swap : (a, b) -> (b, a)
+swap = \ (x, y) => (y, x)
+\end{code}
+%</swap>
+\begin{code}
+
+\end{code}
+%<*tuple>
+\begin{code}
+(.Tuple) : Nat -> Type -> Type
+0     .Tuple a = ()
+1     .Tuple a = a
+(S n) .Tuple a = (a, n.Tuple a)
+
+example : 5 .Tuple Nat
+example = (1, 2, 3, 4, 5)
+\end{code}
+%</tuple>
+\begin{code}
+
+\end{code}
+%<*maybe>
+\begin{code}
+Maybe : Type -> Type
+Maybe a = Either () a
+\end{code}
+%</maybe>
+\begin{code}
+
+\end{code}
+%<*fileloc>
+\begin{code}
+FileLoc : Type
+FileLoc = (String, Nat, Nat)
+\end{code}
+%</fileloc>
+\begin{code}
+
+\end{code}
+%<*resource>
+\begin{code}
+id : {0 a : Type} -> a -> a
+id x = x
+\end{code}
+%</resource>
+\begin{code}
+
+
+\end{code}

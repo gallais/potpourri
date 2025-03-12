@@ -18,23 +18,33 @@
 \begin{frame}{In This Talk: Idris 2}
   \begin{itemize}
     \item<1-> Functional (lambdas, pure functions, inductive types)
+      \only<1>{\ExecuteMetaData[Intro.idr.tex]{swap}}
     \item<2-> First class types (i.e. types are standard values)
+      \only<2>{\ExecuteMetaData[Intro.idr.tex]{fileloc}}
     \item<3-> Resource-aware (separation of specification vs. runtime)
-    \item<4-> Strict
-    \item<5-> Compiled to ChezScheme (great target for a functional language)
-    \item<6-> Self-hosted (reasonably fast!)
+      \only<3-4>{\tikz[tstyle]{\node[nstyle](target){}}\ExecuteMetaData[Intro.idr.tex]{resource}}
+    \item<5-> Strict
+    \item<6-> Compiled to ChezScheme (great target for a functional language)
+    \item<7-> Self-hosted (reasonably fast!)
   \end{itemize}
+
+
+\begin{tikzpicture}[tpstyle]
+  \draw<4>[arrow,->] ([xshift=-8.2cm,yshift=-.9cm]target.south east) to[bend right] +(1.5,-1.2)
+    node[anchor=west] {\hand Quantity $0$: erased during compilation};
+\end{tikzpicture}
 \end{frame}
 
 
-\begin{frame}{Core Idea}
+\begin{frame}{In This Talk: Core Idea}
   Define a Domain Specific Language internalising
   Separation logic ideas
 
+  \vfill
   \begin{itemize}
     \item<2-> Linearity (ab)used to ensure global uniqueness
     \item<3-> Ownership proofs instead of raw pointers
-    \item<4-> Erasure to get rid of specification data
+    \item<4-> Erasure to get rid of specification data (values showing up in $P$s, $Q$s, $R$s)
   \end{itemize}
 
 \end{frame}

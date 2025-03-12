@@ -7,7 +7,8 @@ LATEX_DEPENDENCIES=\
   writingprograms.tex\
 
 IDRIS_DEPENDENCIES=\
-  Data/Buffer/Indexed.idr.tex
+  Data/Buffer/Indexed.idr.tex\
+  Intro.idr.tex
 
 DEPENDENCIES=\
   $(LATEX_DEPENDENCIES)\
