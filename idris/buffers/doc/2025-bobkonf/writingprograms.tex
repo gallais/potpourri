@@ -13,6 +13,18 @@
 \end{frame}
 
 \begin{frame}{Correct by Construction: Specify, Implement Correctly, Keep}
+  Sometimes known as goal-driven development
+  \vfill
+
+  \begin{enumerate}
+    \item Write a specification
+    \item In a dialogue with the compiler interactively refine it
+      \begin{itemize}
+        \item Each step produces part of the program
+        \item Some step introduce some further goals too
+       \end{itemize}
+    \item Keep refining until all goals are trivials
+  \end{enumerate}
 \end{frame}
 
 \begin{frame}{In This Talk: Idris 2}
@@ -23,7 +35,7 @@
       \only<2>{\ExecuteMetaData[Intro.idr.tex]{fileloc}}
     \item<3-> Resource-aware (separation of specification vs. runtime)
       \only<3-4>{\tikz[tstyle]{\node[nstyle](target){}}\ExecuteMetaData[Intro.idr.tex]{resource}}
-    \item<5-> Strict
+    \item<5-> Strict (with explicit Laziness annotations)
     \item<6-> Compiled to ChezScheme (great target for a functional language)
     \item<7-> Self-hosted (reasonably fast!)
   \end{itemize}
