@@ -3,7 +3,8 @@ BUILDDIR=__build
 LATEX_DEPENDENCIES=\
 
 IDRIS_DEPENDENCIES=\
-  System/Concurrency/Session/RecursiveN.idr.tex
+  System/Concurrency/Session/MuNuN.idr.tex\
+  Data/OpenUnion/PrintOnly.idr.tex\
 
 DEPENDENCIES=\
   $(LATEX_DEPENDENCIES)\
@@ -21,3 +22,6 @@ $(BUILDDIR)/%.idr.tex: %.idr.tex
 %.pdf: %.tex ${DEPENDENCIES}
 	latexmk -pdf -outdir=$(BUILDDIR) $<
 	ln -sf __build/$@ $@
+
+clean:
+	rm -rf __build/ build/

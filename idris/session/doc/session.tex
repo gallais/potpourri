@@ -13,10 +13,10 @@
 
 %------------------------------------------------------------------------------
 %% DRAFT options
-\usepackage{lineno}
-\linenumbers
+%\usepackage{lineno}
+%\linenumbers
 
-%% \usepackage{todonotes}
+\usepackage{todonotes}
 %% \setuptodonotes{inline}
 %------------------------------------------------------------------------------
 
@@ -206,14 +206,17 @@ when the client is done.
 \subsection*{Type-safe Implementation}
 
 \paragraph{Pairs of Unityped Channels}
-We represent a bidirectional channel
-parametrised by a session type as a pair of unityped
-unidirectional channels.
+We represent a bidirectional channel parametrised by a session
+type as a pair of unityped unidirectional channels.
 %
 The key idea behind this safe implementation is to collect
-all the types used in a protocol and to manufacture a big
-sum type in which we can inject all of the values that need
-to be exchanged.
+all the received (respectively sent) types used in a protocol
+and to manufacture a big sum type in which we can inject all
+of the received (respectively sent) values.
+%
+Because the received types of a protocol are equal to the sent
+types of its dual (and vice-versa), we can prove that the directed
+channels of two communicating parties are indeed type-aligned.
 %
 The definition of this sum type is a type safe realisation of
 Kiselyov and Sabry's open union type~\cite{DBLP:conf/haskell/KiselyovSS13}
@@ -221,8 +224,32 @@ using the encoding of scope-safe
 De Bruijn indices~\cite{MANUAL:journals/math/debruijn72}
 introduced by Brady in Idris 2's core~\cite{DBLP:conf/ecoop/Brady21}.
 %
-This gives us an encoding that has constant time injections and
-(partial) projections in and out of the big sum type.
+We include below its definition: given
+a list \IdrisBound{ts} of values of type \IdrisBound{a}
+and a decoding function \IdrisBound{elt} turning such values into types,
+\IdrisType{UnionT} defines a union type characterised by its one
+constructor \IdrisData{Element}.
+\IdrisData{Element} takes a natural number \IdrisBound{k} functioning as a tag,
+a proof that the value \IdrisBound{t} is present at index \IdrisBound{k}
+in \IdrisBound{ts} and injects a value of type (\IdrisBound{elt} \IdrisBound{t})
+into the union type.
+%
+By picking \IdrisBound{elt} to be the identity function, we recover the
+usual notion of union of types
+
+\ExecuteMetaData[Data/OpenUnion/PrintOnly.idr.tex]{uniont}
+%\ExecuteMetaData[Data/OpenUnion/PrintOnly.idr.tex]{union}
+
+Note that the proof of type
+(\IdrisType{AtIndex} \IdrisBound{t} \IdrisBound{ts} \IdrisBound{k})
+is marked as erased through the use of the \IdrisKeyword{0}
+quantity which means this compiles down to a pair of a
+GMP-style \IdrisType{Integer} (the optimised runtime representation of \IdrisType{Nat})
+and a value of the appropriate type.
+%
+This gives us an encoding that has constant time injections
+and partial projections (via an equality check on the \IdrisType{Nat} tag)
+in and out of the big sum type.
 
 \paragraph{Dealing with Changing Sessions}
 The session type, by design, changes after each communication
@@ -240,18 +267,70 @@ of recording the full path followed by our programs in the finite
 state machine describing the protocol,
 we merely record a de-looped version.
 
-\paragraph{Code Samples} We include code snippets showing the
-types of \IdrisFunction{offer} and \IdrisFunction{select}
-the dual primitives allowing branching.
+\paragraph{Types of the Primitives} We include code snippets showing the
+types of the primitives dealing with communications. Note that the Idris~2's
+funny arrow (\IdrisFunction{-@}) denotes a linear function space, and
+consequently all of these primitives are linear in the channel
+they take as an input (ensuring it cannot be
+reused now that the protocol has been stepped) and systematically return
+a channel whose index matches the updated state.
 %
-Both are linear in their channel input; both involve a choice in the
-form of a \IdrisType{Bool} value: \IdrisFunction{offer} gets it from
-the other thread while \IdrisFunction{select} requires the caller to
-pass it. In both cases, an appropriately stepped channel is return to
-continue communicating.
+First, \IdrisFunction{send} and \IdrisFunction{recv}, the primitives
+dealing with sending arbitrary values back and forth.
+\ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{sendrecv}
 %
-\ExecuteMetaData[System/Concurrency/Session/RecursiveN.idr.tex]{offer}
-\ExecuteMetaData[System/Concurrency/Session/RecursiveN.idr.tex]{select}
+Second, \IdrisFunction{offer} and \IdrisFunction{select}, the primitives
+dealing with branching.
+%
+Both involve a choice in the form of a \IdrisType{Bool} value:
+\IdrisFunction{offer} gets it from the other thread as a \IdrisType{Res}ult
+of some communication while \IdrisFunction{select} requires the caller to
+pass it and will forward the decision to the other party.
+%
+\ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{offerselect}
+%
+Third, \IdrisFunction{unroll} and \IdrisFunction{roll}, the
+primitives dealing with the iso-recursive nature of our
+(co)inductive protocols. These reveal the role of \IdrisType{Channel}'s
+second parameter: it is a list of session types corresponding to the bodies
+of the successive fixpoints encountered during execution.
+\ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{unrollroll}
+%
+Last but not least, \IdrisFunction{rec} steps a channel that has
+reached a recursive call to a fixpoint introduced earlier to
+the corresponding fixpoint.
+\ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{rec}
+
+\paragraph{Example Server} Omitting the somewhat horrifying types
+describing the protocol, we include the implementation of the server
+repeatedly offering the adder protocol that we sketched earlier.
+
+\noindent\begin{minipage}[t]{.5\textwidth}
+  \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{server}
+\end{minipage}\hfill
+\begin{minipage}[t]{.45\textwidth}
+  \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{adder}
+\end{minipage}
+
+On the left hand side we are acting as a server parametrised by a client
+\IdrisBound{id} number. We \IdrisFunction{unroll} the largest fixpoint
+corresponding to repeatedly offering the adder protocol, and wait for
+the client to choose one of the branches we \IdrisFunction{offer}.
+If they're done we \IdrisFunction{close} the channel and terminate,
+otherwise we \IdrisFunction{send} a greeting and call the
+\IdrisFunction{adder} with an accumulator initialised to \IdrisData{0},
+and eventually continue acting as the server with an increased client id number.
+
+One the right hand side we are acting as the adder parametrised by an
+accumulator \IdrisBound{acc}. We \IdrisFunction{unroll} the smallest
+fixpoint corresponding to the adder protocol and immediately
+\IdrisFunction{offer} the client a choice between getting the current
+running total or sending us more numbers.
+%
+If they are done, we \IdrisFunction{send} back the value in the accumulator
+and \todo{continue}.
+%
+Otherwise we \IdrisFunction {recv} an additional number, add it to the accumulator
 
 %------------------------------------------------------------------------------
 \subsection*{Limitations and Future Work}
