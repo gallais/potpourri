@@ -247,22 +247,22 @@ data Context : Nat -> Nat -> Session m1 k1 -> Session m2 k2 -> Env m2 -> Type wh
 
 Sumer : Session [] Head
 Sumer
-  = Fix (Nu "serve")
+  = Fix (Nu "ready")
   $ Offer End
   $ Send String
-  $ Fix (Nu "getNs")
+  $ Fix (Nu "adder")
   $ Offer
-      (Send Nat $ Rec (MkFocus [<(Nu "getNs")] (Nu "serve") []))
-      (Recv Nat $ Rec (MkFocus [<] (Nu "getNs") [(Nu "serve")]))
+      (Send Nat $ Rec (MkFocus [<(Nu "adder")] (Nu "ready") []))
+      (Recv Nat $ Rec (MkFocus [<] (Nu "adder") [(Nu "ready")]))
 
 sumerCtx
-  : Context 1 2 Sumer (Rec (MkFocus [<] (Nu "getNs") [(Nu "serve")]))
+  : Context 1 2 Sumer (Rec (MkFocus [<] (Nu "adder") [(Nu "ready")]))
        [ Offer
-          (Send Nat $ Rec (MkFocus [<(Nu "getNs")] (Nu "serve") []))
-          (Recv Nat $ Rec (MkFocus [<] (Nu "getNs") [(Nu "serve")]))
-       , Offer End $ Send String $ Fix (Nu "getNs") $ Offer
-          (Send Nat $ Rec (MkFocus [<(Nu "getNs")] (Nu "serve") []))
-          (Recv Nat $ Rec (MkFocus [<] (Nu "getNs") [(Nu "serve")]))
+          (Send Nat $ Rec (MkFocus [<(Nu "adder")] (Nu "ready") []))
+          (Recv Nat $ Rec (MkFocus [<] (Nu "adder") [(Nu "ready")]))
+       , Offer End $ Send String $ Fix (Nu "adder") $ Offer
+          (Send Nat $ Rec (MkFocus [<(Nu "adder")] (Nu "ready") []))
+          (Recv Nat $ Rec (MkFocus [<] (Nu "adder") [(Nu "ready")]))
        ]
 sumerCtx
   = Pumping (Pumping (InPrefix [<]) [<OfferR, Send String])
@@ -633,14 +633,14 @@ sender : LinearIO io =>
   List (List Nat) -> -- list of list arguments
   SnocList Nat -> -- accumulator of results
   Channel (Dual $ Offer
-        (Send Nat $ Rec (MkFocus [<Nu "getNs"] (Nu "serve") []))
-        (Recv Nat $ Rec (MkFocus [<] (Nu "getNs") [(Nu "serve")])))
+        (Send Nat $ Rec (MkFocus [<Nu "adder"] (Nu "ready") []))
+        (Recv Nat $ Rec (MkFocus [<] (Nu "adder") [(Nu "ready")])))
     [ Dual $ Offer
-        (Send Nat $ Rec (MkFocus [<Nu "getNs"] (Nu "serve") []))
-        (Recv Nat $ Rec (MkFocus [<] (Nu "getNs") [(Nu "serve")]))
-    , Dual $ Offer End $ Send String $ Fix (Nu "getNs") $ Offer
-        (Send Nat $ Rec (MkFocus [<Nu "getNs"] (Nu "serve") []))
-        (Recv Nat $ Rec (MkFocus [<] (Nu "getNs") [(Nu "serve")]))
+        (Send Nat $ Rec (MkFocus [<Nu "adder"] (Nu "ready") []))
+        (Recv Nat $ Rec (MkFocus [<] (Nu "adder") [(Nu "ready")]))
+    , Dual $ Offer End $ Send String $ Fix (Nu "adder") $ Offer
+        (Send Nat $ Rec (MkFocus [<Nu "adder"] (Nu "ready") []))
+        (Recv Nat $ Rec (MkFocus [<] (Nu "adder") [(Nu "ready")]))
     ]
  -@ L io (List Nat)
 
@@ -676,12 +676,12 @@ server : LinearIO io =>
 covering
 adder : LinearIO io =>
   Nat -> -- accumulator
-  Channel (Fix (Nu ("getNs")) $ Offer
-        (Send Nat $ Rec (MkFocus [<(Nu "getNs")] (Nu "serve") []))
-        (Recv Nat $ Rec (MkFocus [<] (Nu "getNs") [(Nu "serve")])))
-    [ Offer End $ Send String $ Fix (Nu "getNs") $ Offer
-        (Send Nat $ Rec (MkFocus [<(Nu "getNs")] (Nu "serve") []))
-        (Recv Nat $ Rec (MkFocus [<] (Nu "getNs") [(Nu "serve")]))
+  Channel (Fix (Nu ("adder")) $ Offer
+        (Send Nat $ Rec (MkFocus [<(Nu "adder")] (Nu "ready") []))
+        (Recv Nat $ Rec (MkFocus [<] (Nu "adder") [(Nu "ready")])))
+    [ Offer End $ Send String $ Fix (Nu "adder") $ Offer
+        (Send Nat $ Rec (MkFocus [<(Nu "adder")] (Nu "ready") []))
+        (Recv Nat $ Rec (MkFocus [<] (Nu "adder") [(Nu "ready")]))
     ] -@
     L1 io (Channel Sumer [])
 
@@ -689,7 +689,7 @@ adder : LinearIO io =>
 %<*server>
 \begin{code}
 server id ch = do
-  ch <- unroll ch
+  ch <- unroll {nm = Nu "ready"} ch
   b # ch <- offer ch
   if b then close ch else do
     let msg = "Hello n°\{show id}!"
@@ -701,12 +701,11 @@ server id ch = do
 %<*adder>
 \begin{code}
 adder acc ch = do
-  ch <- unroll ch
+  ch <- unroll {nm = Nu "adder"} ch
   b # ch <- offer ch
-  if b
-    then do
+  if b then do
       ch <- send ch acc
-      rec ch
+      rec {nm = Nu "ready"} ch
     else do
       (n # ch) <- recv ch
       ch <- rec ch

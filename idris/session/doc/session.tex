@@ -103,6 +103,7 @@ session types.
 \subsection*{Expressive Session Types}
 
 \newcommand{\nat}{\ensuremath{\mathbb{N}}}
+\newcommand{\str}{\ensuremath{\mathbb{S}}}
 \newcommand{\recvar}[1]{\ensuremath{\mathit{#1}}}
 \newcommand{\send}[2]{\ensuremath{!#1.~#2}}
 \newcommand{\recv}[2]{\ensuremath{?#1.~#2}}
@@ -113,7 +114,7 @@ session types.
 \newcommand{\stopsesh}{\ensuremath{\mathtt{end}}}
 
 \noindent
-\begin{wrapfigure}{r}{.5\textwidth}\centering%
+\begin{wrapfigure}[25]{r}{.38\textwidth}\centering%
   \vspace{-1cm}%
   \begin{align*}%
   p,~ q,~ \dots &
@@ -129,46 +130,46 @@ session types.
     \; | \; \select{p}{q}
   \end{align*}
 
-  \vspace{.5cm}
+  \vspace{.4cm}
 
   \begin{tikzpicture}
     \node[state, initial]                     (q1)  {init};
-    \node[state, right of=q1, yshift=-1.25cm] (q2r) {eval};
-    \node[state, above of=q2r]                (q2l) {more};
+    \node[state, above of=q1] (q2r) {eval};
+    \node[state, right of=q1]                (q2l) {more};
     \node[state, accepting, right of=q2r]     (q3)  {stop};
     \draw
-      (q1) edge[bend left, above]  node{fst}       (q2l)
-      (q1) edge[above, below]      node{snd}       (q2r)
-      (q2l) edge[bend left, right] node{recv \nat} (q1)
+      (q1) edge[bend left, above]  node{false}       (q2l)
+      (q1) edge[left]      node{true}       (q2r)
+      (q2l) edge[bend left, below] node{recv \nat} (q1)
       (q2r) edge[above]            node{send \nat} (q3);
   \end{tikzpicture}
 
-  \vspace{1cm}
+  \vspace{.4cm}
 
   \begin{tikzpicture}
     \node[state, initial]                      (o1)  {ready};
-    \node[state, right of=o1, , yshift=-1.25cm, accepting] (o2)  {done!};
-    \node[state, shape=rectangle, above of=o2] (q1)  {adder};
+    \node[state, above of=o1, accepting] (o2)  {done!};
+    \node[state, right of=o2] (o3)  {greet};
+    \node[state, shape=rectangle, below of=o3] (q1)  {adder};
     \draw
-      (o1) edge[bend left, above] node{fst} (q1)
-      (o1) edge[below]            node{snd} (o2)
-      (q1) edge[bend left] (o1);
+      (o1) edge[bend left, right] node{false} (o3)
+      (o1) edge[left]            node{true}  (o2)
+      (o3) edge[right] node{send \str} (q1)
+      (q1) edge[below] node{rec}   (o1);
   \end{tikzpicture}
 \end{wrapfigure}
 %
-Our session types are closed
-under typed sends (\send{A}{\cdot}),
-typed receives (\recv{A}{\cdot}),
-branch offerings (\offer{\cdot}{\cdot}),
-branch selections (\select{\cdot}{\cdot}),
-and smallest (\smallest{x}{\cdot})
-and largest (\largest{x}{\cdot}) fixpoints.
+Our session types are closed under
+nested smallest (\smallest{x}{\cdot}) and largest (\largest{x}{\cdot}) fixpoints,
+typed sends (\send{A}{\cdot}) and receives (\recv{A}{\cdot}),
+the empty protocol (\stopsesh{})
+and branch offerings (\offer{\cdot}{\cdot}) and selections (\select{\cdot}{\cdot}).
 
 The session
 $
-\largest{x}{(\offer
-  {(\recv{\nat}{\recvar{x}})}
-  {(\send{\nat}{\stopsesh})})}
+\largest{i}{(\offer
+  {(\send{\nat}{\stopsesh})}}
+  {(\recv{\nat}{\recvar{i}}))}
 $
 types a server for the ``adder'' protocol represented as
 a finite state machine on the right hand side.
@@ -186,20 +187,21 @@ for ensuring the process terminates by eventually selecting
 the \emph{eval} branch.
 
 We can use nested fixpoint to describe more complex
-protocols. For instance,
+protocols. For instance, the session described by
 $
-\largest{o}{(\offer{
-  (\largest{x}{(\offer
-    {(\recv{\nat}{\recvar{x}})}
-    {(\send{\nat}{\recvar{o}})})}
-  )}{\stopsesh})}
+\largest{r}{(\offer{\stopsesh}
+  {(\send{\str}{\largest{i}{(\offer
+  {(\send{\nat}{\recvar{r}})}}
+  {(\recv{\nat}{\recvar{i}}))}}
+  ))})}
 $
 informally corresponds to the finite state machine
 shown on the right hand side.
+%
 It types a server repeatedly offering to handle the adder
-protocol described above (we replaced \stopsesh{} with
-\recvar{o} to allow for the repetition) before stopping
-when the client is done.
+protocol described above after greeting the user with a string.
+We replaced adder's \stopsesh{} with \recvar{r} to let the protocol
+loop back to the ``ready'' state once the adder is done.
 
 
 %------------------------------------------------------------------------------
@@ -271,18 +273,24 @@ we merely record a de-looped version.
 types of the primitives dealing with communications. Note that the Idris~2's
 funny arrow (\IdrisFunction{-@}) denotes a linear function space, and
 consequently all of these primitives are linear in the channel
-they take as an input (ensuring it cannot be
-reused now that the protocol has been stepped) and systematically return
-a channel whose index matches the updated state.
+they take as an input (ensuring it cannot be reused now that the protocol
+has been stepped) and systematically return, wrapped in a linear IO
+monad called \IdrisFunction{IO1}, a channel indexed by the updated protocol.
 %
 First, \IdrisFunction{send} and \IdrisFunction{recv}, the primitives
 dealing with sending arbitrary values back and forth.
+\IdrisFunction{send} takes an argument of type \IdrisBound{ty} while
+\IdrisFunction{recv} returns one as the \IdrisType{Res}ult of the
+communication.
+%
 \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{sendrecv}
 %
 Second, \IdrisFunction{offer} and \IdrisFunction{select}, the primitives
 dealing with branching.
 %
-Both involve a choice in the form of a \IdrisType{Bool} value:
+Both involve a choice in the form of a \IdrisType{Bool} named \IdrisBound{b}
+and used to compute the new state of the channel.
+%
 \IdrisFunction{offer} gets it from the other thread as a \IdrisType{Res}ult
 of some communication while \IdrisFunction{select} requires the caller to
 pass it and will forward the decision to the other party.
@@ -291,46 +299,59 @@ pass it and will forward the decision to the other party.
 %
 Third, \IdrisFunction{unroll} and \IdrisFunction{roll}, the
 primitives dealing with the iso-recursive nature of our
-(co)inductive protocols. These reveal the role of \IdrisType{Channel}'s
-second parameter: it is a list of session types corresponding to the bodies
-of the successive fixpoints encountered during execution.
+(co)inductive protocols.
+%
+The type of these primitives reveal the role of \IdrisType{Channel}'s
+second parameter: it is a stack of open session types corresponding
+to the bodies of the nested fixpoints encountered during execution.
+%
+\IdrisFunction{unroll} opens a fixpoint and thus pushes a new entry onto the
+stack \IdrisBound{e} while \IdrisFunction{roll} does the opposite.
 \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{unrollroll}
 %
 Last but not least, \IdrisFunction{rec} steps a channel that has
-reached a recursive call to a fixpoint introduced earlier to
-the corresponding fixpoint.
+reached a recursive call to a fixpoint by looking up the
+open session and environment associated to the specified
+\IdrisBound{pos}ition in the stack and reinstating them.
 \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{rec}
 
-\paragraph{Example Server} Omitting the somewhat horrifying types
-describing the protocol, we include the implementation of the server
-repeatedly offering the adder protocol that we sketched earlier.
+\paragraph{Example Server} Omitting the somewhat horrifying types,
+we include the implementation of the server repeatedly offering
+to greet the user and execute the adder protocol that we sketched
+earlier.
+%
+We use Idris~2's named argument syntax to explicitly pass the name
+\IdrisBound{nm} to the \IdrisFunction{unroll} and \IdrisFunction{rec}
+calls in order to clarify what step of the protocol is being reached.
 
-\noindent\begin{minipage}[t]{.5\textwidth}
+\noindent\begin{minipage}[t]{.49\textwidth}
   \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{server}
 \end{minipage}\hfill
-\begin{minipage}[t]{.45\textwidth}
+\begin{minipage}[t]{.49\textwidth}
   \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{adder}
 \end{minipage}
 
 On the left hand side we are acting as a server parametrised by a client
 \IdrisBound{id} number. We \IdrisFunction{unroll} the largest fixpoint
-corresponding to repeatedly offering the adder protocol, and wait for
-the client to choose one of the branches we \IdrisFunction{offer}.
+corresponding to the `ready' state repeatedly offering the adder protocol,
+and wait for the client to choose one of the branches we \IdrisFunction{offer}.
 If they're done we \IdrisFunction{close} the channel and terminate,
 otherwise we \IdrisFunction{send} a greeting and call the
 \IdrisFunction{adder} with an accumulator initialised to \IdrisData{0},
 and eventually continue acting as the server with an increased client id number.
 
 One the right hand side we are acting as the adder parametrised by an
-accumulator \IdrisBound{acc}. We \IdrisFunction{unroll} the smallest
-fixpoint corresponding to the adder protocol and immediately
+accumulator \IdrisBound{acc}. We \IdrisFunction{unroll} the largest
+fixpoint corresponding to the ``adder'' protocol and immediately
 \IdrisFunction{offer} the client a choice between getting the current
 running total or sending us more numbers.
 %
 If they are done, we \IdrisFunction{send} back the value in the accumulator
-and \todo{continue}.
+and, having reached a \IdrisData{Rec} variable, use \IdrisFunction{rec} to
+jump back to the ``ready'' state.
 %
-Otherwise we \IdrisFunction {recv} an additional number, add it to the accumulator
+Otherwise we \IdrisFunction {recv} an additional number,
+add it to the accumulator and continue as \IdrisFunction{adder}.
 
 %------------------------------------------------------------------------------
 \subsection*{Limitations and Future Work}
