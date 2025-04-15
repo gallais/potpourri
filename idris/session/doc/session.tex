@@ -335,7 +335,7 @@ On the left hand side we are acting as a server parametrised by a client
 \IdrisBound{id} number. We \IdrisFunction{unroll} the largest fixpoint
 corresponding to the `ready' state repeatedly offering the adder protocol,
 and wait for the client to choose one of the branches we \IdrisFunction{offer}.
-If they're done we \IdrisFunction{close} the channel and terminate,
+If they are done we \IdrisFunction{close} the channel and terminate,
 otherwise we \IdrisFunction{send} a greeting and call the
 \IdrisFunction{adder} with an accumulator initialised to \IdrisData{0},
 and eventually continue acting as the server with an increased client id number.
