@@ -398,6 +398,16 @@ powerful but noisy encoding of syntaxes with binding we use.
 Figuring out a more user-friendly surface syntax for our protocols is
 left as future work.
 
+\paragraph{Totality Checking}
+Our lightweight embedding does distinguish smallest and largest fixpoints
+but Idris~2's productivity checker does not currently take advantage of the
+knowledge that the user is making steady progress in a potentially infinitely
+repeating protocol (\largest{x}{P}) to see that a program is total.
+Experiments suggest we may be able to introduce a lightweight encoding of
+a Nakano-style modality~\cite{DBLP:conf/lics/Nakano00} for guarded programming
+to let the user justify that their co-recursive calls are all justified by
+regular progress.
+
 
 
 
