@@ -105,12 +105,12 @@ session types.
 \newcommand{\nat}{\ensuremath{\mathbb{N}}}
 \newcommand{\str}{\ensuremath{\mathbb{S}}}
 \newcommand{\recvar}[1]{\ensuremath{\mathit{#1}}}
-\newcommand{\send}[2]{\ensuremath{!#1.~#2}}
-\newcommand{\recv}[2]{\ensuremath{?#1.~#2}}
+\newcommand{\send}[2]{\ensuremath{!#1.\;#2}}
+\newcommand{\recv}[2]{\ensuremath{?#1.\;#2}}
 \newcommand{\select}[2]{\ensuremath{#1 \mathop{\oplus} #2}}
 \newcommand{\offer}[2]{\ensuremath{#1 \mathop{\&} #2}}
-\newcommand{\smallest}[2]{\ensuremath{\mu #1.~#2}}
-\newcommand{\largest}[2]{\ensuremath{\nu #1.~#2}}
+\newcommand{\smallest}[2]{\ensuremath{\mu #1.\;#2}}
+\newcommand{\largest}[2]{\ensuremath{\nu #1.\;#2}}
 \newcommand{\stopsesh}{\ensuremath{\mathtt{end}}}
 
 \noindent
@@ -155,7 +155,7 @@ session types.
       (o1) edge[bend left, right] node{false} (o3)
       (o1) edge[left]            node{true}  (o2)
       (o3) edge[right] node{send \str} (q1)
-      (q1) edge[below] node{rec}   (o1);
+      (q1) edge[below] node{send \nat} (o1);
   \end{tikzpicture}
 \end{wrapfigure}
 %
@@ -171,14 +171,14 @@ $
   {(\send{\nat}{\stopsesh})}}
   {(\recv{\nat}{\recvar{i}}))}
 $
-types a server for the ``adder'' protocol represented as
+types a server for the `adder' protocol represented as
 a finite state machine on the right hand side.
 %
 The server accepts an arbitrarily long sequence of natural numbers
 (sent by a client repeatedly selecting the
 \emph{more} = (\recv{\nat}{\recvar{x}}) branch)
 before sending back their sum as a single number
-(when the \emph{eval} = (\send{\nat}{\stopsesh}) branch is ultimately selected)
+(when the \emph{eval} = (\send{\nat}{\stopsesh}) branch is selected)
 and terminating.
 %
 The encoding of the server's type uses a largest fixpoint
@@ -201,7 +201,10 @@ shown on the right hand side.
 It types a server repeatedly offering to handle the adder
 protocol described above after greeting the user with a string.
 We replaced adder's \stopsesh{} with \recvar{r} to let the protocol
-loop back to the ``ready'' state once the adder is done.
+loop back to the `ready' state once the adder is done
+(in the state machine, that corresponds to merging `stop'
+and `ready' hence the bottom `send \nat'-labeled arrow from the
+`adder' sub-machine back to `ready').
 
 
 %------------------------------------------------------------------------------
@@ -226,18 +229,21 @@ using the encoding of scope-safe
 De Bruijn indices~\cite{MANUAL:journals/math/debruijn72}
 introduced by Brady in Idris 2's core~\cite{DBLP:conf/ecoop/Brady21}.
 %
-We include below its definition: given
+We include its definition below: given
 a list \IdrisBound{ts} of values of type \IdrisBound{a}
 and a decoding function \IdrisBound{elt} turning such values into types,
-\IdrisType{UnionT} defines a union type characterised by its one
-constructor \IdrisData{Element}.
-\IdrisData{Element} takes a natural number \IdrisBound{k} functioning as a tag,
-a proof that the value \IdrisBound{t} is present at index \IdrisBound{k}
+(\IdrisType{UnionT} \IdrisBound{elt} \IdrisBound{ts})
+defines a union type.
+Its one constructor named \IdrisData{Element} takes a natural
+number \IdrisBound{k} functioning as a tag,
+a proof of type
+(\IdrisType{AtIndex} \IdrisBound{t} \IdrisBound{ts} \IdrisBound{k})
+that the value \IdrisBound{t} is present at index \IdrisBound{k}
 in \IdrisBound{ts} and injects a value of type (\IdrisBound{elt} \IdrisBound{t})
-into the union type.
+into the union.
 %
 By picking \IdrisBound{elt} to be the identity function, we recover the
-usual notion of union of types
+usual notion of union of types.
 
 \ExecuteMetaData[Data/OpenUnion/PrintOnly.idr.tex]{uniont}
 %\ExecuteMetaData[Data/OpenUnion/PrintOnly.idr.tex]{union}
@@ -245,7 +251,7 @@ usual notion of union of types
 Note that the proof of type
 (\IdrisType{AtIndex} \IdrisBound{t} \IdrisBound{ts} \IdrisBound{k})
 is marked as erased through the use of the \IdrisKeyword{0}
-quantity which means this compiles down to a pair of a
+quantity which means this datatype compiles down to a pair of a
 GMP-style \IdrisType{Integer} (the optimised runtime representation of \IdrisType{Nat})
 and a value of the appropriate type.
 %
@@ -273,7 +279,7 @@ we merely record a de-looped version.
 types of the primitives dealing with communications. Note that the Idris~2's
 funny arrow (\IdrisFunction{-@}) denotes a linear function space, and
 consequently all of these primitives are linear in the channel
-they take as an input (ensuring it cannot be reused now that the protocol
+they take as an input (ensuring it cannot be reused after the protocol
 has been stepped) and systematically return, wrapped in a linear IO
 monad called \IdrisFunction{IO1}, a channel indexed by the updated protocol.
 %
@@ -289,7 +295,7 @@ Second, \IdrisFunction{offer} and \IdrisFunction{select}, the primitives
 dealing with branching.
 %
 Both involve a choice in the form of a \IdrisType{Bool} named \IdrisBound{b}
-and used to compute the new state of the channel.
+that is used to compute the next channel state.
 %
 \IdrisFunction{offer} gets it from the other thread as a \IdrisType{Res}ult
 of some communication while \IdrisFunction{select} requires the caller to
@@ -331,27 +337,30 @@ calls in order to clarify what step of the protocol is being reached.
   \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{adder}
 \end{minipage}
 
-On the left hand side we are acting as a server parametrised by a client
-\IdrisBound{id} number. We \IdrisFunction{unroll} the largest fixpoint
+\vspace*{1em}
+
+On the left-hand side we are acting as a \IdrisFunction{server} parametrised by a client
+\IdrisBound{id} number. We first \IdrisFunction{unroll} the largest fixpoint
 corresponding to the `ready' state repeatedly offering the adder protocol,
 and wait for the client to choose one of the branches we \IdrisFunction{offer}.
 If they are done we \IdrisFunction{close} the channel and terminate,
-otherwise we \IdrisFunction{send} a greeting and call the
-\IdrisFunction{adder} with an accumulator initialised to \IdrisData{0},
-and eventually continue acting as the server with an increased client id number.
+otherwise we \IdrisFunction{send} a greeting, call the
+\IdrisFunction{adder} routine,
+and eventually continue acting as the server with an incremented id number.
 
-One the right hand side we are acting as the adder parametrised by an
+One the right-hand side we are acting as the \IdrisFunction{adder} parametrised by an
 accumulator \IdrisBound{acc}. We \IdrisFunction{unroll} the largest
-fixpoint corresponding to the ``adder'' protocol and immediately
-\IdrisFunction{offer} the client a choice between getting the current
+fixpoint corresponding to the `adder' protocol and
+\IdrisFunction{offer} the client a choice between getting the
 running total or sending us more numbers.
 %
 If they are done, we \IdrisFunction{send} back the value in the accumulator
-and, having reached a \IdrisData{Rec} variable, use \IdrisFunction{rec} to
-jump back to the ``ready'' state.
+and, having reached a \IdrisData{Rec} variable in the protocol,
+use \IdrisFunction{rec} to jump back to the `ready' state.
 %
 Otherwise we \IdrisFunction {recv} an additional number,
-add it to the accumulator and continue as \IdrisFunction{adder}.
+add it to the accumulator, use \IdrisFunction{rec} to jump
+back to the `adder' state and continue acting as the \IdrisFunction{adder}.
 
 %------------------------------------------------------------------------------
 \subsection*{Limitations and Future Work}

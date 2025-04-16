@@ -708,7 +708,7 @@ adder acc ch = do
       rec {nm = Nu "ready"} ch
     else do
       (n # ch) <- recv ch
-      ch <- rec ch
+      ch <- rec {nm = Nu "adder"} ch
       adder (acc + n) ch
 \end{code}
 %</adder>
