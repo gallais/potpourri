@@ -261,12 +261,12 @@ in and out of the big sum type.
 
 \paragraph{Dealing with Changing Sessions}
 The session type, by design, changes after each communication
-but the big sum type used when communicating across the
+but the big sum types used when communicating across the
 unityped channels needs to stay the same.
 %
 Our solution is to record an offset remembering where we currently
-are in the protocol and thus allowing us to keep injecting values to
-be sent into the initial shared sum type.
+are in the protocol and thus allowing us to keep injecting values
+into the initial shared sum types.
 %
 Our offsets are proven correct using a gadget that can be understood
 as a cut down version of McBride's one hole
@@ -274,6 +274,10 @@ contexts~\cite{DBLP:conf/popl/McBride08}. Instead
 of recording the full path followed by our programs in the finite
 state machine describing the protocol,
 we merely record a de-looped version.
+%% : in the `adder' protocol for
+%% instance we only care that we are in one of `init', `eval`, `stop',
+%% or `more` state and not how many times we have gone through
+%% the `init'-`more' loop.
 
 \paragraph{Types of the Primitives} We include code snippets showing the
 types of the primitives dealing with communications. Note that the Idris~2's
@@ -414,7 +418,7 @@ regular progress.
 %------------------------------------------------------------------------------
 %% BIBLIOGRAPHY
 
-\newpage
+%\newpage
 \bibliographystyle{plain}
 %\bibliographystyle{alpha}
 %\bibliographystyle{unsrt}
