@@ -163,7 +163,7 @@ Our session types are closed under
 nested smallest (\smallest{x}{\cdot}) and largest (\largest{x}{\cdot}) fixpoints,
 typed sends (\send{A}{\cdot}) and receives (\recv{A}{\cdot}),
 the empty protocol (\stopsesh{})
-and branch offerings (\offer{\cdot}{\cdot}) and selections (\select{\cdot}{\cdot}).
+and binary branch offerings (\offer{\cdot}{\cdot}) and selections (\select{\cdot}{\cdot}).
 
 The session
 $
@@ -243,7 +243,7 @@ in \IdrisBound{ts} and injects a value of type (\IdrisBound{elt} \IdrisBound{t})
 into the union.
 %
 By picking \IdrisBound{elt} to be the identity function, we recover the
-usual notion of union of types.
+usual notion of tagged union of types.
 
 \ExecuteMetaData[Data/OpenUnion/PrintOnly.idr.tex]{uniont}
 %\ExecuteMetaData[Data/OpenUnion/PrintOnly.idr.tex]{union}
@@ -252,7 +252,8 @@ Note that the proof of type
 (\IdrisType{AtIndex} \IdrisBound{t} \IdrisBound{ts} \IdrisBound{k})
 is marked as erased through the use of the \IdrisKeyword{0}
 quantity which means this datatype compiles down to a pair of a
-GMP-style \IdrisType{Integer} (the optimised runtime representation of \IdrisType{Nat})
+GMP-style \IdrisType{Integer} (the optimised runtime representation of the
+tag of type \IdrisType{Nat})
 and a value of the appropriate type.
 %
 This gives us an encoding that has constant time injections
@@ -262,7 +263,7 @@ in and out of the big sum type.
 \paragraph{Dealing with Changing Sessions}
 The session type, by design, changes after each communication
 but the big sum types used when communicating across the
-unityped channels needs to stay the same.
+unityped channels need to stay the same.
 %
 Our solution is to record an offset remembering where we currently
 are in the protocol and thus allowing us to keep injecting values
@@ -280,7 +281,7 @@ we merely record a de-looped version.
 %% the `init'-`more' loop.
 
 \paragraph{Types of the Primitives} We include code snippets showing the
-types of the primitives dealing with communications. Note that the Idris~2's
+types of the primitives dealing with communications. Note that Idris~2's
 funny arrow (\IdrisFunction{-@}) denotes a linear function space, and
 consequently all of these primitives are linear in the channel
 they take as an input (ensuring it cannot be reused after the protocol
@@ -311,7 +312,7 @@ Third, \IdrisFunction{unroll} and \IdrisFunction{roll}, the
 primitives dealing with the iso-recursive nature of our
 (co)inductive protocols.
 %
-The type of these primitives reveal the role of \IdrisType{Channel}'s
+The types of these primitives reveal the role of \IdrisType{Channel}'s
 second parameter: it is a stack of open session types corresponding
 to the bodies of the nested fixpoints encountered during execution.
 %
@@ -352,7 +353,7 @@ otherwise we \IdrisFunction{send} a greeting, call the
 \IdrisFunction{adder} routine,
 and eventually continue acting as the server with an incremented id number.
 
-One the right-hand side we are acting as the \IdrisFunction{adder} parametrised by an
+On the right-hand side we are acting as the \IdrisFunction{adder} parametrised by an
 accumulator \IdrisBound{acc}. We \IdrisFunction{unroll} the largest
 fixpoint corresponding to the `adder' protocol and
 \IdrisFunction{offer} the client a choice between getting the
@@ -377,7 +378,7 @@ Quantitative Type Theory (QTT)~\cite{DBLP:conf/birthday/McBride16,DBLP:conf/lics
 to emulate uniquess via a library-wide invariant.
 %
 This adds a degree of noise and trust to the implementation.
-We would ideally want a system combining both linearity and uniqueness
+We would ideally want a host system combining both linearity and uniqueness
 to benefit from enhanced expressivity and efficiency as described
 by Marshall, Vollmer, and Orchard~\cite{DBLP:conf/esop/MarshallVO22}.
 
@@ -399,6 +400,7 @@ from QTT's unrestricted to its erased modality.
 We found writing the types of inner loops of programs with non-trivial
 communication patterns to be tedious as they expose quite a lot of the
 powerful but noisy encoding of syntaxes with binding we use.
+%
 Figuring out a more user-friendly surface syntax for our protocols is
 left as future work.
 
