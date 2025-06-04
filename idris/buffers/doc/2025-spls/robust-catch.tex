@@ -1,0 +1,20 @@
+\makeatletter
+
+\newrobustcmd*\OrigExecuteMetaData[2][\jobname]{%
+\CatchFileBetweenTags\CatchFBT@tok{#1}{#2}%
+\global\expandafter\CatchFBT@tok\expandafter{%
+\expandafter}\the\CatchFBT@tok
+}%\OrigExecuteMetaData
+
+\newrobustcmd*\ChkExecuteMetaData[2][\jobname]{%
+\CatchFileBetweenTags\CatchFBT@tok{#1}{#2}%
+\edef\mytokens{\detokenize\expandafter{\the\CatchFBT@tok}}
+\ifx\mytokens\empty\PackageError{catchfilebetweentags}{the tag #2 is not found\MessageBreak in file #1 \MessageBreak called from \jobname.tex}{use a different tag}\fi%
+}%\ChkExecuteMetaData
+
+\renewrobustcmd*\ExecuteMetaData[2][\jobname]{%
+\ChkExecuteMetaData[#1]{#2}%
+\OrigExecuteMetaData[#1]{#2}%
+}
+
+\makeatother

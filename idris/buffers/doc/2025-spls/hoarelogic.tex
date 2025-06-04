@@ -1,0 +1,205 @@
+\section[Hoare Logic]{Hoare Logic for Correct Imperative Programs}
+
+\newcommand{\addra}{\ensuremath{\ell_1}}
+\newcommand{\addrb}{{\color{green} \ensuremath{\ell_2}}}
+
+\begin{frame}{Hoare logic}
+
+A logic for imperative programs.
+
+A memory model.
+
+
+Statements of the form
+\vfill
+
+{\huge
+  $$
+  \lbrace \tikz[tstyle]{\node[nstyle](precondition){$P$}} \rbrace
+  \tikz[tstyle]{\node[nstyle](command){$c$}}
+  \lbrace \tikz[tstyle]{\node[nstyle](postcondition){$Q$}} \rbrace
+  $$
+}
+
+\begin{tikzpicture}[tpstyle]
+  \draw<2->[arrow,->] ([yshift=2pt]precondition.north) to[bend right] +(-2,+1.5) node[anchor=south]
+       {\hand Assuming that initially $P$ holds};
+  \draw<3->[arrow,->] ([yshift=2pt]command.north) to[bend left] +(1.5,+1)
+       node[anchor=south, xshift=2cm]
+       {\hand After executing the command $c$};
+  \draw<4->[arrow,->] ([yshift=-2pt]postcondition.south) to[bend left] +(-1.6,-1) node[anchor=north]
+       {\hand We can guarantee that $Q$ will hold};
+\end{tikzpicture}
+
+\end{frame}
+
+\begin{frame}{Assignment Axiom}
+\begin{center}
+    \huge
+    \tikz[tstyle]{\node[nstyle](precondition){$\lbrace \ell \mapsto \text{\_} \rbrace$}}
+    \quad
+    \tikz[tstyle]{\node[nstyle](command){$\ell \mathbin{:=} 0$}}
+    \quad
+    \tikz[tstyle]{\node[nstyle](postcondition){$\lbrace \ell \mapsto 0 \rbrace$}}
+\end{center}
+
+\begin{tikzpicture}[tpstyle]
+  \draw<2->[arrow,->] ([yshift=2pt]precondition.north) to[bend left] +(+.5,+2) node[anchor=south]
+       {\hand Assuming that $\ell$ is a valid location};
+  \draw<3->[arrow,->] ([yshift=2pt]command.north) to[bend left] +(1.6,+1) node[anchor=west]
+       {\hand Assigning $0$ to $\ell$};
+  \draw<4->[arrow,->] ([yshift=-2pt]postcondition.south) to[bend left] +(-1.6,-2) node[anchor=east]
+       {\hand Ensures that $\ell$ points to $0$};
+\end{tikzpicture}
+\end{frame}
+
+
+\begin{frame}{Sequential Execution Axiom}
+
+{
+  \huge
+\begin{mathpar}
+ \inferrule{
+      \tikz[tstyle]{\node[nstyle](premise1){$\lbrace P \rbrace c_1 \lbrace Q \rbrace$}}
+      \and \tikz[tstyle]{\node[nstyle](premise2){$\lbrace Q \rbrace c_2 \lbrace R \rbrace$}}
+    }{\tikz[tstyle]{\node[nstyle](conclusion){$\lbrace P \rbrace c_1; c_2 \lbrace R \rbrace$}}}
+\end{mathpar}}
+
+\begin{tikzpicture}[tpstyle]
+  \draw<2->[arrow,->] ([yshift=2pt]premise1.north) to[bend left] +(+0,+2) node[anchor=south]
+       {\hand If $c_1$ takes us from $P$ to $Q$};
+  \draw<3->[arrow,->] ([yshift=2pt]premise2.north) to[bend right] +(0,+1) node[anchor=south]
+       {\hand And $c_2$ takes us from $Q$ to $R$};
+  \draw<4->[arrow,->] ([yshift=-2pt]conclusion.south) to[bend left] +(+0,-1) node[anchor=north]
+       {\hand Then the composition $c_1; c_2$ takes us from $P$ to $R$};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{A proof: swap with no allocation}
+  \Large
+\[
+\begin{array}{lr}
+  & \uncover<2-10>{\lbrace \addra \mapsto a \wedge \addrb \mapsto b \rbrace}\\
+  \addra \mathbin{:=} xor(\addra, \addrb);\\
+  & \uncover<3-9>{\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto b \rbrace}\\
+  \addrb \mathbin{:=} xor(\addra, \addrb);\\
+  & \uncover<4-9>{
+   \alt<4-5>
+   {\lbrace \addra \mapsto xor(a, b)
+        \wedge \addrb \mapsto \tikz[tstyle]{\node[nstyle](xorabb){$xor(xor(a,b),b)$}} \rbrace}
+   {\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto a \rbrace}}\\
+  \addra \mathbin{:=} xor(\addra, \addrb);\\
+  & \uncover<7-10>{
+   \alt<7-8>
+   {\lbrace \addra \mapsto \tikz[tstyle]{\node[nstyle](xoraba){$xor(xor(a, b), a)$}}
+        \wedge \addrb \mapsto a \rbrace}
+   {\lbrace \addra \mapsto b \wedge \addrb \mapsto a \rbrace}}\\
+ & \hphantom{\hphantom{\lbrace \addra \mapsto xor(a, b) \wedge \addrb \mapsto xor(xor(a,b),b) \rbrace}}
+\end{array}
+\]
+
+\begin{tikzpicture}[tpstyle]
+  \draw<5>[arrow,->] ([yshift=2pt]xorabb.south) to[bend left=10] +(-2.5,-1) node[anchor=north]
+       {\hand $xor(xor(a,b),b)$ equals $a$};
+  \draw<8>[arrow,->] ([yshift=-2pt]xoraba.south) to[bend left=10] +(-2.5,-1) node[anchor=north]
+       {\hand $xor(xor(a,b),a)$ equals $b$};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Combining proofs}
+{
+  \huge
+\begin{mathpar}
+ \inferrule{
+   \lbrace \tikz[tstyle]{\node[nstyle](nodeP0){$P$}} \rbrace c_1
+   \lbrace \tikz[tstyle]{\node[nstyle](nodeQ0){$Q$}} \rbrace
+ \and
+   \lbrace \tikz[tstyle]{\node[nstyle](nodeQ1){$Q$}} \rbrace c_2
+   \lbrace \tikz[tstyle]{\node[nstyle](nodeR0){$R$}} \rbrace
+ }{\lbrace \tikz[tstyle]{\node[nstyle](nodeP1){$P$}} \rbrace c_1; c_2
+   \lbrace \tikz[tstyle]{\node[nstyle](nodeR1){$R$}} \rbrace}
+\end{mathpar}
+\begin{tikzpicture}[tpstyle]
+  \node<2->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box0) at (nodeP0) {};
+  \node<2->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box1) at (nodeP1) {};
+  \node<3->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box2) at (nodeQ0) {};
+  \node<3->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box3) at (nodeQ1) {};
+  \node<4->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box4) at (nodeR0) {};
+  \node<4->[pencil,ultra thick,draw, minimum height=1cm, minimum width=1.2cm, ellipse,xscale=1.1] (box5) at (nodeR1) {};
+\end{tikzpicture}
+}
+
+  The sequential composition rule is, ironically, anti-compositional:
+  each subprogram needs to talk about
+  the {\bf entire} world no matter what they {\bf actually} use!
+\end{frame}
+
+\begin{frame}{What we \textit{want}: lifting results}
+{\huge
+\begin{mathpar}
+ \inferrule{
+   \lbrace P \rbrace c \lbrace Q \rbrace
+ }{\lbrace \tikz[tstyle]{\node[nstyle](premise){$P \wedge R$}} \rbrace c
+   \lbrace \tikz[tstyle]{\node[nstyle](conclusion){$Q \wedge R$}} \rbrace}
+\end{mathpar}
+}
+\begin{tikzpicture}[tpstyle]
+    \draw<2->[arrow,->] ([xshift=-4pt,yshift=-2pt]premise.south east) to[bend left] +(-2.5,-1) node[anchor=east]
+       {\hand If $R$ is also true};
+  \draw<3->[arrow,->] ([xshift=-4pt,yshift=-2pt]conclusion.south east) to[bend left] +(-1,-2) node[anchor=north]
+       {\hand Then $R$ remains true};
+\end{tikzpicture}
+
+\vfill
+\uncover<4->{In a sense $R$ is {\bf independent} from $P$ \& $Q$}
+\end{frame}
+
+\begin{frame}{What we \textit{get}: nonsense!}
+  \begin{minipage}{.7\textwidth}
+    \uncover<2->{We have: $P = \ell \mapsto 1$ and $Q = \ell \mapsto 0$}
+
+    \uncover<3->{We pick: $R = \ell \mapsto 1$}
+
+    \bigskip
+
+    {\huge
+    $$
+    \left\lbrace \begin{array}{c@{\,}l}
+      & \ell \mapsto 1 \only<2->{\\
+      \wedge & \only<3->{\ell \mapsto 1}}
+    \end{array} \right\rbrace \,
+    \begin{array}{c}
+      \ell \mathbin{:=} 0 \, \only<2->{\\
+      \\}
+    \end{array}
+    \left\lbrace \begin{array}{c@{\,}l}
+      & \ell \mapsto 0 \only<2->{\\
+      \wedge & \only<3->{\ell \mapsto \tikz[tstyle]{\node[nstyle](node){$1$}}}}
+    \end{array} \right\rbrace
+    $$}
+  \end{minipage}
+
+\begin{tikzpicture}[remember picture, overlay]
+  \node[anchor=north east] at ($(current page.north east)-(.15,.15)$){
+    \begin{minipage}{.3\textwidth}\NB{
+      \large%
+              \begin{mathpar}
+                \inferrule{
+                  \lbrace P \rbrace c \lbrace Q \rbrace
+                }{\lbrace P \wedge R \rbrace c \lbrace Q \wedge R \rbrace}
+            \end{mathpar}}
+  \end{minipage}};
+\end{tikzpicture}
+
+\begin{tikzpicture}[tpstyle]
+  \node<4->[pencil,ultra thick,draw, minimum width=.8cm, minimum height=1.9cm, xshift=.1cm, yshift=.5cm, ellipse] (box1) at (node) {};
+  \draw<4->[arrow,->] (box1.south) to[bend left] +(-2,-1) node[anchor=east]
+       {\hand \raisebox{-2pt}{\scream{}} $0$ is equal to $1$?!};
+
+\end{tikzpicture}
+
+\vfill
+
+\uncover<5>{Nothing actually enforces that $R$ is {\bf independent} from $P$ \& $Q$!}
+
+\end{frame}

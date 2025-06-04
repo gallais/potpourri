@@ -1,0 +1,114 @@
+\PassOptionsToPackage{x11names}{xcolor}
+\documentclass[3to2]{beamer}
+
+\beamertemplatenavigationsymbolsempty
+
+
+\usepackage{mathpartir}
+\usepackage{bytefield}
+\usepackage{tcolorbox}
+\usetheme{jambro}
+\usetikzlibrary{shapes}
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+\usepackage{idris2}
+\usepackage{transparent}
+\usepackage{multirow}
+
+\newcommand{\bobhead}{\includegraphics[scale=.2]{assets/bob.png}}
+\newcommand{\cowhead}{\includegraphics[scale=.17]{assets/TYPES-cow.png}}
+\newcommand{\mastodon}{\includegraphics[scale=.2]{assets/mastodon-logo-purple.png}}
+\newcommand{\globe}{\includegraphics[scale=.1]{assets/globe.png}}
+\newcommand{\typesstrathclyde}{\includegraphics[scale=.2]{assets/logo-TYPES2025.png}}
+\newcommand{\splv}{\includegraphics[scale=.2]{assets/splv.png}}
+
+\newcommand{\smiley}{\includegraphics[scale=.025]{assets/robot-smiley.png}}
+\newcommand{\sweaty}{\includegraphics[scale=.025]{assets/robot-sweaty.png}}
+\newcommand{\stress}{\includegraphics[scale=.025]{assets/robot-stress.png}}
+\newcommand{\clowny}{\includegraphics[scale=.025]{assets/robot-clowny.png}}
+\newcommand{\scream}{\includegraphics[scale=.025]{assets/robot-scream.png}}
+
+\newcommand{\source}{\includegraphics[scale=.1]{assets/tree.png}}
+\newcommand{\target}{\includegraphics[scale=.1]{assets/wood.png}}
+\newcommand{\beyond}{\includegraphics[scale=.1]{assets/flute.png}}
+
+\newcommand{\saw}{\includegraphics[scale=.1]{assets/saw.png}}
+
+
+\title{Correct by Construction Concurrent Programs \newline in Idris 2}
+\author{Guillaume Allais}
+\institute{University of Strathclyde \\ Glasgow, UK}
+\date{June 4$^{th}$ 2025}
+
+\setbeamertemplate{section in toc}{\inserttocsection}
+\AtBeginSection[]
+{
+    \begin{frame}
+        \frametitle{Table of Contents}
+        \tableofcontents[currentsection]
+    \end{frame}
+}
+
+\usepackage{listings}
+\lstset{language=Fortran,
+  basicstyle=\ttfamily\bf,
+  keywordstyle=\color{red},
+}
+
+%% Disable the >> ligature
+\usepackage{microtype}
+\DisableLigatures[>]{}
+
+\begin{document}
+
+\begin{frame}
+  \maketitle
+\begin{tikzpicture}[remember picture, overlay]
+  \node[anchor=south east] at ($(current page.south east)+(0,.27)$){\cowhead};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Table of Contents}
+  \tableofcontents
+\end{frame}
+
+\input{motivation}
+\input{hoarelogic}
+\input{separationlogic}
+\input{writingprograms}
+
+\begin{frame}{What's next?}
+Separation logic has a lot more to offer!
+
+  \begin{itemize}
+    \item Partial ownership (shared reads, owned writes)
+    \item Locks (non-deterministic access to shared resources)
+    \item Ghost states (stateful specification data)
+  \end{itemize}
+
+\vfill
+
+Use these building blocks!
+
+  \begin{itemize}
+    \item Richly typed parallel skeletons
+    \item Reintroduce layers of abstractions (e.g. inductive types)
+    \item Seamless programming over serialised data
+    \item Concurrent programs
+  \end{itemize}
+\end{frame}
+
+\section*{Ad}
+
+\begin{frame}{PSA: More Separation Logic at SPLV this Summer}
+  \vspace{.8cm}
+  \begin{center}
+    \begin{tabular}{ll}
+      SPLV 2025 --- 21$^{st}$–25$^{th}$ July & \multirow{3}{*}{\splv} \\
+      Edinburgh\\
+      \url{https://spli.scot/splv/2025-edinburgh/}
+    \end{tabular}
+  \end{center}
+\end{frame}
+
+\end{document}
