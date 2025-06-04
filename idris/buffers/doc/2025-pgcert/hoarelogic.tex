@@ -1,0 +1,192 @@
+\section[Hoare Logic]{Hoare Logic for Correct Imperative Programs}
+
+\newcommand{\addra}{\ensuremath{\ell_1}}
+\newcommand{\addrb}{{\color{green} \ensuremath{\ell_2}}}
+
+\begin{frame}{Hoare logic}
+
+A logic for imperative programs.
+
+\vfill
+
+{\Huge
+  $$
+  \lbrace \tikz[tstyle]{\node[nstyle](precondition){$P$}} \rbrace
+  \tikz[tstyle]{\node[nstyle](command){$c$}}
+  \lbrace \tikz[tstyle]{\node[nstyle](postcondition){$Q$}} \rbrace
+  $$
+}
+
+\begin{tikzpicture}[tpstyle]
+  \draw<2->[arrow,->] ([yshift=2pt]precondition.north) to[bend left] +(-2,+1.5) node[anchor=south]
+       {\hand Assuming that initially $P$ holds};
+  \draw<3->[arrow,->] ([yshift=2pt]command.north) to[bend left] +(1.5,+1)
+       node[anchor=south, xshift=2cm]
+       {\hand After executing the command $c$};
+  \draw<4->[arrow,->] ([yshift=-2pt]postcondition.south) to[bend left] +(-1.6,-1) node[anchor=north]
+       {\hand We can guarantee that $Q$ will hold};
+\end{tikzpicture}
+
+
+\end{frame}
+
+\begin{frame}{Logic: the ``maps to'' assertion}
+  \begin{center}
+    \huge
+    \tikz[tstyle]{\node[nstyle](location){$\ell$}}
+    \quad
+    \tikz[tstyle]{\node[nstyle](mapsto){$\mapsto$}}
+    \quad
+    \tikz[tstyle]{\node[nstyle](value){$\text{v}$}}
+  \end{center}
+
+\begin{tikzpicture}[tpstyle]
+  \draw<2->[arrow,->] ([yshift=2pt]location.north) to[bend right] +(-1,+1) node[anchor=south]
+       {\hand In memory, the location $\ell$ exists};
+  \draw<3->[arrow,->] ([yshift=2pt]mapsto.north) to[bend left] +(1.6,+1) node[anchor=west]
+       {\hand and it maps to};
+  \draw<4->[arrow,->] ([yshift=-2pt]value.south) to[bend left] +(-1.6,-1) node[anchor=east]
+       {\hand the value $v$};
+\end{tikzpicture}
+
+\vfill
+Examples:
+
+\begin{itemize}
+  \item<5-> $\lbrace \ell \mapsto 0 \rbrace$
+  \item<6-> $\lbrace \addra \mapsto a + b \rbrace$
+  \item<7-> $\lbrace \addra \mapsto a, \addrb \mapsto b \rbrace$
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{The assignment program}
+
+\begin{center}
+    \huge
+    \tikz[tstyle]{\node[nstyle](location){$\ell$}}
+    \tikz[tstyle]{\node[nstyle](assign){$\mathbin{:=}$}}
+    \tikz[tstyle]{\node[nstyle](value){$\text{v}$}}
+\end{center}
+\begin{tikzpicture}[tpstyle]
+  \draw<2->[arrow,->] ([yshift=2pt]location.north) to[bend right] +(-1,+1) node[anchor=south]
+       {\hand The location $\ell$};
+  \draw<3->[arrow,->] ([yshift=2pt]assign.north) to[bend left] +(1.6,+1) node[anchor=west]
+       {\hand should be assigned};
+  \draw<4->[arrow,->] ([yshift=-2pt]value.south) to[bend left] +(-1.6,-1) node[anchor=east]
+       {\hand the value $v$};
+\end{tikzpicture}
+
+\vfill
+Examples:
+
+\begin{itemize}
+  \item<5-> $\ell \mathbin{:=} 0$
+  \item<6-> $\ell \mathbin{:=} \ell + 1$
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{The assignment axiom}
+
+\begin{center}
+    \huge
+    \tikz[tstyle]{\node[nstyle](precondition){$\lbrace \ell \mapsto \text{\_} \rbrace$}}
+    \quad
+    \tikz[tstyle]{\node[nstyle](command){$\ell \mathbin{:=} 0$}}
+    \quad
+    \tikz[tstyle]{\node[nstyle](postcondition){$\lbrace \ell \mapsto 0 \rbrace$}}
+\end{center}
+
+\begin{tikzpicture}[tpstyle]
+  \draw<2->[arrow,->] ([yshift=2pt]precondition.north) to[bend left] +(+.5,+2) node[anchor=south]
+       {\hand Assuming that $\ell$ is a valid location};
+  \draw<3->[arrow,->] ([yshift=2pt]command.north) to[bend left] +(1.6,+1) node[anchor=west]
+       {\hand Assigning $0$ to $\ell$};
+  \draw<4->[arrow,->] ([yshift=-2pt]postcondition.south) to[bend left] +(-1.6,-2) node[anchor=east]
+       {\hand Ensures that $\ell$ points to $0$};
+\end{tikzpicture}
+\end{frame}
+
+
+\begin{frame}{Sequential Execution}
+
+\begin{center}
+    \huge
+    \tikz[tstyle]{\node[nstyle](first){$c_1$}}
+    \tikz[tstyle]{\node[nstyle](then){$\mathbin{;}$}}
+    \tikz[tstyle]{\node[nstyle](second){$c_2$}}
+\end{center}
+\begin{tikzpicture}[tpstyle]
+  \draw<2->[arrow,->] ([yshift=2pt]first.north) to[bend right] +(-2,+1) node[anchor=south]
+       {\hand Running the first program $c_1$};
+  \draw<3->[arrow,->] ([yshift=2pt]then.north) to[bend left] +(2.6,+1) node[anchor=west]
+       {\hand and then};
+  \draw<4->[arrow,->] ([yshift=-2pt]second.south) to[bend left] +(-1,-1) node[anchor=north]
+       {\hand running the second program $c_2$};
+\end{tikzpicture}
+
+
+\vfill
+Examples:
+
+\begin{itemize}
+  \item<5-> $\ell \mathbin{:=} 0; \ell \mathbin{:=} 0$
+  \item<6-> $\ell \mathbin{:=} 0; \ell \mathbin{:=} \ell + 1$
+  \item<7-> $\ell \mathbin{:=} \ell + 1; \ell \mathbin{:=} \ell - 1$
+\end{itemize}
+
+
+\end{frame}
+
+\begin{frame}{Sequential Execution Axiom}
+
+{
+  \huge
+\begin{mathpar}
+ \inferrule{
+      \tikz[tstyle]{\node[nstyle](premise1){$\lbrace P \rbrace c_1 \lbrace Q \rbrace$}}
+      \and \tikz[tstyle]{\node[nstyle](premise2){$\lbrace Q \rbrace c_2 \lbrace R \rbrace$}}
+    }{\tikz[tstyle]{\node[nstyle](conclusion){$\lbrace P \rbrace c_1; c_2 \lbrace R \rbrace$}}}
+\end{mathpar}}
+
+\begin{tikzpicture}[tpstyle]
+  \draw<2->[arrow,->] ([yshift=2pt]premise1.north) to[bend left] +(+0,+2) node[anchor=south]
+       {\hand If $c_1$ takes us from $P$ to $Q$};
+  \draw<3->[arrow,->] ([yshift=2pt]premise2.north) to[bend right] +(0,+1) node[anchor=south]
+       {\hand And $c_2$ takes us from $Q$ to $R$};
+  \draw<4->[arrow,->] ([yshift=-2pt]conclusion.south) to[bend left] +(+0,-1) node[anchor=north]
+       {\hand Then the composition $c_1; c_2$ takes us from $P$ to $R$};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{A proof: swap with no allocation}
+  \Large
+\[
+\begin{array}{lr}
+  & \uncover<2-10>{\lbrace \addra \mapsto a, \addrb \mapsto b \rbrace}\\
+  \addra \mathbin{:=} \addra + \addrb;\\
+  & \uncover<3-9>{\lbrace \addra \mapsto a + b, \addrb \mapsto b \rbrace}\\
+  \addrb \mathbin{:=} \addra - \addrb;\\
+  & \uncover<4-9>{
+   \alt<4-5>
+   {\lbrace \addra \mapsto a + b
+       , \addrb \mapsto \tikz[tstyle]{\node[nstyle](xorabb){$(a + b) - b$}} \rbrace}
+   {\lbrace \addra \mapsto a + b, \addrb \mapsto a \rbrace}}\\
+  \addra \mathbin{:=} \addra - \addrb;\\
+  & \uncover<7-10>{
+   \alt<7-8>
+   {\lbrace \addra \mapsto \tikz[tstyle]{\node[nstyle](xoraba){$(a + b) - a$}}
+       , \addrb \mapsto a \rbrace}
+   {\lbrace \addra \mapsto b, \addrb \mapsto a \rbrace}}\\
+ & \hphantom{\hphantom{\lbrace \addra \mapsto a + b, \addrb \mapsto (a + b) - b \rbrace}}
+\end{array}
+\]
+
+\begin{tikzpicture}[tpstyle]
+  \draw<5>[arrow,->] ([yshift=2pt]xorabb.south) to[bend left=10] +(-2.5,-1) node[anchor=north]
+       {\hand $(a + b) - b$ equals $a$};
+  \draw<8>[arrow,->] ([yshift=-2pt]xoraba.south) to[bend left=10] +(-2.5,-1) node[anchor=north]
+       {\hand $(a + b) - a$ equals $b$};
+\end{tikzpicture}
+\end{frame}

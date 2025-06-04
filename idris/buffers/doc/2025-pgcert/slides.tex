@@ -1,0 +1,77 @@
+\PassOptionsToPackage{x11names}{xcolor}
+\documentclass[3to2]{beamer}
+
+\beamertemplatenavigationsymbolsempty
+
+
+\usepackage{mathpartir}
+\usepackage{bytefield}
+\usepackage{tcolorbox}
+\usetheme{jambro}
+\usetikzlibrary{shapes}
+\usepackage{catchfilebetweentags}
+\input{robust-catch}
+\usepackage{idris2}
+\usepackage{transparent}
+\usepackage{multirow}
+
+\newcommand{\bobhead}{\includegraphics[scale=.2]{assets/bob.png}}
+\newcommand{\mastodon}{\includegraphics[scale=.2]{assets/mastodon-logo-purple.png}}
+\newcommand{\globe}{\includegraphics[scale=.1]{assets/globe.png}}
+\newcommand{\typesstrathclyde}{\includegraphics[scale=.2]{assets/logo-TYPES2025.png}}
+
+\newcommand{\smiley}{\includegraphics[scale=.025]{assets/robot-smiley.png}}
+\newcommand{\sweaty}{\includegraphics[scale=.025]{assets/robot-sweaty.png}}
+\newcommand{\stress}{\includegraphics[scale=.025]{assets/robot-stress.png}}
+\newcommand{\clowny}{\includegraphics[scale=.025]{assets/robot-clowny.png}}
+\newcommand{\scream}{\includegraphics[scale=.025]{assets/robot-scream.png}}
+
+\newcommand{\source}{\includegraphics[scale=.1]{assets/tree.png}}
+\newcommand{\target}{\includegraphics[scale=.1]{assets/wood.png}}
+\newcommand{\beyond}{\includegraphics[scale=.1]{assets/flute.png}}
+
+\newcommand{\saw}{\includegraphics[scale=.1]{assets/saw.png}}
+
+
+%% Disable the >> ligature
+\usepackage{microtype}
+\DisableLigatures[>]{}
+
+\begin{document}
+
+\title{Proving Programs Correct}
+\author{Guillaume Allais}
+\date{June 3$^{rd}$ 2025}
+
+\begin{frame}
+  \maketitle
+\end{frame}
+
+\begin{frame}{Today's goals}
+  \begin{enumerate}
+    \item Understand simple programs and logical formulas
+    \item Follow along a classic proof
+    \item Predict a program's behaviour
+  \end{enumerate}
+\end{frame}
+
+\input{motivation}
+\input{hoarelogic}
+
+\begin{frame}{Tools}
+\begin{center}
+\Huge
+Demo
+\end{center}
+\end{frame}
+
+\begin{frame}{What did we see?}
+
+  \begin{itemize}
+    \item Simple programs and logical formulas
+    \item Follow along a classic proof
+    \item Predict a program's behaviour
+  \end{itemize}
+\end{frame}
+
+\end{document}
