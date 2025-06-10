@@ -4,6 +4,7 @@ LATEX_DEPENDENCIES=\
 
 IDRIS_DEPENDENCIES=\
   System/Concurrency/Session/MuNuN.idr.tex\
+  System/Concurrency/PrintOnly.idr.tex\
   Data/OpenUnion/PrintOnly.idr.tex\
 
 DEPENDENCIES=\
