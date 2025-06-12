@@ -212,9 +212,9 @@ $$
   \end{minipage}
 
 \begin{tikzpicture}[tpstyle]
-  \node<2>[-, pencil,ultra thick,draw, minimum height=1.5cm, minimum width=7cm, ellipse,xscale=1.1] (box0) at (4,3.6) {};
-  \node<3>[-, pencil,ultra thick,draw, minimum height=1.2cm, minimum width=5cm, ellipse,xscale=1.1] (box0) at (3.8,2.4) {};
-  \node<4>[-, pencil,ultra thick,draw, minimum height=1.8cm, minimum width=6cm, ellipse,xscale=1.1] (box0) at (4,1.2) {};
+  \node<2>[-, pencil,ultra thick,draw, minimum height=1.5cm, minimum width=7cm, ellipse,xscale=1.1] at (4,3.6) {};
+  \node<3>[-, pencil,ultra thick,draw, minimum height=1.2cm, minimum width=5cm, ellipse,xscale=1.1] at (3.8,2.4) {};
+  \node<4>[-, pencil,ultra thick,draw, minimum height=1.8cm, minimum width=6cm, ellipse,xscale=1.1] at (4,1.2) {};
 \end{tikzpicture}
 
 \end{frame}
@@ -250,8 +250,8 @@ $$
 
   \begin{itemize}
     \item<2-> (Ab)using linearity to encode uniqueness
-    \item<3-> {\bf Not} unfolding fixpoints by substitution but rather using a stack machine
-    \item<4-> Recording where we are in the state machine (to see how our current sent types embed into the original one)
+    \item<3-> {\bf Not} unfolding fixpoints by substitution
+    \item<4-> Recording where we are in the state machine
   \end{itemize}
 \end{frame}
 
@@ -264,24 +264,39 @@ $$
 \end{frame}
 
 \begin{frame}{Environment Stack}
+  To make sense of nested fixpoints, we need a telescopic environment
+
   \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{env}
 \end{frame}
 
 
 \begin{frame}{Channels}
   \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{channel}
+
+\begin{tikzpicture}[tpstyle]
+  \node<2>[-, pencil,ultra thick,draw, minimum height=1cm, minimum width=7.8cm, ellipse,xscale=1.1] at (7.1,1.8) {};
+\end{tikzpicture}
+
 \end{frame}
 
 
 
 \begin{frame}{Basic Building Blocks}
   \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{sendrecv}
-  \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{offerselect}
-  \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{unrollroll}
-  \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{rec}
+  \uncover<2->{
+    \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{offerselect}}
+  \uncover<3->{
+    \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{unrollroll}}
+  \uncover<4->{
+    \ExecuteMetaData[System/Concurrency/Session/MuNuN.idr.tex]{rec}}
 \end{frame}
 
 \begin{frame}{What's next?}
+\begin{itemize}
+  \item Small runtime overhead
+  \item Ergonomics
+  \item Totality Checking
+\end{itemize}
 \end{frame}
 
 \end{document}
