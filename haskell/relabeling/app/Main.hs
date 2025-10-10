@@ -1,6 +1,6 @@
 module Main where
 
-import Control.Monad (void, when)
+import Control.Monad (void)
 
 import Data.Char (isDigit)
 import Data.Foldable (for_)
@@ -18,14 +18,16 @@ onDirectories fp act = do
   dirs <- listDirectory fp
   for_ dirs $ \ dir -> do
     bDir <- doesDirectoryExist (fp </> dir)
-    when bDir $ act dir
+    if bDir then act dir else
+      putStrLn (fp </> dir ++ " is not a directory")
 
 onFiles :: FilePath -> (FilePath -> IO ()) -> IO ()
 onFiles fp act = do
   files <- listDirectory fp
   for_ files $ \ file -> do
     bFile <- doesFileExist (fp </> file)
-    when bFile $ act file
+    if bFile then act file else
+      putStrLn (fp </> file ++ " is not a file")
 
 withRight :: Either [String] a -> (a -> IO ()) -> IO ()
 withRight (Left str) _ = putStrLn (unlines str)
@@ -47,11 +49,11 @@ setMetaData
   -> IO ()
 setMetaData alInfo trInfo fp = case format trInfo of
   MP3 -> void $ readProcess "id3v2"
-    [ "-a", show (artist alInfo)
+    [ "-a", artist alInfo
     , "-y", show (year alInfo)
-    , "-A", show (name alInfo)
+    , "-A", name alInfo
     , "-T", show (track trInfo)
-    , "-t", show (title trInfo)
+    , "-t", title trInfo
     , fp
     ]
     ""
