@@ -90,7 +90,7 @@ execute :: Model -> Command -> Model
 execute m (Assign l v) = Map.insert l (eval (flip Map.lookup m) v) m
 
 instance Show Command where
-  show (Assign l e) = show l ++ " := " ++ show e
+  show (Assign l e) = " " ++ show l ++ " := " ++ show e
 
 newtype Program = MkProgram { runProgram :: [Command] }
 

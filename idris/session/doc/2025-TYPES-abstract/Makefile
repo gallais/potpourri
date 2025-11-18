@@ -12,10 +12,10 @@ DEPENDENCIES=\
 
 all: session.pdf
 
-$(BUILDDIR)/%.idr.tex: %.idr.tex
+$(BUILDDIR)/%.idr.tex: ../%.idr.tex
 	mkdir -p $(dir $@)
-	idris2 -p linear -c $<
-	katla literate $< build/ttc/*/$*.ttm > $@
+	cd .. && idris2 -p linear -c $*.idr.tex
+	katla literate $< ../build/ttc/*/$*.ttm > $@
 	perl -0777 -i -pe 's/\\Katlanewline{}\n\\end{code}/\n\\end{code}/igs' $@
 
 

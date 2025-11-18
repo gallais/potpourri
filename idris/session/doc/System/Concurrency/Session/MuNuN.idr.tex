@@ -27,8 +27,14 @@ namespace Kinds
   Name = String
 
   public export
+\end{code}
+%<*kind>
+\begin{code}
   data Kind : Type where
     Mu, Nu : Name -> Kind
+\end{code}
+%</kind>
+\begin{code}
 
   public export
   Dual : Kind -> Kind
@@ -78,22 +84,34 @@ namespace Session
   public export
   data Norm = Head | Expr
 
+  namespace PRINTONLY
+\end{code}
+%<*sessionloop>
+\begin{code}
+    data Session : List Kind -> Norm -> Type where
+      Fix : (kd : Kind) -> Session (kd :: nms) Head -> Session nms Head
+      Rec : {kd : Kind} -> Focus kd nms -> Session nms Expr
+\end{code}
+%</sessionloop>
+\begin{code}
   ||| A session type describes the interactions one thread may have with
   ||| another over a shared bidirectional channel: it may send or receive
   ||| values of arbitrary types, or be done communicating.
   public export
-  data Session : Kinds -> Norm -> Type where
-    -- Recursive parts
-    Fix : (kd : Kind) -> (s : Session (kd :: nms) Head) -> Session nms Head
+\end{code}
+%<*session>
+\begin{code}
+  data Session : List Kind -> Norm -> Type where
+    Fix : (kd : Kind) -> Session (kd :: nms) Head -> Session nms Head
     Rec : {kd : Kind} -> Focus kd nms -> Session nms Expr
-    -- Usual operations
-    Send : (ty : Type) -> (s : Session nms n) -> Session nms Head
-    Recv : (ty : Type) -> (s : Session nms n) -> Session nms Head
-    -- End a session
+    Send : (ty : Type) -> Session nms n -> Session nms Head
+    Recv : (ty : Type) -> Session nms n -> Session nms Head
     End : Session nms Head
-    -- Choice
-    Offer : (s : Session nms m1) -> (t : Session nms m2) -> Session nms Head
-    Select : (s : Session nms m1) -> (t : Session nms m2) -> Session nms Head
+    Offer : Session nms m1 -> Session nms m2 -> Session nms Head
+    Select : Session nms m1 -> Session nms m2 -> Session nms Head
+\end{code}
+%</session>
+\begin{code}
 
   ||| Dual describes how the other party to the communication sees the
   ||| interactions: our sends become their receives and vice-versa.
@@ -107,24 +125,14 @@ namespace Session
   Dual (Offer s t) = Select (Dual s) (Dual t)
   Dual (Select s t) = Offer (Dual s) (Dual t)
 
-{-
-  ||| Duality is involutive: the dual of my dual is me
-  export
-  dualInvolutive : (s : Session nms m) -> Dual (Dual s) === s
-  dualInvolutive (Fix nm kd s) = cong2 (Fix nm) (dualInvolutive kd) (dualInvolutive s)
-  dualInvolutive (Rec pos) = Refl
-  dualInvolutive (Send ty s) = cong (Send ty) (dualInvolutive s)
-  dualInvolutive (Recv ty s) = cong (Recv ty) (dualInvolutive s)
-  dualInvolutive End = Refl
-  dualInvolutive (Offer s t) = cong2 Offer (dualInvolutive s) (dualInvolutive t)
-  dualInvolutive (Select s t) = cong2 Select (dualInvolutive s) (dualInvolutive t)
--}
-
-||| We can collect the list of types that will be sent over the
-||| course of a session by walking down its description
-||| This definition is purely internal and will not show up in
-||| the library's interface.
+\end{code}
+%<*sendtypes>
+\begin{code}
 SendTypes : Session nms m -> List Type
+RecvTypes : Session nms m -> List Type
+\end{code}
+%</sendtypes>
+\begin{code}
 SendTypes (Fix kd s) = SendTypes s
 SendTypes (Rec pos) = []
 SendTypes (Send ty s) = ty :: SendTypes s
@@ -133,11 +141,6 @@ SendTypes End = []
 SendTypes (Offer s1 s2) = SendTypes s1 ++ SendTypes s2
 SendTypes (Select s1 s2) = SendTypes s1 ++ SendTypes s2
 
-||| We can collect the list of types that will be received over
-||| the course of a session by walking down its description
-||| This definition is purely internal and will not show up in
-||| the library's interface.
-RecvTypes : Session nms m -> List Type
 RecvTypes (Fix kd s) = RecvTypes s
 RecvTypes (Rec pos) = []
 RecvTypes (Send ty s) = RecvTypes s
@@ -215,9 +218,15 @@ namespace Loop
 namespace Env
 
   public export
-  data Env : Kinds -> Type where
+\end{code}
+%<*env>
+\begin{code}
+  data Env : List Kind -> Type where
     Nil  : Env []
     (::) : Session (nm :: nms) Head -> Env nms -> Env (nm :: nms)
+\end{code}
+%</env>
+\begin{code}
 
   public export
   head : Env (e :: nms) -> Session (e :: nms) Head
@@ -269,6 +278,9 @@ sumerCtx
   $ [< OfferR, Recv Nat]
 
 export
+\end{code}
+%<*channel>
+\begin{code}
 record Channel (s : Session nms k) (e : Env nms) where
   constructor MkChannel
   {sendStep    : Nat}
@@ -278,9 +290,11 @@ record Channel (s : Session nms k) (e : Env nms) where
   {0 ogSession : Session ogKinds ogNorm}
   context      : Context recvStep sendStep ogSession s e
 
-  -- we throw in Bool for Offer & Select
   sendChan : Threads.Channel (Union (Bool :: SendTypes ogSession))
   recvChan : Threads.Channel (Union (Bool :: RecvTypes ogSession))
+\end{code}
+%</channel>
+\begin{code}
 
 0 recvHeaded :
   Headed m n s s' ->

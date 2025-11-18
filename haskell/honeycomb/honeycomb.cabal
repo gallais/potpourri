@@ -65,8 +65,8 @@ executable honeycomb
     default-extensions: LambdaCase
 
     -- Other library packages from which modules are imported.
-    build-depends:    base ^>=4.15.1.0
-                    , JuicyPixels ^>=3.3
+    build-depends:    base >=4.15.1.0 && <5
+                    , JuicyPixels >=3.3 && <4
 
     -- Directories containing source files.
     hs-source-dirs:   src
