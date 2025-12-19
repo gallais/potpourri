@@ -10,7 +10,7 @@ Inductive pList (a : Type) : Type :=
   | pcons : a -> pList (a * a) -> pList a.
 
 (*
-Code:
+code:
   - always 'start' to initialise the computation
   - one constructor per "pattern of modification", here we
     have one (pList (a * a)) so we just need to record "dup"
@@ -18,32 +18,44 @@ Code:
 In this instance we have something that's essentially a nat, the
 depth of the perfect tree of 'a'
 *)
-Inductive Code : Type :=
-  | start : Code
-  | dup : Code -> Code.
+Inductive code : Type :=
+  | start : code
+  | dup : code -> code.
 
 (*
-Decode:
-  - essentially a function of the Code it is indexed by
+decode:
+  - essentially a function of the code it is indexed by
   - expressed as a family to ensure strict positivity is noticed by Rocq
 *)
-Inductive Decode (a : Type) : Code -> Type :=
-  | done : a -> Decode a start
-  | pair : forall c, (Decode a c * Decode a c) -> Decode a (dup c).
+Inductive decode (a : Type) : code -> Type :=
+  | done : a -> decode a start
+  | pair : forall c, (decode a c * decode a c) -> decode a (dup c).
+
+Inductive allDecode {a : Type} (p : a -> Type) : forall c, decode a c -> Type :=
+  | allDone : forall x, p x -> allDecode p start (done a x)
+  | allPair : forall c l r,
+     (allDecode p c l * allDecode p c r) ->
+     allDecode p (dup c) (pair a c (l, r)).
 
 (* Barras' pList:
   - instead of modifying the paremeter as we go, we record the
-    modifications in the Code index
-  - use Decode to deploy the modifications
+    modifications in the code index
+  - use decode to deploy the modifications
 *)
-Inductive bpList (a : Type) (c : Code) : Type :=
+Inductive bpList (a : Type) (c : code) : Type :=
   | bpnil : bpList a c
-  | bpcons : Decode a c -> bpList a (dup c) -> bpList a c.
+  | bpcons : decode a c -> bpList a (dup c) -> bpList a c.
+
+Inductive allBpList (a : Type) (p : a -> Type) (c : code) : bpList a c -> Type :=
+  | allBpnil : allBpList a p c (bpnil a c)
+  | allBpcons : forall x xs, allDecode p c x ->
+    allBpList a p (dup c) xs -> allBpList a p c (bpcons a c x xs).
 
 (* Power Trees:
-  - Uses Barras' pList with the start Code
+  - Uses Barras' pList with the start code
 *)
 Inductive pTree (a : Type) : Type :=
   | pLeaf : a -> pTree a
   | pNode : bpList (pTree a) start -> pTree a.
 
+(* TODO: induction by fixpoint *)
