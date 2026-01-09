@@ -219,3 +219,22 @@ Inductive pTree (a : Type) : Type :=
 
 (* TODO: induction by fixpoint *)
 
+Definition rec {a : Type} (p : pTree a -> Type)
+  (case_pLeaf : forall x, p (pLeaf a x))
+  (case_pNode : forall (ts : bpList (pTree a) start), allBpList (pTree a) p start ts -> p (pNode a ts)) :
+  forall t, p t.
+
+refine (fix f (t : pTree a) {struct t} : p t := _).
+destruct t as [x|ts].
+  - apply case_pLeaf.
+  - apply case_pNode.
+    refine ((fix fs (c : code) (ts : bpList (pTree a) c) {struct ts} : allBpList (pTree a) p c ts := _) start ts).
+    destruct ts.
+      + constructor.
+      + constructor.
+        * refine ((fix fz (c : code) (ts : decode (pTree a) c) {struct ts} : allDecode p c ts := _) c d).
+          destruct ts as [t | c [s t]].
+            -- constructor; apply f.
+            -- constructor; constructor; apply fz.
+        * apply fs.
+Defined.
