@@ -32,9 +32,9 @@ Inductive allPList {a : Type} (p : a -> Type) : pList a -> Type :=
 (*
 However we cannot form the inductive type!
 *)
-Fail Inductive bpTree (a : Type) : Type :=
-  | pLeaf : a -> bpTree a
-  | pNode : pList (bpTree a) -> bpTree a.
+Fail Inductive pTree (a : Type) : Type :=
+  | pLeaf : a -> pTree a
+  | pNode : pList (pTree a) -> pTree a.
 
 (*
 code:
@@ -68,7 +68,7 @@ Inductive allDecode {a : Type} (p : a -> Type) : forall c, decode a c -> Type :=
      allDecode p (dup c) (pair a c (l, r)).
 
 (* Barras' pList:
-  - instead of modifying the paremeter as we go, we record the
+  - instead of modifying the parameter as we go, we record the
     modifications in the code index
   - use decode to deploy the modifications
 *)
@@ -224,7 +224,7 @@ apply gen_allBpList_to_PList with (p := p).
 Defined.
 
 (* Power Trees:
-  - Uses Barras' pList with the start code
+  - Uses Barras' pList with the 'start' code
 *)
 
 Inductive bpTree (a : Type) : Type :=
