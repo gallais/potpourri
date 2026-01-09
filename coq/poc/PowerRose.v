@@ -32,9 +32,9 @@ Inductive allPList {a : Type} (p : a -> Type) : pList a -> Type :=
 (*
 However we cannot form the inductive type!
 *)
-Fail Inductive pTree (a : Type) : Type :=
-  | pLeaf : a -> pTree a
-  | pNode : pList (pTree a) -> pTree a.
+Fail Inductive bpTree (a : Type) : Type :=
+  | pLeaf : a -> bpTree a
+  | pNode : pList (bpTree a) -> bpTree a.
 
 (*
 code:
@@ -213,28 +213,40 @@ Defined.
   - Uses Barras' pList with the start code
 *)
 
-Inductive pTree (a : Type) : Type :=
-  | pLeaf : a -> pTree a
-  | pNode : bpList (pTree a) start -> pTree a.
+Inductive bpTree (a : Type) : Type :=
+  | bpLeaf : a -> bpTree a
+  | bpNode : bpList (bpTree a) start -> bpTree a.
 
 (* TODO: induction by fixpoint *)
 
-Definition rec {a : Type} (p : pTree a -> Type)
-  (case_pLeaf : forall x, p (pLeaf a x))
-  (case_pNode : forall (ts : bpList (pTree a) start), allBpList (pTree a) p start ts -> p (pNode a ts)) :
+Definition bpTree_induction {a : Type} (p : bpTree a -> Type)
+  (case_bpLeaf : forall x, p (bpLeaf a x))
+  (case_bpNode : forall (ts : bpList (bpTree a) start), allBpList (bpTree a) p start ts -> p (bpNode a ts)) :
   forall t, p t.
-
-refine (fix f (t : pTree a) {struct t} : p t := _).
+refine (fix f (t : bpTree a) {struct t} : p t := _).
 destruct t as [x|ts].
-  - apply case_pLeaf.
-  - apply case_pNode.
-    refine ((fix fs (c : code) (ts : bpList (pTree a) c) {struct ts} : allBpList (pTree a) p c ts := _) start ts).
+  - apply case_bpLeaf.
+  - apply case_bpNode.
+    refine ((fix fs (c : code) (ts : bpList (bpTree a) c) {struct ts} : allBpList (bpTree a) p c ts := _) start ts).
     destruct ts.
       + constructor.
       + constructor.
-        * refine ((fix fz (c : code) (ts : decode (pTree a) c) {struct ts} : allDecode p c ts := _) c d).
+        * refine ((fix fz (c : code) (ts : decode (bpTree a) c) {struct ts} : allDecode p c ts := _) c d).
           destruct ts as [t | c [s t]].
             -- constructor; apply f.
             -- constructor; constructor; apply fz.
         * apply fs.
+Defined.
+
+Definition pLeaf := bpLeaf.
+Definition pNode := fun a ts => bpNode a (pList_to_bpList ts).
+
+Definition pTree_induction {a : Type} (p : bpTree a -> Type)
+  (case_pLeaf : forall x, p (pLeaf a x))
+  (case_pNode : forall (ts : pList (bpTree a)), allPList p ts -> p (pNode a ts)) :
+  forall t, p t.
+apply bpTree_induction.
+  - apply case_pLeaf.
+  - intros ts pts; rewrite <- (bpList_to_pList_to_bpList ts).
+    apply case_pNode, (allBpList_to_PList p start); assumption.
 Defined.
