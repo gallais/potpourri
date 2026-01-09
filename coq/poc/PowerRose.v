@@ -92,10 +92,14 @@ Definition fold_decode :
 intros a [|] x; constructor; assumption.
 Defined.
 
-
 Definition fold_unfold_decode : forall a c (x : decode a c),
   x = fold_decode a c (unfold_decode a c x).
 intros a c [|]; reflexivity.
+Qed.
+
+Definition unfold_fold_decode : forall a c x,
+  x = unfold_decode a c (fold_decode a c x).
+intros a [|]; reflexivity.
 Qed.
 
 Definition map_both {a b : Type} (f : a -> b) (p : a * a) : (b * b) :=
@@ -120,6 +124,60 @@ apply (gen_bpList_to_pList start xs).
 exact (unfold_decode a start).
 Defined.
 
+Fixpoint gen_pList_to_bpList {a b : Type} (xs : pList b) {struct xs} :
+  forall (c : code) (f : b -> decode a c), bpList a c.
+destruct xs as [| x xs]; intros c f.
+  - apply bpnil.
+  - apply bpcons.
+    + exact (f x).
+    + apply (gen_pList_to_bpList a (b * b)%type xs (dup c) (fun v => fold_decode _ (dup c) (map_both f v))).
+Defined.
+
+Definition pList_to_bpList {a : Type} (xs : pList a) : bpList a start.
+apply (gen_pList_to_bpList xs start).
+apply (fold_decode a start).
+Defined.
+
+Lemma gen_pList_to_bpList_to_pList {b : Type} (xs : pList b) :
+  forall {a : Type} c (g : decode a c -> b) (f : b -> decode a c),
+  (forall x, g (f x) = x) ->
+  gen_bpList_to_pList c (gen_pList_to_bpList xs c f) b g = xs.
+Proof.
+induction xs as [b|b x xs IHxs]; intros a c g f gfeq.
+  - reflexivity.
+  - simpl; f_equal.
+    + apply gfeq.
+    + apply IHxs; intros [s t]; compute; f_equal; apply gfeq.
+Qed.
+
+Lemma pList_to_bpList_to_pList {b : Type} (xs : pList b) :
+  bpList_to_pList (pList_to_bpList xs) = xs.
+Proof.
+apply (gen_pList_to_bpList_to_pList xs start).
+symmetry.
+apply (unfold_fold_decode b start).
+Qed.
+
+Lemma gen_bpList_to_pList_to_bpList {a : Type} (c : code) (xs : bpList a c) :
+  forall {b : Type} (g : b -> decode a c) (f :  decode a c -> b),
+  (forall x, g (f x) = x) ->
+  gen_pList_to_bpList (gen_bpList_to_pList c xs b f) c g = xs.
+Proof.
+induction xs as [|c x xs]; intros b g f gfeq.
+  - reflexivity.
+  - simpl; f_equal.
+    + apply gfeq.
+    + apply IHxs; intros s; rewrite (fold_unfold_decode a (dup c) s); simpl; f_equal.
+      destruct (unfold_decode a (dup c) s); simpl; f_equal; apply gfeq.
+Qed.
+
+Lemma bpList_to_pList_to_bpList {a : Type} (xs : bpList a start) :
+  pList_to_bpList (bpList_to_pList xs) = xs.
+Proof.
+apply gen_bpList_to_pList_to_bpList.
+symmetry; apply (fold_unfold_decode a start).
+Qed.
+
 (*
 The corresponding predicate lifting.
 *)
@@ -128,7 +186,6 @@ Inductive allBpList (a : Type) (p : a -> Type) (c : code) : bpList a c -> Type :
   | allBpnil : allBpList a p c (bpnil a c)
   | allBpcons : forall x xs, allDecode p c x ->
     allBpList a p (dup c) xs -> allBpList a p c (bpcons a c x xs).
-
 
 Definition gen_allBpList_to_PList
   {a : Type} (p : a -> Type) (c : code) {xs : bpList a c}
