@@ -187,6 +187,18 @@ Inductive allBpList (a : Type) (p : a -> Type) (c : code) : bpList a c -> Type :
   | allBpcons : forall x xs, allDecode p c x ->
     allBpList a p (dup c) xs -> allBpList a p c (bpcons a c x xs).
 
+Definition UnfoldAllDecode
+  {a : Type} (p : a -> Type) (c : code) : decode a c -> Type :=
+  match c with
+    | start => fun d => p (unfold_decode a start d)
+    | dup c => fun d => both (allDecode p c) (unfold_decode a (dup c) d)
+  end.
+
+Definition unfold_allDecode a p c (d : decode a c) :
+  allDecode p c d -> UnfoldAllDecode p c d.
+intro h; destruct h; assumption.
+Defined.
+
 Definition gen_allBpList_to_PList
   {a : Type} (p : a -> Type) (c : code) {xs : bpList a c}
   (pxs : allBpList a p c xs) :
@@ -198,8 +210,10 @@ induction pxs as [|c x xs px pxs IHpxs]; intros b f q pf.
   - apply allPcons.
     + apply pf; assumption.
     + apply (IHpxs (b * b)%type (decode_both f) (both q)).
-      intro d; rewrite (fold_unfold_decode _ _ d).
-Admitted.
+      intro d; rewrite (fold_unfold_decode _ _ d); simpl.
+      destruct (unfold_decode a (dup c) d); simpl.
+      intro h; apply unfold_allDecode in h; destruct h; constructor; apply pf; assumption.
+Defined.
 
 Definition allBpList_to_PList
   {a : Type} (p : a -> Type) (c : code) {xs : bpList a start}
@@ -216,8 +230,6 @@ Defined.
 Inductive bpTree (a : Type) : Type :=
   | bpLeaf : a -> bpTree a
   | bpNode : bpList (bpTree a) start -> bpTree a.
-
-(* TODO: induction by fixpoint *)
 
 Definition bpTree_induction {a : Type} (p : bpTree a -> Type)
   (case_bpLeaf : forall x, p (bpLeaf a x))
