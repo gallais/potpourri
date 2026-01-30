@@ -39,15 +39,15 @@ data Action m a where
        -> Action m a
        -> Action m a
 
-type Conc m r a = Cont (Action m r) a
+type Conc m a = forall r. Cont (Action m r) a
 
-action :: Conc m a a -> Action m a
+action :: Conc m a -> Action m a
 action (MkCont c) = c Pure
 
-atom :: Functor m => m a -> Conc m r a
+atom :: Functor m => m a -> Conc m a
 atom m = MkCont $ \ k -> Atom (k <$> m)
 
-fork :: Conc m () () -> Conc m a ()
+fork :: Conc m () -> Conc m ()
 fork c = MkCont (\ k -> Fork (action c) (k ()))
 
 data All (p :: Type -> Type) (as :: [Type]) where
@@ -89,17 +89,15 @@ robin f sa (ACons a as) = case a of
     Pure v -> robin (\ sv vs -> f sv (ACons (MkIdentity v) vs)) sa as
 robin f sa as = rewind f sa as
 
-
-run :: Monad m => Conc m a a -> m a
+run :: Monad m => Conc m a -> m a
 run c = robin (\ _ (ACons v _) -> runIdentity v) ANil (ACons (action c) ANil)
 
-loop :: Int -> String -> Conc IO a Int
+loop :: Int -> String -> Conc IO Int
 loop i s
   | i <= 0 = pure (length s)
   | otherwise = do atom (putStrLn s); loop (i - 1) s
 
-
-example :: Conc IO Int Int
+example :: Conc IO Int
 example = do
   atom $ putStrLn "start!"
   fork (void $ loop 5 "fish")
