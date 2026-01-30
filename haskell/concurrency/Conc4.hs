@@ -149,4 +149,4 @@ fibonacci i n = do
   let fn = fn1 + fn2
   atom $ putStrLn $ unwords
     [ "Thread", show i, "has computed fib", show n, "=", show fn ]
-  pure (fn1 + fn2)
+  pure fn
