@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Conc4 where
 
@@ -59,16 +58,6 @@ conc :: Conc m a -> Conc m b -> Conc m (a, b)
 conc c1 c2 = MkCont $ \ k ->
   Join (action c1) (action c2) $ \ a b ->
   k (a, b)
-
-type family TreeVal (t :: Tree a) :: a where
-  TreeVal (Leaf x) = x
-  TreeVal (Node x _ _) = x
-
-data Tree a = Leaf a | Node a (Tree a) (Tree a)
-
-data Layer a
-  = TreeL a () (Tree a)
-  | TreeR a (Tree a) ()
 
 data TreeAct m a where
   AValue :: a -> TreeAct m a
