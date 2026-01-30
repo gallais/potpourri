@@ -38,6 +38,7 @@ data Action m a where
   Fork :: Action m () -- Fork is right-biased
        -> Action m a
        -> Action m a
+  deriving (Functor)
 
 type Conc m a = forall r. Cont (Action m r) a
 
@@ -49,6 +50,9 @@ atom m = MkCont $ \ k -> Atom (k <$> m)
 
 fork :: Conc m () -> Conc m ()
 fork c = MkCont (\ k -> Fork (action c) (k ()))
+
+split :: Functor m => Conc m Bool
+split = MkCont (\ k -> Fork (void $ k True) (k False))
 
 data All (p :: Type -> Type) (as :: [Type]) where
   ANil  :: All p '[]
@@ -105,3 +109,14 @@ example = do
   j <- loop 5 "finalising"
   atom $ putStrLn "end!"
   atom $ pure (i + j)
+
+
+example2 :: Conc IO Int
+example2 = do
+  atom $ putStrLn "start!"
+  b <- split
+  if b then loop 5 "fish" else do
+    i <- do fork (void $ loop 5 "cat"); loop 5 "catfish"
+    j <- loop 5 "finalising"
+    atom $ putStrLn "end!"
+    atom $ pure (i + j)
