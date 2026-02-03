@@ -1,7 +1,9 @@
+{-# OPTIONS_GHC -fwarn-incomplete-patterns #-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 
-module Conc4 where
+module Conc5 where
 
 import Data.Functor (void)
 import Data.Kind (Type)
@@ -32,15 +34,14 @@ execCont (MkCont c) = c id
 ------------------------------------------------------------------------
 -- Concurrency monad
 
+type MAction m a = Either a (Action m a)
+
 data Action m a where
   Pure :: a -> Action m a
   Atom :: m (Action m a) -> Action m a
-  Fork :: Action m ()
-       -> Action m a
-       -> Action m a
   Join :: Action m b
        -> Action m c
-       -> (b -> c -> Action m a)
+       -> (b -> c -> MAction m a)
        -> Action m a
 
 type Conc m a = forall r. Cont (Action m r) a
@@ -53,29 +54,36 @@ atom m = MkCont $ \ k -> Atom (k <$> m)
 
 fork :: Conc m () -> Conc m ()
 fork c = MkCont $ \ k ->
-  Join (action c) (k ()) $ \ a b -> Pure b
-  -- MkCont (\ k -> Fork (action c) (k ()))
+  Join (action c) (k ()) $ \ a b -> Left b
 
 conc :: Conc m a -> Conc m b -> Conc m (a, b)
 conc c1 c2 = MkCont $ \ k ->
   Join (action c1) (action c2) $ \ a b ->
-  k (a, b)
+  Right $ k (a, b)
+
+await :: Conc m a -> Conc m a
+await c = MkCont $ \ k -> Join (action c) (Pure ()) (const . Right . k)
 
 data TreeAct m a where
-  AValue :: a -> TreeAct m a
-  ALeaf  :: Action m a -> TreeAct m a
-  ANode  :: (a -> b -> Action m c)
-         -> TreeAct m a
-         -> TreeAct m b
-         -> TreeAct m c
+  ALeaf   :: Action m a -> TreeAct m a
+  ABranch :: (a -> MAction m b)
+          -> TreeAct m a
+          -> TreeAct m b
+  ANode   :: (a -> b -> Either c (Action m c))
+          -> TreeAct m a
+          -> TreeAct m b
+          -> TreeAct m c
 
 data Stack m :: Type -> Type -> Type where
   SNil   :: Stack m a a
-  SConsL :: (a -> b -> Action m c)
+  SCons  :: (a -> MAction m c)
+         -> Stack m c ret
+         -> Stack m a ret
+  SConsL :: (a -> b -> MAction m c)
          -> Stack m c ret
          -> TreeAct m b
          -> Stack m a ret
-  SConsR :: (a -> b -> Action m c)
+  SConsR :: (a -> b -> MAction m c)
          -> TreeAct m a
          -> Stack m c ret
          -> Stack m b ret
@@ -86,12 +94,11 @@ unwind
   -> Stack m a ret
   -> m ret
 unwind v SNil = pure v
-unwind v (SConsL f stk t) = case t of
-  AValue b -> next (ALeaf $ f v b) stk
-  _ -> robin t (SConsR f (AValue v) stk)
-unwind v (SConsR f t stk) = case t of
-  AValue a -> next (ALeaf $ f a v) stk
-  _ -> next (ANode f t (AValue v)) stk
+unwind v (SCons f stk) = case f v of
+  Left fv -> unwind fv stk
+  Right fv -> next (ALeaf fv) stk
+unwind v (SConsL f stk t) = robin t (SCons (f v) stk)
+unwind v (SConsR f t stk) = next (ABranch (flip f v) t) stk
 
 next
   :: Monad m
@@ -99,6 +106,7 @@ next
   -> Stack m a ret
   -> m ret
 next t SNil = robin t SNil
+next t (SCons f stk) = next (ABranch f t) stk
 next t (SConsL f stk t') = robin t' (SConsR f t stk)
 next t (SConsR f t' stk) = next (ANode f t' t) stk
 
@@ -107,14 +115,13 @@ robin
   => TreeAct m a
   -> Stack m a ret
   -> m ret
-robin (AValue v) stk = unwind v stk
 robin (ALeaf a) stk = case a of
   Pure v -> unwind v stk
   Atom c -> do
     a <- c
     next (ALeaf a) stk
-  Fork a1 a2 -> next (ANode (const Pure) (ALeaf a1) (ALeaf a2)) stk
   Join a1 a2 j -> next (ANode j (ALeaf a1) (ALeaf a2)) stk
+robin (ABranch f a) stk = robin a (SCons f stk)
 robin (ANode f a1 a2) stk = robin a1 (SConsL f stk a2)
 
 
@@ -148,6 +155,7 @@ fibonacci i n = do
     , show i1, "and", show i2
     , "concurrently"]
   (fn1, fn2) <- conc (fibonacci i1 (n-1)) (fibonacci i2 (n-2))
+  await (loop 3 $ unwords [ "Thread", show i, "waiting" ])
   let fn = fn1 + fn2
   atom $ putStrLn $ unwords
     [ "Thread", show i, "has computed fib", show n, "=", show fn ]
