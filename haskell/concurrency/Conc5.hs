@@ -64,6 +64,10 @@ conc c1 c2 = MkCont $ \ k ->
 await :: Conc m a -> Conc m a
 await c = MkCont $ \ k -> Join (action c) (Pure ()) (const . Right . k)
 
+
+------------------------------------------------------------------------
+-- Semantics
+
 data TreeAct m a where
   ALeaf   :: Action m a -> TreeAct m a
   ABranch :: (a -> MAction m b)
@@ -124,9 +128,12 @@ robin (ALeaf a) stk = case a of
 robin (ABranch f a) stk = robin a (SCons f stk)
 robin (ANode f a1 a2) stk = robin a1 (SConsL f stk a2)
 
-
 run :: Monad m => Conc m a -> m a
 run c = robin (ALeaf (action c)) SNil
+
+
+------------------------------------------------------------------------
+-- Examples
 
 loop :: Int -> String -> Conc IO Int
 loop i s
