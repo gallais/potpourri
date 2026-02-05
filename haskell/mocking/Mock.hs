@@ -50,15 +50,13 @@ emptyQueue = do
   pure (front, back)
 
 enqueue :: MonadRef ref m => Queue ref -> Int -> m ()
-enqueue (front, back) i = readRef back >>= \case
-  NULL -> do
-    end <- newRef NULL
-    writeRef front (Cell i end)
-    writeRef back (Cell i end)
-  Cell _ end -> do
-    newEnd <- newRef NULL
-    writeRef end (Cell i newEnd)
-    writeRef back (Cell i newEnd)
+enqueue (front, back) i = do
+  end <- Cell i <$> newRef NULL
+  d <- readRef back
+  writeRef back end
+  case d of
+    NULL -> writeRef front end
+    Cell _ next -> writeRef next end
 
 dequeue :: MonadRef ref m => Queue ref -> m (Maybe Int)
 dequeue (front, back) = do
@@ -68,6 +66,8 @@ dequeue (front, back) = do
     Cell i newFront -> Just i <$ do
       d <- readRef newFront
       writeRef front d
+      -- don't forget to nullify back if we have reached the end
+      -- (bug in the original paper!)
       case d of
         NULL -> writeRef back NULL
         _ -> pure ()
@@ -152,4 +152,4 @@ cost act
 
 noAlloc :: (forall ref m. MonadRef ref m => Queue ref -> m ()) -> Bool
 noAlloc act
-  = cost (fromList [1..100])  == cost (act =<< fromList [1..100])
+  = cost (fromList [1..100]) == cost (act =<< fromList [1..100])
