@@ -17,10 +17,10 @@ import Data.Maybe (catMaybes, fromJust)
 import Data.Traversable (forM)
 
 import Control.Monad.Identity (Identity, runIdentity)
-import Control.Monad.State (StateT, get, put, modify, runStateT, execStateT)
+
+import Ref (Ref, RefT, cost)
+import qualified Ref
 import Data.IORef
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
 
 ------------------------------------------------------------------------
 -- Model
@@ -120,36 +120,16 @@ instance MonadRef IORef IO where
   readRef = readIORef
   writeRef = writeIORef
 
-newtype Addr a = MkAddr { getAddr :: Int } deriving Show
+instance Monad m => MonadRef (Ref s) (RefT m s) where
+  newRef = Ref.newRef
+  readRef = Ref.readRef
+  writeRef = Ref.writeRef
 
-data Store = MkStore
-  { nextAddr :: Int
-  , store :: IntMap (Data Addr)
-  } deriving (Show)
-
-emptyStore :: Store
-emptyStore = MkStore 0 IntMap.empty
-
-instance Monad m => MonadRef Addr (StateT Store m) where
-  newRef v = do
-    MkStore r store <- get
-    put $ MkStore (r + 1) (IntMap.insert r v store)
-    pure (MkAddr r)
-  readRef (MkAddr r) = fromJust . IntMap.lookup r . store <$> get
-  writeRef (MkAddr r) v = do
-    modify (\ (MkStore n s) -> MkStore n (IntMap.insert r v s))
-
-test' :: Int -> IO (Queue Addr, Store)
-test' n = runStateT (test n) emptyStore
-
-
-cost :: StateT Store Identity a -> Int
-cost act
-  = nextAddr
-  $ runIdentity
-  $ flip execStateT emptyStore
-  $ act
+test' :: Int -> IO ()
+test' n = Ref.runRefT (() <$ test n)
 
 noAlloc :: (forall ref m. MonadRef ref m => Queue ref -> m ()) -> Bool
 noAlloc act
-  = cost (fromList [1..100]) == cost (act =<< fromList [1..100])
+  = let q :: forall s. RefT Identity s (Queue (Ref s))
+        q = fromList [1..100]
+    in cost (() <$ q) == cost (act =<< fromList [1..100])
