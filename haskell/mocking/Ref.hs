@@ -1,4 +1,6 @@
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Ref
   ( Ref

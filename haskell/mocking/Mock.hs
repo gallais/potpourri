@@ -1,5 +1,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- The content of this file is inspired by the paper
@@ -8,15 +11,11 @@
 
 module Mock where
 
-import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 
 import Data.Foldable (forM_)
-import Data.Kind (Type)
-import Data.Maybe (catMaybes, fromJust)
+import Data.Maybe (catMaybes)
 import Data.Traversable (forM)
-
-import Control.Monad.Identity (Identity, runIdentity)
 
 import Ref (Ref, RefT, cost)
 import qualified Ref
@@ -25,14 +24,10 @@ import Data.IORef
 ------------------------------------------------------------------------
 -- Model
 
-class Monad m =>
-  MonadRef
-    (ref :: Type -> Type)
-    (m :: Type -> Type)
-    | m -> ref where
-  newRef   :: Data ref -> m (ref (Data ref))
-  readRef  :: ref (Data ref) -> m (Data ref)
-  writeRef :: ref (Data ref) -> Data ref -> m ()
+class Monad m => MonadRef ref m | m -> ref where
+  newRef :: a -> m (ref a)
+  readRef :: ref a -> m a
+  writeRef :: ref a -> a -> m ()
 
 data Data ref = Cell Int (ref (Data ref)) | NULL
 
@@ -60,15 +55,15 @@ enqueue (front, back) i = do
 
 dequeue :: MonadRef ref m => Queue ref -> m (Maybe Int)
 dequeue (front, back) = do
-  d <- readRef front
-  case d of
+  df <- readRef front
+  case df of
     NULL -> pure Nothing
     Cell i newFront -> Just i <$ do
-      d <- readRef newFront
-      writeRef front d
+      dn <- readRef newFront
+      writeRef front dn
       -- don't forget to nullify back if we have reached the end
       -- (bug in the original paper!)
-      case d of
+      case dn of
         NULL -> writeRef back NULL
         _ -> pure ()
 
@@ -84,8 +79,8 @@ reverseQueue (front, back) = readRef front >>= \case
   where
 
     flipPointers :: MonadRef ref m => Data ref -> Data ref -> m ()
-    flipPointers d NULL = pure ()
-    flipPointers d d'@(Cell i next) = do
+    flipPointers _ NULL = pure ()
+    flipPointers d d'@(Cell _ next) = do
       d'' <- readRef next
       writeRef next d
       flipPointers d' d''
@@ -130,6 +125,4 @@ test' n = Ref.runRefT (() <$ test n)
 
 noAlloc :: (forall ref m. MonadRef ref m => Queue ref -> m ()) -> Bool
 noAlloc act
-  = let q :: forall s. RefT Identity s (Queue (Ref s))
-        q = fromList [1..100]
-    in cost (() <$ q) == cost (act =<< fromList [1..100])
+  = cost (() <$ fromList [1..100]) == cost (act =<< fromList [1..100])
