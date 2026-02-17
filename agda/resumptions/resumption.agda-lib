@@ -1,0 +1,3 @@
+name: resumption
+include: src
+depend: standard-library-dev
