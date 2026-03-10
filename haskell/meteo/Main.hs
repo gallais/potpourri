@@ -91,10 +91,15 @@ entry (vmin, vmax) e =
   td_
     (Just $ unwords
        [ ""
-       , "style=" ++ show ("background-color: rgba(255, 0, 0, " ++ pc ++ "); width:1ch; height: 1ch")
+       , "style=" ++ show ("background-color: rgba(255, 0, 0, " ++ pc ++ "); width:2ch; height: 2ch")
        , "title=" ++ show (displayEntry $ fmap show e)
        ])
     ""
+
+transpose :: [[a]] -> [[a]]
+transpose [] = []
+transpose [m] = map (:[]) m
+transpose (m:ms) = zipWith (:) m (transpose ms)
 
 main :: IO ()
 main = do
@@ -108,13 +113,15 @@ main = do
         , "<br />"
         , table_ $ map (tr_ . concatMap (entry (value emin, value emax))) ms
         ])
+    $ fmap transpose
     $ fmap (groupBy ((==) `on` year))
     $ (\ ms -> (findExtremeTemps ms, ms))
     $ concatMap (mapMaybe findMaxTemp)
-    $ map (map (map snd) . groupBy ((==) `on` (`div` (7*24)) `on` fst) . zip [0..])
+--    $ map (map (map snd) . groupBy ((==) `on` (`div` (7*24)) `on` fst) . zip [0..])
+    $ map (groupBy ((==) `on` month))
     $ groupBy ((==) `on` year)
 --    $ filter ((== 14) . hour)
---    $ filter ((/= 2026) . year)
+    $ filter ((/= 2026) . year)
 --    $ filter ((> 1980) . year)
     $ mapMaybe parseEntry
     $ lines txt
