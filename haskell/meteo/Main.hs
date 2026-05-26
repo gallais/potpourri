@@ -1,9 +1,15 @@
 module Main where
 
+import System.Environment (getArgs)
+
 import Data.Function (on)
 import Data.List (groupBy, intercalate)
 import Data.Maybe (fromMaybe, fromJust, mapMaybe)
 import Text.Read (readMaybe)
+
+safeHead :: [a] -> Maybe a
+safeHead (hd:_) = Just hd
+safeHead _ = Nothing
 
 padleft :: Int -> Char -> String -> String
 padleft l c str =
@@ -52,6 +58,16 @@ findMaxTemp (e:es) = Just $ go e es where
     | value e > value emax = go e es
     | otherwise = go emax es
 
+
+findMinTemp :: Ord a => [Entry a] -> Maybe (Entry a)
+findMinTemp [] = Nothing
+findMinTemp (e:es) = Just $ go e es where
+
+  go emin [] = emin
+  go emin (e:es)
+    | value e < value emin = go e es
+    | otherwise = go emin es
+
 findExtremeTemps :: Ord a => [Entry a] -> Maybe (Entry a, Entry a)
 findExtremeTemps [] = Nothing
 findExtremeTemps (e:es) = Just $ go e e es where
@@ -87,11 +103,19 @@ span_ c str = concat ["<span class=", show c, ">", str, "</span>"]
 entry :: (Float, Float) -> Entry Float -> String
 entry (vmin, vmax) e =
   let v = value e in
-  let pc = show ((v - vmin) / (vmax - vmin)) in
+  let vmid = (vmax + vmin) / 2 in
+  let pc | v <= vmid = Left  (show ((vmid - v) / (vmid - vmin)))
+         | otherwise = Right (show ((v - vmid) / (vmax - vmid))) in
   td_
     (Just $ unwords
        [ ""
-       , "style=" ++ show ("background-color: rgba(255, 0, 0, " ++ pc ++ "); width:2ch; height: 2ch")
+       , "style=" ++ show (concat
+           [ "background-color: rgba("
+           , case pc of
+               Left f -> "0, 0, 255," ++ f
+               Right f -> "255, 0, 0," ++ f
+           , "); width:2ch; height: 2ch"
+           ])
        , "title=" ++ show (displayEntry $ fmap show e)
        ])
     ""
@@ -101,10 +125,20 @@ transpose [] = []
 transpose [m] = map (:[]) m
 transpose (m:ms) = zipWith (:) m (transpose ms)
 
+select :: String -> (FilePath, String)
+select opt = case opt of
+  "cannes" -> ("open-meteo-43.62N7.05E11m.csv", opt)
+  "paris" -> ("open-meteo-48.82N2.29E43m.csv", opt)
+  "london" -> ("open-meteo-51.49N0.16W23m.csv", opt)
+  "glasgow" -> ("open-meteo-55.85N4.22W38m.csv", opt)
+  _ -> select "paris"
+
 main :: IO ()
 main = do
-  txt <- readFile "open-meteo-55.85N4.22W38m.csv"
-  putStrLn
+  opt <- fromMaybe "" . safeHead <$> getArgs
+  (fp, opt) <- pure $ select opt
+  txt <- readFile fp
+  writeFile (opt ++ ".html")
   --  $ (header ++)
     $ (\ (mmm, ms) -> let (emin, emax) = fromJust mmm in unlines
         [ "min: " ++ displayEntry (show <$> emin)
@@ -116,7 +150,7 @@ main = do
     $ fmap transpose
     $ fmap (groupBy ((==) `on` year))
     $ (\ ms -> (findExtremeTemps ms, ms))
-    $ concatMap (mapMaybe findMaxTemp)
+    $ concatMap (mapMaybe findMinTemp)
 --    $ map (map (map snd) . groupBy ((==) `on` (`div` (7*24)) `on` fst) . zip [0..])
     $ map (groupBy ((==) `on` month))
     $ groupBy ((==) `on` year)
