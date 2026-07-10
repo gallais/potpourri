@@ -38,9 +38,7 @@ pattern Hole = Leaf Nothing
 nextHole
   :: Focus (Maybe a)
   -> Maybe (Focus (Maybe a))
-nextHole (Focus c t) = case up c t of
-  Right f -> pure f
-  Left t -> local Top t
+nextHole (Focus c t) = up c t
 
   where
 
@@ -48,10 +46,8 @@ nextHole (Focus c t) = case up c t of
     local c (Leaf _) = Nothing
     local c (Node l r) = local (LeftOf c r) l <|> local (RightOf l c) r
 
-    up Top t = Left t
-    up (LeftOf c r) t = case local (RightOf t c) r of
-      Nothing -> up c (Node t r)
-      Just f -> Right f
+    up Top t = local Top t
+    up (LeftOf c r) t = local (RightOf t c) r <|> up c (Node t r)
     up (RightOf l c) t = up c (Node l t)
 
 type S a = Maybe (Focus (Maybe a))
