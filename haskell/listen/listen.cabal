@@ -59,7 +59,8 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules: Problem
+    exposed-modules: Okasaki
+                   , Problem
                    , Solution
 
     -- Modules included in this library but not exported.
@@ -89,7 +90,7 @@ test-suite listen-test
     -- other-modules:
 
     -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+    default-extensions: RankNTypes
 
     -- The interface type and version of the test suite.
     type:             exitcode-stdio-1.0
